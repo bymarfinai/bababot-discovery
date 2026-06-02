@@ -15,7 +15,7 @@ from fastapi import FastAPI, HTTPException, Security, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
-from backtesting_core import Backtester, StrategyConfig
+from backtesting_core_v2 import Backtester, StrategyConfig
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.0.0")
 security = HTTPBearer(auto_error=False)
@@ -157,10 +157,30 @@ def health():
 def list_strategies():
     return {
         "entry_logics": [
-            "ema_cross", "ema_cross_rsi", "ema_trend_pullback",
-            "rsi_ob_os", "macd_cross", "macd_zero",
-            "bb_bounce", "stoch_cross",
+            # Crossover
+            "ema_cross", "ema_cross_rsi", "ema_cross_volume", "ema_trend_pullback",
+            "sma_cross", "macd_cross", "macd_zero", "macd_histogram_momentum",
+            "stoch_cross", "stoch_ob_os", "supertrend_flip", "sar_flip",
+            "ichimoku_cross", "vwap_cross",
+            # Breakout
+            "donchian_breakout", "bb_breakout", "keltner_breakout",
+            # Mean Reversion
+            "rsi_ob_os", "bb_bounce", "cci_ob_os",
+            # Momentum
+            "adx_momentum",
+            # Divergence
+            "rsi_divergence", "obv_divergence",
+            # Volume
+            "volume_spike_momentum",
         ],
+        "filters": {
+            "trend_filter": ["ema200_long", "ema200_short", "adx_direction"],
+            "volatility_filter": ["atr_min", "atr_max", "bb_squeeze"],
+            "volume_filter": ["volume_spike", "taker_buy"],
+            "regime_filter": ["trending", "ranging"],
+            "session_filter": ["asia", "london", "ny", "london_ny"]
+        },
+        "sl_tp_types": ["fixed_pct", "atr_dynamic"],
         "supported_pairs": ["BTCUSDT", "ETHUSDT", "XRPUSDT", "YFIUSDT"],
         "supported_timeframes": ["1m", "3m", "5m", "15m", "1h"],
         "directions": ["long", "short", "both"],
