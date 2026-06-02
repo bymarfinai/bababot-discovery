@@ -337,8 +337,11 @@ def calc_adx(highs, lows, closes, period):
         adx_val = (adx_val * (period - 1) + dx[i - period]) / period
         adx_out[i] = adx_val
     
-    di_plus[period+1:] = dip
-    di_minus[period+1:] = dim
+    # Fix array size mismatch — dip/dim derived from diff (n-1 elements)
+    dip_len = len(dip)
+    dim_len = len(dim)
+    di_plus[1:dip_len+1] = dip
+    di_minus[1:dim_len+1] = dim
     
     return adx_out, di_plus, di_minus
 
