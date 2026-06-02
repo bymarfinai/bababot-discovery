@@ -3,39 +3,39 @@ BabaBot AI Strategy Discovery — Step 1C: API Endpoint
 FastAPI server expose POST /backtest endpoint.
 
 Usage:
-    uvicorn app:app --host 0.0.0.0 --port 8000
-    
-    POST /backtest
-    {
-        "symbol": "BTCUSDT",
-        "timeframe": "5m", 
-        "entry_logic": "ema_cross",
-        "indicators": {"ema_fast": 9, "ema_slow": 21},
-        "sl_pct": 0.3,
-        "tp_pct": 0.8,
-        "days": 90
-    }
+    uvicorn app:app --host 0.0.0.0 --port $PORT
 """
 
 import os
-from fastapi import FastAPI, HTTPException, Security
+import subprocess
+import threading
+import sqlite3
+from pathlib import Path
+from fastapi import FastAPI, HTTPException, Security, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
-from backtesting_core import Backtester, StrategyConfig, BacktestResult
+from backtesting_core import Backtester, StrategyConfig
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.0.0")
 security = HTTPBearer(auto_error=False)
 
-# Auth token dari environment variable
 API_TOKEN = os.environ.get("BACKTEST_API_TOKEN", "")
 DB_PATH = os.environ.get("DB_PATH", "market_data.db")
 
 bt = Backtester(db_path=DB_PATH)
 
+# Track fetch status
+fetch_status = {
+    "running": False,
+    "last_run": None,
+    "last_result": None,
+    "error": None,
+}
+
 
 # ============================================================
-# REQUEST / RESPONSE MODELS
+# REQUEST MODELS
 # ============================================================
 
 class BacktestRequest(BaseModel):
@@ -57,6 +57,11 @@ class BacktestRequest(BaseModel):
 class BatchBacktestRequest(BaseModel):
     configs: list[BacktestRequest]
 
+class FetchRequest(BaseModel):
+    days: int = 90
+    pairs: Optional[list[str]] = None
+    timeframes: Optional[list[str]] = None
+
 
 # ============================================================
 # AUTH
@@ -64,10 +69,47 @@ class BatchBacktestRequest(BaseModel):
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
     if not API_TOKEN:
-        return True  # No token configured = open (dev mode)
+        return True
     if not credentials or credentials.credentials != API_TOKEN:
         raise HTTPException(status_code=401, detail="Invalid or missing token")
     return True
+
+
+# ============================================================
+# BACKGROUND FETCH
+# ============================================================
+
+def _run_fetch(days: int, pairs: Optional[list], timeframes: Optional[list]):
+    global fetch_status
+    fetch_status["running"] = True
+    fetch_status["error"] = None
+    
+    try:
+        from data_fetcher import fetch_all
+        results = fetch_all(
+            pairs=pairs,
+            timeframes=timeframes,
+            days=days,
+            db_path=DB_PATH
+        )
+        
+        total_new = sum(r.get("new_candles", 0) for r in results)
+        total_all = sum(r.get("total_candles", 0) for r in results)
+        errors = sum(1 for r in results if r.get("status") == "error")
+        
+        from datetime import datetime, timezone
+        fetch_status["last_result"] = {
+            "new_candles": total_new,
+            "total_candles": total_all,
+            "errors": errors,
+            "configs_run": len(results),
+        }
+        fetch_status["last_run"] = datetime.now(timezone.utc).isoformat()
+        
+    except Exception as e:
+        fetch_status["error"] = str(e)
+    finally:
+        fetch_status["running"] = False
 
 
 # ============================================================
@@ -80,13 +122,82 @@ def root():
         "service": "BabaBot Backtesting API",
         "version": "1.0.0",
         "status": "running",
-        "endpoints": ["/backtest", "/backtest/batch", "/health", "/strategies"]
+        "endpoints": ["/backtest", "/backtest/batch", "/health", "/strategies", "/fetch-data", "/fetch-status"]
     }
 
 @app.get("/health")
 def health():
-    import sqlite3
-    from pathlib import Path
+    db_ok = Path(DB_PATH).exists()
+    candle_count = 0
+    pairs_info = []
+    if db_ok:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            candle_count = conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
+            pairs_info = conn.execute("""
+                SELECT symbol, timeframe, COUNT(*) as candles
+                FROM klines GROUP BY symbol, timeframe
+                ORDER BY symbol, timeframe
+            """).fetchall()
+            conn.close()
+        except:
+            pass
+    
+    return {
+        "status": "ok",
+        "db_exists": db_ok,
+        "total_candles": candle_count,
+        "db_path": DB_PATH,
+        "data": [{"symbol": r[0], "timeframe": r[1], "candles": r[2]} for r in pairs_info],
+        "fetch_running": fetch_status["running"],
+        "last_fetch": fetch_status["last_run"],
+    }
+
+@app.get("/strategies")
+def list_strategies():
+    return {
+        "entry_logics": [
+            "ema_cross", "ema_cross_rsi", "ema_trend_pullback",
+            "rsi_ob_os", "macd_cross", "macd_zero",
+            "bb_bounce", "stoch_cross",
+        ],
+        "supported_pairs": ["BTCUSDT", "ETHUSDT", "XRPUSDT", "YFIUSDT"],
+        "supported_timeframes": ["1m", "3m", "5m", "15m", "1h"],
+        "directions": ["long", "short", "both"],
+        "session_filters": ["asia", "london", "ny", None]
+    }
+
+@app.post("/fetch-data")
+def fetch_data(req: FetchRequest, background_tasks: BackgroundTasks, _=Security(verify_token)):
+    """
+    Trigger data fetch dari Binance di background.
+    Tidak blocking — langsung return, fetch jalan di background.
+    Cek progress di /fetch-status
+    """
+    if fetch_status["running"]:
+        return {
+            "status": "already_running",
+            "message": "Fetch sedang berjalan. Cek /fetch-status untuk progress."
+        }
+    
+    background_tasks.add_task(
+        _run_fetch,
+        days=req.days,
+        pairs=req.pairs,
+        timeframes=req.timeframes
+    )
+    
+    return {
+        "status": "started",
+        "message": f"Fetching {req.days} hari data di background.",
+        "pairs": req.pairs or ["BTCUSDT", "ETHUSDT", "XRPUSDT", "YFIUSDT"],
+        "timeframes": req.timeframes or ["1m", "3m", "5m", "15m", "1h"],
+        "check_progress": "/fetch-status"
+    }
+
+@app.get("/fetch-status")
+def get_fetch_status():
+    """Cek status fetch yang sedang atau sudah berjalan."""
     db_ok = Path(DB_PATH).exists()
     candle_count = 0
     if db_ok:
@@ -96,40 +207,23 @@ def health():
             conn.close()
         except:
             pass
+    
     return {
-        "status": "ok",
-        "db_exists": db_ok,
-        "total_candles": candle_count,
-        "db_path": DB_PATH
-    }
-
-@app.get("/strategies")
-def list_strategies():
-    """List semua entry logics yang tersedia."""
-    return {
-        "entry_logics": [
-            "ema_cross",
-            "ema_cross_rsi",
-            "ema_trend_pullback",
-            "rsi_ob_os",
-            "macd_cross",
-            "macd_zero",
-            "bb_bounce",
-            "stoch_cross",
-        ],
-        "supported_pairs": ["BTCUSDT", "ETHUSDT", "XRPUSDT", "YFIUSDT"],
-        "supported_timeframes": ["1m", "3m", "5m", "15m", "1h"],
-        "directions": ["long", "short", "both"],
-        "session_filters": ["asia", "london", "ny", None]
+        "running": fetch_status["running"],
+        "last_run": fetch_status["last_run"],
+        "last_result": fetch_status["last_result"],
+        "error": fetch_status["error"],
+        "current_candles_in_db": candle_count,
     }
 
 @app.post("/backtest")
 def run_backtest(req: BacktestRequest, _=Security(verify_token)):
-    """
-    Run single backtest.
-    Returns comprehensive metrics.
-    """
-    # Merge default indicators dengan yang dikirim
+    if not Path(DB_PATH).exists():
+        raise HTTPException(
+            status_code=503,
+            detail="Database belum ada. Hit POST /fetch-data dulu untuk download data."
+        )
+    
     default_indicators = {
         "ema_fast": 9, "ema_slow": 21,
         "rsi_period": 14, "rsi_oversold": 30, "rsi_overbought": 70,
@@ -161,20 +255,20 @@ def run_backtest(req: BacktestRequest, _=Security(verify_token)):
 
 @app.post("/backtest/batch")
 def run_batch_backtest(req: BatchBacktestRequest, _=Security(verify_token)):
-    """
-    Run multiple backtests sekaligus.
-    Returns list of results.
-    Max 50 configs per request.
-    """
+    if not Path(DB_PATH).exists():
+        raise HTTPException(
+            status_code=503,
+            detail="Database belum ada. Hit POST /fetch-data dulu."
+        )
+    
     if len(req.configs) > 50:
-        raise HTTPException(status_code=400, detail="Max 50 configs per batch request")
+        raise HTTPException(status_code=400, detail="Max 50 configs per batch")
     
     results = []
     for r in req.configs:
-        single_result = run_backtest(r)
-        results.append(single_result)
+        single = run_backtest(r)
+        results.append(single)
     
-    # Summary
     meets = [r for r in results if r.get("meets_criteria")]
     return {
         "total": len(results),
