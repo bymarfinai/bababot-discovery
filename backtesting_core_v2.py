@@ -22,6 +22,7 @@ class StrategyConfig:
     
     # Entry/Exit Logic
     entry_logic: str = "ema_cross"
+    entry_logic_2: Optional[str] = None  # Level 2: second entry for AND confirmation
     exit_logic: str = "sl_tp"           # "sl_tp" or "indicator"
     
     # Indicator Parameters
@@ -92,6 +93,7 @@ class BacktestResult:
     symbol: str = ""
     timeframe: str = ""
     entry_logic: str = ""
+    entry_logic_2: str = ""  # Level 2: second entry logic (if used)
     sl_type: str = "fixed"
     
     total_trades: int = 0
@@ -129,7 +131,8 @@ class BacktestResult:
         criteria = "✅ MEETS CRITERIA" if self.meets_criteria else "❌ Below criteria"
         return (
             f"{criteria}\n"
-            f"{self.symbol} {self.timeframe} | {self.entry_logic}\n"
+            f"{self.symbol} {self.timeframe} | {self.entry_logic}"
+            f"{' AND ' + self.entry_logic_2 if self.entry_logic_2 else ''}\n"
             f"Trades: {self.total_trades} | WR: {self.win_rate:.1f}% | "
             f"P/day: ${self.profit_per_day:.2f} | DD: {self.max_drawdown:.1f}%\n"
             f"Sharpe: {self.sharpe_ratio:.2f} | PF: {self.profit_factor:.2f} | "
@@ -988,6 +991,7 @@ class Backtester:
             symbol=config.symbol,
             timeframe=config.timeframe,
             entry_logic=config.entry_logic,
+            entry_logic_2=config.entry_logic_2 or "",
             sl_type="atr" if config.use_atr_sl_tp else "fixed",
         )
         
@@ -1008,8 +1012,34 @@ class Backtester:
         # Precompute indicators
         ind = precompute_indicators(data, config)
         
-        # Generate + filter signals
+        # Generate signals from primary entry logic
         signals = get_signals(data, ind, config)
+        
+        # Level 2: Multi-entry confirmation (AND within window)
+        if config.entry_logic_2 and config.entry_logic_2 in ENTRY_LOGICS:
+            from dataclasses import replace as dc_replace
+            config2 = dc_replace(config, entry_logic=config.entry_logic_2)
+            signals2 = get_signals(data, ind, config2)
+            
+            # AND: entry only when both signals agree within lookback window
+            window = 3  # candle lookback window
+            combined = np.zeros(len(signals), dtype=int)
+            for i in range(window, len(signals)):
+                if signals[i] != 0:
+                    # Primary fired → check if secondary also fired in window
+                    for j in range(max(0, i - window), i + 1):
+                        if signals2[j] == signals[i]:
+                            combined[i] = signals[i]
+                            break
+                elif signals2[i] != 0:
+                    # Secondary fired → check if primary also fired in window
+                    for j in range(max(0, i - window), i + 1):
+                        if signals[j] == signals2[i]:
+                            combined[i] = signals2[i]
+                            break
+            signals = combined
+        
+        # Apply filters
         signals = apply_filters(data, ind, signals, config)
         
         # Train
