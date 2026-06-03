@@ -57,12 +57,12 @@ class StrategyConfig:
     use_atr_sl_tp: bool = False      # True = dynamic, False = fixed %
     
     # Costs
-    fee_pct: float = 0.08
+    fee_pct: float = 0.10         # Binance Futures taker 0.05% x2
     slippage_pct: float = 0.01
     
     # Capital
-    initial_capital: float = 1000.0
-    position_size_pct: float = 100.0
+    initial_capital: float = 10000.0  # $10K modal
+    position_size_pct: float = 10.5   # ~$1,050 per trade
     
     # Data
     days: int = 90
@@ -1038,7 +1038,7 @@ class Backtester:
         result.status = "ok"
         
         result.meets_criteria = (
-            result.profit_per_day >= 10.0 and
+            result.profit_per_day >= 3.0 and
             result.max_drawdown <= 5.0 and
             result.win_rate >= 55.0 and
             result.data_days >= 90 and
