@@ -18,6 +18,7 @@ Usage:
 """
 
 import os
+import threading
 from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -32,6 +33,9 @@ API_TOKEN = os.environ.get("BACKTEST_API_TOKEN", "")
 DB_PATH = os.environ.get("DB_PATH", "market_data.db")
 
 bt = Backtester(db_path=DB_PATH)
+
+# Track fetch status
+fetch_state = {"status": "idle", "days": 0, "progress": ""}
 
 
 # ============================================================
@@ -65,6 +69,9 @@ class BacktestRequest(BaseModel):
 class BatchBacktestRequest(BaseModel):
     configs: list[BacktestRequest]
 
+class FetchDataRequest(BaseModel):
+    days: int = 90
+
 
 # ============================================================
 # AUTH
@@ -86,9 +93,9 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
 def root():
     return {
         "service": "BabaBot Backtesting API",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "status": "running",
-        "endpoints": ["/backtest", "/backtest/batch", "/health", "/strategies"]
+        "endpoints": ["/backtest", "/backtest/batch", "/health", "/strategies", "/fetch-data", "/fetch-status"]
     }
 
 @app.get("/health")
@@ -139,6 +146,92 @@ def list_strategies():
             "tp_min": "1.0%"
         }
     }
+
+
+# ============================================================
+# DATA FETCHER ENDPOINTS
+# ============================================================
+
+@app.post("/fetch-data")
+def fetch_data(req: FetchDataRequest):
+    """
+    Trigger data fetch dari Binance data.binance.vision.
+    Jalan di background thread supaya nggak timeout.
+    """
+    global fetch_state
+    
+    if fetch_state["status"] == "running":
+        return {"status": "already_running", "days": fetch_state["days"], "message": "Fetch already in progress. Check /fetch-status"}
+    
+    fetch_state = {"status": "running", "days": req.days, "progress": "Starting..."}
+    
+    def run_fetch():
+        global fetch_state
+        try:
+            from data_fetcher import fetch_all
+            fetch_state["progress"] = f"Fetching {req.days} days data for all pairs..."
+            fetch_all(days=req.days, db_path=DB_PATH)
+            fetch_state["status"] = "done"
+            fetch_state["progress"] = f"Completed fetching {req.days} days data"
+        except Exception as e:
+            fetch_state["status"] = "error"
+            fetch_state["progress"] = f"Error: {str(e)}"
+    
+    threading.Thread(target=run_fetch, daemon=True).start()
+    
+    return {
+        "status": "fetching",
+        "days": req.days,
+        "message": f"Fetching {req.days} days data in background. Check /fetch-status for progress."
+    }
+
+@app.get("/fetch-status")
+def fetch_status():
+    """
+    Cek status data fetch + inventory database.
+    """
+    import sqlite3
+    from pathlib import Path
+    
+    result = {
+        "fetch_state": fetch_state,
+        "total_candles": 0,
+        "breakdown": []
+    }
+    
+    if Path(DB_PATH).exists():
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            total = conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
+            pairs = conn.execute("""
+                SELECT symbol, timeframe, COUNT(*) as cnt,
+                       MIN(open_time) as first_ts,
+                       MAX(open_time) as last_ts
+                FROM klines 
+                GROUP BY symbol, timeframe
+                ORDER BY symbol, timeframe
+            """).fetchall()
+            conn.close()
+            
+            result["total_candles"] = total
+            result["breakdown"] = [
+                {
+                    "symbol": r[0],
+                    "timeframe": r[1],
+                    "candles": r[2],
+                    "first_date": r[3],
+                    "last_date": r[4]
+                } for r in pairs
+            ]
+        except Exception as e:
+            result["error"] = str(e)
+    
+    return result
+
+
+# ============================================================
+# BACKTEST ENDPOINTS
+# ============================================================
 
 @app.post("/backtest")
 def run_backtest(req: BacktestRequest, _=Security(verify_token)):
