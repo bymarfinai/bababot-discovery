@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
-from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS
+from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 security = HTTPBearer(auto_error=False)
@@ -60,6 +60,10 @@ class BacktestRequest(BaseModel):
 
 class BatchBacktestRequest(BaseModel):
     configs: list[BacktestRequest]
+
+class CorrelationRequest(BaseModel):
+    configs: list[BacktestRequest]
+    labels: Optional[list[str]] = None
 
 class FetchDataRequest(BaseModel):
     days: int = 365
@@ -436,4 +440,82 @@ def run_batch_backtest(req: BatchBacktestRequest, _=Security(verify_token)):
         "total": len(results),
         "meets_criteria": len(meets),
         "results": results
+    }
+
+
+@app.post("/backtest/correlation")
+def run_correlation(req: CorrelationRequest, _=Security(verify_token)):
+    """
+    Run multiple backtests and analyze correlation between them.
+    Returns individual results + correlation matrix.
+    """
+    if len(req.configs) < 2:
+        raise HTTPException(status_code=400, detail="Need at least 2 configs for correlation")
+    if len(req.configs) > 10:
+        raise HTTPException(status_code=400, detail="Max 10 configs per correlation request")
+    
+    # Run backtests and collect trade lists
+    default_indicators = {
+        "ema_fast": 9, "ema_slow": 21,
+        "rsi_period": 14, "rsi_oversold": 30, "rsi_overbought": 70,
+        "bb_period": 20, "bb_std": 2.0,
+        "macd_fast": 12, "macd_slow": 26, "macd_signal": 9,
+        "atr_period": 14, "stoch_k": 14, "stoch_d": 3, "adx_period": 14,
+    }
+    
+    all_trade_lists = []
+    results = []
+    labels = req.labels or []
+    
+    for i, r in enumerate(req.configs):
+        merged_indicators = {**default_indicators, **r.indicators}
+        config = StrategyConfig(
+            symbol=r.symbol.upper(),
+            timeframe=r.timeframe,
+            entry_logic=r.entry_logic,
+            entry_logic_2=r.entry_logic_2,
+            indicators=merged_indicators,
+            sl_pct=r.sl_pct,
+            tp_pct=r.tp_pct,
+            fee_pct=r.fee_pct,
+            slippage_pct=r.slippage_pct,
+            initial_capital=r.initial_capital,
+            position_size_pct=r.position_size_pct,
+            days=r.days,
+            train_pct=r.train_pct,
+            direction=r.direction,
+            session_filter=r.session_filter,
+            trend_filter=r.trend_filter,
+            volatility_filter=r.volatility_filter,
+            volume_filter=r.volume_filter,
+            regime_filter=r.regime_filter,
+            use_atr_sl_tp=r.use_atr_sl_tp,
+            sl_atr_mult=r.sl_atr_mult,
+            tp_atr_mult=r.tp_atr_mult,
+        )
+        
+        # Get raw trades for correlation
+        data = bt._load_data(config.symbol, config.timeframe, config.days)
+        result = bt.run(config)
+        results.append(result.to_dict())
+        
+        if data and len(data['close']) >= 100:
+            from backtesting_core import precompute_indicators, get_signals, apply_filters, simulate_trades
+            ind = precompute_indicators(data, config)
+            signals = get_signals(data, ind, config)
+            signals = apply_filters(data, ind, signals, config)
+            trades = simulate_trades(data, ind, signals, config, 0)
+            all_trade_lists.append(trades)
+        else:
+            all_trade_lists.append([])
+        
+        if i >= len(labels):
+            labels.append(f"{config.symbol}_{config.timeframe}_{config.entry_logic}")
+    
+    # Run correlation analysis
+    correlation = calc_correlation(all_trade_lists, labels)
+    
+    return {
+        "results": results,
+        "correlation": correlation
     }
