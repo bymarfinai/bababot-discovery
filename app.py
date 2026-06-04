@@ -140,16 +140,21 @@ def list_strategies():
 
 
 # ============================================================
-# DATA FETCHER — CCXT-BASED (supports custom pairs + timeframes)
+# DATA FETCHER — data.binance.vision (bulk CSV download)
 # ============================================================
 
-def fetch_via_ccxt(days: int, pairs: list[str], timeframes: list[str], db_path: str):
-    """Fetch OHLCV data from Binance via ccxt and store in SQLite."""
+def fetch_via_binance_vision(days: int, pairs: list[str], timeframes: list[str], db_path: str):
+    """
+    Fetch OHLCV from data.binance.vision (bulk CSV downloads).
+    Same approach as data_fetcher.py but supports custom pairs/timeframes.
+    URL: https://data.binance.vision/data/futures/um/daily/klines/{SYMBOL}/{INTERVAL}/{SYMBOL}-{INTERVAL}-{DATE}.zip
+    """
     global fetch_state
-    import ccxt
+    import requests
+    import zipfile
+    import csv
+    import io
     from datetime import datetime, timedelta
-    
-    exchange = ccxt.binance({"enableRateLimit": True})
     
     total_fetched = 0
     total_tasks = len(pairs) * len(timeframes)
@@ -158,7 +163,6 @@ def fetch_via_ccxt(days: int, pairs: list[str], timeframes: list[str], db_path: 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Ensure table exists (same schema as data_fetcher.py)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS klines (
             symbol TEXT,
@@ -180,64 +184,102 @@ def fetch_via_ccxt(days: int, pairs: list[str], timeframes: list[str], db_path: 
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_klines_sym_tf ON klines(symbol, timeframe)")
     conn.commit()
     
-    since = int((datetime.utcnow() - timedelta(days=days)).timestamp() * 1000)
+    # Generate date list
+    end_date = datetime.utcnow() - timedelta(days=1)  # yesterday (today might not be complete)
+    start_date = end_date - timedelta(days=days)
+    
+    dates = []
+    d = start_date
+    while d <= end_date:
+        dates.append(d.strftime("%Y-%m-%d"))
+        d += timedelta(days=1)
+    
+    base_url = "https://data.binance.vision/data/futures/um/daily/klines"
     
     for pair in pairs:
         for tf in timeframes:
             completed += 1
-            fetch_state["progress"] = f"[{completed}/{total_tasks}] Fetching {pair} {tf}..."
-            
-            current_since = since
             pair_candles = 0
+            skipped = 0
+            errors = 0
             
-            while True:
-                try:
-                    ohlcv = exchange.fetch_ohlcv(pair, tf, since=current_since, limit=1000)
-                except Exception as e:
-                    fetch_state["progress"] = f"[{completed}/{total_tasks}] {pair} {tf} — retry: {str(e)[:80]}"
-                    time.sleep(5)
+            for i, date_str in enumerate(dates):
+                fetch_state["progress"] = f"[{completed}/{total_tasks}] {pair} {tf} — day {i+1}/{len(dates)}"
+                
+                # Check if date already exists (skip logic)
+                date_ts_start = int(datetime.strptime(date_str, "%Y-%m-%d").timestamp() * 1000)
+                date_ts_end = date_ts_start + 86400000  # +24h in ms
+                
+                existing = cursor.execute(
+                    "SELECT COUNT(*) FROM klines WHERE symbol=? AND timeframe=? AND open_time>=? AND open_time<?",
+                    (pair, tf, date_ts_start, date_ts_end)
+                ).fetchone()[0]
+                
+                if existing > 0:
+                    skipped += 1
                     continue
                 
-                if not ohlcv:
-                    break
+                # Download ZIP
+                zip_url = f"{base_url}/{pair}/{tf}/{pair}-{tf}-{date_str}.zip"
+                try:
+                    r = requests.get(zip_url, timeout=30)
+                    if r.status_code == 404:
+                        # No data for this date (pair might not exist yet)
+                        continue
+                    if r.status_code != 200:
+                        errors += 1
+                        continue
+                    
+                    # Extract CSV from ZIP
+                    z = zipfile.ZipFile(io.BytesIO(r.content))
+                    csv_name = z.namelist()[0]
+                    csv_data = z.read(csv_name).decode("utf-8")
+                    
+                    # Parse CSV — Binance klines CSV format:
+                    # open_time, open, high, low, close, volume, close_time, quote_volume, trades, taker_buy_vol, taker_buy_quote_vol, ignore
+                    rows = []
+                    reader = csv.reader(io.StringIO(csv_data))
+                    for row in reader:
+                        if len(row) < 11:
+                            continue
+                        try:
+                            rows.append((
+                                pair, tf,
+                                int(row[0]),       # open_time
+                                float(row[1]),     # open
+                                float(row[2]),     # high
+                                float(row[3]),     # low
+                                float(row[4]),     # close
+                                float(row[5]),     # volume
+                                int(row[6]),       # close_time
+                                float(row[7]),     # quote_volume
+                                int(row[8]),       # trades
+                                float(row[9]),     # taker_buy_volume
+                                float(row[10]),    # taker_buy_quote_volume
+                            ))
+                        except (ValueError, IndexError):
+                            continue
+                    
+                    if rows:
+                        cursor.executemany(
+                            "INSERT OR REPLACE INTO klines VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            rows
+                        )
+                        conn.commit()
+                        pair_candles += len(rows)
+                        total_fetched += len(rows)
+                        fetch_state["total_candles"] = total_fetched
+                    
+                except Exception as e:
+                    errors += 1
+                    if errors > 10:
+                        fetch_state["progress"] = f"[{completed}/{total_tasks}] {pair} {tf} — too many errors, skipping"
+                        break
+                    continue
                 
-                # Insert batch — map ccxt format to klines schema
-                rows = []
-                for row in ohlcv:
-                    # ccxt returns: [timestamp, open, high, low, close, volume]
-                    rows.append((
-                        pair, tf,
-                        row[0],           # open_time
-                        row[1],           # open
-                        row[2],           # high
-                        row[3],           # low
-                        row[4],           # close
-                        row[5],           # volume
-                        row[0] + 1,       # close_time (approx)
-                        0,                # quote_volume
-                        0,                # trades
-                        0,                # taker_buy_volume
-                        0                 # taker_buy_quote_volume
-                    ))
-                
-                cursor.executemany(
-                    "INSERT OR REPLACE INTO klines VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    rows
-                )
-                conn.commit()
-                
-                pair_candles += len(ohlcv)
-                total_fetched += len(ohlcv)
-                fetch_state["total_candles"] = total_fetched
-                
-                current_since = ohlcv[-1][0] + 1
-                
-                if len(ohlcv) < 1000:
-                    break
-                
-                time.sleep(0.5)
+                time.sleep(0.1)  # gentle rate limit
             
-            fetch_state["progress"] = f"[{completed}/{total_tasks}] {pair} {tf} done — {pair_candles:,} candles"
+            fetch_state["progress"] = f"[{completed}/{total_tasks}] {pair} {tf} done — {pair_candles:,} new, {skipped} skipped"
     
     conn.close()
     return total_fetched
@@ -267,8 +309,8 @@ def fetch_data(req: FetchDataRequest):
         global fetch_state
         try:
             if req.pairs or req.timeframes:
-                # Custom pairs/timeframes — use ccxt
-                total = fetch_via_ccxt(req.days, pairs, timeframes, DB_PATH)
+                # Custom pairs/timeframes — use direct Binance API
+                total = fetch_via_binance_vision(req.days, pairs, timeframes, DB_PATH)
                 fetch_state["status"] = "done"
                 fetch_state["progress"] = f"Completed fetching {req.days} days data — {total:,} candles"
             else:
@@ -279,8 +321,8 @@ def fetch_data(req: FetchDataRequest):
                     fetch_state["status"] = "done"
                     fetch_state["progress"] = f"Completed fetching {req.days} days data"
                 except ImportError:
-                    # data_fetcher not available, fallback to ccxt
-                    total = fetch_via_ccxt(req.days, ALL_PAIRS, ALL_TIMEFRAMES, DB_PATH)
+                    # data_fetcher not available, fallback to direct API
+                    total = fetch_via_binance_vision(req.days, ALL_PAIRS, ALL_TIMEFRAMES, DB_PATH)
                     fetch_state["status"] = "done"
                     fetch_state["progress"] = f"Completed fetching {req.days} days data — {total:,} candles"
         except Exception as e:
