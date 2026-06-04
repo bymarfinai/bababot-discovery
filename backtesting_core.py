@@ -117,6 +117,19 @@ class BacktestResult:
     oos_profit_per_day: float = 0.0
     oos_trades: int = 0
     
+    # Stage 6: Trade duration metrics
+    avg_trade_duration_hours: float = 0.0
+    min_trade_duration_hours: float = 0.0
+    max_trade_duration_hours: float = 0.0
+    avg_bars_held: float = 0.0
+    
+    # Stage 6: Drawdown sequence metrics
+    avg_drawdown_duration_bars: float = 0.0
+    max_drawdown_duration_bars: int = 0
+    avg_drawdown_recovery_bars: float = 0.0
+    max_drawdown_recovery_bars: int = 0
+    drawdown_periods: int = 0
+    
     status: str = "ok"
     error: str = ""
     data_days: float = 0.0
@@ -129,6 +142,15 @@ class BacktestResult:
         if self.status != "ok":
             return f"❌ {self.status}: {self.error}"
         criteria = "✅ MEETS CRITERIA" if self.meets_criteria else "❌ Below criteria"
+        duration_str = ""
+        if self.avg_trade_duration_hours > 0:
+            if self.avg_trade_duration_hours >= 24:
+                duration_str = f"\nDuration: avg {self.avg_trade_duration_hours/24:.1f}d | min {self.min_trade_duration_hours/24:.1f}d | max {self.max_trade_duration_hours/24:.1f}d"
+            else:
+                duration_str = f"\nDuration: avg {self.avg_trade_duration_hours:.1f}h | min {self.min_trade_duration_hours:.1f}h | max {self.max_trade_duration_hours:.1f}h"
+        dd_str = ""
+        if self.drawdown_periods > 0:
+            dd_str = f"\nDD Periods: {self.drawdown_periods} | Avg Duration: {self.avg_drawdown_duration_bars:.0f} trades | Max Recovery: {self.max_drawdown_recovery_bars} trades"
         return (
             f"{criteria}\n"
             f"{self.symbol} {self.timeframe} | {self.entry_logic}"
@@ -136,7 +158,8 @@ class BacktestResult:
             f"Trades: {self.total_trades} | WR: {self.win_rate:.1f}% | "
             f"P/day: ${self.profit_per_day:.2f} | DD: {self.max_drawdown:.1f}%\n"
             f"Sharpe: {self.sharpe_ratio:.2f} | PF: {self.profit_factor:.2f} | "
-            f"MaxConsecLoss: {self.max_consecutive_losses}\n"
+            f"MaxConsecLoss: {self.max_consecutive_losses}"
+            f"{duration_str}{dd_str}\n"
             f"OOS: {self.oos_trades} trades | WR: {self.oos_win_rate:.1f}% | "
             f"P/day: ${self.oos_profit_per_day:.2f}"
         )
@@ -874,6 +897,7 @@ def simulate_trades(data: dict, ind: dict, signals: np.ndarray,
                     "pnl_dollar": pnl_dollar,
                     "bars_held": i - entry_idx,
                     "timestamp_entry": data['open_time'][entry_idx],
+                    "timestamp_exit": data['open_time'][i],
                 })
                 in_position = False
     
@@ -928,6 +952,68 @@ def calc_metrics(trades: list, data_days: float, initial_capital: float) -> dict
     long_w = [t for t in long_tr if t['pnl_dollar'] > 0]
     short_w = [t for t in short_tr if t['pnl_dollar'] > 0]
     
+    # ── Stage 6: Trade duration ──
+    bars_held_arr = np.array([t['bars_held'] for t in trades])
+    
+    # Calculate duration in hours from timestamps if available
+    avg_duration_hours = 0.0
+    min_duration_hours = 0.0
+    max_duration_hours = 0.0
+    
+    durations_ms = []
+    for t in trades:
+        ts_entry = t.get('timestamp_entry', 0)
+        ts_exit = t.get('timestamp_exit', 0)
+        if ts_entry and ts_exit and ts_exit > ts_entry:
+            durations_ms.append(ts_exit - ts_entry)
+    
+    if durations_ms:
+        durations_hours = [d / 3_600_000 for d in durations_ms]  # ms → hours
+        avg_duration_hours = sum(durations_hours) / len(durations_hours)
+        min_duration_hours = min(durations_hours)
+        max_duration_hours = max(durations_hours)
+    
+    # ── Stage 6: Drawdown sequence analysis ──
+    # Track each drawdown period: when equity drops below peak until recovery
+    dd_durations = []      # how long each drawdown lasted (in trades)
+    dd_recoveries = []     # how long from bottom to recovery (in trades)
+    
+    in_drawdown = False
+    dd_start_idx = 0
+    dd_bottom_idx = 0
+    dd_bottom_val = 0
+    
+    for i in range(len(equity)):
+        if equity[i] < peak[i]:
+            # In drawdown
+            if not in_drawdown:
+                in_drawdown = True
+                dd_start_idx = i
+                dd_bottom_idx = i
+                dd_bottom_val = equity[i]
+            elif equity[i] < dd_bottom_val:
+                dd_bottom_idx = i
+                dd_bottom_val = equity[i]
+        else:
+            # Recovered or at peak
+            if in_drawdown:
+                dd_duration = i - dd_start_idx  # total drawdown period
+                dd_recovery = i - dd_bottom_idx  # recovery from bottom
+                dd_durations.append(dd_duration)
+                dd_recoveries.append(dd_recovery)
+                in_drawdown = False
+    
+    # If still in drawdown at end
+    if in_drawdown:
+        dd_durations.append(len(equity) - 1 - dd_start_idx)
+        dd_recoveries.append(len(equity) - 1 - dd_bottom_idx)
+    
+    num_dd_periods = len(dd_durations)
+    avg_dd_duration = sum(dd_durations) / len(dd_durations) if dd_durations else 0
+    max_dd_duration = max(dd_durations) if dd_durations else 0
+    avg_dd_recovery = sum(dd_recoveries) / len(dd_recoveries) if dd_recoveries else 0
+    max_dd_recovery = max(dd_recoveries) if dd_recoveries else 0
+    
     return {
         "total_trades": total,
         "win_rate": round(win_rate, 2),
@@ -944,7 +1030,100 @@ def calc_metrics(trades: list, data_days: float, initial_capital: float) -> dict
         "short_trades": len(short_tr),
         "long_win_rate": round(len(long_w)/len(long_tr)*100, 2) if long_tr else 0,
         "short_win_rate": round(len(short_w)/len(short_tr)*100, 2) if short_tr else 0,
+        # Stage 6: Trade duration metrics
+        "avg_bars_held": round(float(np.mean(bars_held_arr)), 2) if len(bars_held_arr) > 0 else 0,
+        "avg_trade_duration_hours": round(avg_duration_hours, 2),
+        "min_trade_duration_hours": round(min_duration_hours, 2),
+        "max_trade_duration_hours": round(max_duration_hours, 2),
+        # Stage 6: Drawdown sequence metrics
+        "avg_drawdown_duration_bars": round(avg_dd_duration, 2),
+        "max_drawdown_duration_bars": max_dd_duration,
+        "avg_drawdown_recovery_bars": round(avg_dd_recovery, 2),
+        "max_drawdown_recovery_bars": max_dd_recovery,
+        "drawdown_periods": num_dd_periods,
         "status": "ok"
+    }
+
+
+# ============================================================
+# CORRELATION TRACKER (Stage 6)
+# ============================================================
+
+def calc_correlation(trade_lists: list[list[dict]], labels: list[str] = None) -> dict:
+    """
+    Analyze correlation between multiple strategy trade lists.
+    
+    Args:
+        trade_lists: list of trade lists from different strategies
+        labels: optional names for each strategy
+    
+    Returns:
+        dict with correlation matrix and overlap analysis
+    """
+    if len(trade_lists) < 2:
+        return {"error": "Need at least 2 trade lists for correlation", "matrix": []}
+    
+    n = len(trade_lists)
+    if not labels:
+        labels = [f"Strategy_{i+1}" for i in range(n)]
+    
+    # Build time ranges for each strategy's trades
+    trade_ranges = []
+    for trades in trade_lists:
+        ranges = []
+        for t in trades:
+            entry_ts = t.get('timestamp_entry', 0)
+            exit_ts = t.get('timestamp_exit', 0)
+            if entry_ts and exit_ts:
+                ranges.append((entry_ts, exit_ts, t['pnl_dollar']))
+        trade_ranges.append(ranges)
+    
+    # Calculate pairwise overlap and PnL correlation
+    matrix = []
+    overlap_details = []
+    
+    for i in range(n):
+        row = []
+        for j in range(n):
+            if i == j:
+                row.append(1.0)
+                continue
+            
+            # Count overlapping trades (both open at the same time)
+            overlaps = 0
+            same_direction_pnl = 0  # both win or both lose simultaneously
+            total_compared = 0
+            
+            for t1 in trade_ranges[i]:
+                for t2 in trade_ranges[j]:
+                    # Check time overlap
+                    if t1[0] < t2[1] and t2[0] < t1[1]:
+                        overlaps += 1
+                        total_compared += 1
+                        # Check if PnL direction matches (both + or both -)
+                        if (t1[2] > 0 and t2[2] > 0) or (t1[2] <= 0 and t2[2] <= 0):
+                            same_direction_pnl += 1
+            
+            # Correlation = same_direction / total overlapping trades
+            correlation = same_direction_pnl / total_compared if total_compared > 0 else 0
+            row.append(round(correlation, 3))
+            
+            if i < j:  # Only store once per pair
+                overlap_details.append({
+                    "pair": f"{labels[i]} vs {labels[j]}",
+                    "overlapping_trades": overlaps,
+                    "same_direction_pnl": same_direction_pnl,
+                    "correlation": round(correlation, 3),
+                    "verdict": "HIGH_CORR" if correlation > 0.7 else "MODERATE" if correlation > 0.4 else "LOW_CORR"
+                })
+        
+        matrix.append(row)
+    
+    return {
+        "labels": labels,
+        "matrix": matrix,
+        "overlap_details": overlap_details,
+        "portfolio_diversified": all(d['correlation'] < 0.7 for d in overlap_details)
     }
 
 
@@ -1002,7 +1181,7 @@ class Backtester:
             return result
         
         n = len(data['close'])
-        candles_per_day = {'1m': 1440, '3m': 480, '5m': 288, '15m': 96, '1h': 24}
+        candles_per_day = {'1m': 1440, '3m': 480, '5m': 288, '15m': 96, '1h': 24, '4h': 6}
         cpd = candles_per_day.get(config.timeframe, 288)
         data_days = n / cpd
         result.data_days = round(data_days, 1)
