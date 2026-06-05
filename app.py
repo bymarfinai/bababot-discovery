@@ -48,6 +48,8 @@ class BacktestRequest(BaseModel):
     position_size_pct: float = 10.5
     days: int = 90
     train_pct: float = 75.0
+    start_date: Optional[str] = None  # "2024-01-01"
+    end_date: Optional[str] = None    # "2024-12-31"
     direction: str = "both"
     session_filter: Optional[str] = None
     trend_filter: Optional[str] = None
@@ -411,6 +413,8 @@ def run_backtest(req: BacktestRequest, _=Security(verify_token)):
         position_size_pct=req.position_size_pct,
         days=req.days,
         train_pct=req.train_pct,
+        start_date=req.start_date,
+        end_date=req.end_date,
         direction=req.direction,
         session_filter=req.session_filter,
         trend_filter=req.trend_filter,
@@ -483,6 +487,8 @@ def run_correlation(req: CorrelationRequest, _=Security(verify_token)):
             position_size_pct=r.position_size_pct,
             days=r.days,
             train_pct=r.train_pct,
+            start_date=r.start_date,
+            end_date=r.end_date,
             direction=r.direction,
             session_filter=r.session_filter,
             trend_filter=r.trend_filter,
@@ -495,7 +501,7 @@ def run_correlation(req: CorrelationRequest, _=Security(verify_token)):
         )
         
         # Get raw trades for correlation
-        data = bt._load_data(config.symbol, config.timeframe, config.days)
+        data = bt._load_data(config.symbol, config.timeframe, config.days, config.start_date, config.end_date)
         result = bt.run(config)
         results.append(result.to_dict())
         
@@ -518,4 +524,80 @@ def run_correlation(req: CorrelationRequest, _=Security(verify_token)):
     return {
         "results": results,
         "correlation": correlation
+    }
+
+class MultiPeriodRequest(BaseModel):
+    config: BacktestRequest
+    periods: list[dict] = []  # [{"label": "2024", "start": "2024-01-01", "end": "2024-12-31"}, ...]
+
+@app.post("/backtest/multiperiod")
+def run_multiperiod(req: MultiPeriodRequest, _=Security(verify_token)):
+    """
+    Run one strategy config across multiple time periods.
+    Returns results per period for walk-forward validation.
+    """
+    if len(req.periods) > 10:
+        raise HTTPException(status_code=400, detail="Max 10 periods")
+    
+    # If no periods specified, default to per-year 2024/2025/2026
+    periods = req.periods or [
+        {"label": "2024", "start": "2024-01-01", "end": "2024-12-31"},
+        {"label": "2025", "start": "2025-01-01", "end": "2025-12-31"},
+        {"label": "2026", "start": "2026-01-01", "end": "2026-06-05"},
+    ]
+    
+    default_indicators = {
+        "ema_fast": 9, "ema_slow": 21,
+        "rsi_period": 14, "rsi_oversold": 30, "rsi_overbought": 70,
+        "bb_period": 20, "bb_std": 2.0,
+        "macd_fast": 12, "macd_slow": 26, "macd_signal": 9,
+        "atr_period": 14, "stoch_k": 14, "stoch_d": 3, "adx_period": 14,
+    }
+    merged_indicators = {**default_indicators, **req.config.indicators}
+    
+    period_results = []
+    for p in periods:
+        config = StrategyConfig(
+            symbol=req.config.symbol.upper(),
+            timeframe=req.config.timeframe,
+            entry_logic=req.config.entry_logic,
+            entry_logic_2=req.config.entry_logic_2,
+            indicators=merged_indicators,
+            sl_pct=req.config.sl_pct,
+            tp_pct=req.config.tp_pct,
+            fee_pct=req.config.fee_pct,
+            slippage_pct=req.config.slippage_pct,
+            initial_capital=req.config.initial_capital,
+            position_size_pct=req.config.position_size_pct,
+            days=req.config.days,
+            train_pct=req.config.train_pct,
+            start_date=p["start"],
+            end_date=p["end"],
+            direction=req.config.direction,
+            session_filter=req.config.session_filter,
+            trend_filter=req.config.trend_filter,
+            volatility_filter=req.config.volatility_filter,
+            volume_filter=req.config.volume_filter,
+            regime_filter=req.config.regime_filter,
+            use_atr_sl_tp=req.config.use_atr_sl_tp,
+            sl_atr_mult=req.config.sl_atr_mult,
+            tp_atr_mult=req.config.tp_atr_mult,
+        )
+        result = bt.run(config)
+        r = result.to_dict()
+        r["period_label"] = p["label"]
+        r["period_start"] = p["start"]
+        r["period_end"] = p["end"]
+        period_results.append(r)
+    
+    # Consistency check: is strategy profitable in ALL periods?
+    profitable_periods = sum(1 for r in period_results if r.get("profit_per_day", 0) > 0 and r.get("status") == "ok")
+    consistent = profitable_periods == len(periods)
+    
+    return {
+        "strategy": f"{req.config.entry_logic} {req.config.symbol} {req.config.timeframe}",
+        "periods": period_results,
+        "total_periods": len(periods),
+        "profitable_periods": profitable_periods,
+        "consistent": consistent,
     }
