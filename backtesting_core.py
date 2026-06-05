@@ -139,6 +139,8 @@ class BacktestResult:
     data_days: float = 0.0
     meets_criteria: bool = False
     regime_stats: dict = None  # per-regime WR and P&L
+    avg_max_wick_against: float = 0.0  # avg worst wick against per trade
+    pct_trades_wick_hit_sl: float = 0.0  # % trades where wick would've hit SL
     equity_curve: list = field(default_factory=list)  # Stage 10: equity points for charting
     
     def to_dict(self) -> dict:
@@ -925,6 +927,8 @@ def simulate_trades(data: dict, ind: dict, signals: np.ndarray,
     trade_dir = 0
     sl_price = 0.0
     tp_price = 0.0
+    max_wick_against = 0.0  # worst wick against position (%)
+    max_wick_favor = 0.0    # best wick in favor (%)
     
     for i in range(start_idx, n):
         if not in_position:
@@ -934,6 +938,8 @@ def simulate_trades(data: dict, ind: dict, signals: np.ndarray,
                 slip = closes[i] * config.slippage_pct / 100
                 entry_price = closes[i] + slip if trade_dir == 1 else closes[i] - slip
                 entry_idx = i
+                max_wick_against = 0.0
+                max_wick_favor = 0.0
                 
                 # SL/TP: dynamic (ATR) or fixed (%)
                 if config.use_atr_sl_tp and not np.isnan(atr[i]) and atr[i] > 0:
@@ -952,6 +958,16 @@ def simulate_trades(data: dict, ind: dict, signals: np.ndarray,
         else:
             exit_price = None
             exit_reason = None
+            
+            # Track max wick against/favor while in position
+            if trade_dir == 1:  # LONG
+                wick_against_pct = (entry_price - lows[i]) / entry_price * 100
+                wick_favor_pct = (highs[i] - entry_price) / entry_price * 100
+            else:  # SHORT
+                wick_against_pct = (highs[i] - entry_price) / entry_price * 100
+                wick_favor_pct = (entry_price - lows[i]) / entry_price * 100
+            max_wick_against = max(max_wick_against, wick_against_pct)
+            max_wick_favor = max(max_wick_favor, wick_favor_pct)
             
             # SL/TP check — mode: "wick" (high/low) or "close"
             if config.sl_check_mode == "wick":
@@ -1021,6 +1037,8 @@ def simulate_trades(data: dict, ind: dict, signals: np.ndarray,
                     "timestamp_entry": data['open_time'][entry_idx],
                     "timestamp_exit": data['open_time'][i],
                     "regime": int(regimes[entry_idx]) if regimes is not None else 0,
+                    "max_wick_against": round(max_wick_against, 4),
+                    "max_wick_favor": round(max_wick_favor, 4),
                 })
                 in_position = False
     
@@ -1399,6 +1417,14 @@ class Backtester:
         # Regime stats (all trades combined)
         all_trades = train_trades + oos_trades
         result.regime_stats = calc_regime_stats(all_trades, regimes)
+        
+        # Wick stats
+        if all_trades:
+            wicks = [t.get('max_wick_against', 0) for t in all_trades]
+            result.avg_max_wick_against = round(float(np.mean(wicks)), 4) if wicks else 0
+            sl_pct_val = config.sl_pct
+            wick_hit_sl = sum(1 for w in wicks if w >= sl_pct_val)
+            result.pct_trades_wick_hit_sl = round(wick_hit_sl / len(all_trades) * 100, 1)
         
         result.meets_criteria = (
             result.profit_per_day >= 3.0 and
