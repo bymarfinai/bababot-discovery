@@ -56,7 +56,7 @@ class StrategyConfig:
     sl_atr_mult: float = 1.5        # Kalau pakai dynamic SL
     tp_atr_mult: float = 3.0        # Kalau pakai dynamic TP
     use_atr_sl_tp: bool = False      # True = dynamic, False = fixed %
-    sl_check_mode: str = "wick"      # "wick" = check high/low, "close" = check close only
+    sl_check_mode: str = "close"      # "wick" = check high/low, "close" = check close only
     
     # Costs
     fee_pct: float = 0.10         # Binance Futures taker 0.05% x2
