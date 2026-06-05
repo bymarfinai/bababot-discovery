@@ -98,7 +98,7 @@ class BacktestResult:
     entry_logic: str = ""
     entry_logic_2: str = ""  # Level 2: second entry logic (if used)
     sl_type: str = "fixed"
-    sl_check_mode: str = "wick"
+    sl_check_mode: str = "close"
     
     total_trades: int = 0
     win_rate: float = 0.0
