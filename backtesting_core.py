@@ -140,7 +140,10 @@ class BacktestResult:
     meets_criteria: bool = False
     regime_stats: dict = None  # per-regime WR and P&L
     avg_max_wick_against: float = 0.0  # avg worst wick against per trade
+    avg_max_wick_favor: float = 0.0   # avg best wick in favor per trade
     pct_trades_wick_hit_sl: float = 0.0  # % trades where wick would've hit SL
+    pct_trades_wick_hit_tp: float = 0.0  # % trades where wick reached TP zone
+    suggested_tp: float = 0.0  # optimal TP based on wick data (75th percentile)
     equity_curve: list = field(default_factory=list)  # Stage 10: equity points for charting
     
     def to_dict(self) -> dict:
@@ -1420,11 +1423,18 @@ class Backtester:
         
         # Wick stats
         if all_trades:
-            wicks = [t.get('max_wick_against', 0) for t in all_trades]
-            result.avg_max_wick_against = round(float(np.mean(wicks)), 4) if wicks else 0
+            wicks_against = [t.get('max_wick_against', 0) for t in all_trades]
+            wicks_favor = [t.get('max_wick_favor', 0) for t in all_trades]
+            result.avg_max_wick_against = round(float(np.mean(wicks_against)), 4)
+            result.avg_max_wick_favor = round(float(np.mean(wicks_favor)), 4)
             sl_pct_val = config.sl_pct
-            wick_hit_sl = sum(1 for w in wicks if w >= sl_pct_val)
+            tp_pct_val = config.tp_pct
+            wick_hit_sl = sum(1 for w in wicks_against if w >= sl_pct_val)
+            wick_hit_tp = sum(1 for w in wicks_favor if w >= tp_pct_val)
             result.pct_trades_wick_hit_sl = round(wick_hit_sl / len(all_trades) * 100, 1)
+            result.pct_trades_wick_hit_tp = round(wick_hit_tp / len(all_trades) * 100, 1)
+            # Suggested TP: 75th percentile of max wick favor (achievable by 75% of trades)
+            result.suggested_tp = round(float(np.percentile(wicks_favor, 75)), 2) if len(wicks_favor) >= 5 else 0
         
         result.meets_criteria = (
             result.profit_per_day >= 3.0 and
