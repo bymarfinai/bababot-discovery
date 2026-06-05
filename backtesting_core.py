@@ -136,6 +136,7 @@ class BacktestResult:
     error: str = ""
     data_days: float = 0.0
     meets_criteria: bool = False
+    equity_curve: list = field(default_factory=list)  # Stage 10: equity points for charting
     
     def to_dict(self) -> dict:
         return asdict(self)
@@ -1043,8 +1044,19 @@ def calc_metrics(trades: list, data_days: float, initial_capital: float) -> dict
         "avg_drawdown_recovery_bars": round(avg_dd_recovery, 2),
         "max_drawdown_recovery_bars": max_dd_recovery,
         "drawdown_periods": num_dd_periods,
-        "status": "ok"
+        "status": "ok",
+        # Stage 10: Equity curve (downsampled to max 100 points)
+        "equity_curve": _downsample(equity.tolist(), 100),
     }
+
+def _downsample(arr: list, max_points: int) -> list:
+    """Downsample array to max_points, keeping first and last."""
+    if len(arr) <= max_points:
+        return [round(v, 2) for v in arr]
+    step = len(arr) / max_points
+    result = [round(arr[int(i * step)], 2) for i in range(max_points - 1)]
+    result.append(round(arr[-1], 2))
+    return result
 
 
 # ============================================================
