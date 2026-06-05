@@ -441,6 +441,9 @@ def run_batch_backtest(req: BatchBacktestRequest, _=Security(verify_token)):
     results = []
     for r in req.configs:
         single_result = run_backtest(r)
+        single_result["sl_pct"] = r.sl_pct
+        single_result["tp_pct"] = r.tp_pct
+        single_result.pop("equity_curve", None)
         results.append(single_result)
     
     meets = [r for r in results if r.get("meets_criteria")]
