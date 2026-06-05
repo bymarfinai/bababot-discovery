@@ -545,8 +545,6 @@ ENTRY_LOGICS = [
     "volume_spike_momentum",
 ]
 
-def get_signals(data: dict, ind: dict, config: StrategyConfig) -> np.ndarray:
-
 # ============================================================
 # REGIME CLASSIFIER — tag each candle with market regime
 # ============================================================
