@@ -68,6 +68,8 @@ class StrategyConfig:
     # Data
     days: int = 90
     train_pct: float = 75.0
+    start_date: Optional[str] = None  # "2024-01-01" — if set, overrides days
+    end_date: Optional[str] = None    # "2024-12-31"
     
     # Filters
     direction: str = "both"
@@ -1135,19 +1137,31 @@ class Backtester:
     def __init__(self, db_path: str = "market_data.db"):
         self.db_path = db_path
     
-    def _load_data(self, symbol: str, timeframe: str, days: int) -> Optional[dict]:
+    def _load_data(self, symbol: str, timeframe: str, days: int, start_date: str = None, end_date: str = None) -> Optional[dict]:
         if not Path(self.db_path).exists():
             return None
         conn = sqlite3.connect(self.db_path)
         try:
-            now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-            cutoff_ms = now_ms - days * 24 * 3600 * 1000
-            rows = conn.execute("""
-                SELECT open_time, open, high, low, close, volume, taker_buy_volume
-                FROM klines
-                WHERE symbol=? AND timeframe=? AND open_time >= ?
-                ORDER BY open_time ASC
-            """, (symbol, timeframe, cutoff_ms)).fetchall()
+            if start_date and end_date:
+                # Date range mode: use explicit start/end dates
+                start_ms = int(datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp() * 1000)
+                end_ms = int(datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp() * 1000) + 86400000  # end of day
+                rows = conn.execute("""
+                    SELECT open_time, open, high, low, close, volume, taker_buy_volume
+                    FROM klines
+                    WHERE symbol=? AND timeframe=? AND open_time >= ? AND open_time < ?
+                    ORDER BY open_time ASC
+                """, (symbol, timeframe, start_ms, end_ms)).fetchall()
+            else:
+                # Legacy mode: last N days
+                now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+                cutoff_ms = now_ms - days * 24 * 3600 * 1000
+                rows = conn.execute("""
+                    SELECT open_time, open, high, low, close, volume, taker_buy_volume
+                    FROM klines
+                    WHERE symbol=? AND timeframe=? AND open_time >= ?
+                    ORDER BY open_time ASC
+                """, (symbol, timeframe, cutoff_ms)).fetchall()
             if not rows:
                 return None
             arr = np.array(rows, dtype=float)
@@ -1174,7 +1188,7 @@ class Backtester:
             sl_type="atr" if config.use_atr_sl_tp else "fixed",
         )
         
-        data = self._load_data(config.symbol, config.timeframe, config.days)
+        data = self._load_data(config.symbol, config.timeframe, config.days, config.start_date, config.end_date)
         if data is None or len(data['close']) < 100:
             result.status = "insufficient_data"
             result.error = f"Not enough data for {config.symbol} {config.timeframe}"
