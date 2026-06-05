@@ -432,11 +432,32 @@ def calc_ichimoku(highs, lows, closes, tenkan=9, kijun=26, senkou=52):
     
     return tenkan_sen, kijun_sen, senkou_a, senkou_b, chikou
 
-def calc_vwap(highs, lows, closes, volumes):
+def calc_vwap(highs, lows, closes, volumes, open_times=None):
     typical_price = (highs + lows + closes) / 3
-    cum_tp_vol = np.cumsum(typical_price * volumes)
-    cum_vol = np.cumsum(volumes)
-    vwap = np.where(cum_vol > 0, cum_tp_vol / cum_vol, np.nan)
+    n = len(closes)
+    vwap = np.full(n, np.nan)
+    
+    if open_times is not None and len(open_times) == n:
+        # Daily reset VWAP
+        cum_tp_vol = 0.0
+        cum_vol = 0.0
+        prev_day = -1
+        for i in range(n):
+            # Determine day from timestamp (ms)
+            cur_day = int(open_times[i] // 86_400_000)
+            if cur_day != prev_day:
+                cum_tp_vol = 0.0
+                cum_vol = 0.0
+                prev_day = cur_day
+            cum_tp_vol += typical_price[i] * volumes[i]
+            cum_vol += volumes[i]
+            vwap[i] = cum_tp_vol / cum_vol if cum_vol > 0 else np.nan
+    else:
+        # Fallback: cumulative (no reset)
+        cum_tp_vol = np.cumsum(typical_price * volumes)
+        cum_vol = np.cumsum(volumes)
+        vwap = np.where(cum_vol > 0, cum_tp_vol / cum_vol, np.nan)
+    
     return vwap
 
 
@@ -470,7 +491,7 @@ def precompute_indicators(data: dict, config: StrategyConfig) -> dict:
     result['tenkan'], result['kijun'], result['senkou_a'], result['senkou_b'], result['chikou'] = calc_ichimoku(
         highs, lows, closes,
         ind.get('ichimoku_tenkan', 9), ind.get('ichimoku_kijun', 26), ind.get('ichimoku_senkou', 52))
-    result['vwap'] = calc_vwap(highs, lows, closes, volumes)
+    result['vwap'] = calc_vwap(highs, lows, closes, volumes, data.get('open_time'))
     
     # Momentum
     result['rsi'] = calc_rsi(closes, ind.get('rsi_period', 14))
@@ -680,8 +701,8 @@ def get_signals(data: dict, ind: dict, config: StrategyConfig) -> np.ndarray:
         # ── DIVERGENCE ─────────────────────────────
         elif logic == "rsi_divergence":
             rsi = ind['rsi']
-            # Bullish: price lower low, RSI higher low (lookback 5 bars)
-            lb = 5
+            # Bullish: price lower low, RSI higher low (lookback 15 bars)
+            lb = 15
             if i >= lb and not np.isnan(rsi[i]):
                 price_ll = closes[i] < np.min(closes[i-lb:i])
                 rsi_hl = rsi[i] > np.min(rsi[i-lb:i])
@@ -693,7 +714,7 @@ def get_signals(data: dict, ind: dict, config: StrategyConfig) -> np.ndarray:
         elif logic == "obv_divergence":
             obv = ind['obv']
             obv_ema = ind['obv_ema']
-            lb = 5
+            lb = 15
             if i >= lb and not np.isnan(obv_ema[i]):
                 price_ll = closes[i] < np.min(closes[i-lb:i])
                 obv_hl = obv[i] > np.min(obv[i-lb:i])
@@ -826,6 +847,8 @@ def simulate_trades(data: dict, ind: dict, signals: np.ndarray,
                     config: StrategyConfig, start_idx: int = 0,
                     end_idx: Optional[int] = None) -> list:
     closes = data['close']
+    highs = data['high']
+    lows = data['low']
     n = end_idx or len(closes)
     atr = ind.get('atr', np.zeros(len(closes)))
     total_cost_pct = config.fee_pct + config.slippage_pct * 2
@@ -865,18 +888,30 @@ def simulate_trades(data: dict, ind: dict, signals: np.ndarray,
             exit_price = None
             exit_reason = None
             
-            if trade_dir == 1:
-                if closes[i] <= sl_price:
+            # Use high/low (wick) for SL/TP check — more realistic
+            # If both SL and TP hit in same candle, assume worst case (SL first)
+            if trade_dir == 1:  # LONG
+                sl_hit = lows[i] <= sl_price
+                tp_hit = highs[i] >= tp_price
+                if sl_hit and tp_hit:
+                    exit_price = sl_price  # worst case
+                    exit_reason = "sl"
+                elif sl_hit:
                     exit_price = sl_price
                     exit_reason = "sl"
-                elif closes[i] >= tp_price:
+                elif tp_hit:
                     exit_price = tp_price
                     exit_reason = "tp"
-            else:
-                if closes[i] >= sl_price:
+            else:  # SHORT
+                sl_hit = highs[i] >= sl_price
+                tp_hit = lows[i] <= tp_price
+                if sl_hit and tp_hit:
+                    exit_price = sl_price  # worst case
+                    exit_reason = "sl"
+                elif sl_hit:
                     exit_price = sl_price
                     exit_reason = "sl"
-                elif closes[i] <= tp_price:
+                elif tp_hit:
                     exit_price = tp_price
                     exit_reason = "tp"
             
