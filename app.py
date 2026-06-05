@@ -50,6 +50,7 @@ class BacktestRequest(BaseModel):
     train_pct: float = 75.0
     start_date: Optional[str] = None  # "2024-01-01"
     end_date: Optional[str] = None    # "2024-12-31"
+    include_equity: bool = False      # Stage 10: return equity curve data
     direction: str = "both"
     session_filter: Optional[str] = None
     trend_filter: Optional[str] = None
@@ -427,7 +428,10 @@ def run_backtest(req: BacktestRequest, _=Security(verify_token)):
     )
     
     result = bt.run(config)
-    return result.to_dict()
+    d = result.to_dict()
+    if not req.include_equity:
+        d.pop("equity_curve", None)
+    return d
 
 @app.post("/backtest/batch")
 def run_batch_backtest(req: BatchBacktestRequest, _=Security(verify_token)):
