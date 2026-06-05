@@ -56,6 +56,7 @@ class StrategyConfig:
     sl_atr_mult: float = 1.5        # Kalau pakai dynamic SL
     tp_atr_mult: float = 3.0        # Kalau pakai dynamic TP
     use_atr_sl_tp: bool = False      # True = dynamic, False = fixed %
+    sl_check_mode: str = "wick"      # "wick" = check high/low, "close" = check close only
     
     # Costs
     fee_pct: float = 0.10         # Binance Futures taker 0.05% x2
@@ -97,6 +98,7 @@ class BacktestResult:
     entry_logic: str = ""
     entry_logic_2: str = ""  # Level 2: second entry logic (if used)
     sl_type: str = "fixed"
+    sl_check_mode: str = "wick"
     
     total_trades: int = 0
     win_rate: float = 0.0
@@ -136,6 +138,7 @@ class BacktestResult:
     error: str = ""
     data_days: float = 0.0
     meets_criteria: bool = False
+    regime_stats: dict = None  # per-regime WR and P&L
     equity_curve: list = field(default_factory=list)  # Stage 10: equity points for charting
     
     def to_dict(self) -> dict:
@@ -543,6 +546,70 @@ ENTRY_LOGICS = [
 ]
 
 def get_signals(data: dict, ind: dict, config: StrategyConfig) -> np.ndarray:
+
+# ============================================================
+# REGIME CLASSIFIER — tag each candle with market regime
+# ============================================================
+def classify_regime(data: dict, ind: dict) -> np.ndarray:
+    """Classify each candle: 0=sideways, 1=bull, -1=bear, 2=shock"""
+    closes = data['close']
+    n = len(closes)
+    regimes = np.zeros(n, dtype=int)
+    
+    ema200 = ind.get('ema_200', calc_ema(closes, 200))
+    atr = ind.get('atr', np.zeros(n))
+    adx = ind.get('adx', np.zeros(n))
+    
+    # ATR rolling average for shock detection
+    atr_sma = np.full(n, np.nan)
+    for i in range(20, n):
+        atr_sma[i] = np.mean(atr[i-20:i])
+    
+    # EMA200 slope (over 10 bars)
+    ema_slope = np.zeros(n)
+    for i in range(10, n):
+        if not np.isnan(ema200[i]) and not np.isnan(ema200[i-10]) and ema200[i-10] != 0:
+            ema_slope[i] = (ema200[i] - ema200[i-10]) / ema200[i-10] * 100
+    
+    for i in range(n):
+        if np.isnan(ema200[i]):
+            regimes[i] = 0  # not enough data, default sideways
+            continue
+        
+        # Shock: ATR spike > 2x average
+        if not np.isnan(atr_sma[i]) and atr_sma[i] > 0 and atr[i] > atr_sma[i] * 2:
+            regimes[i] = 2
+        # Sideways: ADX < 20
+        elif not np.isnan(adx[i]) and adx[i] < 20:
+            regimes[i] = 0
+        # Bull: price above EMA200 + slope positive
+        elif closes[i] > ema200[i] and ema_slope[i] > 0:
+            regimes[i] = 1
+        # Bear: price below EMA200 + slope negative
+        elif closes[i] < ema200[i] and ema_slope[i] < 0:
+            regimes[i] = -1
+        else:
+            regimes[i] = 0  # mixed signals = sideways
+    
+    return regimes
+
+REGIME_NAMES = {0: "sideways", 1: "bull", -1: "bear", 2: "shock"}
+
+def calc_regime_stats(trades: list, regimes: np.ndarray) -> dict:
+    """Compute WR and P&L per regime from trades"""
+    stats = {}
+    for code, name in REGIME_NAMES.items():
+        regime_trades = [t for t in trades if t.get('regime') == code]
+        total = len(regime_trades)
+        if total == 0:
+            stats[name] = {"trades": 0, "win_rate": 0, "avg_pnl": 0}
+            continue
+        wins = sum(1 for t in regime_trades if t.get('pnl', 0) > 0)
+        avg_pnl = np.mean([t.get('pnl', 0) for t in regime_trades])
+        stats[name] = {"trades": total, "win_rate": round(wins / total * 100, 1), "avg_pnl": round(float(avg_pnl), 4)}
+    return stats
+
+def get_signals(data: dict, ind: dict, config: StrategyConfig) -> np.ndarray:
     closes = data['close']
     highs = data['high']
     lows = data['low']
@@ -845,7 +912,7 @@ def apply_filters(data: dict, ind: dict, signals: np.ndarray, config: StrategyCo
 
 def simulate_trades(data: dict, ind: dict, signals: np.ndarray,
                     config: StrategyConfig, start_idx: int = 0,
-                    end_idx: Optional[int] = None) -> list:
+                    end_idx: Optional[int] = None, regimes: np.ndarray = None) -> list:
     closes = data['close']
     highs = data['high']
     lows = data['low']
@@ -888,32 +955,50 @@ def simulate_trades(data: dict, ind: dict, signals: np.ndarray,
             exit_price = None
             exit_reason = None
             
-            # Use high/low (wick) for SL/TP check — more realistic
-            # If both SL and TP hit in same candle, assume worst case (SL first)
-            if trade_dir == 1:  # LONG
-                sl_hit = lows[i] <= sl_price
-                tp_hit = highs[i] >= tp_price
-                if sl_hit and tp_hit:
-                    exit_price = sl_price  # worst case
-                    exit_reason = "sl"
-                elif sl_hit:
-                    exit_price = sl_price
-                    exit_reason = "sl"
-                elif tp_hit:
-                    exit_price = tp_price
-                    exit_reason = "tp"
-            else:  # SHORT
-                sl_hit = highs[i] >= sl_price
-                tp_hit = lows[i] <= tp_price
-                if sl_hit and tp_hit:
-                    exit_price = sl_price  # worst case
-                    exit_reason = "sl"
-                elif sl_hit:
-                    exit_price = sl_price
-                    exit_reason = "sl"
-                elif tp_hit:
-                    exit_price = tp_price
-                    exit_reason = "tp"
+            # SL/TP check — mode: "wick" (high/low) or "close"
+            if config.sl_check_mode == "wick":
+                # Wick mode: more realistic for hard stop orders
+                # If both SL and TP hit in same candle, assume worst case (SL first)
+                if trade_dir == 1:  # LONG
+                    sl_hit = lows[i] <= sl_price
+                    tp_hit = highs[i] >= tp_price
+                    if sl_hit and tp_hit:
+                        exit_price = sl_price
+                        exit_reason = "sl"
+                    elif sl_hit:
+                        exit_price = sl_price
+                        exit_reason = "sl"
+                    elif tp_hit:
+                        exit_price = tp_price
+                        exit_reason = "tp"
+                else:  # SHORT
+                    sl_hit = highs[i] >= sl_price
+                    tp_hit = lows[i] <= tp_price
+                    if sl_hit and tp_hit:
+                        exit_price = sl_price
+                        exit_reason = "sl"
+                    elif sl_hit:
+                        exit_price = sl_price
+                        exit_reason = "sl"
+                    elif tp_hit:
+                        exit_price = tp_price
+                        exit_reason = "tp"
+            else:
+                # Close mode: check candle close only
+                if trade_dir == 1:  # LONG
+                    if closes[i] <= sl_price:
+                        exit_price = sl_price
+                        exit_reason = "sl"
+                    elif closes[i] >= tp_price:
+                        exit_price = tp_price
+                        exit_reason = "tp"
+                else:  # SHORT
+                    if closes[i] >= sl_price:
+                        exit_price = sl_price
+                        exit_reason = "sl"
+                    elif closes[i] <= tp_price:
+                        exit_price = tp_price
+                        exit_reason = "tp"
             
             if exit_price:
                 pnl_pct = ((exit_price - entry_price) / entry_price * 100
@@ -933,9 +1018,11 @@ def simulate_trades(data: dict, ind: dict, signals: np.ndarray,
                     "exit_reason": exit_reason,
                     "pnl_pct": pnl_pct,
                     "pnl_dollar": pnl_dollar,
+                    "pnl": pnl_dollar,
                     "bars_held": i - entry_idx,
                     "timestamp_entry": data['open_time'][entry_idx],
                     "timestamp_exit": data['open_time'][i],
+                    "regime": int(regimes[entry_idx]) if regimes is not None else 0,
                 })
                 in_position = False
     
@@ -1233,6 +1320,7 @@ class Backtester:
             entry_logic=config.entry_logic,
             entry_logic_2=config.entry_logic_2 or "",
             sl_type="atr" if config.use_atr_sl_tp else "fixed",
+            sl_check_mode=config.sl_check_mode,
         )
         
         data = self._load_data(config.symbol, config.timeframe, config.days, config.start_date, config.end_date)
@@ -1282,8 +1370,11 @@ class Backtester:
         # Apply filters
         signals = apply_filters(data, ind, signals, config)
         
+        # Classify regimes
+        regimes = classify_regime(data, ind)
+        
         # Train
-        train_trades = simulate_trades(data, ind, signals, config, 0, train_end)
+        train_trades = simulate_trades(data, ind, signals, config, 0, train_end, regimes)
         train_days = train_end / cpd
         train_metrics = calc_metrics(train_trades, train_days, config.initial_capital)
         
@@ -1293,7 +1384,7 @@ class Backtester:
             return result
         
         # OOS
-        oos_trades = simulate_trades(data, ind, signals, config, train_end)
+        oos_trades = simulate_trades(data, ind, signals, config, train_end, None, regimes)
         oos_days = (n - train_end) / cpd
         oos_metrics = calc_metrics(oos_trades, oos_days, config.initial_capital)
         
@@ -1306,6 +1397,10 @@ class Backtester:
         result.oos_profit_per_day = oos_metrics.get("profit_per_day", 0)
         result.oos_trades = oos_metrics.get("total_trades", 0)
         result.status = "ok"
+        
+        # Regime stats (all trades combined)
+        all_trades = train_trades + oos_trades
+        result.regime_stats = calc_regime_stats(all_trades, regimes)
         
         result.meets_criteria = (
             result.profit_per_day >= 3.0 and
