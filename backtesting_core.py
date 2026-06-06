@@ -1283,6 +1283,400 @@ def calc_correlation(trade_lists: list[list[dict]], labels: list[str] = None) ->
 
 
 # ============================================================
+# MARTHIAS METHOD — Feature Extraction & Study Engine
+# ============================================================
+
+def get_session_zone(timestamp_ms: float) -> str:
+    """Classify candle into trading session by UTC hour."""
+    hour = int((timestamp_ms / 1000 % 86400) / 3600)
+    if 0 <= hour < 8:
+        return "asia"
+    elif 8 <= hour < 13:
+        return "london"
+    elif 13 <= hour < 16:
+        return "london_ny"
+    elif 16 <= hour < 21:
+        return "ny"
+    else:
+        return "off"
+
+
+def extract_signal_features(
+    entry_logic: str,
+    data: dict,
+    ind: dict,
+    i: int,
+    signals: np.ndarray,
+    regimes: np.ndarray,
+) -> dict:
+    """
+    Extract features for a single signal instance at index i.
+    Returns dict of universal + signal-specific features.
+    """
+    closes = data['close']
+    highs = data['high']
+    lows = data['low']
+    volumes = data['volume']
+    
+    # ── UNIVERSAL FEATURES (all logics get these) ──
+    
+    # H = Freshness: bars since last signal of same direction
+    sig_dir = signals[i]
+    h = 999
+    for j in range(i - 1, max(i - 200, 0), -1):
+        if signals[j] == sig_dir:
+            h = i - j
+            break
+    
+    # V = Volume ratio vs 20-bar average
+    vol_sma = ind.get('volume_sma')
+    v = float(volumes[i] / vol_sma[i]) if vol_sma is not None and not np.isnan(vol_sma[i]) and vol_sma[i] > 0 else 1.0
+    
+    # B = Body ratio (body size / candle range)
+    candle_range = highs[i] - lows[i]
+    body = abs(closes[i] - data['open'][i]) if 'open' in data else abs(closes[i] - closes[i-1])
+    b = float(body / candle_range) if candle_range > 0 else 0.0
+    
+    # R = Regime
+    r = int(regimes[i]) if regimes is not None and i < len(regimes) else 0
+    
+    # T = Session zone
+    t = get_session_zone(data['open_time'][i]) if 'open_time' in data else "unknown"
+    
+    features = {
+        "H": h,
+        "V": round(v, 3),
+        "B": round(b, 3),
+        "R": r,
+        "T": t,
+    }
+    
+    # ── SIGNAL-SPECIFIC FEATURES ──
+    
+    # Strip "AND" combos to get primary logic
+    primary = entry_logic.split(" AND ")[0].strip() if " AND " in entry_logic else entry_logic
+    secondary = entry_logic.split(" AND ")[1].strip() if " AND " in entry_logic else None
+    
+    # Extract for primary logic
+    _add_logic_features(features, primary, ind, closes, highs, lows, volumes, i, prefix="")
+    
+    # Extract for secondary logic (if AND combo)
+    if secondary:
+        _add_logic_features(features, secondary, ind, closes, highs, lows, volumes, i, prefix="s2_")
+    
+    return features
+
+
+def _add_logic_features(
+    features: dict,
+    logic: str,
+    ind: dict,
+    closes: np.ndarray,
+    highs: np.ndarray,
+    lows: np.ndarray,
+    volumes: np.ndarray,
+    i: int,
+    prefix: str = "",
+) -> None:
+    """Add signal-specific features for a given logic. Modifies features dict in-place."""
+    
+    if logic in ("macd_cross", "macd_zero", "macd_histogram_momentum"):
+        ml = ind.get('macd')
+        mh = ind.get('macd_hist')
+        ms = ind.get('macd_signal')
+        if ml is not None and not np.isnan(ml[i]):
+            features[f"{prefix}hist_height"] = round(float(abs(mh[i])), 6) if mh is not None and not np.isnan(mh[i]) else 0
+            features[f"{prefix}zero_dist"] = round(float(abs(ml[i])), 6)
+            features[f"{prefix}macd_slope"] = round(float(ml[i] - ml[i-3]), 6) if i >= 3 and not np.isnan(ml[i-3]) else 0
+    
+    elif logic in ("stoch_ob_os", "stoch_cross"):
+        sk = ind.get('stoch_k')
+        sd = ind.get('stoch_d')
+        if sk is not None and not np.isnan(sk[i]):
+            features[f"{prefix}stoch_val"] = round(float(sk[i]), 2)
+            features[f"{prefix}kd_gap"] = round(float(sk[i] - sd[i]), 2) if sd is not None and not np.isnan(sd[i]) else 0
+            features[f"{prefix}stoch_slope"] = round(float(sk[i] - sk[i-3]), 2) if i >= 3 and not np.isnan(sk[i-3]) else 0
+    
+    elif logic in ("ema_cross", "ema_cross_rsi", "ema_cross_volume", "ema_trend_pullback", "sma_cross"):
+        ef = ind.get('ema_fast')
+        es = ind.get('ema_slow')
+        e200 = ind.get('ema_200')
+        if ef is not None and not np.isnan(ef[i]) and not np.isnan(es[i]):
+            gap_pct = (ef[i] - es[i]) / es[i] * 100 if es[i] != 0 else 0
+            features[f"{prefix}ema_gap_pct"] = round(float(gap_pct), 4)
+            if e200 is not None and not np.isnan(e200[i]) and e200[i] != 0:
+                features[f"{prefix}dist_ema200"] = round(float((closes[i] - e200[i]) / e200[i] * 100), 4)
+            # EMA slope (momentum of fast EMA)
+            if i >= 5 and not np.isnan(ef[i-5]) and ef[i-5] != 0:
+                features[f"{prefix}ema_fast_slope"] = round(float((ef[i] - ef[i-5]) / ef[i-5] * 100), 4)
+    
+    elif logic == "rsi_ob_os":
+        rsi = ind.get('rsi')
+        if rsi is not None and not np.isnan(rsi[i]):
+            features[f"{prefix}rsi_val"] = round(float(rsi[i]), 2)
+            features[f"{prefix}rsi_dist_50"] = round(float(abs(rsi[i] - 50)), 2)
+            features[f"{prefix}rsi_slope"] = round(float(rsi[i] - rsi[i-3]), 2) if i >= 3 and not np.isnan(rsi[i-3]) else 0
+    
+    elif logic == "rsi_divergence":
+        rsi = ind.get('rsi')
+        if rsi is not None and not np.isnan(rsi[i]):
+            features[f"{prefix}rsi_val"] = round(float(rsi[i]), 2)
+            # Divergence magnitude: how much RSI disagrees with price
+            if i >= 15:
+                price_chg = (closes[i] - np.min(closes[i-15:i])) / np.min(closes[i-15:i]) * 100 if np.min(closes[i-15:i]) > 0 else 0
+                rsi_chg = rsi[i] - np.min(rsi[i-15:i]) if not any(np.isnan(rsi[i-15:i])) else 0
+                features[f"{prefix}div_magnitude"] = round(float(abs(price_chg - rsi_chg)), 2)
+    
+    elif logic == "supertrend_flip":
+        atr = ind.get('atr')
+        st_dir = ind.get('supertrend_dir')
+        if atr is not None and not np.isnan(atr[i]):
+            features[f"{prefix}atr_val"] = round(float(atr[i]), 4)
+            features[f"{prefix}atr_pct"] = round(float(atr[i] / closes[i] * 100), 4) if closes[i] > 0 else 0
+            # Previous trend duration
+            prev_dur = 0
+            if st_dir is not None:
+                prev_dir = st_dir[i-1] if i > 0 else 0
+                for j in range(i-1, max(i-200, 0), -1):
+                    if st_dir[j] == prev_dir:
+                        prev_dur += 1
+                    else:
+                        break
+            features[f"{prefix}prev_trend_bars"] = prev_dur
+    
+    elif logic in ("bb_breakout", "bb_bounce"):
+        bw = ind.get('bb_width')
+        bm = ind.get('bb_mid')
+        if bw is not None and not np.isnan(bw[i]):
+            features[f"{prefix}bb_width"] = round(float(bw[i]), 4)
+            if bm is not None and not np.isnan(bm[i]) and bm[i] != 0:
+                features[f"{prefix}dist_bb_mid"] = round(float((closes[i] - bm[i]) / bm[i] * 100), 4)
+    
+    elif logic == "volume_spike_momentum":
+        vsma = ind.get('volume_sma')
+        tbr = ind.get('taker_buy_ratio')
+        if vsma is not None and not np.isnan(vsma[i]) and vsma[i] > 0:
+            features[f"{prefix}spike_mult"] = round(float(volumes[i] / vsma[i]), 2)
+        if tbr is not None and not np.isnan(tbr[i]):
+            features[f"{prefix}taker_buy_ratio"] = round(float(tbr[i]), 3)
+    
+    elif logic == "adx_momentum":
+        adx = ind.get('adx')
+        dip = ind.get('di_plus')
+        dim = ind.get('di_minus')
+        if adx is not None and not np.isnan(adx[i]):
+            features[f"{prefix}adx_val"] = round(float(adx[i]), 2)
+            if dip is not None and not np.isnan(dip[i]) and dim is not None and not np.isnan(dim[i]):
+                features[f"{prefix}di_gap"] = round(float(abs(dip[i] - dim[i])), 2)
+    
+    elif logic in ("donchian_breakout", "keltner_breakout"):
+        atr = ind.get('atr')
+        if atr is not None and not np.isnan(atr[i]) and closes[i] > 0:
+            features[f"{prefix}atr_pct"] = round(float(atr[i] / closes[i] * 100), 4)
+            # Breakout magnitude: how far past the channel
+            if logic == "donchian_breakout":
+                dc_u = ind.get('dc_upper')
+                dc_l = ind.get('dc_lower')
+                if dc_u is not None and i > 0 and not np.isnan(dc_u[i-1]):
+                    features[f"{prefix}breakout_pct"] = round(float((closes[i] - dc_u[i-1]) / dc_u[i-1] * 100), 4)
+    
+    # Fallback: logics not listed above get universal features only (no error)
+
+
+def classify_trade_outcome(trade: dict, data: dict, config) -> str:
+    """
+    Classify trade outcome beyond simple win/loss.
+    Returns: 'win_fast', 'win_slow', 'retrace_then_win', 'loss'
+    """
+    if trade['pnl_dollar'] <= 0:
+        return "loss"
+    
+    bars = trade['bars_held']
+    
+    # Fast win: TP hit within 5 bars
+    if bars <= 5:
+        return "win_fast"
+    
+    # Check retrace: did price go against position significantly before winning?
+    entry_idx = trade['entry_idx']
+    exit_idx = trade['exit_idx']
+    entry_price = trade['entry_price']
+    direction = trade['direction']
+    
+    sl_dist = entry_price * config.sl_pct / 100
+    
+    max_adverse = 0.0
+    for k in range(entry_idx + 1, min(exit_idx + 1, len(data['close']))):
+        if direction == 1:  # LONG
+            adverse = (entry_price - data['low'][k]) / entry_price * 100
+        else:  # SHORT
+            adverse = (data['high'][k] - entry_price) / entry_price * 100
+        max_adverse = max(max_adverse, adverse)
+    
+    # Retrace > 50% of SL distance = retrace_then_win
+    if max_adverse > config.sl_pct * 0.5:
+        return "retrace_then_win"
+    
+    return "win_slow"
+
+
+def run_feature_study(
+    backtester,
+    symbol: str,
+    timeframe: str,
+    entry_logic: str,
+    entry_logic_2: str = None,
+    sl_pct: float = 0.6,
+    tp_pct: float = 1.5,
+    days: int = 365,
+    start_date: str = None,
+    end_date: str = None,
+) -> dict:
+    """
+    Run Marthias Method feature study for a signal.
+    Returns per-instance features + outcomes + summary statistics.
+    """
+    config = StrategyConfig(
+        symbol=symbol,
+        timeframe=timeframe,
+        entry_logic=entry_logic,
+        entry_logic_2=entry_logic_2,
+        sl_pct=sl_pct,
+        tp_pct=tp_pct,
+        days=days,
+        start_date=start_date,
+        end_date=end_date,
+        sl_check_mode="close",
+    )
+    
+    data = backtester._load_data(symbol, timeframe, days, start_date, end_date)
+    if data is None or len(data['close']) < 100:
+        return {"status": "error", "error": f"Insufficient data for {symbol} {timeframe}"}
+    
+    # Precompute indicators
+    ind = precompute_indicators(data, config)
+    
+    # Generate signals
+    signals = get_signals(data, ind, config)
+    
+    # Level 2 AND confirmation
+    if entry_logic_2 and entry_logic_2 in ENTRY_LOGICS:
+        from dataclasses import replace as dc_replace
+        config2 = dc_replace(config, entry_logic=entry_logic_2)
+        signals2 = get_signals(data, ind, config2)
+        window = 3
+        combined = np.zeros(len(signals), dtype=int)
+        for i in range(window, len(signals)):
+            if signals[i] != 0:
+                for j in range(max(0, i - window), i + 1):
+                    if signals2[j] == signals[i]:
+                        combined[i] = signals[i]
+                        break
+            elif signals2[i] != 0:
+                for j in range(max(0, i - window), i + 1):
+                    if signals[j] == signals2[i]:
+                        combined[i] = signals2[i]
+                        break
+        signals = combined
+    
+    # Apply filters
+    signals = apply_filters(data, ind, signals, config)
+    
+    # Classify regimes
+    regimes = classify_regime(data, ind)
+    
+    # Simulate trades (full data, no train/test split for feature study)
+    trades = simulate_trades(data, ind, signals, config, 0, None, regimes)
+    
+    if not trades:
+        return {"status": "no_trades", "error": "No trades generated", "instances": [], "summary": {}}
+    
+    # Build logic label for feature extraction
+    logic_label = entry_logic + (" AND " + entry_logic_2 if entry_logic_2 else "")
+    
+    # Extract features per signal instance + match with trade outcomes
+    instances = []
+    for trade in trades:
+        entry_idx = trade['entry_idx']
+        
+        # Extract features at signal fire
+        features = extract_signal_features(logic_label, data, ind, entry_idx, signals, regimes)
+        
+        # Classify outcome
+        outcome = classify_trade_outcome(trade, data, config)
+        
+        instances.append({
+            "idx": entry_idx,
+            "direction": trade['direction'],
+            "entry_price": round(trade['entry_price'], 2),
+            "exit_price": round(trade['exit_price'], 2),
+            "pnl_pct": round(trade['pnl_pct'], 4),
+            "pnl_dollar": round(trade['pnl_dollar'], 2),
+            "bars_held": trade['bars_held'],
+            "exit_reason": trade['exit_reason'],
+            "outcome": outcome,
+            "max_wick_against": trade.get('max_wick_against', 0),
+            "max_wick_favor": trade.get('max_wick_favor', 0),
+            "regime": trade.get('regime', 0),
+            "features": features,
+        })
+    
+    # Summary stats
+    outcomes = [inst['outcome'] for inst in instances]
+    total = len(instances)
+    win_fast = outcomes.count('win_fast')
+    win_slow = outcomes.count('win_slow')
+    retrace = outcomes.count('retrace_then_win')
+    losses = outcomes.count('loss')
+    
+    # Group features by outcome for quick analysis
+    feature_keys = set()
+    for inst in instances:
+        feature_keys.update(inst['features'].keys())
+    # Exclude non-numeric features from averaging
+    numeric_keys = [k for k in feature_keys if k not in ('T', 'R')]
+    
+    outcome_groups = {}
+    for oc in ['win_fast', 'win_slow', 'retrace_then_win', 'loss']:
+        group_instances = [inst for inst in instances if inst['outcome'] == oc]
+        if not group_instances:
+            outcome_groups[oc] = {"count": 0, "avg_features": {}}
+            continue
+        avg_feat = {}
+        for k in numeric_keys:
+            vals = [inst['features'].get(k, 0) for inst in group_instances if isinstance(inst['features'].get(k, 0), (int, float))]
+            avg_feat[k] = round(float(np.mean(vals)), 4) if vals else 0
+        outcome_groups[oc] = {"count": len(group_instances), "avg_features": avg_feat}
+    
+    n = len(data['close'])
+    candles_per_day = {'1m': 1440, '3m': 480, '5m': 288, '15m': 96, '1h': 24, '4h': 6}
+    cpd = candles_per_day.get(timeframe, 288)
+    data_days = round(n / cpd, 1)
+    
+    return {
+        "status": "ok",
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "entry_logic": logic_label,
+        "sl_pct": sl_pct,
+        "tp_pct": tp_pct,
+        "data_days": data_days,
+        "total_instances": total,
+        "outcomes": {
+            "win_fast": win_fast,
+            "win_slow": win_slow,
+            "retrace_then_win": retrace,
+            "loss": losses,
+            "total_wins": win_fast + win_slow + retrace,
+            "win_rate": round((win_fast + win_slow + retrace) / total * 100, 1) if total > 0 else 0,
+        },
+        "outcome_groups": outcome_groups,
+        "feature_keys": sorted(list(feature_keys)),
+        "instances": instances,
+    }
+
+
+# ============================================================
 # BACKTESTER
 # ============================================================
 
