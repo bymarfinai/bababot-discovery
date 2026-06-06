@@ -154,11 +154,18 @@ def data_status():
         last_row = conn.execute("SELECT MAX(open_time) FROM klines").fetchone()
         last_fetch = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(last_row[0] / 1000)) if last_row and last_row[0] else None
         
+        # Flat breakdown array (for dashboard compatibility)
+        breakdown = []
+        for symbol, tfs in pairs.items():
+            for tf, info in tfs.items():
+                breakdown.append({"symbol": symbol, "timeframe": tf, "candles": info["candles"]})
+        
         return {
             "status": "ok",
             "total_candles": total_candles,
             "last_fetch": last_fetch,
             "pairs": pairs,
+            "breakdown": breakdown,
         }
     except Exception as e:
         return {"status": "error", "error": str(e)}
