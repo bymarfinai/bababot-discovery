@@ -1917,11 +1917,14 @@ def run_marthias_study(
     losers = [i for i in instances if i['outcome'] == 'loss']
     sample_adequate = len(winners) >= min_per_group and len(losers) >= min_per_group
     
-    # Step 2: Feature importance
+    # Step 2: Feature importance (Filter Method)
     importance = compute_feature_importance(instances, min_per_group)
     
-    # Step 3: Filter recommendation
+    # Step 3: Filter recommendation (Filter Method)
     recommendation = generate_filter_recommendation(importance, instances)
+    
+    # Step 4: Profile method (Reverse Engineering)
+    profile = build_winning_profile(instances)
     
     # Build response (exclude raw instances to keep response small)
     return {
@@ -1940,9 +1943,191 @@ def run_marthias_study(
         },
         "sample_adequate": sample_adequate,
         "min_per_group": min_per_group,
-        "feature_importance": importance,
-        "recommended_filter": recommendation,
+        "filter_method": {
+            "feature_importance": importance,
+            "recommended_filter": recommendation,
+        },
+        "profile_method": profile,
     }
+
+
+# ============================================================
+# MARTHIAS METHOD — Profile Method (Reverse Engineering)
+# "What do winners have in common?"
+# ============================================================
+
+def _find_winner_range(values: list, capture_pct: float = 80.0) -> dict:
+    """
+    Find the range that captures capture_pct% of winner values.
+    Uses symmetric percentile trimming (e.g., P10-P90 for 80%).
+    """
+    if not values:
+        return {"low": 0, "high": 0, "median": 0}
+    arr = np.array(values, dtype=float)
+    trim = (100 - capture_pct) / 2
+    low = float(np.percentile(arr, trim))
+    high = float(np.percentile(arr, 100 - trim))
+    median = float(np.median(arr))
+    return {"low": round(low, 4), "high": round(high, 4), "median": round(median, 4)}
+
+
+def build_winning_profile(instances: list, capture_target: float = 80.0) -> dict:
+    """
+    Reverse engineering approach:
+    1. Study what winners have in common (per-feature ranges)
+    2. Build multi-feature profile
+    3. Apply profile to all instances — measure capture rate + WR
+    
+    capture_target: % of winners the profile should capture (default 80%)
+    """
+    winners = [inst for inst in instances if inst['outcome'] != 'loss']
+    losers = [inst for inst in instances if inst['outcome'] == 'loss']
+    
+    if len(winners) < 5 or len(losers) < 5:
+        return {"status": "insufficient_data", "message": "Need at least 5 winners and 5 losers"}
+    
+    # Collect numeric features
+    numeric_keys = set()
+    for inst in instances:
+        for k, v in inst['features'].items():
+            if isinstance(v, (int, float)) and k not in ('R',):
+                numeric_keys.add(k)
+    numeric_keys = sorted(numeric_keys)
+    
+    # Step 1: Find winner range per feature
+    feature_profiles = []
+    for key in numeric_keys:
+        win_vals = [inst['features'].get(key, 0) for inst in winners 
+                    if isinstance(inst['features'].get(key, 0), (int, float))]
+        loss_vals = [inst['features'].get(key, 0) for inst in losers 
+                     if isinstance(inst['features'].get(key, 0), (int, float))]
+        
+        if not win_vals or not loss_vals:
+            continue
+        
+        # Winner range (captures capture_target% of winners)
+        win_range = _find_winner_range(win_vals, capture_target)
+        
+        # How many winners fall in this range?
+        winners_in = sum(1 for v in win_vals if win_range['low'] <= v <= win_range['high'])
+        winners_capture_pct = round(winners_in / len(win_vals) * 100, 1)
+        
+        # How many losers fall in this range?
+        losers_in = sum(1 for v in loss_vals if win_range['low'] <= v <= win_range['high'])
+        losers_in_pct = round(losers_in / len(loss_vals) * 100, 1)
+        
+        # Losers rejected = losers OUTSIDE the winner range
+        losers_rejected = len(loss_vals) - losers_in
+        losers_rejected_pct = round(losers_rejected / len(loss_vals) * 100, 1)
+        
+        # Discrimination score: higher = better at rejecting losers while keeping winners
+        # Score = losers_rejected% - (100 - winners_captured%)
+        # Perfect: reject 100% losers, capture 100% winners → score = 100
+        discrimination = round(losers_rejected_pct - (100 - winners_capture_pct), 1)
+        
+        feature_profiles.append({
+            "feature": key,
+            "winner_range": win_range,
+            "winners_captured": winners_in,
+            "winners_captured_pct": winners_capture_pct,
+            "losers_rejected": losers_rejected,
+            "losers_rejected_pct": losers_rejected_pct,
+            "discrimination": discrimination,
+        })
+    
+    # Sort by discrimination (best filters first)
+    feature_profiles.sort(key=lambda x: -x['discrimination'])
+    
+    # Step 2: Build combined profile using top discriminating features
+    # Greedy: add features one by one, keep only if it improves WR without dropping 
+    # winners captured below threshold
+    min_winners_pct = capture_target * 0.9  # allow 10% slack (e.g., 72% if target is 80%)
+    
+    best_combo = _find_best_combo(instances, feature_profiles, winners, losers, min_winners_pct)
+    
+    return {
+        "status": "ok",
+        "total_winners": len(winners),
+        "total_losers": len(losers),
+        "capture_target_pct": capture_target,
+        "single_feature_profiles": feature_profiles[:8],  # top 8
+        "combined_profile": best_combo,
+    }
+
+
+def _find_best_combo(instances, feature_profiles, winners, losers, min_winners_pct):
+    """
+    Greedy search: combine features to maximize WR while keeping winners captured above threshold.
+    """
+    total_winners = len(winners)
+    total_losers = len(losers)
+    
+    if not feature_profiles:
+        return {"status": "no_features"}
+    
+    # Try top features one by one, then combine
+    best_result = None
+    used_features = []
+    current_pass = set(range(len(instances)))  # indices that pass filter
+    
+    for fp in feature_profiles[:5]:  # try top 5 features max
+        feature = fp['feature']
+        low = fp['winner_range']['low']
+        high = fp['winner_range']['high']
+        
+        # Apply this feature filter
+        new_pass = set()
+        for idx in current_pass:
+            inst = instances[idx]
+            val = inst['features'].get(feature)
+            if val is not None and isinstance(val, (int, float)):
+                if low <= val <= high:
+                    new_pass.add(idx)
+        
+        # Check: how many winners captured?
+        new_winners = sum(1 for idx in new_pass if instances[idx]['outcome'] != 'loss')
+        new_losers = sum(1 for idx in new_pass if instances[idx]['outcome'] == 'loss')
+        new_total = len(new_pass)
+        
+        if new_total == 0:
+            continue
+        
+        new_wr = round(new_winners / new_total * 100, 1)
+        new_capture = round(new_winners / total_winners * 100, 1)
+        
+        # Only add feature if it keeps enough winners
+        if new_capture < min_winners_pct:
+            continue
+        
+        # Check improvement: only add if WR improves
+        current_wr = 0
+        if current_pass:
+            c_win = sum(1 for idx in current_pass if instances[idx]['outcome'] != 'loss')
+            current_wr = round(c_win / len(current_pass) * 100, 1) if current_pass else 0
+        
+        if new_wr > current_wr or not used_features:
+            current_pass = new_pass
+            used_features.append({
+                "feature": feature,
+                "range": [round(low, 4), round(high, 4)],
+            })
+            best_result = {
+                "features_used": list(used_features),
+                "trades_kept": new_total,
+                "winners_captured": new_winners,
+                "winners_captured_pct": new_capture,
+                "losers_included": new_losers,
+                "losers_rejected": total_losers - new_losers,
+                "losers_rejected_pct": round((total_losers - new_losers) / total_losers * 100, 1) if total_losers > 0 else 0,
+                "win_rate": new_wr,
+                "baseline_wr": round(total_winners / (total_winners + total_losers) * 100, 1),
+                "wr_improvement": round(new_wr - total_winners / (total_winners + total_losers) * 100, 1),
+            }
+    
+    if not best_result:
+        return {"status": "no_improvement_found"}
+    
+    return best_result
 
 
 # ============================================================
