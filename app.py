@@ -117,6 +117,54 @@ def health():
         "db_path": DB_PATH
     }
 
+@app.get("/data/status")
+def data_status():
+    """Per pair × TF candle availability — used by dashboard Data Health tab."""
+    if not Path(DB_PATH).exists():
+        return {"status": "error", "error": "database not found"}
+    
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        # Per pair × TF breakdown
+        rows = conn.execute("""
+            SELECT symbol, timeframe,
+                   COUNT(*) as candles,
+                   MIN(open_time) as first_ts,
+                   MAX(open_time) as last_ts
+            FROM klines
+            GROUP BY symbol, timeframe
+            ORDER BY symbol, timeframe
+        """).fetchall()
+        
+        pairs = {}
+        total_candles = 0
+        for symbol, tf, candles, first_ts, last_ts in rows:
+            if symbol not in pairs:
+                pairs[symbol] = {}
+            days_available = round((last_ts - first_ts) / 86_400_000, 1) if last_ts and first_ts else 0
+            pairs[symbol][tf] = {
+                "candles": candles,
+                "first_date": time.strftime("%Y-%m-%d", time.gmtime(first_ts / 1000)) if first_ts else None,
+                "last_date": time.strftime("%Y-%m-%d", time.gmtime(last_ts / 1000)) if last_ts else None,
+                "days": days_available,
+            }
+            total_candles += candles
+        
+        # Last fetch timestamp (most recent candle across all data)
+        last_row = conn.execute("SELECT MAX(open_time) FROM klines").fetchone()
+        last_fetch = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(last_row[0] / 1000)) if last_row and last_row[0] else None
+        
+        return {
+            "status": "ok",
+            "total_candles": total_candles,
+            "last_fetch": last_fetch,
+            "pairs": pairs,
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+    finally:
+        conn.close()
+
 @app.get("/strategies")
 def list_strategies():
     return {
