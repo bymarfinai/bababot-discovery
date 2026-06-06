@@ -1677,6 +1677,275 @@ def run_feature_study(
 
 
 # ============================================================
+# MARTHIAS METHOD — Intelligence Layer (Session 2)
+# T-test, Feature Importance, Filter Generation
+# ============================================================
+
+import math
+
+def _welch_ttest(a: list, b: list) -> dict:
+    """
+    Welch's t-test (unequal variance).
+    Returns t-stat, p-value (approx), and effect size (Cohen's d).
+    No scipy dependency — uses normal approximation for p-value.
+    """
+    a = np.array([x for x in a if not np.isnan(x)], dtype=float)
+    b = np.array([x for x in b if not np.isnan(x)], dtype=float)
+    
+    n1, n2 = len(a), len(b)
+    if n1 < 2 or n2 < 2:
+        return {"t_stat": 0, "p_value": 1.0, "effect_size": 0, "valid": False}
+    
+    m1, m2 = np.mean(a), np.mean(b)
+    v1, v2 = np.var(a, ddof=1), np.var(b, ddof=1)
+    
+    se = np.sqrt(v1/n1 + v2/n2)
+    if se == 0:
+        return {"t_stat": 0, "p_value": 1.0, "effect_size": 0, "valid": False}
+    
+    t_stat = (m1 - m2) / se
+    
+    # Welch-Satterthwaite degrees of freedom
+    df_num = (v1/n1 + v2/n2) ** 2
+    df_den = (v1/n1)**2 / (n1-1) + (v2/n2)**2 / (n2-1)
+    df = df_num / df_den if df_den > 0 else 1
+    
+    # P-value approximation using normal CDF (good for df > 20)
+    abs_t = abs(t_stat)
+    p_value = 2.0 * (1.0 - 0.5 * (1.0 + math.erf(abs_t / math.sqrt(2.0))))
+    p_value = max(p_value, 1e-10)  # floor
+    
+    # Cohen's d effect size
+    pooled_std = np.sqrt(((n1-1)*v1 + (n2-1)*v2) / (n1+n2-2))
+    effect_size = abs(m1 - m2) / pooled_std if pooled_std > 0 else 0
+    
+    return {
+        "t_stat": round(float(t_stat), 4),
+        "p_value": round(float(p_value), 6),
+        "effect_size": round(float(effect_size), 4),
+        "df": round(float(df), 1),
+        "valid": True,
+    }
+
+
+def compute_feature_importance(instances: list, min_per_group: int = 10) -> list:
+    """
+    For each numeric feature, run Welch's t-test comparing winners vs losers.
+    Returns ranked list of features by significance.
+    """
+    winners = [inst for inst in instances if inst['outcome'] != 'loss']
+    losers = [inst for inst in instances if inst['outcome'] == 'loss']
+    
+    n_win = len(winners)
+    n_loss = len(losers)
+    sample_adequate = n_win >= min_per_group and n_loss >= min_per_group
+    
+    # Collect all numeric feature keys
+    all_keys = set()
+    for inst in instances:
+        for k, v in inst['features'].items():
+            if isinstance(v, (int, float)) and k not in ('R',):  # exclude regime (categorical)
+                all_keys.add(k)
+    
+    results = []
+    for key in sorted(all_keys):
+        win_vals = [inst['features'].get(key, 0) for inst in winners if isinstance(inst['features'].get(key, 0), (int, float))]
+        loss_vals = [inst['features'].get(key, 0) for inst in losers if isinstance(inst['features'].get(key, 0), (int, float))]
+        
+        if not win_vals or not loss_vals:
+            continue
+        
+        win_avg = round(float(np.mean(win_vals)), 4)
+        loss_avg = round(float(np.mean(loss_vals)), 4)
+        gap = round(abs(win_avg - loss_avg), 4)
+        
+        test = _welch_ttest(win_vals, loss_vals)
+        
+        # Significance classification
+        if not test['valid']:
+            sig = "INVALID"
+        elif test['p_value'] < 0.01 and test['effect_size'] >= 0.8:
+            sig = "HIGH"
+        elif test['p_value'] < 0.05 and test['effect_size'] >= 0.5:
+            sig = "MEDIUM"
+        elif test['p_value'] < 0.10:
+            sig = "LOW"
+        else:
+            sig = "NONE"
+        
+        results.append({
+            "feature": key,
+            "winners_avg": win_avg,
+            "losers_avg": loss_avg,
+            "gap": gap,
+            "direction": "winners_higher" if win_avg > loss_avg else "winners_lower",
+            "t_stat": test['t_stat'],
+            "p_value": test['p_value'],
+            "effect_size": test['effect_size'],
+            "significance": sig,
+        })
+    
+    # Rank by effect size (primary) then p_value (secondary)
+    results.sort(key=lambda x: (-x['effect_size'], x['p_value']))
+    for i, r in enumerate(results):
+        r['rank'] = i + 1
+    
+    return results
+
+
+def generate_filter_recommendation(importance: list, instances: list) -> dict:
+    """
+    From importance results, recommend the best filter.
+    Picks top significant feature, calculates optimal threshold.
+    """
+    # Find best significant feature
+    significant = [f for f in importance if f['significance'] in ('HIGH', 'MEDIUM')]
+    if not significant:
+        significant = [f for f in importance if f['significance'] == 'LOW']
+    if not significant:
+        return {"status": "no_significant_feature", "feature": None}
+    
+    best = significant[0]  # highest effect size
+    feature = best['feature']
+    
+    # Calculate threshold as midpoint between winner and loser averages
+    midpoint = round((best['winners_avg'] + best['losers_avg']) / 2, 4)
+    
+    # Determine operator: if winners are higher, filter keeps values > threshold
+    if best['direction'] == 'winners_higher':
+        operator = ">="
+    else:
+        operator = "<="
+    
+    # Apply filter and measure impact
+    filtered = _apply_filter(instances, feature, operator, midpoint)
+    original_wr = _calc_wr(instances)
+    filtered_wr = _calc_wr(filtered)
+    
+    # Count false negatives (winners removed by filter)
+    removed = [inst for inst in instances if inst not in filtered]
+    false_negatives = sum(1 for inst in removed if inst['outcome'] != 'loss')
+    
+    return {
+        "status": "ok",
+        "feature": feature,
+        "operator": operator,
+        "threshold": midpoint,
+        "significance": best['significance'],
+        "effect_size": best['effect_size'],
+        "p_value": best['p_value'],
+        "baseline_wr": original_wr,
+        "filtered_wr": filtered_wr,
+        "wr_improvement": round(filtered_wr - original_wr, 1),
+        "baseline_trades": len(instances),
+        "filtered_trades": len(filtered),
+        "trades_removed": len(removed),
+        "false_negatives": false_negatives,
+    }
+
+
+def _apply_filter(instances: list, feature: str, operator: str, threshold: float) -> list:
+    """Apply a feature filter to instances."""
+    result = []
+    for inst in instances:
+        val = inst['features'].get(feature)
+        if val is None or not isinstance(val, (int, float)):
+            continue
+        if operator == ">=" and val >= threshold:
+            result.append(inst)
+        elif operator == "<=" and val <= threshold:
+            result.append(inst)
+        elif operator == ">" and val > threshold:
+            result.append(inst)
+        elif operator == "<" and val < threshold:
+            result.append(inst)
+    return result
+
+
+def _calc_wr(instances: list) -> float:
+    """Calculate win rate from instances."""
+    if not instances:
+        return 0.0
+    wins = sum(1 for inst in instances if inst['outcome'] != 'loss')
+    return round(wins / len(instances) * 100, 1)
+
+
+def run_marthias_study(
+    backtester,
+    symbol: str,
+    timeframe: str,
+    entry_logic: str,
+    entry_logic_2: str = None,
+    sl_pct: float = 0.6,
+    tp_pct: float = 1.5,
+    days: int = 365,
+    start_date: str = None,
+    end_date: str = None,
+    min_per_group: int = 10,
+) -> dict:
+    """
+    Full Marthias Method pipeline:
+    1. Run feature study (collect instances + features + outcomes)
+    2. Compute feature importance (t-test ranking)
+    3. Generate filter recommendation (threshold + re-test)
+    
+    Returns complete analysis with actionable filter.
+    """
+    # Step 1: Feature study
+    study = run_feature_study(
+        backtester=backtester,
+        symbol=symbol,
+        timeframe=timeframe,
+        entry_logic=entry_logic,
+        entry_logic_2=entry_logic_2,
+        sl_pct=sl_pct,
+        tp_pct=tp_pct,
+        days=days,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    
+    if study.get("status") != "ok":
+        return study
+    
+    instances = study.get("instances", [])
+    if not instances:
+        return {"status": "no_instances", "error": "No trade instances found"}
+    
+    # Sample adequacy check
+    winners = [i for i in instances if i['outcome'] != 'loss']
+    losers = [i for i in instances if i['outcome'] == 'loss']
+    sample_adequate = len(winners) >= min_per_group and len(losers) >= min_per_group
+    
+    # Step 2: Feature importance
+    importance = compute_feature_importance(instances, min_per_group)
+    
+    # Step 3: Filter recommendation
+    recommendation = generate_filter_recommendation(importance, instances)
+    
+    # Build response (exclude raw instances to keep response small)
+    return {
+        "status": "ok",
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "entry_logic": study["entry_logic"],
+        "sl_pct": sl_pct,
+        "tp_pct": tp_pct,
+        "data_days": study.get("data_days", 0),
+        "baseline": {
+            "total_instances": len(instances),
+            "winners": len(winners),
+            "losers": len(losers),
+            "win_rate": study["outcomes"]["win_rate"],
+        },
+        "sample_adequate": sample_adequate,
+        "min_per_group": min_per_group,
+        "feature_importance": importance,
+        "recommended_filter": recommendation,
+    }
+
+
+# ============================================================
 # BACKTESTER
 # ============================================================
 
