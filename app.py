@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
-from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study
+from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 security = HTTPBearer(auto_error=False)
@@ -96,7 +96,7 @@ def root():
         "service": "BabaBot Backtesting API",
         "version": "1.2.0",
         "status": "running",
-        "endpoints": ["/backtest", "/backtest/batch", "/backtest/feature-study", "/health", "/data/status", "/strategies", "/fetch-data", "/fetch-status"]
+        "endpoints": ["/backtest", "/backtest/batch", "/backtest/feature-study", "/backtest/marthias-study", "/health", "/data/status", "/strategies", "/fetch-data", "/fetch-status"]
     }
 
 @app.get("/health")
@@ -702,5 +702,45 @@ def feature_study(req: FeatureStudyRequest, _=Security(verify_token)):
     
     if not req.include_instances and result.get("status") == "ok":
         result.pop("instances", None)
+    
+    return result
+
+
+# ============================================================
+# MARTHIAS METHOD — Full Study Endpoint (Session 2)
+# ============================================================
+
+class MarthiasStudyRequest(BaseModel):
+    symbol: str = "SOLUSDT"
+    timeframe: str = "4h"
+    entry_logic: str = "stoch_ob_os"
+    entry_logic_2: Optional[str] = None
+    sl_pct: float = 0.6
+    tp_pct: float = 1.5
+    days: int = 365
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    min_per_group: int = 10  # minimum instances per group (winners/losers)
+
+@app.post("/backtest/marthias-study")
+def marthias_study(req: MarthiasStudyRequest, _=Security(verify_token)):
+    """
+    Full Marthias Method pipeline:
+    Feature Study → T-test Importance → Filter Recommendation.
+    Returns baseline WR, ranked features, and recommended filter with projected WR.
+    """
+    result = run_marthias_study(
+        backtester=bt,
+        symbol=req.symbol.upper(),
+        timeframe=req.timeframe,
+        entry_logic=req.entry_logic,
+        entry_logic_2=req.entry_logic_2,
+        sl_pct=req.sl_pct,
+        tp_pct=req.tp_pct,
+        days=req.days,
+        start_date=req.start_date,
+        end_date=req.end_date,
+        min_per_group=req.min_per_group,
+    )
     
     return result
