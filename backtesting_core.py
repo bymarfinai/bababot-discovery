@@ -2365,9 +2365,9 @@ def bootstrap_validate(
     overfit_gap = round(full_wr - avg_test_wr, 1)
     
     # Verdict
-    if avg_test_wr >= 65 and std_test_wr <= 15 and overfit_gap <= 5:
+    if avg_test_wr >= 75 and std_test_wr <= 15 and overfit_gap <= 5:
         verdict = "PASS"
-    elif avg_test_wr >= 55 and std_test_wr <= 20:
+    elif avg_test_wr >= 65 and std_test_wr <= 20:
         verdict = "PARTIAL"
     else:
         verdict = "FAIL"
