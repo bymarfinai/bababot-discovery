@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
-from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules
+from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 security = HTTPBearer(auto_error=False)
@@ -806,5 +806,36 @@ def bootstrap_validate_endpoint(req: BootstrapRequest, _=Security(verify_token))
         days=req.days,
         rules=req.rules,
         n_iterations=req.n_iterations,
+    )
+    return result
+
+
+# ============================================================
+# SL/TP OPTIMIZATION — Preset testing + TP discovery
+# ============================================================
+
+class SLTPOptRequest(BaseModel):
+    symbol: str = "SOLUSDT"
+    timeframe: str = "4h"
+    entry_logic: str = "stoch_ob_os"
+    entry_logic_2: Optional[str] = None
+    days: int = 365
+    rule_filter: Optional[str] = None
+    sl_presets: list = [0.4, 0.6, 0.8]
+    tp_base: float = 1.0
+
+@app.post("/backtest/sltp-optimize")
+def sltp_optimize(req: SLTPOptRequest, _=Security(verify_token)):
+    """Test SL presets + discover optimal TP via wick data."""
+    result = run_sltp_optimization(
+        backtester=bt,
+        symbol=req.symbol.upper(),
+        timeframe=req.timeframe,
+        entry_logic=req.entry_logic,
+        entry_logic_2=req.entry_logic_2,
+        days=req.days,
+        rule_filter=req.rule_filter,
+        sl_presets=req.sl_presets,
+        tp_base=req.tp_base,
     )
     return result
