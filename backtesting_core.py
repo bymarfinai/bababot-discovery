@@ -2290,6 +2290,159 @@ def test_ai_rules(
 
 
 # ============================================================
+# MARTHIAS METHOD — Bootstrap Validation
+# Test if discovered rules generalize or overfit
+# ============================================================
+
+def bootstrap_validate(
+    instances: list,
+    rule_str: str,
+    n_iterations: int = 100,
+    test_ratio: float = 0.3,
+    seed: int = 42,
+) -> dict:
+    """
+    Bootstrap validation for a trading rule.
+    Randomly split data into train/test n_iterations times.
+    Apply rule to test set each time.
+    Returns average test WR + confidence interval.
+    """
+    conditions = parse_rule(rule_str)
+    if not conditions:
+        return {"status": "parse_error", "rule": rule_str}
+    
+    # Full dataset WR with this rule
+    full_result = test_rule(instances, conditions)
+    if full_result.get("status") != "ok":
+        return {"status": "rule_no_matches", "rule": rule_str}
+    
+    full_wr = full_result["win_rate"]
+    
+    rng = np.random.RandomState(seed)
+    n = len(instances)
+    test_size = max(int(n * test_ratio), 5)
+    train_size = n - test_size
+    
+    test_wrs = []
+    train_wrs = []
+    test_trades = []
+    
+    for _ in range(n_iterations):
+        # Random shuffle and split
+        indices = rng.permutation(n)
+        train_idx = indices[:train_size]
+        test_idx = indices[train_size:]
+        
+        train_set = [instances[i] for i in train_idx]
+        test_set = [instances[i] for i in test_idx]
+        
+        # Apply rule to both sets
+        train_result = test_rule(train_set, conditions)
+        test_result = test_rule(test_set, conditions)
+        
+        if train_result.get("status") == "ok":
+            train_wrs.append(train_result["win_rate"])
+        
+        if test_result.get("status") == "ok":
+            test_wrs.append(test_result["win_rate"])
+            test_trades.append(test_result["trades_matched"])
+    
+    if not test_wrs:
+        return {"status": "no_test_results", "rule": rule_str}
+    
+    test_arr = np.array(test_wrs)
+    train_arr = np.array(train_wrs) if train_wrs else np.array([0])
+    
+    avg_test_wr = round(float(np.mean(test_arr)), 1)
+    std_test_wr = round(float(np.std(test_arr)), 1)
+    avg_train_wr = round(float(np.mean(train_arr)), 1)
+    
+    # Confidence interval (95%)
+    ci_low = round(float(np.percentile(test_arr, 2.5)), 1)
+    ci_high = round(float(np.percentile(test_arr, 97.5)), 1)
+    
+    # Overfitting score: gap between full WR and avg test WR
+    overfit_gap = round(full_wr - avg_test_wr, 1)
+    
+    # Verdict
+    if avg_test_wr >= 65 and std_test_wr <= 15 and overfit_gap <= 5:
+        verdict = "PASS"
+    elif avg_test_wr >= 55 and std_test_wr <= 20:
+        verdict = "PARTIAL"
+    else:
+        verdict = "FAIL"
+    
+    return {
+        "status": "ok",
+        "rule": rule_str,
+        "full_dataset_wr": full_wr,
+        "full_dataset_trades": full_result["trades_matched"],
+        "bootstrap": {
+            "iterations": len(test_wrs),
+            "avg_test_wr": avg_test_wr,
+            "std_test_wr": std_test_wr,
+            "avg_train_wr": avg_train_wr,
+            "ci_95": [ci_low, ci_high],
+            "avg_test_trades": round(float(np.mean(test_trades)), 1),
+            "overfit_gap": overfit_gap,
+        },
+        "verdict": verdict,
+    }
+
+
+def bootstrap_validate_rules(
+    backtester,
+    symbol: str,
+    timeframe: str,
+    entry_logic: str,
+    entry_logic_2: str = None,
+    sl_pct: float = 0.6,
+    tp_pct: float = 1.5,
+    days: int = 365,
+    rules: list = None,
+    n_iterations: int = 100,
+) -> dict:
+    """
+    Bootstrap validate multiple rules at once.
+    """
+    study = run_feature_study(
+        backtester=backtester,
+        symbol=symbol,
+        timeframe=timeframe,
+        entry_logic=entry_logic,
+        entry_logic_2=entry_logic_2,
+        sl_pct=sl_pct,
+        tp_pct=tp_pct,
+        days=days,
+    )
+    
+    if study.get("status") != "ok" or not study.get("instances"):
+        return {"status": "error", "error": "Feature study failed"}
+    
+    instances = study["instances"]
+    baseline_wr = study["outcomes"]["win_rate"]
+    
+    results = []
+    for rule_str in (rules or []):
+        result = bootstrap_validate(instances, rule_str, n_iterations)
+        results.append(result)
+    
+    # Sort by verdict then avg_test_wr
+    verdict_order = {"PASS": 0, "PARTIAL": 1, "FAIL": 2}
+    results.sort(key=lambda x: (verdict_order.get(x.get("verdict", "FAIL"), 3), -x.get("bootstrap", {}).get("avg_test_wr", 0)))
+    
+    return {
+        "status": "ok",
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "entry_logic": f"{entry_logic}{' AND ' + entry_logic_2 if entry_logic_2 else ''}",
+        "baseline_wr": baseline_wr,
+        "total_instances": len(instances),
+        "validations": results,
+    }
+
+
+# ============================================================
 # BACKTESTER
 # ============================================================
 
