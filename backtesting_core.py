@@ -1606,18 +1606,18 @@ def run_feature_study(
         outcome = classify_trade_outcome(trade, data, config)
         
         instances.append({
-            "idx": entry_idx,
-            "direction": trade['direction'],
-            "entry_price": round(trade['entry_price'], 2),
-            "exit_price": round(trade['exit_price'], 2),
-            "pnl_pct": round(trade['pnl_pct'], 4),
-            "pnl_dollar": round(trade['pnl_dollar'], 2),
-            "bars_held": trade['bars_held'],
+            "idx": int(entry_idx),
+            "direction": int(trade['direction']),
+            "entry_price": round(float(trade['entry_price']), 2),
+            "exit_price": round(float(trade['exit_price']), 2),
+            "pnl_pct": round(float(trade['pnl_pct']), 4),
+            "pnl_dollar": round(float(trade['pnl_dollar']), 2),
+            "bars_held": int(trade['bars_held']),
             "exit_reason": trade['exit_reason'],
             "outcome": outcome,
-            "max_wick_against": trade.get('max_wick_against', 0),
-            "max_wick_favor": trade.get('max_wick_favor', 0),
-            "regime": trade.get('regime', 0),
+            "max_wick_against": round(float(trade.get('max_wick_against', 0)), 4),
+            "max_wick_favor": round(float(trade.get('max_wick_favor', 0)), 4),
+            "regime": int(trade.get('regime', 0)),
             "features": features,
         })
     
