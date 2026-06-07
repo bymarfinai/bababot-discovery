@@ -2137,6 +2137,157 @@ def _profile_features(winners, losers, numeric_keys, capture_target):
     return profiles
 
 
+# ============================================================
+# MARTHIAS METHOD — AI Rule Tester
+# Parse and test rules suggested by AI against actual instances
+# ============================================================
+
+import re
+
+def parse_rule(rule_str: str) -> list:
+    """
+    Parse AI rule string into conditions.
+    Input:  "stoch_val <= 40 AND stoch_slope < -10 AND s2_hist_height >= 0.12"
+    Output: [("stoch_val", "<=", 40.0), ("stoch_slope", "<", -10.0), ("s2_hist_height", ">=", 0.12)]
+    """
+    conditions = []
+    parts = re.split(r'\s+AND\s+', rule_str, flags=re.IGNORECASE)
+    
+    for part in parts:
+        part = part.strip()
+        # Match: feature_name operator value
+        match = re.match(r'(\w+)\s*(>=|<=|>|<|==|!=)\s*([-+]?\d*\.?\d+)', part)
+        if match:
+            feature = match.group(1)
+            operator = match.group(2)
+            value = float(match.group(3))
+            conditions.append((feature, operator, value))
+    
+    return conditions
+
+
+def test_rule(instances: list, conditions: list) -> dict:
+    """
+    Apply parsed conditions to instances, return actual WR.
+    """
+    if not conditions or not instances:
+        return {"status": "invalid", "error": "No conditions or instances"}
+    
+    passing = []
+    for inst in instances:
+        features = inst['features']
+        all_pass = True
+        
+        for feature, operator, value in conditions:
+            feat_val = features.get(feature)
+            if feat_val is None or not isinstance(feat_val, (int, float)):
+                all_pass = False
+                break
+            
+            if operator == ">=" and not (feat_val >= value):
+                all_pass = False
+                break
+            elif operator == "<=" and not (feat_val <= value):
+                all_pass = False
+                break
+            elif operator == ">" and not (feat_val > value):
+                all_pass = False
+                break
+            elif operator == "<" and not (feat_val < value):
+                all_pass = False
+                break
+            elif operator == "==" and not (feat_val == value):
+                all_pass = False
+                break
+            elif operator == "!=" and not (feat_val != value):
+                all_pass = False
+                break
+        
+        if all_pass:
+            passing.append(inst)
+    
+    if not passing:
+        return {"status": "no_matches", "trades_matched": 0}
+    
+    total = len(passing)
+    wins = sum(1 for inst in passing if inst['outcome'] != 'loss')
+    losses = total - wins
+    
+    baseline_wr = _calc_wr(instances)
+    rule_wr = round(wins / total * 100, 1) if total > 0 else 0
+    
+    return {
+        "status": "ok",
+        "trades_matched": total,
+        "winners": wins,
+        "losers": losses,
+        "win_rate": rule_wr,
+        "baseline_wr": baseline_wr,
+        "wr_improvement": round(rule_wr - baseline_wr, 1),
+        "trades_removed": len(instances) - total,
+        "winners_captured_pct": round(wins / sum(1 for i in instances if i['outcome'] != 'loss') * 100, 1) if sum(1 for i in instances if i['outcome'] != 'loss') > 0 else 0,
+    }
+
+
+def test_ai_rules(
+    backtester,
+    symbol: str,
+    timeframe: str,
+    entry_logic: str,
+    entry_logic_2: str = None,
+    sl_pct: float = 0.6,
+    tp_pct: float = 1.5,
+    days: int = 365,
+    rules: list = None,
+) -> dict:
+    """
+    Run feature study, then test a list of AI-suggested rules against actual data.
+    """
+    # Get instances
+    study = run_feature_study(
+        backtester=backtester,
+        symbol=symbol,
+        timeframe=timeframe,
+        entry_logic=entry_logic,
+        entry_logic_2=entry_logic_2,
+        sl_pct=sl_pct,
+        tp_pct=tp_pct,
+        days=days,
+    )
+    
+    if study.get("status") != "ok" or not study.get("instances"):
+        return {"status": "error", "error": "Feature study failed or no instances"}
+    
+    instances = study["instances"]
+    baseline_wr = study["outcomes"]["win_rate"]
+    
+    results = []
+    for rule_str in (rules or []):
+        conditions = parse_rule(rule_str)
+        if not conditions:
+            results.append({"rule": rule_str, "status": "parse_error"})
+            continue
+        
+        result = test_rule(instances, conditions)
+        result["rule"] = rule_str
+        result["conditions_parsed"] = len(conditions)
+        results.append(result)
+    
+    # Rank by WR
+    results.sort(key=lambda x: x.get("win_rate", 0), reverse=True)
+    
+    return {
+        "status": "ok",
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "entry_logic": f"{entry_logic}{' AND ' + entry_logic_2 if entry_logic_2 else ''}",
+        "baseline": {
+            "total": len(instances),
+            "win_rate": baseline_wr,
+        },
+        "rules_tested": results,
+    }
+
 
 # ============================================================
 # BACKTESTER
