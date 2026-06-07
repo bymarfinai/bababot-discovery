@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
-from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study
+from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 security = HTTPBearer(auto_error=False)
@@ -743,4 +743,35 @@ def marthias_study(req: MarthiasStudyRequest, _=Security(verify_token)):
         min_per_group=req.min_per_group,
     )
     
+    return result
+
+
+# ============================================================
+# AI RULE TESTER — Validate AI suggested rules against data
+# ============================================================
+
+class TestRulesRequest(BaseModel):
+    symbol: str = "SOLUSDT"
+    timeframe: str = "4h"
+    entry_logic: str = "stoch_ob_os"
+    entry_logic_2: Optional[str] = None
+    sl_pct: float = 0.6
+    tp_pct: float = 1.5
+    days: int = 365
+    rules: list = []
+
+@app.post("/backtest/test-rules")
+def backtest_test_rules(req: TestRulesRequest, _=Security(verify_token)):
+    """Test AI-suggested rules against actual backtested data."""
+    result = test_ai_rules(
+        backtester=bt,
+        symbol=req.symbol.upper(),
+        timeframe=req.timeframe,
+        entry_logic=req.entry_logic,
+        entry_logic_2=req.entry_logic_2,
+        sl_pct=req.sl_pct,
+        tp_pct=req.tp_pct,
+        days=req.days,
+        rules=req.rules,
+    )
     return result
