@@ -2443,6 +2443,251 @@ def bootstrap_validate_rules(
 
 
 # ============================================================
+# SL/TP OPTIMIZATION — Preset testing + TP discovery via wick
+# ============================================================
+
+def run_sltp_optimization(
+    backtester,
+    symbol: str,
+    timeframe: str,
+    entry_logic: str,
+    entry_logic_2: str = None,
+    days: int = 365,
+    rule_filter: str = None,
+    sl_presets: list = None,
+    tp_base: float = 1.0,
+) -> dict:
+    """
+    Test multiple SL presets with fixed TP, analyze wick data to discover optimal TP.
+    
+    1. Run signal once → generate trades per SL preset
+    2. Per winning trade: record max_wick_favor (how far price went in our favor)
+    3. From wick data: calculate how many trades would hit various TP levels
+    4. Also record max_wick_against for wick-vs-close SL analysis
+    """
+    if sl_presets is None:
+        sl_presets = [0.4, 0.6, 0.8]
+    
+    # Load data once
+    data = backtester._load_data(symbol, timeframe, days)
+    if data is None or len(data['close']) < 100:
+        return {"status": "error", "error": f"Insufficient data for {symbol} {timeframe}"}
+    
+    # Build base config for indicators + signals (SL/TP don't affect signal generation)
+    base_config = StrategyConfig(
+        symbol=symbol,
+        timeframe=timeframe,
+        entry_logic=entry_logic,
+        entry_logic_2=entry_logic_2,
+        sl_pct=0.6,
+        tp_pct=tp_base,
+        days=days,
+        sl_check_mode="close",
+    )
+    
+    # Precompute indicators + signals ONCE
+    ind = precompute_indicators(data, base_config)
+    signals = get_signals(data, ind, base_config)
+    
+    # AND combo confirmation
+    if entry_logic_2 and entry_logic_2 in ENTRY_LOGICS:
+        from dataclasses import replace as dc_replace
+        config2 = dc_replace(base_config, entry_logic=entry_logic_2)
+        signals2 = get_signals(data, ind, config2)
+        window = 3
+        combined = np.zeros(len(signals), dtype=int)
+        for i in range(window, len(signals)):
+            if signals[i] != 0:
+                for j in range(max(0, i - window), i + 1):
+                    if signals2[j] == signals[i]:
+                        combined[i] = signals[i]
+                        break
+            elif signals2[i] != 0:
+                for j in range(max(0, i - window), i + 1):
+                    if signals[j] == signals2[i]:
+                        combined[i] = signals2[i]
+                        break
+        signals = combined
+    
+    signals = apply_filters(data, ind, signals, base_config)
+    regimes = classify_regime(data, ind)
+    
+    # Parse rule filter if provided
+    rule_conditions = None
+    if rule_filter:
+        rule_conditions = parse_rule(rule_filter)
+    
+    # Test each SL preset
+    preset_results = []
+    
+    for sl in sl_presets:
+        from dataclasses import replace as dc_replace
+        config = dc_replace(base_config, sl_pct=sl, tp_pct=tp_base)
+        
+        # Run with CLOSE mode (current)
+        trades_close = simulate_trades(data, ind, signals, config, 0, None, regimes)
+        
+        # Also run with WICK mode for comparison
+        config_wick = dc_replace(config, sl_check_mode="wick")
+        trades_wick = simulate_trades(data, ind, signals, config_wick, 0, None, regimes)
+        
+        # Apply rule filter if provided
+        if rule_conditions and trades_close:
+            filtered_close = []
+            for trade in trades_close:
+                entry_idx = trade['entry_idx']
+                features = extract_signal_features(
+                    f"{entry_logic}{' AND ' + entry_logic_2 if entry_logic_2 else ''}",
+                    data, ind, entry_idx, signals, regimes
+                )
+                # Check rule
+                passes = True
+                for feat, op, val in rule_conditions:
+                    fv = features.get(feat)
+                    if fv is None or not isinstance(fv, (int, float)):
+                        passes = False
+                        break
+                    if op == ">=" and not (fv >= val): passes = False
+                    elif op == "<=" and not (fv <= val): passes = False
+                    elif op == ">" and not (fv > val): passes = False
+                    elif op == "<" and not (fv < val): passes = False
+                    if not passes:
+                        break
+                if passes:
+                    filtered_close.append(trade)
+            trades_close = filtered_close
+            
+            # Same for wick trades
+            filtered_wick = []
+            for trade in trades_wick:
+                entry_idx = trade['entry_idx']
+                features = extract_signal_features(
+                    f"{entry_logic}{' AND ' + entry_logic_2 if entry_logic_2 else ''}",
+                    data, ind, entry_idx, signals, regimes
+                )
+                passes = True
+                for feat, op, val in rule_conditions:
+                    fv = features.get(feat)
+                    if fv is None or not isinstance(fv, (int, float)):
+                        passes = False
+                        break
+                    if op == ">=" and not (fv >= val): passes = False
+                    elif op == "<=" and not (fv <= val): passes = False
+                    elif op == ">" and not (fv > val): passes = False
+                    elif op == "<" and not (fv < val): passes = False
+                    if not passes:
+                        break
+                if passes:
+                    filtered_wick.append(trade)
+            trades_wick = filtered_wick
+        
+        if not trades_close:
+            preset_results.append({
+                "sl_pct": sl,
+                "tp_pct": tp_base,
+                "status": "no_trades",
+            })
+            continue
+        
+        # Analyze close mode trades
+        wins_close = [t for t in trades_close if t['pnl_dollar'] > 0]
+        losses_close = [t for t in trades_close if t['pnl_dollar'] <= 0]
+        wr_close = round(len(wins_close) / len(trades_close) * 100, 1)
+        
+        # Analyze wick mode trades
+        wins_wick = [t for t in trades_wick if t['pnl_dollar'] > 0]
+        losses_wick = [t for t in trades_wick if t['pnl_dollar'] <= 0]
+        wr_wick = round(len(wins_wick) / len(trades_wick) * 100, 1) if trades_wick else 0
+        
+        # Wick analysis: how many trades would SL hit if using wick mode?
+        wick_would_hit_sl = sum(1 for t in trades_close if t.get('max_wick_against', 0) >= sl)
+        wick_sl_pct = round(wick_would_hit_sl / len(trades_close) * 100, 1)
+        
+        # TP discovery: from ALL trades (close mode), check max_wick_favor
+        all_wick_favors = [float(t.get('max_wick_favor', 0)) for t in trades_close]
+        
+        tp_levels = [0.5, 0.8, 1.0, 1.2, 1.5, 1.8, 2.0, 2.5, 3.0]
+        tp_analysis = []
+        for tp_level in tp_levels:
+            # How many trades had wick_favor >= tp_level? (could have hit this TP)
+            would_hit = sum(1 for wf in all_wick_favors if wf >= tp_level)
+            would_hit_pct = round(would_hit / len(trades_close) * 100, 1)
+            
+            # Of those, how many were winners at base TP? (rough proxy)
+            # Better: estimate WR at this TP level
+            wins_at_tp = sum(1 for t in trades_close if float(t.get('max_wick_favor', 0)) >= tp_level)
+            losses_at_tp = len(trades_close) - wins_at_tp
+            wr_at_tp = round(wins_at_tp / len(trades_close) * 100, 1)
+            
+            # Profit calculation at this TP level
+            position_size = base_config.initial_capital * base_config.position_size_pct / 100
+            profit_per_win = position_size * tp_level / 100
+            profit_per_loss = position_size * sl / 100
+            est_profit = (wins_at_tp * profit_per_win) - (losses_at_tp * profit_per_loss)
+            
+            tp_analysis.append({
+                "tp_pct": tp_level,
+                "trades_would_hit": would_hit,
+                "trades_would_hit_pct": would_hit_pct,
+                "estimated_wr": wr_at_tp,
+                "estimated_profit_year": round(float(est_profit), 2),
+            })
+        
+        # Wick against stats
+        all_wick_against = [float(t.get('max_wick_against', 0)) for t in trades_close]
+        
+        # Find optimal TP (highest profit)
+        best_tp = max(tp_analysis, key=lambda x: x['estimated_profit_year'])
+        
+        preset_results.append({
+            "sl_pct": sl,
+            "tp_base": tp_base,
+            "close_mode": {
+                "total_trades": len(trades_close),
+                "wins": len(wins_close),
+                "losses": len(losses_close),
+                "win_rate": wr_close,
+            },
+            "wick_mode": {
+                "total_trades": len(trades_wick),
+                "wins": len(wins_wick),
+                "losses": len(losses_wick),
+                "win_rate": wr_wick,
+            },
+            "wick_analysis": {
+                "avg_max_wick_against": round(float(np.mean(all_wick_against)), 4) if all_wick_against else 0,
+                "max_wick_against": round(float(np.max(all_wick_against)), 4) if all_wick_against else 0,
+                "pct_trades_wick_hit_sl": wick_sl_pct,
+                "avg_max_wick_favor": round(float(np.mean(all_wick_favors)), 4) if all_wick_favors else 0,
+                "max_wick_favor": round(float(np.max(all_wick_favors)), 4) if all_wick_favors else 0,
+            },
+            "tp_discovery": tp_analysis,
+            "optimal_tp": {
+                "tp_pct": best_tp['tp_pct'],
+                "estimated_wr": best_tp['estimated_wr'],
+                "estimated_profit_year": best_tp['estimated_profit_year'],
+            },
+        })
+    
+    n = len(data['close'])
+    candles_per_day = {'1m': 1440, '3m': 480, '5m': 288, '15m': 96, '1h': 24, '4h': 6}
+    cpd = candles_per_day.get(timeframe, 288)
+    data_days = round(n / cpd, 1)
+    
+    return {
+        "status": "ok",
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "entry_logic": f"{entry_logic}{' AND ' + entry_logic_2 if entry_logic_2 else ''}",
+        "data_days": data_days,
+        "rule_filter": rule_filter,
+        "sl_presets_tested": sl_presets,
+        "tp_base": tp_base,
+        "results": preset_results,
+    }
+
+
+# ============================================================
 # BACKTESTER
 # ============================================================
 
