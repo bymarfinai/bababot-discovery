@@ -839,3 +839,67 @@ def sltp_optimize(req: SLTPOptRequest, _=Security(verify_token)):
         tp_base=req.tp_base,
     )
     return result
+
+# ============================================================
+# PIPELINE 2 CRON — Background thread hits Worker run-next
+# ============================================================
+
+import requests as _requests
+
+_p2_cron_running = False
+_p2_cron_lock = threading.Lock()
+_p2_interval = int(os.environ.get("P2_CRON_INTERVAL", "180"))  # default 3 minutes
+_p2_worker_url = os.environ.get("P2_WORKER_URL", "https://bababot-pro.bymarfinai.workers.dev/discovery/marthias/run-next")
+
+def _p2_cron_loop():
+    global _p2_cron_running
+    print(f"[P2 Cron] Started, interval={_p2_interval}s, url={_p2_worker_url}")
+    while _p2_cron_running:
+        try:
+            with _p2_cron_lock:
+                resp = _requests.post(_p2_worker_url, json={}, timeout=300)
+                data = resp.json()
+                status = data.get("status", "?")
+                combo = data.get("combo", "")
+                if status == "skipped":
+                    print(f"[P2 Cron] Skipped: {combo} ({data.get('instances',0)} inst)")
+                elif status == "ok":
+                    best = data.get("best_rule", {})
+                    print(f"[P2 Cron] OK: {combo} | WR {best.get('wr','?')}% | saved={data.get('saved')}")
+                elif status == "queue_empty":
+                    print("[P2 Cron] Queue empty")
+                else:
+                    print(f"[P2 Cron] {status}: {combo}")
+        except Exception as e:
+            print(f"[P2 Cron] Error: {e}")
+        time.sleep(_p2_interval)
+
+@app.get("/p2-cron/start")
+def p2_cron_start():
+    global _p2_cron_running
+    if _p2_cron_running:
+        return {"ok": True, "message": "Already running", "interval": _p2_interval}
+    _p2_cron_running = True
+    t = threading.Thread(target=_p2_cron_loop, daemon=True)
+    t.start()
+    return {"ok": True, "message": f"P2 cron started, interval={_p2_interval}s"}
+
+@app.get("/p2-cron/stop")
+def p2_cron_stop():
+    global _p2_cron_running
+    _p2_cron_running = False
+    return {"ok": True, "message": "P2 cron stopped"}
+
+@app.get("/p2-cron/status")
+def p2_cron_status():
+    return {"running": _p2_cron_running, "interval": _p2_interval, "url": _p2_worker_url}
+
+# Auto-start P2 cron on app startup
+@app.on_event("startup")
+def _auto_start_p2_cron():
+    if os.environ.get("P2_CRON_ENABLED", "true").lower() == "true":
+        global _p2_cron_running
+        _p2_cron_running = True
+        t = threading.Thread(target=_p2_cron_loop, daemon=True)
+        t.start()
+        print(f"[P2 Cron] Auto-started on startup")
