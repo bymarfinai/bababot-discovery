@@ -1607,6 +1607,7 @@ def run_feature_study(
         
         instances.append({
             "idx": int(entry_idx),
+            "entry_ts": int(data['open_time'][entry_idx]),
             "direction": int(trade['direction']),
             "entry_price": round(float(trade['entry_price']), 2),
             "exit_price": round(float(trade['exit_price']), 2),
@@ -2962,3 +2963,186 @@ if __name__ == "__main__":
         print(f"\n{r.summary()}")
     meets = [r for r in results if r.meets_criteria]
     print(f"\n✅ Meets criteria: {len(meets)}/{len(results)}")
+
+
+# ============================================================
+# PAPER RUN — Test verified strategy on UNSEEN data
+# ============================================================
+
+def run_paper_test(
+    backtester,
+    symbol: str,
+    timeframe: str,
+    entry_logic: str,
+    entry_logic_2: str = None,
+    sl_pct: float = 0.6,
+    tp_pct: float = 1.5,
+    rule_filter: str = None,
+    discovery_days: int = 365,
+) -> dict:
+    """
+    Paper run: test verified strategy on data BEFORE discovery period.
+    
+    Discovery used last `discovery_days` days. Paper tests everything before that.
+    Example: 5 years data, discovery=365d → paper tests first 4 years (unseen).
+    """
+    from datetime import datetime, timezone, timedelta
+    
+    # Calculate date boundaries
+    now = datetime.now(timezone.utc)
+    discovery_start = now - timedelta(days=discovery_days)
+    
+    # Paper period: earliest available data → discovery_start
+    paper_end_str = discovery_start.strftime("%Y-%m-%d")
+    
+    # Load ALL data to find earliest date
+    all_data = backtester._load_data(symbol, timeframe, days=99999)
+    if all_data is None or len(all_data['close']) < 100:
+        return {"verdict": "PAPER_NODATA", "reason": f"No data for {symbol} {timeframe}"}
+    
+    earliest_ts = all_data['open_time'][0]
+    earliest_date = datetime.utcfromtimestamp(earliest_ts / 1000)
+    paper_start_str = earliest_date.strftime("%Y-%m-%d")
+    
+    # Check if paper period is meaningful
+    paper_days_available = (discovery_start - earliest_date).days
+    if paper_days_available < 30:
+        return {
+            "verdict": "PAPER_NODATA",
+            "reason": f"Only {paper_days_available} days before discovery period (need 30+)",
+            "earliest_data": paper_start_str,
+            "discovery_start": paper_end_str,
+        }
+    
+    # Run feature study on PAPER PERIOD only
+    study = run_feature_study(
+        backtester, symbol, timeframe,
+        entry_logic, entry_logic_2,
+        sl_pct, tp_pct,
+        days=0,  # ignored when start/end provided
+        start_date=paper_start_str,
+        end_date=paper_end_str,
+    )
+    
+    if study.get("status") == "error" or not study.get("instances"):
+        return {
+            "verdict": "PAPER_NODATA",
+            "reason": study.get("error", "No instances in paper period"),
+            "paper_start": paper_start_str,
+            "paper_end": paper_end_str,
+            "paper_days": paper_days_available,
+        }
+    
+    instances = study["instances"]
+    
+    # Apply rule filter if provided
+    if rule_filter and rule_filter.strip():
+        conditions = parse_rule(rule_filter)
+        filtered = []
+        for inst in instances:
+            passes = True
+            for feat, op, val in conditions:
+                fv = inst.get("features", {}).get(feat)
+                if fv is None or not isinstance(fv, (int, float)):
+                    passes = False
+                    break
+                if op == ">=" and not (fv >= val): passes = False
+                elif op == "<=" and not (fv <= val): passes = False
+                elif op == ">" and not (fv > val): passes = False
+                elif op == "<" and not (fv < val): passes = False
+                if not passes:
+                    break
+            if passes:
+                filtered.append(inst)
+    else:
+        filtered = instances
+    
+    total_before_filter = len(instances)
+    total = len(filtered)
+    
+    if total < 3:
+        return {
+            "verdict": "PAPER_NODATA",
+            "reason": f"Only {total} trades after rule filter ({total_before_filter} before filter)",
+            "paper_start": paper_start_str,
+            "paper_end": paper_end_str,
+            "paper_days": paper_days_available,
+            "total_signals": total_before_filter,
+            "total_filtered": total,
+        }
+    
+    # Calculate results
+    wins = sum(1 for i in filtered if i.get("outcome", "") != "loss")
+    losses = total - wins
+    wr = round(wins / total * 100, 1) if total > 0 else 0
+    
+    # Per-year breakdown
+    year_stats = {}
+    for inst in filtered:
+        # Extract year from entry timestamp
+        ts = inst.get("entry_ts", 0)
+        if ts:
+            year = str(datetime.utcfromtimestamp(ts / 1000).year) if ts > 1e9 else str(int(ts))[:4]
+        else:
+            year = "unknown"
+        if year not in year_stats:
+            year_stats[year] = {"wins": 0, "losses": 0}
+        if inst.get("outcome", "") != "loss":
+            year_stats[year]["wins"] += 1
+        else:
+            year_stats[year]["losses"] += 1
+    
+    for year, stats in year_stats.items():
+        t = stats["wins"] + stats["losses"]
+        stats["total"] = t
+        stats["wr"] = round(stats["wins"] / t * 100, 1) if t > 0 else 0
+    
+    # Per-regime breakdown
+    regime_stats = {}
+    regime_map = {0: "sideways", 1: "bull", -1: "bear", 2: "shock"}
+    for inst in filtered:
+        r = inst.get("features", {}).get("R", 0)
+        regime = regime_map.get(int(r) if isinstance(r, (int, float)) else 0, "unknown")
+        if regime not in regime_stats:
+            regime_stats[regime] = {"wins": 0, "losses": 0}
+        if inst.get("outcome", "") != "loss":
+            regime_stats[regime]["wins"] += 1
+        else:
+            regime_stats[regime]["losses"] += 1
+    
+    for regime, stats in regime_stats.items():
+        t = stats["wins"] + stats["losses"]
+        stats["total"] = t
+        stats["wr"] = round(stats["wins"] / t * 100, 1) if t > 0 else 0
+    
+    # Verdict
+    if total < 10:
+        verdict = "PAPER_NODATA"
+        reason = f"Only {total} trades (need 10+ for verdict)"
+    elif wr >= 70 and total >= 20:
+        verdict = "PAPER_PASS"
+        reason = f"WR {wr}% with {total} trades on unseen data"
+    elif wr >= 60 and total >= 10:
+        verdict = "PAPER_PARTIAL"
+        reason = f"WR {wr}% — promising but below 70% threshold"
+    else:
+        verdict = "PAPER_FAIL"
+        reason = f"WR {wr}% on unseen data — strategy may not generalize"
+    
+    return {
+        "verdict": verdict,
+        "reason": reason,
+        "paper_wr": float(wr),
+        "paper_trades": int(total),
+        "paper_wins": int(wins),
+        "paper_losses": int(losses),
+        "paper_period_start": paper_start_str,
+        "paper_period_end": paper_end_str,
+        "paper_days": int(paper_days_available),
+        "total_signals_before_filter": int(total_before_filter),
+        "total_signals_after_filter": int(total),
+        "year_breakdown": year_stats,
+        "regime_breakdown": regime_stats,
+        "discovery_days": discovery_days,
+        "rule_applied": rule_filter or "(none)",
+    }
