@@ -2663,6 +2663,43 @@ def run_sltp_optimization(
         # Find optimal TP (highest profit)
         best_tp = max(tp_analysis, key=lambda x: x['estimated_profit_year'])
         
+        # ── SL DISCOVERY via wick_against distribution ──
+        sl_levels = [0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.5]
+        sl_discovery = []
+        for sl_test in sl_levels:
+            # How many trades would survive (wick never hit this SL)?
+            survive = sum(1 for wa in all_wick_against if wa < sl_test)
+            survive_pct = round(survive / len(trades_close) * 100, 1) if trades_close else 0
+            
+            # Of those that survive, how many are winners?
+            surviving_trades = [t for t in trades_close if float(t.get('max_wick_against', 0)) < sl_test]
+            surviving_wins = sum(1 for t in surviving_trades if t['pnl_dollar'] > 0)
+            surviving_wr = round(surviving_wins / len(surviving_trades) * 100, 1) if surviving_trades else 0
+            
+            # Estimate profit at this SL level with optimal TP
+            position_size = base_config.initial_capital * base_config.position_size_pct / 100
+            tp_for_calc = best_tp['tp_pct'] if best_tp['tp_pct'] >= 1.0 else 1.5
+            profit_per_win = position_size * tp_for_calc / 100
+            profit_per_loss = position_size * sl_test / 100
+            # At this SL, trades that wick hit SL = loss, trades that survive = use original WR
+            wick_killed = len(trades_close) - survive
+            est_wins = surviving_wins
+            est_losses = len(surviving_trades) - surviving_wins + wick_killed
+            est_profit = (est_wins * profit_per_win) - (est_losses * profit_per_loss)
+            
+            sl_discovery.append({
+                "sl_pct": sl_test,
+                "trades_survive": survive,
+                "trades_survive_pct": survive_pct,
+                "wick_killed": wick_killed,
+                "surviving_wr": surviving_wr,
+                "estimated_profit_year": round(float(est_profit), 2),
+            })
+        
+        # Find optimal SL (highest profit, min 0.4%)
+        valid_sl = [s for s in sl_discovery if s['sl_pct'] >= 0.4 and s['sl_pct'] <= 0.8]
+        best_sl = max(valid_sl, key=lambda x: x['estimated_profit_year']) if valid_sl else sl_discovery[2]
+        
         preset_results.append({
             "sl_pct": sl,
             "tp_base": tp_base,
@@ -2690,6 +2727,12 @@ def run_sltp_optimization(
                 "tp_pct": best_tp['tp_pct'],
                 "estimated_wr": best_tp['estimated_wr'],
                 "estimated_profit_year": best_tp['estimated_profit_year'],
+            },
+            "sl_discovery": sl_discovery,
+            "optimal_sl": {
+                "sl_pct": best_sl['sl_pct'],
+                "trades_survive_pct": best_sl['trades_survive_pct'],
+                "estimated_profit_year": best_sl['estimated_profit_year'],
             },
         })
     
