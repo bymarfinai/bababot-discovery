@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
-from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization
+from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -839,6 +839,34 @@ def sltp_optimize(req: SLTPOptRequest, _=Security(verify_token)):
         rule_filter=req.rule_filter,
         sl_presets=req.sl_presets,
         tp_base=req.tp_base,
+    )
+    return result
+
+
+# Paper Run endpoint
+class PaperRunRequest(BaseModel):
+    symbol: str
+    timeframe: str
+    entry_logic: str
+    entry_logic_2: Optional[str] = None
+    rule: Optional[str] = None
+    sl_pct: float = 0.6
+    tp_pct: float = 1.5
+    discovery_days: int = 365
+
+@app.post("/backtest/paper-run")
+def paper_run_endpoint(req: PaperRunRequest):
+    bt = Backtester(db_path=DB_PATH)
+    result = run_paper_test(
+        bt,
+        symbol=req.symbol.upper(),
+        timeframe=req.timeframe,
+        entry_logic=req.entry_logic,
+        entry_logic_2=req.entry_logic_2,
+        sl_pct=req.sl_pct,
+        tp_pct=req.tp_pct,
+        rule_filter=req.rule,
+        discovery_days=req.discovery_days,
     )
     return result
 
