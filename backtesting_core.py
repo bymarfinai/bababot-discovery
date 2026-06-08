@@ -2014,23 +2014,47 @@ def build_winning_profile(instances: list, capture_target: float = 80.0) -> dict
         if not round_profiles:
             break
         
-        # Pick best discriminating feature for this round
-        best_feature = round_profiles[0]
+        # Try ALL features, pick the one that gives best WR after filtering
+        best_feature = None
+        best_filtered_pool = None
+        best_new_wr = prev_wr
         
-        # Only proceed if this feature actually rejects some losers
-        if best_feature['losers_rejected'] == 0:
+        for candidate in round_profiles:
+            # Skip if this feature doesn't reject any losers
+            if candidate['losers_rejected'] == 0:
+                continue
+            
+            c_low = candidate['winner_range']['low']
+            c_high = candidate['winner_range']['high']
+            c_key = candidate['feature']
+            
+            # Apply this feature's filter
+            c_pool = [
+                inst for inst in current_pool
+                if isinstance(inst['features'].get(c_key, None), (int, float))
+                and c_low <= inst['features'][c_key] <= c_high
+            ]
+            
+            if len(c_pool) < min_pool_size:
+                continue
+            
+            c_wr = _calc_wr(c_pool)
+            
+            # Pick if best WR so far
+            if c_wr > best_new_wr:
+                best_new_wr = c_wr
+                best_feature = candidate
+                best_filtered_pool = c_pool
+        
+        # No feature improved WR
+        if best_feature is None or best_filtered_pool is None:
             break
         
-        # Apply filter: keep instances within winner range
+        # Apply best feature's filter
         low = best_feature['winner_range']['low']
         high = best_feature['winner_range']['high']
         feature_key = best_feature['feature']
-        
-        filtered_pool = [
-            inst for inst in current_pool
-            if isinstance(inst['features'].get(feature_key, None), (int, float))
-            and low <= inst['features'][feature_key] <= high
-        ]
+        filtered_pool = best_filtered_pool
         
         if len(filtered_pool) < min_pool_size:
             break
