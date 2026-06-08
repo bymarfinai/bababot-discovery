@@ -1351,6 +1351,42 @@ def extract_signal_features(
         "T": t,
     }
     
+    # ── EXPANDED UNIVERSAL FEATURES (B2/B3) ──
+    
+    # ATR% = ATR(14) / close * 100 (volatility at entry)
+    atr = ind.get('atr')
+    if atr is not None and not np.isnan(atr[i]) and closes[i] > 0:
+        features["atr_pct"] = round(float(atr[i] / closes[i] * 100), 4)
+    
+    # RSI = RSI(14) value at entry
+    rsi = ind.get('rsi')
+    if rsi is not None and not np.isnan(rsi[i]):
+        features["rsi_val"] = round(float(rsi[i]), 2)
+    
+    # EMA_DIST = distance from EMA20 (% of close)
+    ema20 = ind.get('ema_slow')  # ema_slow = 21, close enough
+    if ema20 is not None and not np.isnan(ema20[i]) and closes[i] > 0:
+        features["ema_dist"] = round(float((closes[i] - ema20[i]) / closes[i] * 100), 4)
+    
+    # SPREAD = candle range / close * 100
+    if closes[i] > 0:
+        features["spread_pct"] = round(float(candle_range / closes[i] * 100), 4)
+    
+    # PREV_DIR = previous candle direction (1=green, -1=red)
+    if i > 0 and 'open' in data:
+        features["prev_dir"] = 1 if closes[i-1] > data['open'][i-1] else -1
+    
+    # CONSEC = consecutive same-direction candles before entry
+    if i > 0 and 'open' in data:
+        direction = 1 if closes[i] > data['open'][i] else -1
+        consec = 0
+        for j in range(i - 1, max(i - 20, 0), -1):
+            if (closes[j] > data['open'][j]) == (direction == 1):
+                consec += 1
+            else:
+                break
+        features["consec"] = consec
+    
     # ── SIGNAL-SPECIFIC FEATURES ──
     
     # Strip "AND" combos to get primary logic
@@ -1363,6 +1399,98 @@ def extract_signal_features(
     # Extract for secondary logic (if AND combo)
     if secondary:
         _add_logic_features(features, secondary, ind, closes, highs, lows, volumes, i, prefix="s2_")
+    
+    return features
+
+
+# ── FEATURE LIBRARY: pre-built extractors AI can activate ──
+FEATURE_LIBRARY = {
+    "bb_width": "Bollinger Band width (volatility measure)",
+    "bb_pos": "Price position within BB (0=lower, 1=upper)",
+    "cci_val": "CCI(14) value at entry",
+    "obv_slope": "OBV trend direction (3-bar slope)",
+    "taker_ratio": "Taker buy volume / total volume (buying pressure)",
+    "ema200_dist": "Distance from EMA200 (% of close)",
+    "vol_trend": "Volume trend (current vs 5-bar avg ratio)",
+    "range_avg": "Current candle range vs 10-bar avg range",
+    "upper_wick": "Upper wick ratio (upper_wick / range)",
+    "lower_wick": "Lower wick ratio (lower_wick / range)",
+    "gap_pct": "Gap from previous close (% change open vs prev close)",
+    "hl_ratio": "High-low range / ATR ratio (expansion/contraction)",
+}
+
+def extract_library_features(data: dict, ind: dict, i: int, feature_names: list) -> dict:
+    """Extract specific features from the library by name."""
+    closes = data['close']
+    highs = data['high']
+    lows = data['low']
+    volumes = data['volume']
+    opens = data.get('open', closes)
+    features = {}
+    
+    for name in feature_names:
+        try:
+            if name == "bb_width":
+                bb_w = ind.get('bb_width')
+                if bb_w is not None and not np.isnan(bb_w[i]):
+                    features["bb_width"] = round(float(bb_w[i]), 4)
+                    
+            elif name == "bb_pos":
+                bb_u = ind.get('bb_upper')
+                bb_l = ind.get('bb_lower')
+                if bb_u is not None and bb_l is not None and not np.isnan(bb_u[i]) and (bb_u[i] - bb_l[i]) > 0:
+                    features["bb_pos"] = round(float((closes[i] - bb_l[i]) / (bb_u[i] - bb_l[i])), 4)
+                    
+            elif name == "cci_val":
+                cci = ind.get('cci')
+                if cci is not None and not np.isnan(cci[i]):
+                    features["cci_val"] = round(float(cci[i]), 2)
+                    
+            elif name == "obv_slope":
+                obv = ind.get('obv')
+                if obv is not None and i >= 3 and not np.isnan(obv[i]):
+                    features["obv_slope"] = round(float(obv[i] - obv[i-3]), 2)
+                    
+            elif name == "taker_ratio":
+                tbv = data.get('taker_buy_volume')
+                if tbv is not None and volumes[i] > 0:
+                    features["taker_ratio"] = round(float(tbv[i] / volumes[i]), 4)
+                    
+            elif name == "ema200_dist":
+                ema200 = ind.get('ema_200')
+                if ema200 is not None and not np.isnan(ema200[i]) and closes[i] > 0:
+                    features["ema200_dist"] = round(float((closes[i] - ema200[i]) / closes[i] * 100), 4)
+                    
+            elif name == "vol_trend":
+                if i >= 5:
+                    avg5 = float(np.mean(volumes[i-5:i]))
+                    features["vol_trend"] = round(float(volumes[i] / avg5), 3) if avg5 > 0 else 1.0
+                    
+            elif name == "range_avg":
+                atr = ind.get('atr')
+                if atr is not None and not np.isnan(atr[i]) and atr[i] > 0:
+                    features["range_avg"] = round(float((highs[i] - lows[i]) / atr[i]), 3)
+                    
+            elif name == "upper_wick":
+                rng = highs[i] - lows[i]
+                if rng > 0:
+                    features["upper_wick"] = round(float((highs[i] - max(closes[i], opens[i])) / rng), 3)
+                    
+            elif name == "lower_wick":
+                rng = highs[i] - lows[i]
+                if rng > 0:
+                    features["lower_wick"] = round(float((min(closes[i], opens[i]) - lows[i]) / rng), 3)
+                    
+            elif name == "gap_pct":
+                if i > 0 and closes[i-1] > 0:
+                    features["gap_pct"] = round(float((opens[i] - closes[i-1]) / closes[i-1] * 100), 4)
+                    
+            elif name == "hl_ratio":
+                atr = ind.get('atr')
+                if atr is not None and not np.isnan(atr[i]) and atr[i] > 0:
+                    features["hl_ratio"] = round(float((highs[i] - lows[i]) / atr[i]), 3)
+        except:
+            continue
     
     return features
 
@@ -1531,6 +1659,7 @@ def run_feature_study(
     days: int = 365,
     start_date: str = None,
     end_date: str = None,
+    extra_features: list = None,
 ) -> dict:
     """
     Run Marthias Method feature study for a signal.
@@ -1601,6 +1730,11 @@ def run_feature_study(
         
         # Extract features at signal fire
         features = extract_signal_features(logic_label, data, ind, entry_idx, signals, regimes)
+        
+        # Extract extra library features if requested
+        if extra_features:
+            lib_feats = extract_library_features(data, ind, entry_idx, extra_features)
+            features.update(lib_feats)
         
         # Classify outcome
         outcome = classify_trade_outcome(trade, data, config)
