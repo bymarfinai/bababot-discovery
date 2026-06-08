@@ -681,14 +681,11 @@ class FeatureStudyRequest(BaseModel):
     days: int = 365
     start_date: Optional[str] = None
     end_date: Optional[str] = None
-    include_instances: bool = True  # False = summary only (smaller response)
+    include_instances: bool = True
+    extra_features: Optional[list] = None
 
 @app.post("/backtest/feature-study")
 def feature_study(req: FeatureStudyRequest, _=Security(verify_token)):
-    """
-    Marthias Method Step 3-4: Feature Study + Discover Differentiator.
-    Runs signal across full data, extracts per-instance features, classifies outcomes.
-    """
     result = run_feature_study(
         backtester=bt,
         symbol=req.symbol.upper(),
@@ -700,6 +697,7 @@ def feature_study(req: FeatureStudyRequest, _=Security(verify_token)):
         days=req.days,
         start_date=req.start_date,
         end_date=req.end_date,
+        extra_features=req.extra_features,
     )
     
     if not req.include_instances and result.get("status") == "ok":
