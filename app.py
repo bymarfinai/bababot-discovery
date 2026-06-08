@@ -856,19 +856,23 @@ class PaperRunRequest(BaseModel):
 
 @app.post("/backtest/paper-run")
 def paper_run_endpoint(req: PaperRunRequest):
-    bt = Backtester(db_path=DB_PATH)
-    result = run_paper_test(
-        bt,
-        symbol=req.symbol.upper(),
-        timeframe=req.timeframe,
-        entry_logic=req.entry_logic,
-        entry_logic_2=req.entry_logic_2,
-        sl_pct=req.sl_pct,
-        tp_pct=req.tp_pct,
-        rule_filter=req.rule,
-        discovery_days=req.discovery_days,
-    )
-    return result
+    try:
+        bt = Backtester(db_path=DB_PATH)
+        result = run_paper_test(
+            bt,
+            symbol=req.symbol.upper(),
+            timeframe=req.timeframe,
+            entry_logic=req.entry_logic,
+            entry_logic_2=req.entry_logic_2,
+            sl_pct=req.sl_pct,
+            tp_pct=req.tp_pct,
+            rule_filter=req.rule,
+            discovery_days=req.discovery_days,
+        )
+        return result
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
 
 # ============================================================
 # PIPELINE 2 CRON — Background thread hits Worker run-next
