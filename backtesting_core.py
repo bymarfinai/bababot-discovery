@@ -3001,7 +3001,7 @@ def run_paper_test(
         return {"verdict": "PAPER_NODATA", "reason": f"No data for {symbol} {timeframe}"}
     
     earliest_ts = all_data['open_time'][0]
-    earliest_date = datetime.utcfromtimestamp(earliest_ts / 1000)
+    earliest_date = datetime.fromtimestamp(earliest_ts / 1000, tz=timezone.utc)
     paper_start_str = earliest_date.strftime("%Y-%m-%d")
     
     # Check if paper period is meaningful
