@@ -888,6 +888,67 @@ def _p2_cron_loop():
     print(f"[P2 Cron] Started, interval={_p2_interval}s, url={_p2_worker_url}")
     while _p2_cron_running:
         try:
+            # ── SWEEP JOBS FIRST ──
+            try:
+                sweep_resp = _requests.post(f"{_p2_worker_url.replace('/marthias/run-next','')}/sweep/process-next", json={}, timeout=10)
+                sweep_data = sweep_resp.json()
+                if sweep_data.get("ok") and not sweep_data.get("queue_empty"):
+                    job = sweep_data
+                    symbol = job["symbol"]
+                    timeframe = job["timeframe"]
+                    entry_logic = job["entry_logic"]
+                    entry_logic_2 = job.get("entry_logic_2")
+                    days = job.get("days", 1825)
+                    job_id = job["job_id"]
+                    session_id = job["session_id"]
+                    
+                    print(f"[Sweep] Processing {symbol}·{timeframe} {entry_logic}")
+                    results = []
+                    for sl in [0.4, 0.6, 0.8]:
+                        for tp in [1.0, 1.5, 2.0]:
+                            try:
+                                req = BacktestRequest(
+                                    symbol=symbol, timeframe=timeframe,
+                                    entry_logic=entry_logic, entry_logic_2=entry_logic_2 or "",
+                                    indicators={}, sl_pct=sl, tp_pct=tp,
+                                    days=days, train_pct=75.0, direction="both"
+                                )
+                                r = run_backtest(req)
+                                r["sl_pct"] = sl
+                                r["tp_pct"] = tp
+                                r["symbol"] = symbol
+                                r["timeframe"] = timeframe
+                                r["entry_logic"] = entry_logic
+                                r["entry_logic_2"] = entry_logic_2
+                                r.pop("equity_curve", None)
+                                if r.get("status") == "ok" and r.get("total_trades", 0) >= 5:
+                                    results.append(r)
+                            except Exception as e:
+                                print(f"[Sweep] Backtest error: {e}")
+                    
+                    results.sort(key=lambda x: (-x.get("win_rate", 0), -x.get("profit_per_day", 0)))
+                    results = results[:20]
+                    best_wr = results[0]["win_rate"] if results else 0
+                    icon = "⭐" if best_wr >= 55 else "✅" if best_wr >= 50 else "❌" if best_wr > 0 else "⏭"
+                    print(f"[Sweep] {icon} {symbol}·{timeframe}: WR={best_wr:.1f}%")
+                    
+                    try:
+                        base_url = _p2_worker_url.replace('/marthias/run-next', '')
+                        _requests.post(f"{base_url}/sweep/save-result", json={
+                            "job_id": job_id, "session_id": session_id,
+                            "entry_logic": entry_logic, "entry_logic_2": entry_logic_2,
+                            "symbol": symbol, "timeframe": timeframe,
+                            "results": results,
+                        }, timeout=15)
+                    except Exception as e:
+                        print(f"[Sweep] Save error: {e}")
+                    
+                    time.sleep(5)
+                    continue  # Process more sweep jobs before P2
+            except Exception as e:
+                print(f"[Sweep] Error: {e}")
+            
+            # ── PIPELINE 2 ──
             with _p2_cron_lock:
                 resp = _requests.post(_p2_worker_url, json={}, timeout=300)
                 data = resp.json()
@@ -926,170 +987,9 @@ def p2_cron_stop():
 def p2_cron_status():
     return {"running": _p2_cron_running, "interval": _p2_interval, "url": _p2_worker_url}
 
-
-# ============================================================
-# SWEEP CRON — server-side sweep processing (no timeout!)
-# ============================================================
-_sweep_cron_running = False
-_sweep_interval = int(os.environ.get("SWEEP_CRON_INTERVAL", "30"))
-_sweep_worker_url = os.environ.get("SWEEP_WORKER_URL", "https://bababot-pro.bymarfinai.workers.dev/discovery")
-
-def _sweep_cron_loop():
-    global _sweep_cron_running
-    print(f"[Sweep Cron] Started, interval={_sweep_interval}s")
-    while _sweep_cron_running:
-        try:
-            # Get next pending job from D1
-            resp = _requests.get(f"{_sweep_worker_url}/sweep/next-job", timeout=15)
-            data = resp.json()
-            
-            if not data.get("ok"):
-                print(f"[Sweep Cron] Error: {data.get('error', '?')}")
-                time.sleep(_sweep_interval)
-                continue
-            
-            if data.get("no_session"):
-                # No active sweep session
-                time.sleep(_sweep_interval)
-                continue
-            
-            if data.get("done"):
-                seeded = data.get("seeded", 0)
-                print(f"[Sweep Cron] Session {data.get('session_id')} done! Seeded {seeded} to P2")
-                time.sleep(_sweep_interval)
-                continue
-            
-            # Run backtest locally
-            job_id = data["job_id"]
-            session_id = data["session_id"]
-            entry_logic = data["entry_logic"]
-            entry_logic_2 = data.get("entry_logic_2")
-            symbol = data["symbol"]
-            timeframe = data["timeframe"]
-            days = data.get("days", 1825)
-            
-            print(f"[Sweep Cron] Running {symbol}·{timeframe} {entry_logic}{' AND '+entry_logic_2 if entry_logic_2 else ''}")
-            
-            results = []
-            for sl in [0.4, 0.6, 0.8]:
-                for tp in [1.0, 1.5, 2.0]:
-                    try:
-                        req = BacktestRequest(
-                            symbol=symbol, timeframe=timeframe,
-                            entry_logic=entry_logic, entry_logic_2=entry_logic_2 or "",
-                            indicators={}, sl_pct=sl, tp_pct=tp,
-                            days=days, train_pct=75.0, direction="both"
-                        )
-                        r = run_backtest(req)
-                        r["sl_pct"] = sl
-                        r["tp_pct"] = tp
-                        r["symbol"] = symbol
-                        r["timeframe"] = timeframe
-                        r.pop("equity_curve", None)
-                        if r.get("status") == "ok" and r.get("total_trades", 0) >= 5:
-                            results.append(r)
-                    except Exception as e:
-                        print(f"[Sweep Cron] Backtest error: {e}")
-            
-            results.sort(key=lambda x: (-x.get("win_rate", 0), -x.get("profit_per_day", 0)))
-            results = results[:20]
-            best_wr = results[0]["win_rate"] if results else 0
-            
-            icon = "⭐" if best_wr >= 55 else "✅" if best_wr >= 50 else "❌" if best_wr > 0 else "⏭"
-            print(f"[Sweep Cron] {icon} {symbol}·{timeframe}: WR={best_wr:.1f}% ({len(results)} results)")
-            
-            # Save results to D1 via Workers
-            try:
-                _requests.post(f"{_sweep_worker_url}/sweep/complete", json={
-                    "job_id": job_id, "session_id": session_id,
-                    "entry_logic": entry_logic, "entry_logic_2": entry_logic_2,
-                    "symbol": symbol, "timeframe": timeframe,
-                    "results": results,
-                }, timeout=15)
-            except Exception as e:
-                print(f"[Sweep Cron] Save error: {e}")
-        
-        except Exception as e:
-            print(f"[Sweep Cron] Error: {e}")
-        
-        time.sleep(_sweep_interval)
-
-@app.get("/sweep-cron/start")
-def sweep_cron_start():
-    global _sweep_cron_running
-    if _sweep_cron_running:
-        return {"ok": True, "message": "Already running", "interval": _sweep_interval}
-    _sweep_cron_running = True
-    t = threading.Thread(target=_sweep_cron_loop, daemon=True)
-    t.start()
-    return {"ok": True, "message": f"Sweep cron started, interval={_sweep_interval}s"}
-
-@app.get("/sweep-cron/stop")
-def sweep_cron_stop():
-    global _sweep_cron_running
-    _sweep_cron_running = False
-    return {"ok": True, "message": "Sweep cron stopped"}
-
 @app.get("/sweep-cron/status")
 def sweep_cron_status():
-    return {"running": _sweep_cron_running, "interval": _sweep_interval}
-
-@app.get("/sweep-cron/test")
-def sweep_cron_test():
-    """Run one sweep iteration and return result (for debugging)"""
-    try:
-        resp = _requests.get(f"{_sweep_worker_url}/sweep/next-job", timeout=15)
-        data = resp.json()
-        if not data.get("ok") or data.get("no_session") or data.get("done"):
-            return {"step": "get-job", "result": data}
-        
-        job_id = data["job_id"]
-        session_id = data["session_id"]
-        entry_logic = data["entry_logic"]
-        entry_logic_2 = data.get("entry_logic_2")
-        symbol = data["symbol"]
-        timeframe = data["timeframe"]
-        days = data.get("days", 1825)
-        
-        results = []
-        errors = []
-        for sl in [0.6]:
-            for tp in [1.5]:
-                try:
-                    req = BacktestRequest(
-                        symbol=symbol, timeframe=timeframe,
-                        entry_logic=entry_logic, entry_logic_2=entry_logic_2 or "",
-                        indicators={}, sl_pct=sl, tp_pct=tp,
-                        days=days, train_pct=75.0, direction="both"
-                    )
-                    r = run_backtest(req)
-                    r["sl_pct"] = sl
-                    r["tp_pct"] = tp
-                    r.pop("equity_curve", None)
-                    if r.get("status") == "ok" and r.get("total_trades", 0) >= 5:
-                        results.append(r)
-                except Exception as e:
-                    errors.append(str(e))
-        
-        # Save
-        try:
-            _requests.post(f"{_sweep_worker_url}/sweep/complete", json={
-                "job_id": job_id, "session_id": session_id,
-                "entry_logic": entry_logic, "entry_logic_2": entry_logic_2,
-                "symbol": symbol, "timeframe": timeframe,
-                "results": results,
-            }, timeout=15)
-        except Exception as e:
-            errors.append(f"save: {e}")
-        
-        return {
-            "step": "done", "job_id": job_id, "symbol": symbol, "timeframe": timeframe,
-            "results_count": len(results), "best_wr": results[0]["win_rate"] if results else 0,
-            "errors": errors
-        }
-    except Exception as e:
-        return {"step": "error", "error": str(e)}
-
+    return {"info": "Sweep integrated into P2 cron", "p2_running": _p2_cron_running}
 
 # Auto-start P2 cron on app startup
 @app.on_event("startup")
@@ -1099,10 +999,4 @@ def _auto_start_p2_cron():
         _p2_cron_running = True
         t = threading.Thread(target=_p2_cron_loop, daemon=True)
         t.start()
-        print(f"[P2 Cron] Auto-started on startup")
-    if os.environ.get("SWEEP_CRON_ENABLED", "true").lower() == "true":
-        global _sweep_cron_running
-        _sweep_cron_running = True
-        t2 = threading.Thread(target=_sweep_cron_loop, daemon=True)
-        t2.start()
-        print(f"[Sweep Cron] Auto-started on startup")
+        print(f"[P2 Cron] Auto-started (includes sweep processing)")
