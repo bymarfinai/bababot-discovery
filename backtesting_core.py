@@ -632,12 +632,33 @@ def get_signals(data: dict, ind: dict, config: StrategyConfig) -> np.ndarray:
         pivot_len = cfg.get('pivot_length', 10)
         gp_top_pct = cfg.get('gp_top', 0.618)
         gp_bot_pct = cfg.get('gp_bot', 0.786)
+        opens = data['open']
         
-        # Track state
+        # ── VECTORIZED pivot detection (fast!) ──
+        left_max_h = np.full(n, -np.inf)
+        right_max_h = np.full(n, -np.inf)
+        left_min_l = np.full(n, np.inf)
+        right_min_l = np.full(n, np.inf)
+        for k in range(1, pivot_len + 1):
+            # Left neighbors
+            left_max_h[k:] = np.maximum(left_max_h[k:], highs[:-k])
+            left_min_l[k:] = np.minimum(left_min_l[k:], lows[:-k])
+            # Right neighbors
+            right_max_h[:-k] = np.maximum(right_max_h[:-k], highs[k:])
+            right_min_l[:-k] = np.minimum(right_min_l[:-k], lows[k:])
+        
+        is_pivot_high = (highs > left_max_h) & (highs > right_max_h)
+        is_pivot_low = (lows < left_min_l) & (lows < right_min_l)
+        # Shift by pivot_len (pivots confirmed after delay)
+        pivot_h_confirmed = np.zeros(n, dtype=bool)
+        pivot_l_confirmed = np.zeros(n, dtype=bool)
+        if pivot_len < n:
+            pivot_h_confirmed[pivot_len:] = is_pivot_high[:-pivot_len]
+            pivot_l_confirmed[pivot_len:] = is_pivot_low[:-pivot_len]
+        
+        # ── State machine (single pass, no inner loop) ──
         upper = np.nan
         lower = np.nan
-        upper_idx = 0
-        lower_idx = 0
         fib_state = 0  # 0=OFF, 1=LIVE, 2=LOCKED
         fib_dir = 0    # 1=UP (buy), -1=DOWN (sell)
         fib_anchor = np.nan
@@ -645,25 +666,11 @@ def get_signals(data: dict, ind: dict, config: StrategyConfig) -> np.ndarray:
         entry_done = False
         
         for i in range(pivot_len + 1, n):
-            # Detect pivot high/low
-            ph = True
-            pl = True
-            for k in range(1, pivot_len + 1):
-                if i - pivot_len - k < 0 or i - pivot_len + k >= n:
-                    ph = False
-                    pl = False
-                    break
-                if highs[i - pivot_len] <= highs[i - pivot_len - k] or highs[i - pivot_len] <= highs[i - pivot_len + k]:
-                    ph = False
-                if lows[i - pivot_len] >= lows[i - pivot_len - k] or lows[i - pivot_len] >= lows[i - pivot_len + k]:
-                    pl = False
-            
-            if ph:
+            # Update pivot levels
+            if pivot_h_confirmed[i]:
                 upper = highs[i - pivot_len]
-                upper_idx = i - pivot_len
-            if pl:
+            if pivot_l_confirmed[i]:
                 lower = lows[i - pivot_len]
-                lower_idx = i - pivot_len
             
             # Detect breaks
             bull_break = not np.isnan(upper) and highs[i] > upper and highs[i-1] <= upper
@@ -672,66 +679,47 @@ def get_signals(data: dict, ind: dict, config: StrategyConfig) -> np.ndarray:
             # State machine
             if bear_break:
                 if fib_dir == -1 and fib_state == 1:
-                    fib_state = 2  # LOCK DOWN (sell setup)
+                    fib_state = 2
                 else:
-                    fib_state = 1  # Start UP cycle (buy setup)
-                    fib_dir = 1
-                    fib_anchor = lows[i]
-                    fib_target = lows[i]
-                    entry_done = False
-            
+                    fib_state = 1; fib_dir = 1
+                    fib_anchor = lows[i]; fib_target = lows[i]; entry_done = False
             if bull_break:
                 if fib_dir == 1 and fib_state == 1:
-                    fib_state = 2  # LOCK UP (buy setup)
+                    fib_state = 2
                 else:
-                    fib_state = 1  # Start DOWN cycle (sell setup)
-                    fib_dir = -1
-                    fib_anchor = highs[i]
-                    fib_target = highs[i]
-                    entry_done = False
+                    fib_state = 1; fib_dir = -1
+                    fib_anchor = highs[i]; fib_target = highs[i]; entry_done = False
             
             # LIVE: track moving target
             if fib_state == 1:
-                if fib_dir == 1:  # UP
-                    if lows[i] < fib_anchor:
-                        fib_anchor = lows[i]
-                    if highs[i] > fib_target:
-                        fib_target = highs[i]
-                else:  # DOWN
-                    if highs[i] > fib_anchor:
-                        fib_anchor = highs[i]
-                    if lows[i] < fib_target:
-                        fib_target = lows[i]
+                if fib_dir == 1:
+                    if lows[i] < fib_anchor: fib_anchor = lows[i]
+                    if highs[i] > fib_target: fib_target = highs[i]
+                else:
+                    if highs[i] > fib_anchor: fib_anchor = highs[i]
+                    if lows[i] < fib_target: fib_target = lows[i]
             
             # LOCKED: still track target
             if fib_state == 2:
-                if fib_dir == 1 and highs[i] > fib_target:
-                    fib_target = highs[i]
-                elif fib_dir == -1 and lows[i] < fib_target:
-                    fib_target = lows[i]
+                if fib_dir == 1 and highs[i] > fib_target: fib_target = highs[i]
+                elif fib_dir == -1 and lows[i] < fib_target: fib_target = lows[i]
             
             # Entry signals
             if fib_state == 2 and not entry_done:
-                if fib_dir == 1:  # BUY setup
-                    fib_high = fib_target
-                    fib_low = fib_anchor
-                    fib_range = fib_high - fib_low
+                if fib_dir == 1:
+                    fib_range = fib_target - fib_anchor
                     if fib_range > 0:
-                        gp_up_top = fib_high - fib_range * gp_top_pct
-                        gp_up_bot = fib_high - fib_range * gp_bot_pct
-                        if lows[i] <= gp_up_top and closes[i] >= gp_up_bot and closes[i] > data['open'][i]:
-                            fib_gp_signals[i] = 1
-                            entry_done = True
-                else:  # SELL setup
-                    fib_high = fib_anchor
-                    fib_low = fib_target
-                    fib_range = fib_high - fib_low
+                        gp_t = fib_target - fib_range * gp_top_pct
+                        gp_b = fib_target - fib_range * gp_bot_pct
+                        if lows[i] <= gp_t and closes[i] >= gp_b and closes[i] > opens[i]:
+                            fib_gp_signals[i] = 1; entry_done = True
+                else:
+                    fib_range = fib_anchor - fib_target
                     if fib_range > 0:
-                        gp_dn_top = fib_low + fib_range * gp_bot_pct
-                        gp_dn_bot = fib_low + fib_range * gp_top_pct
-                        if highs[i] >= gp_dn_bot and closes[i] <= gp_dn_top and closes[i] < data['open'][i]:
-                            fib_gp_signals[i] = -1
-                            entry_done = True
+                        gp_t = fib_target + fib_range * gp_bot_pct
+                        gp_b = fib_target + fib_range * gp_top_pct
+                        if highs[i] >= gp_b and closes[i] <= gp_t and closes[i] < opens[i]:
+                            fib_gp_signals[i] = -1; entry_done = True
     
     for i in range(3, n):
         sig = 0
