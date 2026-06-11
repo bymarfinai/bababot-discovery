@@ -1034,6 +1034,62 @@ def sweep_cron_stop():
 def sweep_cron_status():
     return {"running": _sweep_cron_running, "interval": _sweep_interval}
 
+@app.get("/sweep-cron/test")
+def sweep_cron_test():
+    """Run one sweep iteration and return result (for debugging)"""
+    try:
+        resp = _requests.get(f"{_sweep_worker_url}/sweep/next-job", timeout=15)
+        data = resp.json()
+        if not data.get("ok") or data.get("no_session") or data.get("done"):
+            return {"step": "get-job", "result": data}
+        
+        job_id = data["job_id"]
+        session_id = data["session_id"]
+        entry_logic = data["entry_logic"]
+        entry_logic_2 = data.get("entry_logic_2")
+        symbol = data["symbol"]
+        timeframe = data["timeframe"]
+        days = data.get("days", 1825)
+        
+        results = []
+        errors = []
+        for sl in [0.6]:
+            for tp in [1.5]:
+                try:
+                    req = BacktestRequest(
+                        symbol=symbol, timeframe=timeframe,
+                        entry_logic=entry_logic, entry_logic_2=entry_logic_2 or "",
+                        indicators={}, sl_pct=sl, tp_pct=tp,
+                        days=days, train_pct=75.0, direction="both"
+                    )
+                    r = run_backtest(req)
+                    r["sl_pct"] = sl
+                    r["tp_pct"] = tp
+                    r.pop("equity_curve", None)
+                    if r.get("status") == "ok" and r.get("total_trades", 0) >= 5:
+                        results.append(r)
+                except Exception as e:
+                    errors.append(str(e))
+        
+        # Save
+        try:
+            _requests.post(f"{_sweep_worker_url}/sweep/complete", json={
+                "job_id": job_id, "session_id": session_id,
+                "entry_logic": entry_logic, "entry_logic_2": entry_logic_2,
+                "symbol": symbol, "timeframe": timeframe,
+                "results": results,
+            }, timeout=15)
+        except Exception as e:
+            errors.append(f"save: {e}")
+        
+        return {
+            "step": "done", "job_id": job_id, "symbol": symbol, "timeframe": timeframe,
+            "results_count": len(results), "best_wr": results[0]["win_rate"] if results else 0,
+            "errors": errors
+        }
+    except Exception as e:
+        return {"step": "error", "error": str(e)}
+
 
 # Auto-start P2 cron on app startup
 @app.on_event("startup")
