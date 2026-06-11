@@ -548,6 +548,8 @@ ENTRY_LOGICS = [
     "rsi_divergence", "obv_divergence",
     # Volume
     "volume_spike_momentum",
+    # Structure
+    "fib_golden_pocket",
 ]
 
 # ============================================================
@@ -622,6 +624,114 @@ def get_signals(data: dict, ind: dict, config: StrategyConfig) -> np.ndarray:
     logic = config.entry_logic
     cfg = config.indicators
     direction = config.direction
+    
+
+    # Pre-compute fib_golden_pocket signals if needed
+    fib_gp_signals = np.zeros(n, dtype=int)
+    if logic == "fib_golden_pocket":
+        pivot_len = cfg.get('pivot_length', 10)
+        gp_top_pct = cfg.get('gp_top', 0.618)
+        gp_bot_pct = cfg.get('gp_bot', 0.786)
+        
+        # Track state
+        upper = np.nan
+        lower = np.nan
+        upper_idx = 0
+        lower_idx = 0
+        fib_state = 0  # 0=OFF, 1=LIVE, 2=LOCKED
+        fib_dir = 0    # 1=UP (buy), -1=DOWN (sell)
+        fib_anchor = np.nan
+        fib_target = np.nan
+        entry_done = False
+        
+        for i in range(pivot_len + 1, n):
+            # Detect pivot high/low
+            ph = True
+            pl = True
+            for k in range(1, pivot_len + 1):
+                if i - pivot_len - k < 0 or i - pivot_len + k >= n:
+                    ph = False
+                    pl = False
+                    break
+                if highs[i - pivot_len] <= highs[i - pivot_len - k] or highs[i - pivot_len] <= highs[i - pivot_len + k]:
+                    ph = False
+                if lows[i - pivot_len] >= lows[i - pivot_len - k] or lows[i - pivot_len] >= lows[i - pivot_len + k]:
+                    pl = False
+            
+            if ph:
+                upper = highs[i - pivot_len]
+                upper_idx = i - pivot_len
+            if pl:
+                lower = lows[i - pivot_len]
+                lower_idx = i - pivot_len
+            
+            # Detect breaks
+            bull_break = not np.isnan(upper) and highs[i] > upper and highs[i-1] <= upper
+            bear_break = not np.isnan(lower) and lows[i] < lower and lows[i-1] >= lower
+            
+            # State machine
+            if bear_break:
+                if fib_dir == -1 and fib_state == 1:
+                    fib_state = 2  # LOCK DOWN (sell setup)
+                else:
+                    fib_state = 1  # Start UP cycle (buy setup)
+                    fib_dir = 1
+                    fib_anchor = lows[i]
+                    fib_target = lows[i]
+                    entry_done = False
+            
+            if bull_break:
+                if fib_dir == 1 and fib_state == 1:
+                    fib_state = 2  # LOCK UP (buy setup)
+                else:
+                    fib_state = 1  # Start DOWN cycle (sell setup)
+                    fib_dir = -1
+                    fib_anchor = highs[i]
+                    fib_target = highs[i]
+                    entry_done = False
+            
+            # LIVE: track moving target
+            if fib_state == 1:
+                if fib_dir == 1:  # UP
+                    if lows[i] < fib_anchor:
+                        fib_anchor = lows[i]
+                    if highs[i] > fib_target:
+                        fib_target = highs[i]
+                else:  # DOWN
+                    if highs[i] > fib_anchor:
+                        fib_anchor = highs[i]
+                    if lows[i] < fib_target:
+                        fib_target = lows[i]
+            
+            # LOCKED: still track target
+            if fib_state == 2:
+                if fib_dir == 1 and highs[i] > fib_target:
+                    fib_target = highs[i]
+                elif fib_dir == -1 and lows[i] < fib_target:
+                    fib_target = lows[i]
+            
+            # Entry signals
+            if fib_state == 2 and not entry_done:
+                if fib_dir == 1:  # BUY setup
+                    fib_high = fib_target
+                    fib_low = fib_anchor
+                    fib_range = fib_high - fib_low
+                    if fib_range > 0:
+                        gp_up_top = fib_high - fib_range * gp_top_pct
+                        gp_up_bot = fib_high - fib_range * gp_bot_pct
+                        if lows[i] <= gp_up_top and closes[i] >= gp_up_bot and closes[i] > data['open'][i]:
+                            fib_gp_signals[i] = 1
+                            entry_done = True
+                else:  # SELL setup
+                    fib_high = fib_anchor
+                    fib_low = fib_target
+                    fib_range = fib_high - fib_low
+                    if fib_range > 0:
+                        gp_dn_top = fib_low + fib_range * gp_bot_pct
+                        gp_dn_bot = fib_low + fib_range * gp_top_pct
+                        if highs[i] >= gp_dn_bot and closes[i] <= gp_dn_top and closes[i] < data['open'][i]:
+                            fib_gp_signals[i] = -1
+                            entry_done = True
     
     for i in range(3, n):
         sig = 0
@@ -801,6 +911,10 @@ def get_signals(data: dict, ind: dict, config: StrategyConfig) -> np.ndarray:
                 is_spike = volumes[i] > vsma[i] * mult
                 if is_spike and closes[i] > closes[i-1]: sig = 1
                 elif is_spike and closes[i] < closes[i-1]: sig = -1
+        
+
+        elif logic == "fib_golden_pocket":
+            sig = fib_gp_signals[i]
         
         # Direction filter
         if direction == "long" and sig == -1: sig = 0
