@@ -890,7 +890,14 @@ def _p2_cron_loop():
         try:
             # ── SWEEP JOBS FIRST ──
             try:
-                sweep_resp = _requests.post(f"{_p2_worker_url.replace('/marthias/run-next','')}/sweep/process-next", json={}, timeout=10)
+                # Auto-reset jobs stuck in 'running' for >10 min
+                base_url = _p2_worker_url.replace('/marthias/run-next', '')
+                try:
+                    _requests.post(f"{base_url}/sweep/reset", json={"auto": True}, timeout=5)
+                except:
+                    pass
+                
+                sweep_resp = _requests.post(f"{base_url}/sweep/process-next", json={}, timeout=10)
                 sweep_data = sweep_resp.json()
                 if sweep_data.get("ok") and not sweep_data.get("queue_empty"):
                     job = sweep_data
