@@ -955,6 +955,16 @@ def _p2_cron_loop():
             except Exception as e:
                 print(f"[Sweep] Error: {e}")
             
+            # ── AUTO SEED Pipeline 2 queue ──
+            try:
+                base_url = _p2_worker_url.replace('/marthias/run-next', '')
+                seed_resp = _requests.post(f"{base_url}/marthias/seed-queue", json={}, timeout=15)
+                seed_data = seed_resp.json()
+                if seed_data.get("queued", 0) > 0:
+                    print(f"[Seed] 🌱 {seed_data['queued']} new combos queued to Pipeline 2")
+            except Exception as e:
+                print(f"[Seed] Error: {e}")
+            
             # ── PIPELINE 2 ──
             with _p2_cron_lock:
                 resp = _requests.post(_p2_worker_url, json={}, timeout=300)
