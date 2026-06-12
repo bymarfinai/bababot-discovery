@@ -497,6 +497,33 @@ def run_batch_backtest(req: BatchBacktestRequest, _=Security(verify_token)):
     
     results = []
     for r in req.configs:
+        # Normalize entry_logic — lowercase + validate
+        if r.entry_logic:
+            r.entry_logic = r.entry_logic.lower()
+        if r.entry_logic_2:
+            r.entry_logic_2 = r.entry_logic_2.lower()
+        
+        # Skip if entry_logic not in backtester
+        if r.entry_logic and r.entry_logic not in ENTRY_LOGICS:
+            results.append({
+                "symbol": r.symbol, "timeframe": r.timeframe,
+                "entry_logic": r.entry_logic, "sl_pct": r.sl_pct, "tp_pct": r.tp_pct,
+                "win_rate": 0, "profit_per_day": 0, "total_trades": 0,
+                "status": "no_trades", "error": f"unknown entry_logic: {r.entry_logic}",
+                "long_trades": 0, "short_trades": 0, "meets_criteria": False,
+            })
+            continue
+        if r.entry_logic_2 and r.entry_logic_2 not in ENTRY_LOGICS:
+            results.append({
+                "symbol": r.symbol, "timeframe": r.timeframe,
+                "entry_logic": r.entry_logic, "entry_logic_2": r.entry_logic_2,
+                "sl_pct": r.sl_pct, "tp_pct": r.tp_pct,
+                "win_rate": 0, "profit_per_day": 0, "total_trades": 0,
+                "status": "no_trades", "error": f"unknown entry_logic_2: {r.entry_logic_2}",
+                "long_trades": 0, "short_trades": 0, "meets_criteria": False,
+            })
+            continue
+        
         single_result = run_backtest(r)
         single_result["sl_pct"] = r.sl_pct
         single_result["tp_pct"] = r.tp_pct
