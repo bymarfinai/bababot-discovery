@@ -880,7 +880,7 @@ import requests as _requests
 
 _p2_cron_running = False
 _p2_cron_lock = threading.Lock()
-_p2_interval = int(os.environ.get("P2_CRON_INTERVAL", "180"))  # default 3 minutes
+_p2_interval = int(os.environ.get("P2_CRON_INTERVAL", "60"))  # default 1 minute
 _p2_worker_url = os.environ.get("P2_WORKER_URL", "https://bababot-pro.bymarfinai.workers.dev/discovery/marthias/run-next")
 
 def _p2_cron_loop():
