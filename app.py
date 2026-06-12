@@ -951,7 +951,7 @@ def _p2_cron_loop():
                         print(f"[Sweep] Save error: {e}")
                     
                     time.sleep(5)
-                    continue  # Process more sweep jobs before P2
+                    pass  # Process 1 sweep job per cycle, then continue to seed + P2
             except Exception as e:
                 print(f"[Sweep] Error: {e}")
             
