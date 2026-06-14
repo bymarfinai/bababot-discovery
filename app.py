@@ -899,6 +899,111 @@ def paper_run_endpoint(req: PaperRunRequest):
         import traceback
         return {"error": str(e), "traceback": traceback.format_exc()}
 
+# ── F2: Equity curve with rule filter ──
+class EquityCurveRequest(BaseModel):
+    symbol: str = "BTCUSDT"
+    timeframe: str = "1h"
+    entry_logic: str = "ema_cross"
+    entry_logic_2: Optional[str] = None
+    sl_pct: float = 0.6
+    tp_pct: float = 1.5
+    fee_pct: float = 0.10
+    initial_capital: float = 10000.0
+    position_size_pct: float = 10.5
+    days: int = 1825
+    direction: str = "both"
+    rule_filter: Optional[str] = None
+
+@app.post("/backtest/equity-curve")
+def get_equity_curve(req: EquityCurveRequest, _=Security(verify_token)):
+    """Run feature study, apply rule filter, return equity curve."""
+    try:
+        from backtesting_core import run_feature_study, parse_rule, test_rule, _downsample
+        import numpy as np
+
+        config = {
+            "symbol": req.symbol,
+            "timeframe": req.timeframe,
+            "entry_logic": req.entry_logic,
+            "entry_logic_2": req.entry_logic_2,
+            "sl_pct": req.sl_pct,
+            "tp_pct": req.tp_pct,
+            "fee_pct": req.fee_pct,
+            "initial_capital": req.initial_capital,
+            "position_size_pct": req.position_size_pct,
+            "days": req.days,
+            "direction": req.direction,
+        }
+
+        study = run_feature_study(config)
+        if study.get("error"):
+            return {"ok": False, "error": study["error"]}
+
+        instances = study.get("instances", [])
+        if not instances:
+            return {"ok": False, "error": "No instances found"}
+
+        # Apply rule filter if provided
+        filtered = instances
+        if req.rule_filter:
+            conditions = parse_rule(req.rule_filter)
+            if conditions:
+                filtered = []
+                for inst in instances:
+                    features = inst.get("features", {})
+                    all_pass = True
+                    for feat, op, val in conditions:
+                        fv = features.get(feat)
+                        if fv is None or not isinstance(fv, (int, float)):
+                            all_pass = False
+                            break
+                        if op == ">=" and not (fv >= val): all_pass = False; break
+                        elif op == "<=" and not (fv <= val): all_pass = False; break
+                        elif op == ">" and not (fv > val): all_pass = False; break
+                        elif op == "<" and not (fv < val): all_pass = False; break
+                        elif op == "==" and not (fv == val): all_pass = False; break
+                        elif op == "!=" and not (fv != val): all_pass = False; break
+                    if all_pass:
+                        filtered.append(inst)
+
+        if not filtered:
+            return {"ok": False, "error": "No trades after rule filter"}
+
+        # Sort by entry timestamp
+        filtered.sort(key=lambda x: x.get("entry_ts", 0))
+
+        # Compute equity curve
+        pnls = np.array([inst["pnl_dollar"] for inst in filtered])
+        equity = req.initial_capital + np.cumsum(pnls)
+        equity = np.insert(equity, 0, req.initial_capital)
+
+        total = len(filtered)
+        wins = sum(1 for inst in filtered if inst.get("outcome", "") != "loss")
+        win_rate = round(wins / total * 100, 2) if total > 0 else 0
+        net_profit = round(float(np.sum(pnls)), 2)
+        peak = np.maximum.accumulate(equity)
+        drawdown = (peak - equity) / peak * 100
+        max_dd = round(float(np.max(drawdown)), 2)
+        
+        # Timestamps for X axis (entry_ts of each trade, plus initial point)
+        timestamps = [filtered[0]["entry_ts"] - 86400000] + [inst["entry_ts"] for inst in filtered]
+
+        return {
+            "ok": True,
+            "total_trades": total,
+            "win_rate": win_rate,
+            "net_profit": net_profit,
+            "max_drawdown": max_dd,
+            "equity_curve": _downsample(equity.tolist(), 100),
+            "timestamps": _downsample(timestamps, 100),
+            "baseline_instances": len(instances),
+            "filtered_instances": len(filtered),
+            "rule_applied": req.rule_filter or "none",
+        }
+    except Exception as e:
+        import traceback
+        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+
 # ============================================================
 # PIPELINE 2 CRON — Background thread hits Worker run-next
 # ============================================================
