@@ -918,26 +918,21 @@ class EquityCurveRequest(BaseModel):
 def get_equity_curve(req: EquityCurveRequest, _=Security(verify_token)):
     """Run feature study, apply rule filter, return equity curve."""
     try:
-        from backtesting_core import run_feature_study, parse_rule, test_rule, _downsample
+        from backtesting_core import run_feature_study, parse_rule, _downsample
         import numpy as np
 
-        config = {
-            "symbol": req.symbol,
-            "timeframe": req.timeframe,
-            "entry_logic": req.entry_logic,
-            "entry_logic_2": req.entry_logic_2,
-            "sl_pct": req.sl_pct,
-            "tp_pct": req.tp_pct,
-            "fee_pct": req.fee_pct,
-            "initial_capital": req.initial_capital,
-            "position_size_pct": req.position_size_pct,
-            "days": req.days,
-            "direction": req.direction,
-        }
-
-        study = run_feature_study(config)
-        if study.get("error"):
-            return {"ok": False, "error": study["error"]}
+        study = run_feature_study(
+            backtester=bt,
+            symbol=req.symbol.upper(),
+            timeframe=req.timeframe,
+            entry_logic=req.entry_logic,
+            entry_logic_2=req.entry_logic_2,
+            sl_pct=req.sl_pct,
+            tp_pct=req.tp_pct,
+            days=req.days,
+        )
+        if study.get("status") == "error":
+            return {"ok": False, "error": study.get("error", "Feature study failed")}
 
         instances = study.get("instances", [])
         if not instances:
