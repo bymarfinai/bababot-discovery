@@ -1163,6 +1163,21 @@ def _backtest_with_rule(symbol, timeframe, entry_logic, entry_logic_2, sl_pct, t
     dd = (peak - equity) / peak * 100
     max_dd = round(float(np.max(dd)), 2) if len(dd) > 0 else 0
 
+    # Regime breakdown from filtered trades
+    regime_map = {0: "sideways", 1: "bull", -1: "bear", 2: "shock"}
+    regime_stats = {}
+    for inst in filtered:
+        rg = regime_map.get(inst.get("regime", 0), "unknown")
+        if rg not in regime_stats:
+            regime_stats[rg] = {"wins": 0, "total": 0}
+        regime_stats[rg]["total"] += 1
+        if inst.get("outcome", "") != "loss":
+            regime_stats[rg]["wins"] += 1
+    for rg in regime_stats:
+        s = regime_stats[rg]
+        s["win_rate"] = round(s["wins"] / s["total"] * 100, 2) if s["total"] > 0 else 0
+        s["trades"] = s["total"]
+
     return {
         "win_rate": round(wins / total * 100, 2) if total > 0 else 0,
         "total_trades": total,
@@ -1171,6 +1186,7 @@ def _backtest_with_rule(symbol, timeframe, entry_logic, entry_logic_2, sl_pct, t
         "profit_per_day": round(net_profit / max(days, 1), 2),
         "filtered": total,
         "baseline": len(instances),
+        "regime_stats": regime_stats,
     }
 
 # ── P2: Fee comparison ──
