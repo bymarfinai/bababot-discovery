@@ -16,7 +16,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test
-from live_bot import start_bot, stop_bot, bot_status
+from live_bot import start_bot, stop_bot, bot_status, get_activity_log
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -1468,6 +1468,10 @@ def bot_stop_endpoint():
 @app.get("/bot/bot-status")
 def bot_status_endpoint():
     return bot_status()
+
+@app.get("/bot/activity-log")
+def bot_activity_log(limit: int = 100):
+    return {"ok": True, "log": get_activity_log(limit)}
 
 @app.on_event("startup")
 def _auto_start_bot():
