@@ -1014,6 +1014,7 @@ class WalkForwardRequest(BaseModel):
     train_months: int = 24
     test_months: int = 6
     step_months: int = 6
+    rule_filter: Optional[str] = None
 
 @app.post("/backtest/walk-forward")
 def run_walk_forward(req: WalkForwardRequest, _=Security(verify_token)):
@@ -1047,37 +1048,33 @@ def run_walk_forward(req: WalkForwardRequest, _=Security(verify_token)):
 
         results = []
         for w in windows:
-            # Train period
-            train_config = StrategyConfig(
-                symbol=req.symbol.upper(), timeframe=req.timeframe,
-                entry_logic=req.entry_logic, entry_logic_2=req.entry_logic_2,
-                sl_pct=req.sl_pct, tp_pct=req.tp_pct, fee_pct=req.fee_pct,
-                initial_capital=req.initial_capital, position_size_pct=req.position_size_pct,
-                direction=req.direction, start_date=w["train_start"], end_date=w["train_end"],
+            # Train period (with rule filter)
+            train_r = _backtest_with_rule(
+                req.symbol, req.timeframe, req.entry_logic, req.entry_logic_2,
+                req.sl_pct, req.tp_pct, req.fee_pct,
+                start_date=w["train_start"], end_date=w["train_end"],
+                rule_filter=req.rule_filter,
             )
-            train_result = bt.run(train_config).to_dict()
 
-            # Test period
-            test_config = StrategyConfig(
-                symbol=req.symbol.upper(), timeframe=req.timeframe,
-                entry_logic=req.entry_logic, entry_logic_2=req.entry_logic_2,
-                sl_pct=req.sl_pct, tp_pct=req.tp_pct, fee_pct=req.fee_pct,
-                initial_capital=req.initial_capital, position_size_pct=req.position_size_pct,
-                direction=req.direction, start_date=w["test_start"], end_date=w["test_end"],
+            # Test period (with rule filter)
+            test_r = _backtest_with_rule(
+                req.symbol, req.timeframe, req.entry_logic, req.entry_logic_2,
+                req.sl_pct, req.tp_pct, req.fee_pct,
+                start_date=w["test_start"], end_date=w["test_end"],
+                rule_filter=req.rule_filter,
             )
-            test_result = bt.run(test_config).to_dict()
 
             results.append({
                 "label": w["label"],
                 "train_start": w["train_start"], "train_end": w["train_end"],
                 "test_start": w["test_start"], "test_end": w["test_end"],
-                "train_wr": train_result.get("win_rate", 0),
-                "train_trades": train_result.get("total_trades", 0),
-                "test_wr": test_result.get("win_rate", 0),
-                "test_trades": test_result.get("total_trades", 0),
-                "test_profit": test_result.get("net_profit", 0),
-                "test_dd": test_result.get("max_drawdown", 0),
-                "wr_gap": round(abs((train_result.get("win_rate", 0) or 0) - (test_result.get("win_rate", 0) or 0)), 1),
+                "train_wr": train_r.get("win_rate", 0),
+                "train_trades": train_r.get("total_trades", 0),
+                "test_wr": test_r.get("win_rate", 0),
+                "test_trades": test_r.get("total_trades", 0),
+                "test_profit": test_r.get("net_profit", 0),
+                "test_dd": test_r.get("max_drawdown", 0),
+                "wr_gap": round(abs((train_r.get("win_rate", 0) or 0) - (test_r.get("win_rate", 0) or 0)), 1),
             })
 
         # Verdict
@@ -1105,6 +1102,77 @@ def run_walk_forward(req: WalkForwardRequest, _=Security(verify_token)):
         import traceback
         return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
 
+# ── Helper: backtest with Pipeline 2 rule filter ──
+def _backtest_with_rule(symbol, timeframe, entry_logic, entry_logic_2, sl_pct, tp_pct,
+                        fee_pct, days=1825, start_date=None, end_date=None, rule_filter=None):
+    """Run feature study + apply rule filter, return filtered metrics."""
+    from backtesting_core import run_feature_study, parse_rule
+    import numpy as np
+
+    study = run_feature_study(
+        backtester=bt, symbol=symbol.upper(), timeframe=timeframe,
+        entry_logic=entry_logic, entry_logic_2=entry_logic_2,
+        sl_pct=sl_pct, tp_pct=tp_pct, days=days,
+        start_date=start_date, end_date=end_date,
+    )
+    instances = study.get("instances", [])
+    if not instances:
+        return {"win_rate": 0, "total_trades": 0, "net_profit": 0, "max_drawdown": 0, "profit_per_day": 0, "filtered": 0, "baseline": 0}
+
+    # Apply rule filter
+    filtered = instances
+    if rule_filter:
+        conditions = parse_rule(rule_filter)
+        if conditions:
+            filtered = []
+            for inst in instances:
+                features = inst.get("features", {})
+                all_pass = True
+                for feat, op, val in conditions:
+                    fv = features.get(feat)
+                    if fv is None or not isinstance(fv, (int, float)):
+                        all_pass = False; break
+                    if op == ">=" and not (fv >= val): all_pass = False; break
+                    elif op == "<=" and not (fv <= val): all_pass = False; break
+                    elif op == ">" and not (fv > val): all_pass = False; break
+                    elif op == "<" and not (fv < val): all_pass = False; break
+                    elif op == "==" and not (fv == val): all_pass = False; break
+                    elif op == "!=" and not (fv != val): all_pass = False; break
+                if all_pass:
+                    filtered.append(inst)
+
+    if not filtered:
+        return {"win_rate": 0, "total_trades": 0, "net_profit": 0, "max_drawdown": 0, "profit_per_day": 0, "filtered": 0, "baseline": len(instances)}
+
+    # Apply fee adjustment to pnl
+    position_size = 10000 * 10.5 / 100  # $1,050
+    total_fee_per_trade = position_size * fee_pct * 2 / 100  # entry + exit
+
+    total = len(filtered)
+    wins = sum(1 for inst in filtered if inst.get("outcome", "") != "loss")
+    pnls = []
+    for inst in filtered:
+        raw_pnl = inst.get("pnl_dollar", 0)
+        adjusted_pnl = raw_pnl - total_fee_per_trade + (position_size * 0.10 * 2 / 100)  # remove old fee, add new
+        pnls.append(adjusted_pnl)
+
+    net_profit = round(sum(pnls), 2)
+    equity = np.array([10000 + sum(pnls[:i+1]) for i in range(len(pnls))])
+    equity = np.insert(equity, 0, 10000)
+    peak = np.maximum.accumulate(equity)
+    dd = (peak - equity) / peak * 100
+    max_dd = round(float(np.max(dd)), 2) if len(dd) > 0 else 0
+
+    return {
+        "win_rate": round(wins / total * 100, 2) if total > 0 else 0,
+        "total_trades": total,
+        "net_profit": net_profit,
+        "max_drawdown": max_dd,
+        "profit_per_day": round(net_profit / max(days, 1), 2),
+        "filtered": total,
+        "baseline": len(instances),
+    }
+
 # ── P2: Fee comparison ──
 class FeeCompareRequest(BaseModel):
     symbol: str = "BTCUSDT"
@@ -1115,6 +1183,7 @@ class FeeCompareRequest(BaseModel):
     tp_pct: float = 1.5
     days: int = 1825
     direction: str = "both"
+    rule_filter: Optional[str] = None
 
 @app.post("/backtest/fee-compare")
 def run_fee_compare(req: FeeCompareRequest, _=Security(verify_token)):
@@ -1128,22 +1197,15 @@ def run_fee_compare(req: FeeCompareRequest, _=Security(verify_token)):
         ]
         results = []
         for tier in fee_tiers:
-            config = StrategyConfig(
-                symbol=req.symbol.upper(), timeframe=req.timeframe,
-                entry_logic=req.entry_logic, entry_logic_2=req.entry_logic_2,
-                sl_pct=req.sl_pct, tp_pct=req.tp_pct, fee_pct=tier["fee"],
-                initial_capital=10000, position_size_pct=10.5,
-                days=req.days, direction=req.direction,
+            r = _backtest_with_rule(
+                req.symbol, req.timeframe, req.entry_logic, req.entry_logic_2,
+                req.sl_pct, req.tp_pct, tier["fee"], req.days,
+                rule_filter=req.rule_filter,
             )
-            r = bt.run(config).to_dict()
             results.append({
                 "label": tier["label"],
                 "fee_pct": tier["fee"],
-                "win_rate": r.get("win_rate", 0),
-                "total_trades": r.get("total_trades", 0),
-                "net_profit": r.get("net_profit", 0),
-                "profit_per_day": r.get("profit_per_day", 0),
-                "max_drawdown": r.get("max_drawdown", 0),
+                **r,
             })
         return {"ok": True, "tiers": results}
     except Exception as e:
