@@ -999,6 +999,235 @@ def get_equity_curve(req: EquityCurveRequest, _=Security(verify_token)):
         import traceback
         return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
 
+# ── P2: Walk-forward validation ──
+class WalkForwardRequest(BaseModel):
+    symbol: str = "BTCUSDT"
+    timeframe: str = "1h"
+    entry_logic: str = "ema_cross"
+    entry_logic_2: Optional[str] = None
+    sl_pct: float = 0.6
+    tp_pct: float = 1.5
+    fee_pct: float = 0.10
+    initial_capital: float = 10000.0
+    position_size_pct: float = 10.5
+    direction: str = "both"
+    train_months: int = 24
+    test_months: int = 6
+    step_months: int = 6
+
+@app.post("/backtest/walk-forward")
+def run_walk_forward(req: WalkForwardRequest, _=Security(verify_token)):
+    """Rolling window walk-forward: train on N months, test on M months, slide by step."""
+    try:
+        from datetime import datetime, timedelta
+        import numpy as np
+
+        # Build windows from 2021-01-01 to now
+        start = datetime(2021, 1, 1)
+        end = datetime.now()
+        windows = []
+        cursor = start
+
+        while True:
+            train_end = cursor + timedelta(days=req.train_months * 30)
+            test_end = train_end + timedelta(days=req.test_months * 30)
+            if test_end > end:
+                break
+            windows.append({
+                "train_start": cursor.strftime("%Y-%m-%d"),
+                "train_end": train_end.strftime("%Y-%m-%d"),
+                "test_start": train_end.strftime("%Y-%m-%d"),
+                "test_end": test_end.strftime("%Y-%m-%d"),
+                "label": f"{cursor.strftime('%y/%m')}→{test_end.strftime('%y/%m')}",
+            })
+            cursor += timedelta(days=req.step_months * 30)
+
+        if not windows:
+            return {"ok": False, "error": "Not enough data for walk-forward windows"}
+
+        results = []
+        for w in windows:
+            # Train period
+            train_config = StrategyConfig(
+                symbol=req.symbol.upper(), timeframe=req.timeframe,
+                entry_logic=req.entry_logic, entry_logic_2=req.entry_logic_2,
+                sl_pct=req.sl_pct, tp_pct=req.tp_pct, fee_pct=req.fee_pct,
+                initial_capital=req.initial_capital, position_size_pct=req.position_size_pct,
+                direction=req.direction, start_date=w["train_start"], end_date=w["train_end"],
+            )
+            train_result = bt.run(train_config).to_dict()
+
+            # Test period
+            test_config = StrategyConfig(
+                symbol=req.symbol.upper(), timeframe=req.timeframe,
+                entry_logic=req.entry_logic, entry_logic_2=req.entry_logic_2,
+                sl_pct=req.sl_pct, tp_pct=req.tp_pct, fee_pct=req.fee_pct,
+                initial_capital=req.initial_capital, position_size_pct=req.position_size_pct,
+                direction=req.direction, start_date=w["test_start"], end_date=w["test_end"],
+            )
+            test_result = bt.run(test_config).to_dict()
+
+            results.append({
+                "label": w["label"],
+                "train_start": w["train_start"], "train_end": w["train_end"],
+                "test_start": w["test_start"], "test_end": w["test_end"],
+                "train_wr": train_result.get("win_rate", 0),
+                "train_trades": train_result.get("total_trades", 0),
+                "test_wr": test_result.get("win_rate", 0),
+                "test_trades": test_result.get("total_trades", 0),
+                "test_profit": test_result.get("net_profit", 0),
+                "test_dd": test_result.get("max_drawdown", 0),
+                "wr_gap": round(abs((train_result.get("win_rate", 0) or 0) - (test_result.get("win_rate", 0) or 0)), 1),
+            })
+
+        # Verdict
+        valid_windows = [r for r in results if r["test_trades"] >= 3]
+        if not valid_windows:
+            verdict = "INSUFFICIENT_DATA"
+        else:
+            avg_gap = sum(r["wr_gap"] for r in valid_windows) / len(valid_windows)
+            profitable = sum(1 for r in valid_windows if r["test_profit"] > 0)
+            if avg_gap <= 10 and profitable >= len(valid_windows) * 0.6:
+                verdict = "ROBUST"
+            elif avg_gap <= 15 and profitable >= len(valid_windows) * 0.4:
+                verdict = "ACCEPTABLE"
+            else:
+                verdict = "OVERFITTING_RISK"
+
+        return {
+            "ok": True,
+            "windows": results,
+            "total_windows": len(results),
+            "valid_windows": len(valid_windows),
+            "verdict": verdict,
+        }
+    except Exception as e:
+        import traceback
+        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+
+# ── P2: Fee comparison ──
+class FeeCompareRequest(BaseModel):
+    symbol: str = "BTCUSDT"
+    timeframe: str = "1h"
+    entry_logic: str = "ema_cross"
+    entry_logic_2: Optional[str] = None
+    sl_pct: float = 0.6
+    tp_pct: float = 1.5
+    days: int = 1825
+    direction: str = "both"
+
+@app.post("/backtest/fee-compare")
+def run_fee_compare(req: FeeCompareRequest, _=Security(verify_token)):
+    """Run same strategy with different fee levels to see real impact."""
+    try:
+        fee_tiers = [
+            {"label": "Backtester default", "fee": 0.10},
+            {"label": "Binance taker (VIP0)", "fee": 0.04},
+            {"label": "Binance maker (VIP0)", "fee": 0.02},
+            {"label": "Zero fee (best case)", "fee": 0.00},
+        ]
+        results = []
+        for tier in fee_tiers:
+            config = StrategyConfig(
+                symbol=req.symbol.upper(), timeframe=req.timeframe,
+                entry_logic=req.entry_logic, entry_logic_2=req.entry_logic_2,
+                sl_pct=req.sl_pct, tp_pct=req.tp_pct, fee_pct=tier["fee"],
+                initial_capital=10000, position_size_pct=10.5,
+                days=req.days, direction=req.direction,
+            )
+            r = bt.run(config).to_dict()
+            results.append({
+                "label": tier["label"],
+                "fee_pct": tier["fee"],
+                "win_rate": r.get("win_rate", 0),
+                "total_trades": r.get("total_trades", 0),
+                "net_profit": r.get("net_profit", 0),
+                "profit_per_day": r.get("profit_per_day", 0),
+                "max_drawdown": r.get("max_drawdown", 0),
+            })
+        return {"ok": True, "tiers": results}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+# ── P3: Combined equity for portfolio ──
+class CombinedEquityRequest(BaseModel):
+    strategies: list[dict]  # [{symbol, timeframe, entry_logic, entry_logic_2, sl_pct, tp_pct}]
+    days: int = 1825
+
+@app.post("/backtest/combined-equity")
+def run_combined_equity(req: CombinedEquityRequest, _=Security(verify_token)):
+    """Run multiple strategies, merge equity curves into one portfolio."""
+    try:
+        import numpy as np
+        from backtesting_core import _downsample
+
+        all_trades = []
+        per_strategy = []
+
+        for s in req.strategies[:10]:
+            config = StrategyConfig(
+                symbol=s.get("symbol", "BTCUSDT").upper(),
+                timeframe=s.get("timeframe", "1h"),
+                entry_logic=s.get("entry_logic", "ema_cross"),
+                entry_logic_2=s.get("entry_logic_2"),
+                sl_pct=s.get("sl_pct", 0.6), tp_pct=s.get("tp_pct", 1.5),
+                fee_pct=0.04, initial_capital=10000,
+                position_size_pct=10.5 / len(req.strategies),
+                days=req.days, direction="both",
+            )
+            result = bt.run(config)
+            r = result.to_dict()
+
+            # Collect trades with timestamps for merging
+            trades = r.get("trades", [])
+            label = f"{s.get('symbol','?')}_{s.get('timeframe','?')}_{s.get('entry_logic','?')}"
+            for t in trades:
+                all_trades.append({
+                    "ts": t.get("entry_ts", 0),
+                    "pnl": t.get("pnl", 0),
+                    "strategy": label,
+                })
+            per_strategy.append({
+                "label": label,
+                "win_rate": r.get("win_rate", 0),
+                "total_trades": r.get("total_trades", 0),
+                "net_profit": r.get("net_profit", 0),
+                "max_drawdown": r.get("max_drawdown", 0),
+            })
+
+        if not all_trades:
+            return {"ok": False, "error": "No trades from any strategy"}
+
+        # Sort all trades by timestamp, compute combined equity
+        all_trades.sort(key=lambda x: x["ts"])
+        capital = 10000.0
+        pnls = np.array([t["pnl"] for t in all_trades])
+        equity = capital + np.cumsum(pnls)
+        equity = np.insert(equity, 0, capital)
+        timestamps = [all_trades[0]["ts"] - 86400000] + [t["ts"] for t in all_trades]
+
+        peak = np.maximum.accumulate(equity)
+        drawdown = (peak - equity) / peak * 100
+        max_dd = round(float(np.max(drawdown)), 2)
+        net = round(float(np.sum(pnls)), 2)
+        total = len(all_trades)
+        wins = sum(1 for t in all_trades if t["pnl"] > 0)
+
+        return {
+            "ok": True,
+            "equity_curve": _downsample(equity.tolist(), 100),
+            "timestamps": _downsample(timestamps, 100),
+            "total_trades": total,
+            "win_rate": round(wins / total * 100, 2) if total > 0 else 0,
+            "net_profit": net,
+            "max_drawdown": max_dd,
+            "per_strategy": per_strategy,
+            "strategy_count": len(per_strategy),
+        }
+    except Exception as e:
+        import traceback
+        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+
 # ============================================================
 # PIPELINE 2 CRON — Background thread hits Worker run-next
 # ============================================================
