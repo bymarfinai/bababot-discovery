@@ -16,6 +16,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test
+from live_bot import start_bot, stop_bot, bot_status
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -1451,3 +1452,25 @@ def _auto_start_p2_cron():
         t = threading.Thread(target=_p2_cron_loop, daemon=True)
         t.start()
         print(f"[P2 Cron] Auto-started (includes sweep processing)")
+
+# ============================================================
+# P4 — LIVE BOT CONTROL
+# ============================================================
+
+@app.get("/bot/start")
+def bot_start_endpoint():
+    return start_bot()
+
+@app.get("/bot/stop")
+def bot_stop_endpoint():
+    return stop_bot()
+
+@app.get("/bot/bot-status")
+def bot_status_endpoint():
+    return bot_status()
+
+@app.on_event("startup")
+def _auto_start_bot():
+    if os.environ.get("BOT_ENABLED", "false").lower() == "true":
+        result = start_bot()
+        print(f"[Bot] Auto-start: {result}")
