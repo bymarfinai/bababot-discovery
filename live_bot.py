@@ -1,18 +1,14 @@
 """
-BabaBot Live Trading — Dumb Bot Core (Tier 1)
-Runs as background thread on Railway.
-Reads bot_config from D1 via Workers API, detects signals, executes on Binance Testnet.
+BabaBot Live Trading — 3-Tier Hybrid System
+  Iron Legion (Dumb Bot) — execute tanpa mikir
+  Ultron (MiniMax M2.7) — 24/7 gatekeeper
+  Jarvis (Claude MCP) — on-demand strategic commander
 """
 
-import os
-import time
-import hmac
-import hashlib
-import threading
-import traceback
-import re
+import os, json, time, hmac, hashlib, threading, traceback, re
 from datetime import datetime, timezone
 from urllib.parse import urlencode
+from collections import deque
 
 import numpy as np
 import requests
@@ -36,515 +32,386 @@ ADMIN_CHAT_ID = os.environ.get("ADMIN_TELEGRAM_ID", "888366328")
 BOT_INTERVAL = int(os.environ.get("BOT_INTERVAL", "60"))
 BOT_ENABLED = os.environ.get("BOT_ENABLED", "false").lower() == "true"
 
-# Candles needed for indicator warmup (EMA200 + buffer)
+ULTRON_API_KEY = os.environ.get("MINIMAX_API_KEY", "")
+ULTRON_MODEL = os.environ.get("MINIMAX_MODEL", "MiniMax-M2.7")
+ULTRON_BASE_URL = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.io/anthropic")
+ULTRON_ENABLED = os.environ.get("ULTRON_ENABLED", "true").lower() == "true"
+
 CANDLE_BUFFER = 300
-
-# Position size from config ($10K capital, 10.5% per trade, 50x leverage)
-CAPITAL = 10000.0
 LEVERAGE = 50
-
-# Map timeframe to Binance interval string
 TF_MAP = {"1m": "1m", "3m": "3m", "5m": "5m", "15m": "15m", "1h": "1h", "4h": "4h"}
-
-# Pair quantity map (notional ~$1050 per trade)
 PAIR_QTY = {
     "BTCUSDT": 0.01, "ETHUSDT": 0.4, "XRPUSDT": 400, "YFIUSDT": 0.1,
     "SOLUSDT": 6, "BNBUSDT": 1.5, "DOGEUSDT": 4000, "LINKUSDT": 60,
     "AVAXUSDT": 30, "PEPEUSDT": 50000000, "1000PEPEUSDT": 50000,
 }
 
+_trade_count = 0
+
+# ============================================================
+# ACTIVITY LOG — Dashboard reads this
+# ============================================================
+
+_activity_log = deque(maxlen=500)
+
+def _log(icon: str, category: str, message: str, detail: dict = None):
+    entry = {
+        "time": datetime.now(timezone.utc).isoformat(),
+        "icon": icon,
+        "category": category,
+        "message": message,
+        "detail": detail or {},
+    }
+    _activity_log.appendleft(entry)
+    # Also print to Railway logs
+    print(f"[{category}] {icon} {message}")
+
+def get_activity_log(limit: int = 100) -> list:
+    return list(_activity_log)[:limit]
+
+# ============================================================
+# ULTRON — MiniMax Gatekeeper
+# ============================================================
+
+ULTRON_SYSTEM_PROMPT = """You are Ultron, BabaBot's trading co-pilot. Fast entry decisions only.
+
+Rules:
+- ONLY skip if genuine danger (BTC crash >3%, regime mismatch, overexposure 3+ positions)
+- Do NOT skip for small dips (<2% is normal)
+- Trust verified strategy edge (validated 5 years)
+- High WR (>80%) + matching regime = ALWAYS proceed
+
+Respond ONLY with JSON: {"decision": "PROCEED" or "SKIP", "reason": "one line", "confidence": 0.0-1.0}"""
+
+def call_ultron(context: str) -> dict:
+    if not ULTRON_API_KEY:
+        return {"decision": "PROCEED", "reason": "Ultron offline (no API key)", "confidence": 0.5}
+    try:
+        resp = requests.post(f"{ULTRON_BASE_URL}/v1/messages",
+            headers={"Content-Type": "application/json", "x-api-key": ULTRON_API_KEY, "anthropic-version": "2023-06-01"},
+            json={"model": ULTRON_MODEL, "max_tokens": 200, "system": ULTRON_SYSTEM_PROMPT,
+                  "messages": [{"role": "user", "content": context}]}, timeout=10)
+        if resp.status_code != 200:
+            _log("⚠️", "Ultron", f"API error {resp.status_code}")
+            return {"decision": "PROCEED", "reason": f"API error {resp.status_code}", "confidence": 0.5}
+        data = resp.json()
+        text = ""
+        for block in data.get("content", []):
+            if block.get("type") == "text": text = block.get("text", ""); break
+        text = re.sub(r'^```json\s*', '', text.strip())
+        text = re.sub(r'\s*```$', '', text)
+        r = json.loads(text)
+        return {"decision": r.get("decision", "PROCEED"), "reason": r.get("reason", ""), "confidence": float(r.get("confidence", 0.5))}
+    except json.JSONDecodeError:
+        return {"decision": "PROCEED", "reason": "parse error", "confidence": 0.5}
+    except Exception as e:
+        return {"decision": "PROCEED", "reason": str(e)[:50], "confidence": 0.5}
+
+def get_btc_context() -> dict:
+    try:
+        r = requests.get("https://fapi.binance.com/fapi/v1/klines",
+            params={"symbol": "BTCUSDT", "interval": "1h", "limit": 3}, timeout=5)
+        if r.status_code == 200:
+            kl = r.json()
+            if len(kl) >= 3:
+                return {"price": float(kl[-1][4]), "change_2h": round((float(kl[-1][4]) - float(kl[0][1])) / float(kl[0][1]) * 100, 2)}
+    except: pass
+    return {"price": 0, "change_2h": 0}
+
+def ultron_gatekeeper(cfg, signal_result, btc_ctx, open_count) -> dict:
+    if not ULTRON_ENABLED:
+        return {"decision": "PROCEED", "reason": "Ultron disabled", "confidence": 1.0}
+    combo = cfg["entry_logic"] + (f"+{cfg.get('entry_logic_2','')}" if cfg.get("entry_logic_2") else "")
+    ctx = f"""ENTRY DECISION:
+- Signal: {combo} {cfg['symbol']} {cfg['timeframe']} {signal_result['side']}
+- BTC: ${btc_ctx['price']:.0f} ({btc_ctx['change_2h']:+.1f}% 2h)
+- Regime: {signal_result['regime']}
+- Open positions: {open_count}
+- Strategy WR: {cfg.get('rule_wr', '?')}%
+- V={signal_result['features'].get('V','?')} B={signal_result['features'].get('B','?')} RSI={signal_result['features'].get('rsi_val','?')}"""
+    return call_ultron(ctx)
+
 # ============================================================
 # BINANCE TESTNET API
 # ============================================================
 
-def _sign(params: dict) -> dict:
-    """Add timestamp + HMAC signature to params."""
-    params["timestamp"] = int(time.time() * 1000)
-    query = urlencode(params)
-    sig = hmac.new(TESTNET_SECRET.encode(), query.encode(), hashlib.sha256).hexdigest()
-    params["signature"] = sig
-    return params
+def _sign(p):
+    p["timestamp"] = int(time.time() * 1000)
+    p["signature"] = hmac.new(TESTNET_SECRET.encode(), urlencode(p).encode(), hashlib.sha256).hexdigest()
+    return p
 
+def _h(): return {"X-MBX-APIKEY": TESTNET_KEY}
 
-def _headers():
-    return {"X-MBX-APIKEY": TESTNET_KEY}
-
-
-def binance_get(path: str, params: dict = None, signed: bool = False) -> dict:
-    """GET request to Binance Testnet."""
+def binance_get(path, params=None, signed=False):
     params = params or {}
-    if signed:
-        params = _sign(params)
-    url = f"{TESTNET_URL}{path}"
-    r = requests.get(url, params=params, headers=_headers(), timeout=10)
-    return r.json()
+    if signed: params = _sign(params)
+    return requests.get(f"{TESTNET_URL}{path}", params=params, headers=_h(), timeout=10).json()
 
+def binance_post(path, params):
+    return requests.post(f"{TESTNET_URL}{path}", params=_sign(params), headers=_h(), timeout=10).json()
 
-def binance_post(path: str, params: dict) -> dict:
-    """POST request to Binance Testnet (signed)."""
-    params = _sign(params)
-    url = f"{TESTNET_URL}{path}"
-    r = requests.post(url, params=params, headers=_headers(), timeout=10)
-    return r.json()
-
-
-def fetch_klines(symbol: str, interval: str, limit: int = 300) -> list:
-    """Fetch klines from Binance Futures (mainnet for real prices)."""
-    # Use mainnet for price data (testnet has fake/stale prices)
-    url = f"https://fapi.binance.com/fapi/v1/klines"
+def fetch_klines(symbol, interval, limit=300):
     try:
-        r = requests.get(url, params={"symbol": symbol, "interval": interval, "limit": limit}, timeout=15)
-        if r.status_code == 200:
-            return r.json()
-    except Exception as e:
-        print(f"[Bot] Mainnet klines failed for {symbol} {interval}: {e}")
-
-    # Fallback: proxy via Workers
+        r = requests.get("https://fapi.binance.com/fapi/v1/klines", params={"symbol": symbol, "interval": interval, "limit": limit}, timeout=15)
+        if r.status_code == 200: return r.json()
+    except: pass
     try:
         r = requests.get(f"{WORKER_URL}/bot/klines", params={"symbol": symbol, "interval": interval, "limit": limit}, timeout=15)
-        if r.status_code == 200:
-            data = r.json()
-            return data.get("klines", [])
-    except Exception as e:
-        print(f"[Bot] Workers klines fallback also failed: {e}")
-
+        if r.status_code == 200: return r.json().get("klines", [])
+    except: pass
     return []
 
+def klines_to_data(klines):
+    if not klines or len(klines) < 50: return None
+    arr = np.array([[float(k[0]),float(k[1]),float(k[2]),float(k[3]),float(k[4]),float(k[5]),float(k[9])] for k in klines])
+    return {"open_time":arr[:,0],"open":arr[:,1],"high":arr[:,2],"low":arr[:,3],"close":arr[:,4],"volume":arr[:,5],"taker_buy_volume":arr[:,6]}
 
-def klines_to_data(klines: list) -> dict:
-    """Convert Binance klines to numpy dict format (same as backtesting_core)."""
-    if not klines or len(klines) < 50:
-        return None
-    arr = np.array([
-        [float(k[0]), float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5]), float(k[9])]
-        for k in klines
-    ])
-    return {
-        "open_time": arr[:, 0],
-        "open": arr[:, 1],
-        "high": arr[:, 2],
-        "low": arr[:, 3],
-        "close": arr[:, 4],
-        "volume": arr[:, 5],
-        "taker_buy_volume": arr[:, 6],
-    }
-
-
-def get_current_price(symbol: str) -> float:
-    """Get current mark price."""
+def get_current_price(symbol):
     try:
-        r = requests.get(f"https://fapi.binance.com/fapi/v1/ticker/price", params={"symbol": symbol}, timeout=5)
-        if r.status_code == 200:
-            return float(r.json()["price"])
-    except:
-        pass
+        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/price", params={"symbol": symbol}, timeout=5)
+        if r.status_code == 200: return float(r.json()["price"])
+    except: pass
     return 0.0
 
-
-def place_order(symbol: str, side: str, qty: float, sl_price: float, tp_price: float) -> dict:
-    """Place market order + SL + TP on Binance Testnet."""
+def place_order(symbol, side, qty, sl_price, tp_price):
     results = {"market": None, "sl": None, "tp": None, "error": None}
-
     try:
-        # Set leverage
-        try:
-            binance_post("/fapi/v1/leverage", {"symbol": symbol, "leverage": LEVERAGE})
-        except:
-            pass
-
-        # Market order
-        market = binance_post("/fapi/v1/order", {
-            "symbol": symbol,
-            "side": side,
-            "type": "MARKET",
-            "quantity": qty,
-        })
+        try: binance_post("/fapi/v1/leverage", {"symbol": symbol, "leverage": LEVERAGE})
+        except: pass
+        market = binance_post("/fapi/v1/order", {"symbol": symbol, "side": side, "type": "MARKET", "quantity": qty})
         results["market"] = market
-
         if "orderId" not in market:
             results["error"] = f"Market order failed: {market}"
             return results
-
-        # Stop Loss
         sl_side = "SELL" if side == "BUY" else "BUY"
-        sl = binance_post("/fapi/v1/order", {
-            "symbol": symbol,
-            "side": sl_side,
-            "type": "STOP_MARKET",
-            "stopPrice": f"{sl_price:.6f}",
-            "closePosition": "true",
-        })
-        results["sl"] = sl
-
-        # Take Profit
-        tp = binance_post("/fapi/v1/order", {
-            "symbol": symbol,
-            "side": sl_side,
-            "type": "TAKE_PROFIT_MARKET",
-            "stopPrice": f"{tp_price:.6f}",
-            "closePosition": "true",
-        })
-        results["tp"] = tp
-
+        results["sl"] = binance_post("/fapi/v1/order", {"symbol": symbol, "side": sl_side, "type": "STOP_MARKET", "stopPrice": f"{sl_price:.6f}", "closePosition": "true"})
+        results["tp"] = binance_post("/fapi/v1/order", {"symbol": symbol, "side": sl_side, "type": "TAKE_PROFIT_MARKET", "stopPrice": f"{tp_price:.6f}", "closePosition": "true"})
     except Exception as e:
         results["error"] = str(e)
-
     return results
 
-
-def get_open_positions() -> list:
-    """Get all open positions from testnet."""
+def get_open_positions():
     try:
-        positions = binance_get("/fapi/v2/positionRisk", signed=True)
-        return [p for p in positions if float(p.get("positionAmt", 0)) != 0]
-    except Exception as e:
-        print(f"[Bot] Failed to get positions: {e}")
-        return []
-
+        pos = binance_get("/fapi/v2/positionRisk", signed=True)
+        return [p for p in pos if float(p.get("positionAmt", 0)) != 0]
+    except: return []
 
 # ============================================================
-# WORKERS D1 INTERFACE
+# D1 INTERFACE
 # ============================================================
 
-def fetch_bot_configs() -> list:
-    """Get active configs from D1 via Workers."""
+def fetch_bot_configs():
     try:
         r = requests.get(f"{WORKER_URL}/bot/config", timeout=10)
-        data = r.json()
-        if data.get("ok"):
-            return [c for c in data["configs"] if c.get("active")]
-    except Exception as e:
-        print(f"[Bot] Failed to fetch configs: {e}")
+        d = r.json()
+        if d.get("ok"): return [c for c in d["configs"] if c.get("active")]
+    except: pass
     return []
 
+def log_trade(data):
+    try: return requests.post(f"{WORKER_URL}/bot/trade-log", json=data, timeout=10).json()
+    except: return {"ok": False}
 
-def log_trade(trade_data: dict):
-    """Write trade to D1 via Workers."""
-    try:
-        r = requests.post(f"{WORKER_URL}/bot/trade-log", json=trade_data, timeout=10)
-        return r.json()
-    except Exception as e:
-        print(f"[Bot] Failed to log trade: {e}")
-        return {"ok": False}
-
-
-def send_telegram(msg: str):
-    """Send Telegram notification."""
-    if not TELEGRAM_BOT_TOKEN:
-        return
-    try:
-        requests.post(
-            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-            json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "Markdown"},
-            timeout=5,
-        )
-    except:
-        pass
-
+def send_telegram(msg):
+    if not TELEGRAM_BOT_TOKEN: return
+    try: requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+        json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "Markdown"}, timeout=5)
+    except: pass
 
 # ============================================================
-# SIGNAL DETECTION (reuses backtesting_core)
+# SIGNAL DETECTION
 # ============================================================
 
-def check_signal(config: dict, data: dict) -> dict:
-    """
-    Check if latest candle has a signal for this strategy.
-    Returns: {signal: 1/-1/0, features: {...}, regime: str} or None.
-    """
+def check_signal(config, data):
     entry_logic = config["entry_logic"]
     entry_logic_2 = config.get("entry_logic_2")
-
-    if entry_logic not in ENTRY_LOGICS:
-        return None
-
-    # Build StrategyConfig
-    sc = StrategyConfig(
-        symbol=config["symbol"],
-        timeframe=config["timeframe"],
-        entry_logic=entry_logic,
+    if entry_logic not in ENTRY_LOGICS: return None
+    sc = StrategyConfig(symbol=config["symbol"], timeframe=config["timeframe"], entry_logic=entry_logic,
         entry_logic_2=entry_logic_2 if entry_logic_2 in ENTRY_LOGICS else None,
-        sl_pct=config.get("sl_pct", 0.6),
-        tp_pct=config.get("tp_pct", 1.5),
-    )
-
-    # Compute indicators
+        sl_pct=config.get("sl_pct", 0.6), tp_pct=config.get("tp_pct", 1.5))
     ind = precompute_indicators(data, sc)
-
-    # Generate signals
     signals = get_signals(data, ind, sc)
-
-    # Multi-entry AND
     if sc.entry_logic_2 and sc.entry_logic_2 in ENTRY_LOGICS:
         from dataclasses import replace as dc_replace
-        config2 = dc_replace(sc, entry_logic=sc.entry_logic_2)
-        signals2 = get_signals(data, ind, config2)
-        window = 3
+        c2 = dc_replace(sc, entry_logic=sc.entry_logic_2)
+        s2 = get_signals(data, ind, c2)
         combined = np.zeros(len(signals), dtype=int)
-        for i in range(window, len(signals)):
+        for i in range(3, len(signals)):
             if signals[i] != 0:
-                for j in range(max(0, i - window), i + 1):
-                    if signals2[j] == signals[i]:
-                        combined[i] = signals[i]
-                        break
-            elif signals2[i] != 0:
-                for j in range(max(0, i - window), i + 1):
-                    if signals[j] == signals2[i]:
-                        combined[i] = signals2[i]
-                        break
+                for j in range(max(0,i-3), i+1):
+                    if s2[j] == signals[i]: combined[i] = signals[i]; break
+            elif s2[i] != 0:
+                for j in range(max(0,i-3), i+1):
+                    if signals[j] == s2[i]: combined[i] = s2[i]; break
         signals = combined
-
-    # Apply filters
     signals = apply_filters(data, ind, signals, sc)
-
-    # Check LAST CLOSED candle (index -2, because -1 is still forming)
-    check_idx = len(signals) - 2
-    if check_idx < 0:
-        return None
-
-    sig = int(signals[check_idx])
-    if sig == 0:
-        return None
-
-    # Regime
+    idx = len(signals) - 2
+    if idx < 0 or int(signals[idx]) == 0: return None
+    sig = int(signals[idx])
     regimes = classify_regime(data, ind)
-    regime = {0: "sideways", 1: "bull", -1: "bear", 2: "shock"}.get(int(regimes[check_idx]), "unknown")
-
-    # Features (for rule filter)
+    regime = {0:"sideways",1:"bull",-1:"bear",2:"shock"}.get(int(regimes[idx]),"unknown")
     combo_label = entry_logic + (" AND " + entry_logic_2 if entry_logic_2 else "")
-    features = extract_signal_features(combo_label, data, ind, check_idx, signals, regimes)
+    features = extract_signal_features(combo_label, data, ind, idx, signals, regimes)
+    return {"signal":sig,"side":"LONG" if sig==1 else "SHORT","features":features,"regime":regime,"price":float(data["close"][idx])}
 
-    return {
-        "signal": sig,
-        "side": "LONG" if sig == 1 else "SHORT",
-        "features": features,
-        "regime": regime,
-        "price": float(data["close"][check_idx]),
-        "check_idx": check_idx,
-    }
-
-
-def check_rule_filter(rule_str: str, features: dict) -> bool:
-    """Apply P2 rule filter to signal features. Returns True if passes."""
-    if not rule_str or rule_str.strip() == "":
-        return True  # No rule = always pass
-
+def check_rule_filter(rule_str, features):
+    if not rule_str or not rule_str.strip(): return True
     conditions = parse_rule(rule_str)
-    if not conditions:
-        return True
-
-    for feature, operator, value in conditions:
-        feat_val = features.get(feature)
-        if feat_val is None or not isinstance(feat_val, (int, float)):
-            return False  # Missing feature = fail
-
-        if operator == ">=" and not (feat_val >= value): return False
-        elif operator == "<=" and not (feat_val <= value): return False
-        elif operator == ">" and not (feat_val > value): return False
-        elif operator == "<" and not (feat_val < value): return False
-        elif operator == "==" and not (feat_val == value): return False
-        elif operator == "!=" and not (feat_val != value): return False
-
+    if not conditions: return True
+    for feat, op, val in conditions:
+        fv = features.get(feat)
+        if fv is None or not isinstance(fv,(int,float)): return False
+        if op==">=" and not fv>=val: return False
+        if op=="<=" and not fv<=val: return False
+        if op==">" and not fv>val: return False
+        if op=="<" and not fv<val: return False
     return True
 
-
 # ============================================================
-# POSITION MONITOR
+# POSITION MONITOR (Step 4: Ultron position manager)
 # ============================================================
 
-# Track open trades by symbol (to avoid duplicate entries)
-_open_trades: dict = {}  # symbol -> trade_log_id
-
+_open_trades = {}
 
 def monitor_positions():
-    """Check open positions and close trades that hit SL/TP."""
-    # TODO Step 4: MiniMax position manager replaces this
-    # For now just log positions status
     try:
-        positions = get_open_positions()
-        for p in positions:
-            symbol = p.get("symbol", "")
-            amt = float(p.get("positionAmt", 0))
-            pnl = float(p.get("unRealizedProfit", 0))
+        for p in get_open_positions():
+            sym = p.get("symbol","")
+            amt = float(p.get("positionAmt",0))
+            pnl = float(p.get("unRealizedProfit",0))
             if amt != 0:
-                print(f"[Bot] Position: {symbol} amt={amt} uPnL=${pnl:.2f}")
-    except Exception as e:
-        print(f"[Bot] Monitor error: {e}")
-
+                _log("📍", "Iron Legion", f"{sym} uPnL=${pnl:.2f}", {"symbol":sym,"amt":amt,"pnl":pnl})
+    except: pass
 
 # ============================================================
-# MAIN BOT LOOP
+# MAIN LOOP
 # ============================================================
 
 _bot_running = False
-_bot_lock = threading.Lock()
-_last_signals: dict = {}  # "symbol_tf_logic" -> timestamp of last signal (cooldown)
-SIGNAL_COOLDOWN = 300  # 5 min cooldown per strategy
-
+_last_signals = {}
+SIGNAL_COOLDOWN = 300
 
 def _bot_loop():
-    global _bot_running
-    print(f"[Bot] 🤖 Dumb bot started! Interval={BOT_INTERVAL}s, testnet={TESTNET_URL}")
-    send_telegram("🤖 *BabaBot Dumb Bot Started*\nPaper trading mode (testnet)")
+    global _bot_running, _trade_count
+    ultron_status = "ONLINE" if ULTRON_ENABLED and ULTRON_API_KEY else "OFFLINE"
+    _log("🦾", "Iron Legion", f"Deployed! Ultron: {ultron_status}")
+    send_telegram(f"🤖 Demo trading active — lihat dashboard untuk detail\n⚡ Ultron: {ultron_status}")
 
     while _bot_running:
-        cycle_start = time.time()
+        t0 = time.time()
         try:
-            # ── 1. Fetch active configs ──
             configs = fetch_bot_configs()
             if not configs:
-                time.sleep(BOT_INTERVAL)
-                continue
+                time.sleep(BOT_INTERVAL); continue
 
-            # ── 2. Group by symbol+timeframe (avoid redundant kline fetches) ──
-            groups: dict = {}  # "ETHUSDT_1h" -> [config1, config2, ...]
+            btc_ctx = get_btc_context()
+            groups = {}
             for cfg in configs:
-                key = f"{cfg['symbol']}_{cfg['timeframe']}"
-                if key not in groups:
-                    groups[key] = []
-                groups[key].append(cfg)
+                groups.setdefault(f"{cfg['symbol']}_{cfg['timeframe']}", []).append(cfg)
 
-            # ── 3. Per group: fetch klines, check signals ──
-            for group_key, group_configs in groups.items():
-                symbol, tf = group_key.split("_", 1)
+            for gk, gconfigs in groups.items():
+                symbol, tf = gk.split("_", 1)
                 interval = TF_MAP.get(tf)
-                if not interval:
-                    continue
-
-                # Fetch candles
+                if not interval: continue
                 klines = fetch_klines(symbol, interval, CANDLE_BUFFER)
                 data = klines_to_data(klines)
-                if data is None:
-                    print(f"[Bot] ⚠️ No data for {symbol} {tf}")
-                    continue
+                if data is None: continue
 
-                # Check each strategy in this group
-                for cfg in group_configs:
-                    strategy_id = cfg["strategy_id"]
-                    cooldown_key = f"{symbol}_{tf}_{cfg['entry_logic']}_{cfg.get('entry_logic_2','')}"
+                for cfg in gconfigs:
+                    sid = cfg["strategy_id"]
+                    ck = f"{symbol}_{tf}_{cfg['entry_logic']}_{cfg.get('entry_logic_2','')}"
+                    if time.time() - _last_signals.get(ck, 0) < SIGNAL_COOLDOWN: continue
 
-                    # Cooldown check
-                    last_sig_time = _last_signals.get(cooldown_key, 0)
-                    if time.time() - last_sig_time < SIGNAL_COOLDOWN:
-                        continue
-
-                    # Regime gate check
-                    regime_gate = cfg.get("regime_gate", "all")
-
-                    # Check signal
                     result = check_signal(cfg, data)
-                    if result is None:
-                        continue
+                    if result is None: continue
 
-                    sig = result["signal"]
                     side = result["side"]
                     features = result["features"]
                     regime = result["regime"]
                     price = result["price"]
+                    combo = cfg["entry_logic"] + (f"+{cfg.get('entry_logic_2','')}" if cfg.get("entry_logic_2") else "")
 
-                    # Regime gate filter
-                    if regime_gate != "all":
-                        allowed_regimes = [r.strip() for r in regime_gate.split(",")]
-                        if regime not in allowed_regimes:
-                            print(f"[Bot] ⏭️ {symbol} {side} skipped — regime '{regime}' not in gate [{regime_gate}]")
-                            continue
+                    _log("🎯", "Signal", f"{symbol} {tf} {combo} {side} @ ${price:.2f} | regime={regime}",
+                         {"symbol":symbol,"tf":tf,"combo":combo,"side":side,"price":price,"regime":regime,"features":features})
+
+                    # Regime gate
+                    rg = cfg.get("regime_gate", "all")
+                    if rg != "all" and regime not in [x.strip() for x in rg.split(",")]:
+                        _log("⏭️", "Filter", f"Regime gate blocked: {regime} not in [{rg}]")
+                        continue
 
                     # Rule filter
                     rule_str = cfg.get("rule", "")
                     if not check_rule_filter(rule_str, features):
-                        print(f"[Bot] ⏭️ {symbol} {side} skipped — rule filter failed")
+                        _log("⏭️", "Filter", f"Rule filter failed: {rule_str[:60]}")
                         continue
 
-                    # ── SIGNAL PASSED ALL FILTERS! ──
-                    combo = cfg["entry_logic"] + (f"+{cfg['entry_logic_2']}" if cfg.get("entry_logic_2") else "")
-                    sl_pct = cfg.get("sl_pct", 0.6)
-                    tp_pct = cfg.get("tp_pct", 1.5)
+                    _log("✅", "Filter", "All filters passed")
 
-                    # Check if we already have an open position for this symbol
+                    # Duplicate
                     if symbol in _open_trades:
-                        print(f"[Bot] ⏭️ {symbol} {side} skipped — already have open position")
+                        _log("⏭️", "Iron Legion", f"Already have {symbol} position")
                         continue
 
-                    # Calculate SL/TP prices
-                    current_price = get_current_price(symbol) or price
-                    if side == "LONG":
-                        sl_price = current_price * (1 - sl_pct / 100)
-                        tp_price = current_price * (1 + tp_pct / 100)
-                        order_side = "BUY"
-                    else:
-                        sl_price = current_price * (1 + sl_pct / 100)
-                        tp_price = current_price * (1 - tp_pct / 100)
-                        order_side = "SELL"
+                    # ── ULTRON ──
+                    ultron = ultron_gatekeeper(cfg, result, btc_ctx, len(_open_trades))
+                    decision = ultron["decision"]
 
-                    qty = PAIR_QTY.get(symbol, 0)
-                    if qty == 0:
-                        print(f"[Bot] ⚠️ No qty configured for {symbol}")
+                    if decision == "SKIP":
+                        _log("❌", "Ultron", f"SKIP — {ultron['reason']} ({ultron['confidence']:.0%})",
+                             {"decision":"SKIP","reason":ultron["reason"],"confidence":ultron["confidence"]})
+                        _last_signals[ck] = time.time()
                         continue
 
-                    # ── PLACEHOLDER: MiniMax gatekeeper (Step 3) ──
-                    minimax_verdict = "PROCEED (no gatekeeper yet)"
+                    _log("✅", "Ultron", f"PROCEED — {ultron['reason']} ({ultron['confidence']:.0%})",
+                         {"decision":"PROCEED","reason":ultron["reason"],"confidence":ultron["confidence"]})
 
                     # ── EXECUTE ──
-                    print(f"[Bot] 🎯 SIGNAL: {symbol} {side} @ ${current_price:.2f} | {combo} | regime={regime}")
-                    print(f"[Bot]   SL=${sl_price:.2f} ({sl_pct}%) | TP=${tp_price:.2f} ({tp_pct}%)")
+                    sl_pct = cfg.get("sl_pct", 0.6)
+                    tp_pct = cfg.get("tp_pct", 1.5)
+                    cp = get_current_price(symbol) or price
+                    if side == "LONG":
+                        sl_p, tp_p, os_ = cp*(1-sl_pct/100), cp*(1+tp_pct/100), "BUY"
+                    else:
+                        sl_p, tp_p, os_ = cp*(1+sl_pct/100), cp*(1-tp_pct/100), "SELL"
 
-                    order_result = place_order(symbol, order_side, qty, sl_price, tp_price)
+                    qty = PAIR_QTY.get(symbol, 0)
+                    if not qty:
+                        _log("❌", "Iron Legion", f"No qty for {symbol}"); continue
 
-                    if order_result.get("error"):
-                        print(f"[Bot] ❌ Order failed: {order_result['error']}")
-                        send_telegram(f"❌ Order failed: {symbol} {side}\n{order_result['error']}")
+                    order = place_order(symbol, os_, qty, sl_p, tp_p)
+                    if order.get("error"):
+                        _log("❌", "Iron Legion", f"Order failed: {order['error'][:150]}")
                         continue
 
-                    # ── LOG TRADE ──
-                    entry_time = datetime.now(timezone.utc).isoformat()
-                    trade_data = {
-                        "strategy_id": strategy_id,
-                        "symbol": symbol,
-                        "timeframe": tf,
-                        "side": side,
-                        "entry_price": current_price,
-                        "entry_time": entry_time,
-                        "sl_pct": sl_pct,
-                        "tp_pct": tp_pct,
-                        "regime_at_entry": regime,
-                        "minimax_entry_verdict": minimax_verdict,
-                        "backtest_wr": cfg.get("rule_wr", 0),
-                        "notes": f"Auto entry: {combo} | Features: V={features.get('V','?')} B={features.get('B','?')} H={features.get('H','?')}",
-                    }
-                    log_result = log_trade(trade_data)
+                    # ── LOG ──
+                    _trade_count += 1
+                    log_trade({
+                        "strategy_id":sid,"symbol":symbol,"timeframe":tf,"side":side,
+                        "entry_price":cp,"entry_time":datetime.now(timezone.utc).isoformat(),
+                        "sl_pct":sl_pct,"tp_pct":tp_pct,"regime_at_entry":regime,
+                        "minimax_entry_verdict":f"{decision} ({ultron['reason']})",
+                        "backtest_wr":cfg.get("rule_wr",0),
+                        "notes":f"Ultron:{ultron['confidence']:.0%} V={features.get('V','?')} B={features.get('B','?')} H={features.get('H','?')}",
+                    })
+                    _open_trades[symbol] = {"strategy_id":sid,"entry_price":cp}
+                    _last_signals[ck] = time.time()
 
-                    # Track open trade
-                    _open_trades[symbol] = strategy_id
+                    _log("🦾", "Iron Legion", f"TRADE #{_trade_count}: {side} {symbol} @ ${cp:.2f} | SL ${sl_p:.2f} TP ${tp_p:.2f}",
+                         {"trade_num":_trade_count,"symbol":symbol,"side":side,"entry":cp,"sl":sl_p,"tp":tp_p,
+                          "sl_pct":sl_pct,"tp_pct":tp_pct,"regime":regime,"ultron":ultron,"combo":combo,"wr":cfg.get("rule_wr","?")})
 
-                    # Set cooldown
-                    _last_signals[cooldown_key] = time.time()
+                    _log("📚", "Database", f"Trade #{_trade_count} saved — learning data accumulating ({_trade_count} total)")
 
-                    # Telegram notification
-                    send_telegram(
-                        f"🎯 *TRADE OPENED*\n\n"
-                        f"{'🟢' if side == 'LONG' else '🔴'} {side} {symbol} @ ${current_price:.2f}\n"
-                        f"Strategy: {combo} ({tf})\n"
-                        f"SL: ${sl_price:.2f} ({sl_pct}%)\n"
-                        f"TP: ${tp_price:.2f} ({tp_pct}%)\n"
-                        f"Regime: {regime}\n"
-                        f"MiniMax: {minimax_verdict}\n"
-                        f"_Paper trading (testnet)_"
-                    )
-
-            # ── 4. Monitor open positions ──
             monitor_positions()
 
         except Exception as e:
-            print(f"[Bot] ❌ Cycle error: {e}")
+            _log("❌", "System", f"Cycle error: {e}")
             traceback.print_exc()
 
-        # Sleep remaining time
-        elapsed = time.time() - cycle_start
-        sleep_time = max(1, BOT_INTERVAL - elapsed)
-        time.sleep(sleep_time)
+        time.sleep(max(1, BOT_INTERVAL - (time.time() - t0)))
 
-    print("[Bot] 🛑 Dumb bot stopped")
-    send_telegram("🛑 *BabaBot Dumb Bot Stopped*")
-
+    _log("🛑", "Iron Legion", "Stood down")
 
 # ============================================================
 # START / STOP / STATUS
@@ -552,29 +419,23 @@ def _bot_loop():
 
 def start_bot():
     global _bot_running
-    if _bot_running:
-        return {"ok": True, "message": "Already running"}
-    if not TESTNET_KEY or not TESTNET_SECRET:
-        return {"ok": False, "error": "BINANCE_TESTNET_KEY/SECRET not set"}
-
+    if _bot_running: return {"ok": True, "message": "Already running"}
+    if not TESTNET_KEY or not TESTNET_SECRET: return {"ok": False, "error": "BINANCE_TESTNET_KEY/SECRET not set"}
     _bot_running = True
-    t = threading.Thread(target=_bot_loop, daemon=True)
-    t.start()
-    return {"ok": True, "message": f"Bot started, interval={BOT_INTERVAL}s"}
-
+    threading.Thread(target=_bot_loop, daemon=True).start()
+    u = "ONLINE" if ULTRON_ENABLED and ULTRON_API_KEY else "OFFLINE"
+    return {"ok": True, "message": f"Iron Legion deployed, Ultron {u}, interval={BOT_INTERVAL}s"}
 
 def stop_bot():
     global _bot_running
     _bot_running = False
-    return {"ok": True, "message": "Bot stopping..."}
-
+    return {"ok": True, "message": "Iron Legion standing down..."}
 
 def bot_status():
     return {
-        "running": _bot_running,
-        "interval": BOT_INTERVAL,
-        "testnet_url": TESTNET_URL,
+        "running": _bot_running, "interval": BOT_INTERVAL, "testnet_url": TESTNET_URL,
         "has_keys": bool(TESTNET_KEY and TESTNET_SECRET),
-        "open_trades": dict(_open_trades),
-        "cooldowns": {k: int(time.time() - v) for k, v in _last_signals.items()},
+        "ultron": {"enabled": ULTRON_ENABLED, "has_key": bool(ULTRON_API_KEY), "model": ULTRON_MODEL},
+        "trade_count": _trade_count, "open_trades": dict(_open_trades),
+        "cooldowns": {k: int(time.time()-v) for k,v in _last_signals.items()},
     }
