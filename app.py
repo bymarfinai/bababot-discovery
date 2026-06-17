@@ -1310,6 +1310,82 @@ def run_combined_equity(req: CombinedEquityRequest, _=Security(verify_token)):
 
 
 # ============================================================
+# DERET STATISTIK — Predicted Range Entry Strategy
+# ============================================================
+
+@app.post("/backtest/deret-statistik")
+def run_deret_backtest(req: dict, _=Security(verify_token)):
+    """Single deret statistik backtest."""
+    try:
+        result = backtest_deret_statistik(
+            db_path=DB_PATH,
+            symbol=req.get("symbol", "ETHUSDT").upper(),
+            timeframe=req.get("timeframe", "4h"),
+            window=req.get("window", 5),
+            buffer_pct=req.get("buffer_pct", 0.5),
+            tp_pct=req.get("tp_pct", 1.0),
+            sl_pct=req.get("sl_pct", 1.0),
+            days=req.get("days", 1825),
+        )
+        return {"ok": True, **result}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/backtest/deret-statistik/sweep")
+def run_deret_sweep(req: dict, _=Security(verify_token)):
+    """Sweep all pairs × TFs × buffer/TP/SL combinations. Find optimal per combo."""
+    try:
+        pairs = req.get("pairs", ["ETHUSDT","SOLUSDT","AVAXUSDT","DOGEUSDT","LINKUSDT","XRPUSDT","DOTUSDT","BTCUSDT","1000PEPEUSDT"])
+        tfs = req.get("timeframes", ["15m","1h","4h"])
+        buffers = req.get("buffers", [0.3, 0.5, 0.8, 1.0])
+        tps = req.get("tps", [0.5, 0.8, 1.0, 1.5])
+        sls = req.get("sls", [0.5, 0.8, 1.0, 1.5])
+        window = req.get("window", 5)
+        days = req.get("days", 1825)
+        
+        all_results = []
+        best_per_combo = {}
+        
+        for symbol in pairs:
+            for tf in tfs:
+                combo_key = f"{symbol}_{tf}"
+                best = None
+                for buf in buffers:
+                    for tp in tps:
+                        for sl in sls:
+                            r = backtest_deret_statistik(
+                                db_path=DB_PATH, symbol=symbol, timeframe=tf,
+                                window=window, buffer_pct=buf, tp_pct=tp, sl_pct=sl, days=days,
+                            )
+                            if r.get("status") != "ok":
+                                continue
+                            r["combo"] = combo_key
+                            all_results.append(r)
+                            # Track best: WR ≥ 75%, most profit/day, min 10 trades
+                            if (r["win_rate"] >= 75 and r["total_trades"] >= 10 and
+                                r["profit_per_day"] >= 2.0 and
+                                (best is None or r["profit_per_day"] > best["profit_per_day"])):
+                                best = r
+                
+                if best:
+                    best_per_combo[combo_key] = best
+        
+        # Summary
+        passed = [r for r in all_results if r["win_rate"] >= 75 and r["total_trades"] >= 10 and r["profit_per_day"] >= 2.0]
+        
+        return {
+            "ok": True,
+            "total_tested": len(all_results),
+            "passed": len(passed),
+            "best_per_combo": best_per_combo,
+            "top_10": sorted(passed, key=lambda x: x["profit_per_day"], reverse=True)[:10],
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ============================================================
 # DCA BACKTEST ENDPOINT
 # ============================================================
 
