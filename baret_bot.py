@@ -142,6 +142,11 @@ def _baret_loop(db_path: str, mode: str = "baret"):
     """Main discovery loop — sweep → Ultron analyze → adjust → re-sweep → converge."""
     global _baret_running, _baret_state
 
+    # Full sweep mode: test ALL combinations, no Ultron
+    if mode in ("sweep_all", "sweep_marfin", "sweep_dca"):
+        _baret_sweep_all(db_path, mode)
+        return
+
     _baret_state["mode"] = mode
     _baret_state["started_at"] = datetime.now(timezone.utc).isoformat()
     _baret_state["converged"] = False
@@ -307,6 +312,133 @@ def _baret_loop(db_path: str, mode: str = "baret"):
         time.sleep(2)  # Brief pause between rounds
 
     _log(f"═══ DISCOVERY COMPLETE ═══ {_baret_state['round']} rounds")
+    _baret_running = False
+
+
+def _baret_sweep_all(db_path: str, mode: str = "sweep_all"):
+    """Full grid sweep — test ALL buffer/TP/SL/window combinations. No Ultron."""
+    global _baret_running, _baret_state
+
+    if mode == "sweep_marfin":
+        backtest_mode = "baret_marfin"
+    elif mode == "sweep_dca":
+        backtest_mode = "baret_dca"
+    else:
+        backtest_mode = "baret"
+    
+    buffers = [0.3, 0.5, 0.8, 1.0, 1.2, 1.5, 2.0]
+    tps = [0.5, 0.8, 1.0, 1.2, 1.5, 2.0]
+    sls = [0.3, 0.5, 0.8, 1.0, 1.2, 1.5]
+    windows = [3, 5, 10]
+    
+    # Mode-specific extra params
+    if mode == "sweep_marfin":
+        close_filters = [0.2, 0.3, 0.5, 0.8]
+        buf2s = [0]  # not used
+    elif mode == "sweep_dca":
+        close_filters = [0]  # not used
+        buf2s = [0.8, 1.0, 1.5, 2.0]  # DCA level depths
+    else:
+        close_filters = [0]
+        buf2s = [0]
+
+    total = len(BARET_PAIRS) * len(buffers) * len(tps) * len(sls) * len(windows) * max(len(close_filters), len(buf2s))
+    
+    _baret_state["mode"] = mode
+    _baret_state["round"] = 1
+    _baret_state["total_combos"] = total
+    _baret_state["completed"] = 0
+    _baret_state["converged"] = False
+    _baret_state["started_at"] = datetime.now(timezone.utc).isoformat()
+
+    _log(f"═══ FULL SWEEP START ═══ {total} combinations, mode={backtest_mode}")
+    
+    best_per_pair = {}
+    count = 0
+
+    for symbol in BARET_PAIRS:
+        if not _baret_running:
+            break
+        for w in windows:
+            for buf in buffers:
+                for tp in tps:
+                    for sl in sls:
+                        extras = close_filters if mode == "sweep_marfin" else buf2s if mode == "sweep_dca" else [0]
+                        for extra in extras:
+                            if not _baret_running:
+                                break
+                            
+                            # Skip invalid DCA combos (buf2 must be > buf1)
+                            if mode == "sweep_dca" and extra <= buf:
+                                count += 1
+                                _baret_state["completed"] = count
+                                continue
+                            
+                            count += 1
+                            try:
+                                cf = extra if mode == "sweep_marfin" else 0.3
+                                b2 = extra if mode == "sweep_dca" else buf + 0.5
+                                
+                                r = backtest_deret_statistik(
+                                    db_path=db_path,
+                                    symbol=symbol, timeframe="4h",
+                                    window=w, buffer_pct=buf,
+                                    tp_pct=tp, sl_pct=sl,
+                                    days=1825, position_usd=100.0, leverage=50, fee_pct=0.10,
+                                    mode=backtest_mode, buffer2_pct=b2,
+                                    close_filter_pct=cf,
+                                )
+                                
+                                wr = r.get("win_rate", 0)
+                                ppd = r.get("profit_per_day", 0)
+                                tt = r.get("total_trades", 0)
+                                
+                                result_entry = {
+                                    "round": 1, "symbol": symbol, "timeframe": "4h",
+                                    "mode": backtest_mode,
+                                    "window": w, "buffer_pct": buf, "tp_pct": tp, "sl_pct": sl,
+                                    "buffer2_pct": b2, "close_filter_pct": cf,
+                                    "win_rate": wr, "total_trades": tt,
+                                    "net_profit": r.get("net_profit", 0),
+                                    "profit_per_day": ppd,
+                                    "profit_factor": r.get("profit_factor", 0),
+                                    "max_drawdown": r.get("max_drawdown", 0),
+                                    "dca_rate": r.get("dca_rate", 0),
+                                    "long_trades": r.get("long_trades", 0), "long_wr": r.get("long_wr", 0),
+                                    "short_trades": r.get("short_trades", 0), "short_wr": r.get("short_wr", 0),
+                                    "exit_tp": r.get("exit_reasons", {}).get("TP", 0),
+                                    "exit_sl": r.get("exit_reasons", {}).get("SL", 0),
+                                    "exit_close": r.get("exit_reasons", {}).get("CLOSE", 0),
+                                }
+                                
+                                # Save to D1
+                                _save_to_d1("baret/save-result", result_entry)
+                                
+                                # Track best per pair
+                                if wr >= 75 and ppd >= 2 and tt >= 10:
+                                    key = symbol
+                                    if key not in best_per_pair or ppd > best_per_pair[key]["profit_per_day"]:
+                                        best_per_pair[key] = result_entry
+                                
+                                # Log every 50 combos
+                                if count % 50 == 0:
+                                    _log(f"  📊 Progress: {count}/{total} ({count*100//total}%) — {symbol} buf={buf} tp={tp} sl={sl} w={w}")
+                                
+                            except Exception as e:
+                                _log(f"  ❌ {symbol} buf={buf} tp={tp} sl={sl}: {e}")
+                            
+                            _baret_state["completed"] = count
+
+    # Summary
+    _baret_state["converged"] = True
+    promising = [f"{p}_4h" for p in best_per_pair]
+    _baret_state["promising"] = promising
+    
+    _log(f"═══ FULL SWEEP DONE ═══ {count} tested, {len(best_per_pair)} pairs PASS")
+    for pair in sorted(best_per_pair, key=lambda p: -best_per_pair[p]["profit_per_day"]):
+        b = best_per_pair[pair]
+        _log(f"  ⭐ {pair}: WR={b['win_rate']:.1f}% ${b['profit_per_day']:.2f}/day buf={b['buffer_pct']} tp={b['tp_pct']} sl={b['sl_pct']} w={b['window']}")
+    
     _baret_running = False
 
 
