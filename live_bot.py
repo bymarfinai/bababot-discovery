@@ -108,6 +108,15 @@ def call_ultron(context: str) -> dict:
         return {"decision": "PROCEED", "reason": str(e)[:50], "confidence": 0.5}
 
 def get_btc_context() -> dict:
+    # Try Workers proxy first (uses /bot/klines)
+    try:
+        r = requests.get(f"{WORKER_URL}/bot/klines", params={"symbol": "BTCUSDT", "interval": "1h", "limit": 3}, timeout=10)
+        if r.status_code == 200:
+            kl = r.json().get("klines", [])
+            if kl and len(kl) >= 3:
+                return {"price": float(kl[-1][4]), "change_2h": round((float(kl[-1][4]) - float(kl[0][1])) / float(kl[0][1]) * 100, 2)}
+    except: pass
+    # Mainnet fallback
     try:
         r = requests.get("https://fapi.binance.com/fapi/v1/klines",
             params={"symbol": "BTCUSDT", "interval": "1h", "limit": 3}, timeout=5)
@@ -151,13 +160,17 @@ def binance_post(path, params):
     return requests.post(f"{TESTNET_URL}{path}", params=_sign(params), headers=_h(), timeout=10).json()
 
 def fetch_klines(symbol, interval, limit=300):
+    # Workers proxy first — Railway can always reach Cloudflare
     try:
-        r = requests.get("https://fapi.binance.com/fapi/v1/klines", params={"symbol": symbol, "interval": interval, "limit": limit}, timeout=15)
-        if r.status_code == 200: return r.json()
+        r = requests.get(f"{WORKER_URL}/bot/klines", params={"symbol": symbol, "interval": interval, "limit": limit}, timeout=10)
+        if r.status_code == 200:
+            kl = r.json().get("klines", [])
+            if kl: return kl
     except: pass
+    # Mainnet fallback — Railway IP might be blocked
     try:
-        r = requests.get(f"{WORKER_URL}/bot/klines", params={"symbol": symbol, "interval": interval, "limit": limit}, timeout=15)
-        if r.status_code == 200: return r.json().get("klines", [])
+        r = requests.get("https://fapi.binance.com/fapi/v1/klines", params={"symbol": symbol, "interval": interval, "limit": limit}, timeout=5)
+        if r.status_code == 200: return r.json()
     except: pass
     return []
 
@@ -168,7 +181,7 @@ def klines_to_data(klines):
 
 def get_current_price(symbol):
     try:
-        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/price", params={"symbol": symbol}, timeout=5)
+        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/price", params={"symbol": symbol}, timeout=3)
         if r.status_code == 200: return float(r.json()["price"])
     except: pass
     return 0.0
