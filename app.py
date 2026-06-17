@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from typing import Optional
 from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test, DCAConfig, backtest_dca
 from live_bot import start_bot, stop_bot, bot_status, get_activity_log
+from dca_bot import start_dca, stop_dca, dca_status, get_dca_log, get_dca_results
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -1343,55 +1344,65 @@ def run_dca_backtest(req: dict, _=Security(verify_token)):
 
 @app.post("/backtest/dca/sweep")
 def run_dca_sweep(req: dict, _=Security(verify_token)):
-    """Sweep DCA across multiple combos. Returns ranked results."""
+    """Single DCA sweep (manual, one-off). For autonomous loop use /dca/start."""
     try:
         symbols = req.get("symbols", ["ETHUSDT", "SOLUSDT", "AVAXUSDT", "BNBUSDT",
                                        "XRPUSDT", "DOGEUSDT", "LINKUSDT", "YFIUSDT",
-                                       "1000PEPEUSDT", "AVAXUSDT", "BNBUSDT"])
-        # BTC excluded from DCA per V10 rule
+                                       "1000PEPEUSDT"])
         symbols = [s for s in symbols if s != "BTCUSDT"]
         timeframes = req.get("timeframes", ["15m", "1h", "4h"])
-        entry_logics = req.get("entry_logics", ENTRY_LOGICS)
-        days = req.get("days", 1825)
-        max_combos = req.get("max_combos", 100)
+        entry_logics = req.get("entry_logics", ENTRY_LOGICS[:10])
+        max_combos = req.get("max_combos", 50)
 
         results = []
         count = 0
         for symbol in symbols:
             for tf in timeframes:
                 for logic in entry_logics:
-                    if count >= max_combos:
-                        break
+                    if count >= max_combos: break
                     count += 1
-                    print(f"[DCA Sweep] {count}: {symbol} {tf} {logic}...", end=" ", flush=True)
-                    dca_cfg = DCAConfig(
-                        symbol=symbol, timeframe=tf, entry_logic=logic,
-                        days=days,
-                        entry_usd=req.get("entry_usd", 1.0),
-                        leverage=req.get("leverage", 50),
-                        max_levels=req.get("max_levels", 5),
-                        tp_pct=req.get("tp_pct", 1.0),
-                        cut_pct=req.get("cut_pct", 2.0),
-                    )
+                    dca_cfg = DCAConfig(symbol=symbol, timeframe=tf, entry_logic=logic, days=req.get("days", 1825))
                     r = backtest_dca(DB_PATH, dca_cfg)
                     if r.get("status") == "ok" and r.get("total_sessions", 0) > 0:
                         results.append(r)
-                        print(f"WR:{r['win_rate']}% ({r['total_sessions']} sessions)")
-                    else:
-                        print(f"skip ({r.get('status', 'no_data')})")
-
-        # Sort by WR descending
         results.sort(key=lambda x: x.get("win_rate", 0), reverse=True)
-
-        return {
-            "ok": True,
-            "total_tested": count,
-            "total_profitable": len([r for r in results if r.get("win_rate", 0) >= 60]),
-            "results": results[:50],  # top 50
-        }
+        return {"ok": True, "total_tested": count, "results": results[:50]}
     except Exception as e:
         import traceback
         return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+
+
+# ============================================================
+# DCA MODE CONTROL — V10 spec: /dca/start, /dca/stop, /dca/status
+# DCA ON = Pipeline 1 SL/TP OFF (Railway can't parallel)
+# ============================================================
+
+@app.get("/dca/start")
+def dca_start_endpoint():
+    """Start DCA Discovery mode — stops Pipeline 1 SL/TP cron automatically"""
+    global _p2_cron_running
+    # Mode switch: stop P1 SL/TP cron
+    if _p2_cron_running:
+        _p2_cron_running = False
+        print("[Mode Switch] Pipeline 1 SL/TP cron STOPPED — DCA mode taking over")
+    return start_dca()
+
+@app.get("/dca/stop")
+def dca_stop_endpoint():
+    return stop_dca()
+
+@app.get("/dca/status")
+def dca_status_endpoint():
+    return dca_status()
+
+@app.get("/dca/log")
+def dca_log_endpoint(limit: int = 100):
+    return {"ok": True, "log": get_dca_log(limit)}
+
+@app.get("/dca/results")
+def dca_results_endpoint(round: int = None):
+    results = get_dca_results(round)
+    return {"ok": True, "round": round, "count": len(results), "results": results[:50]}
 
 
 
