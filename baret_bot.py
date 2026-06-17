@@ -140,7 +140,7 @@ def _baret_loop(db_path: str, mode: str = "baret"):
             configs[key] = {
                 "symbol": symbol, "timeframe": tf,
                 "buffer_pct": 0.5, "tp_pct": 1.0, "sl_pct": 1.0,
-                "window": 5, "buffer2_pct": 1.0,
+                "window": 5, "buffer2_pct": 1.0, "close_filter_pct": 0.3,
             }
 
     prev_avg_wr = 0
@@ -174,6 +174,7 @@ def _baret_loop(db_path: str, mode: str = "baret"):
                     tp_pct=cfg["tp_pct"], sl_pct=cfg["sl_pct"],
                     days=1825, position_usd=1.0, leverage=50, fee_pct=0.10,
                     mode=mode, buffer2_pct=cfg.get("buffer2_pct", 1.0),
+                    close_filter_pct=cfg.get("close_filter_pct", 0.3),
                 )
 
                 wr = r.get("win_rate", 0)
@@ -265,7 +266,7 @@ def _baret_loop(db_path: str, mode: str = "baret"):
             for adj in ultron.get("adjustments", []):
                 akey = f"{adj['symbol']}_{adj.get('timeframe', '4h')}"
                 if akey in configs:
-                    for field in ["buffer_pct", "tp_pct", "sl_pct", "window", "buffer2_pct"]:
+                    for field in ["buffer_pct", "tp_pct", "sl_pct", "window", "buffer2_pct", "close_filter_pct"]:
                         if field in adj:
                             configs[akey][field] = adj[field]
                     _log(f"    → Adjusted {akey}: buf={configs[akey]['buffer_pct']} tp={configs[akey]['tp_pct']} sl={configs[akey]['sl_pct']}")
