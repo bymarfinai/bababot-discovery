@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
-from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test
+from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test, DCAConfig, backtest_dca
 from live_bot import start_bot, stop_bot, bot_status, get_activity_log
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
@@ -1306,6 +1306,94 @@ def run_combined_equity(req: CombinedEquityRequest, _=Security(verify_token)):
     except Exception as e:
         import traceback
         return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+
+
+# ============================================================
+# DCA BACKTEST ENDPOINT
+# ============================================================
+
+@app.post("/backtest/dca")
+def run_dca_backtest(req: dict, _=Security(verify_token)):
+    """Run DCA backtest for a strategy. Compares DCA vs traditional SL/TP."""
+    try:
+        dca_cfg = DCAConfig(
+            symbol=req.get("symbol", "ETHUSDT").upper(),
+            timeframe=req.get("timeframe", "4h"),
+            entry_logic=req.get("entry_logic", "ema_cross"),
+            entry_logic_2=req.get("entry_logic_2"),
+            entry_usd=req.get("entry_usd", 1.0),
+            leverage=req.get("leverage", 50),
+            max_levels=req.get("max_levels", 5),
+            tp_pct=req.get("tp_pct", 1.0),
+            cut_pct=req.get("cut_pct", 2.0),
+            capital_pool=req.get("capital_pool", 100.0),
+            days=req.get("days", 1825),
+            direction=req.get("direction", "both"),
+        )
+        if req.get("spacing"):
+            dca_cfg.spacing = req["spacing"]
+
+        rule_filter = req.get("rule_filter", req.get("rule", ""))
+        result = backtest_dca(DB_PATH, dca_cfg, rule_filter=rule_filter or None)
+        return {"ok": True, **result}
+    except Exception as e:
+        import traceback
+        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+
+
+@app.post("/backtest/dca/sweep")
+def run_dca_sweep(req: dict, _=Security(verify_token)):
+    """Sweep DCA across multiple combos. Returns ranked results."""
+    try:
+        symbols = req.get("symbols", ["ETHUSDT", "SOLUSDT", "AVAXUSDT", "BNBUSDT",
+                                       "XRPUSDT", "DOGEUSDT", "LINKUSDT", "YFIUSDT",
+                                       "1000PEPEUSDT", "AVAXUSDT", "BNBUSDT"])
+        # BTC excluded from DCA per V10 rule
+        symbols = [s for s in symbols if s != "BTCUSDT"]
+        timeframes = req.get("timeframes", ["15m", "1h", "4h"])
+        entry_logics = req.get("entry_logics", ENTRY_LOGICS)
+        days = req.get("days", 1825)
+        max_combos = req.get("max_combos", 100)
+
+        results = []
+        count = 0
+        for symbol in symbols:
+            for tf in timeframes:
+                for logic in entry_logics:
+                    if count >= max_combos:
+                        break
+                    count += 1
+                    print(f"[DCA Sweep] {count}: {symbol} {tf} {logic}...", end=" ", flush=True)
+                    dca_cfg = DCAConfig(
+                        symbol=symbol, timeframe=tf, entry_logic=logic,
+                        days=days,
+                        entry_usd=req.get("entry_usd", 1.0),
+                        leverage=req.get("leverage", 50),
+                        max_levels=req.get("max_levels", 5),
+                        tp_pct=req.get("tp_pct", 1.0),
+                        cut_pct=req.get("cut_pct", 2.0),
+                    )
+                    r = backtest_dca(DB_PATH, dca_cfg)
+                    if r.get("status") == "ok" and r.get("total_sessions", 0) > 0:
+                        results.append(r)
+                        print(f"WR:{r['win_rate']}% ({r['total_sessions']} sessions)")
+                    else:
+                        print(f"skip ({r.get('status', 'no_data')})")
+
+        # Sort by WR descending
+        results.sort(key=lambda x: x.get("win_rate", 0), reverse=True)
+
+        return {
+            "ok": True,
+            "total_tested": count,
+            "total_profitable": len([r for r in results if r.get("win_rate", 0) >= 60]),
+            "results": results[:50],  # top 50
+        }
+    except Exception as e:
+        import traceback
+        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+
+
 
 # ============================================================
 # PIPELINE 2 CRON — Background thread hits Worker run-next
