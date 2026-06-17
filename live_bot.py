@@ -288,141 +288,168 @@ def monitor_positions():
 # ============================================================
 
 _bot_running = False
+_bot_thread = None
 _last_signals = {}
+_cycle_count = 0
 SIGNAL_COOLDOWN = 300
 
 def _bot_loop():
-    global _bot_running, _trade_count
-    ultron_status = "ONLINE" if ULTRON_ENABLED and ULTRON_API_KEY else "OFFLINE"
-    _log("🦾", "Iron Legion", f"Deployed! Ultron: {ultron_status}")
-    send_telegram(f"🤖 Demo trading active — lihat dashboard untuk detail\n⚡ Ultron: {ultron_status}")
+    global _bot_running, _trade_count, _cycle_count
+    try:
+        ultron_status = "ONLINE" if ULTRON_ENABLED and ULTRON_API_KEY else "OFFLINE"
+        _log("🦾", "Iron Legion", f"Deployed! Ultron: {ultron_status}")
 
-    while _bot_running:
-        t0 = time.time()
-        try:
-            configs = fetch_bot_configs()
-            if not configs:
-                time.sleep(BOT_INTERVAL); continue
+        while _bot_running:
+            t0 = time.time()
+            _cycle_count += 1
+            try:
+                configs = fetch_bot_configs()
+                if not configs:
+                    if _cycle_count % 30 == 1:  # log every ~30 min so terminal shows sign of life
+                        _log("💤", "Iron Legion", f"Cycle #{_cycle_count}: 0 active configs in D1 — waiting")
+                    time.sleep(BOT_INTERVAL); continue
 
-            btc_ctx = get_btc_context()
-            groups = {}
-            for cfg in configs:
-                groups.setdefault(f"{cfg['symbol']}_{cfg['timeframe']}", []).append(cfg)
+                btc_ctx = get_btc_context()
+                groups = {}
+                for cfg in configs:
+                    groups.setdefault(f"{cfg['symbol']}_{cfg['timeframe']}", []).append(cfg)
 
-            for gk, gconfigs in groups.items():
-                symbol, tf = gk.split("_", 1)
-                interval = TF_MAP.get(tf)
-                if not interval: continue
-                klines = fetch_klines(symbol, interval, CANDLE_BUFFER)
-                data = klines_to_data(klines)
-                if data is None: continue
-
-                for cfg in gconfigs:
-                    sid = cfg["strategy_id"]
-                    ck = f"{symbol}_{tf}_{cfg['entry_logic']}_{cfg.get('entry_logic_2','')}"
-                    if time.time() - _last_signals.get(ck, 0) < SIGNAL_COOLDOWN: continue
-
-                    result = check_signal(cfg, data)
-                    if result is None: continue
-
-                    side = result["side"]
-                    features = result["features"]
-                    regime = result["regime"]
-                    price = result["price"]
-                    combo = cfg["entry_logic"] + (f"+{cfg.get('entry_logic_2','')}" if cfg.get("entry_logic_2") else "")
-
-                    _log("🎯", "Signal", f"{symbol} {tf} {combo} {side} @ ${price:.2f} | regime={regime}",
-                         {"symbol":symbol,"tf":tf,"combo":combo,"side":side,"price":price,"regime":regime,"features":features})
-
-                    # Regime gate
-                    rg = cfg.get("regime_gate", "all")
-                    if rg != "all" and regime not in [x.strip() for x in rg.split(",")]:
-                        _log("⏭️", "Filter", f"Regime gate blocked: {regime} not in [{rg}]")
+                kline_ok, kline_fail, signals_checked = 0, 0, 0
+                for gk, gconfigs in groups.items():
+                    symbol, tf = gk.split("_", 1)
+                    interval = TF_MAP.get(tf)
+                    if not interval: continue
+                    klines = fetch_klines(symbol, interval, CANDLE_BUFFER)
+                    data = klines_to_data(klines)
+                    if data is None:
+                        kline_fail += 1
                         continue
+                    kline_ok += 1
 
-                    # Rule filter
-                    rule_str = cfg.get("rule", "")
-                    if not check_rule_filter(rule_str, features):
-                        _log("⏭️", "Filter", f"Rule filter failed: {rule_str[:60]}")
-                        continue
+                    for cfg in gconfigs:
+                        sid = cfg["strategy_id"]
+                        ck = f"{symbol}_{tf}_{cfg['entry_logic']}_{cfg.get('entry_logic_2','')}"
+                        if time.time() - _last_signals.get(ck, 0) < SIGNAL_COOLDOWN: continue
 
-                    _log("✅", "Filter", "All filters passed")
+                        signals_checked += 1
+                        result = check_signal(cfg, data)
+                        if result is None: continue
 
-                    # Duplicate
-                    if symbol in _open_trades:
-                        _log("⏭️", "Iron Legion", f"Already have {symbol} position")
-                        continue
+                        side = result["side"]
+                        features = result["features"]
+                        regime = result["regime"]
+                        price = result["price"]
+                        combo = cfg["entry_logic"] + (f"+{cfg.get('entry_logic_2','')}" if cfg.get("entry_logic_2") else "")
 
-                    # ── ULTRON ──
-                    ultron = ultron_gatekeeper(cfg, result, btc_ctx, len(_open_trades))
-                    decision = ultron["decision"]
+                        _log("🎯", "Signal", f"{symbol} {tf} {combo} {side} @ ${price:.2f} | regime={regime}",
+                             {"symbol":symbol,"tf":tf,"combo":combo,"side":side,"price":price,"regime":regime,"features":features})
 
-                    if decision == "SKIP":
-                        _log("❌", "Ultron", f"SKIP — {ultron['reason']} ({ultron['confidence']:.0%})",
-                             {"decision":"SKIP","reason":ultron["reason"],"confidence":ultron["confidence"]})
+                        # Regime gate
+                        rg = cfg.get("regime_gate", "all")
+                        if rg != "all" and regime not in [x.strip() for x in rg.split(",")]:
+                            _log("⏭️", "Filter", f"Regime gate blocked: {regime} not in [{rg}]")
+                            continue
+
+                        # Rule filter
+                        rule_str = cfg.get("rule", "")
+                        if not check_rule_filter(rule_str, features):
+                            _log("⏭️", "Filter", f"Rule filter failed: {rule_str[:60]}")
+                            continue
+
+                        _log("✅", "Filter", "All filters passed")
+
+                        # Duplicate
+                        if symbol in _open_trades:
+                            _log("⏭️", "Iron Legion", f"Already have {symbol} position")
+                            continue
+
+                        # ── ULTRON ──
+                        ultron = ultron_gatekeeper(cfg, result, btc_ctx, len(_open_trades))
+                        decision = ultron["decision"]
+
+                        if decision == "SKIP":
+                            _log("❌", "Ultron", f"SKIP — {ultron['reason']} ({ultron['confidence']:.0%})",
+                                 {"decision":"SKIP","reason":ultron["reason"],"confidence":ultron["confidence"]})
+                            _last_signals[ck] = time.time()
+                            continue
+
+                        _log("✅", "Ultron", f"PROCEED — {ultron['reason']} ({ultron['confidence']:.0%})",
+                             {"decision":"PROCEED","reason":ultron["reason"],"confidence":ultron["confidence"]})
+
+                        # ── EXECUTE ──
+                        sl_pct = cfg.get("sl_pct", 0.6)
+                        tp_pct = cfg.get("tp_pct", 1.5)
+                        cp = get_current_price(symbol) or price
+                        if side == "LONG":
+                            sl_p, tp_p, os_ = cp*(1-sl_pct/100), cp*(1+tp_pct/100), "BUY"
+                        else:
+                            sl_p, tp_p, os_ = cp*(1+sl_pct/100), cp*(1-tp_pct/100), "SELL"
+
+                        qty = PAIR_QTY.get(symbol, 0)
+                        if not qty:
+                            _log("❌", "Iron Legion", f"No qty for {symbol}"); continue
+
+                        order = place_order(symbol, os_, qty, sl_p, tp_p)
+                        if order.get("error"):
+                            _log("❌", "Iron Legion", f"Order failed: {order['error'][:150]}")
+                            continue
+
+                        # ── LOG ──
+                        _trade_count += 1
+                        log_trade({
+                            "strategy_id":sid,"symbol":symbol,"timeframe":tf,"side":side,
+                            "entry_price":cp,"entry_time":datetime.now(timezone.utc).isoformat(),
+                            "sl_pct":sl_pct,"tp_pct":tp_pct,"regime_at_entry":regime,
+                            "minimax_entry_verdict":f"{decision} ({ultron['reason']})",
+                            "backtest_wr":cfg.get("rule_wr",0),
+                            "notes":f"Ultron:{ultron['confidence']:.0%} V={features.get('V','?')} B={features.get('B','?')} H={features.get('H','?')}",
+                        })
+                        _open_trades[symbol] = {"strategy_id":sid,"entry_price":cp}
                         _last_signals[ck] = time.time()
-                        continue
 
-                    _log("✅", "Ultron", f"PROCEED — {ultron['reason']} ({ultron['confidence']:.0%})",
-                         {"decision":"PROCEED","reason":ultron["reason"],"confidence":ultron["confidence"]})
+                        _log("🦾", "Iron Legion", f"TRADE #{_trade_count}: {side} {symbol} @ ${cp:.2f} | SL ${sl_p:.2f} TP ${tp_p:.2f}",
+                             {"trade_num":_trade_count,"symbol":symbol,"side":side,"entry":cp,"sl":sl_p,"tp":tp_p,
+                              "sl_pct":sl_pct,"tp_pct":tp_pct,"regime":regime,"ultron":ultron,"combo":combo,"wr":cfg.get("rule_wr","?")})
 
-                    # ── EXECUTE ──
-                    sl_pct = cfg.get("sl_pct", 0.6)
-                    tp_pct = cfg.get("tp_pct", 1.5)
-                    cp = get_current_price(symbol) or price
-                    if side == "LONG":
-                        sl_p, tp_p, os_ = cp*(1-sl_pct/100), cp*(1+tp_pct/100), "BUY"
-                    else:
-                        sl_p, tp_p, os_ = cp*(1+sl_pct/100), cp*(1-tp_pct/100), "SELL"
+                        _log("📚", "Database", f"Trade #{_trade_count} saved — learning data accumulating ({_trade_count} total)")
 
-                    qty = PAIR_QTY.get(symbol, 0)
-                    if not qty:
-                        _log("❌", "Iron Legion", f"No qty for {symbol}"); continue
+                # Cycle summary — log every cycle so terminal shows bot is alive
+                if _cycle_count % 5 == 0:  # every ~5 min
+                    _log("🔄", "Iron Legion", f"Cycle #{_cycle_count}: {len(configs)} configs, klines {kline_ok}✅/{kline_fail}❌, {signals_checked} checked, {_trade_count} trades total")
 
-                    order = place_order(symbol, os_, qty, sl_p, tp_p)
-                    if order.get("error"):
-                        _log("❌", "Iron Legion", f"Order failed: {order['error'][:150]}")
-                        continue
+                monitor_positions()
 
-                    # ── LOG ──
-                    _trade_count += 1
-                    log_trade({
-                        "strategy_id":sid,"symbol":symbol,"timeframe":tf,"side":side,
-                        "entry_price":cp,"entry_time":datetime.now(timezone.utc).isoformat(),
-                        "sl_pct":sl_pct,"tp_pct":tp_pct,"regime_at_entry":regime,
-                        "minimax_entry_verdict":f"{decision} ({ultron['reason']})",
-                        "backtest_wr":cfg.get("rule_wr",0),
-                        "notes":f"Ultron:{ultron['confidence']:.0%} V={features.get('V','?')} B={features.get('B','?')} H={features.get('H','?')}",
-                    })
-                    _open_trades[symbol] = {"strategy_id":sid,"entry_price":cp}
-                    _last_signals[ck] = time.time()
+            except Exception as e:
+                _log("❌", "System", f"Cycle #{_cycle_count} error: {e}")
+                traceback.print_exc()
 
-                    _log("🦾", "Iron Legion", f"TRADE #{_trade_count}: {side} {symbol} @ ${cp:.2f} | SL ${sl_p:.2f} TP ${tp_p:.2f}",
-                         {"trade_num":_trade_count,"symbol":symbol,"side":side,"entry":cp,"sl":sl_p,"tp":tp_p,
-                          "sl_pct":sl_pct,"tp_pct":tp_pct,"regime":regime,"ultron":ultron,"combo":combo,"wr":cfg.get("rule_wr","?")})
+            time.sleep(max(1, BOT_INTERVAL - (time.time() - t0)))
 
-                    _log("📚", "Database", f"Trade #{_trade_count} saved — learning data accumulating ({_trade_count} total)")
-
-            monitor_positions()
-
-        except Exception as e:
-            _log("❌", "System", f"Cycle error: {e}")
-            traceback.print_exc()
-
-        time.sleep(max(1, BOT_INTERVAL - (time.time() - t0)))
-
-    _log("🛑", "Iron Legion", "Stood down")
+    except Exception as e:
+        # Outer catch — thread is dying, log it so dashboard shows what happened
+        _log("💀", "Iron Legion", f"Thread crashed: {e}")
+        traceback.print_exc()
+    finally:
+        _bot_running = False
+        _log("🛑", "Iron Legion", f"Stood down after {_cycle_count} cycles")
 
 # ============================================================
 # START / STOP / STATUS
 # ============================================================
 
 def start_bot():
-    global _bot_running
+    global _bot_running, _bot_thread, _cycle_count
+    # If flag says running but thread is dead — reset and restart
+    if _bot_running and _bot_thread and not _bot_thread.is_alive():
+        _log("🔁", "Iron Legion", "Thread was dead — restarting")
+        _bot_running = False
+        _bot_thread = None
     if _bot_running: return {"ok": True, "message": "Already running"}
     if not TESTNET_KEY or not TESTNET_SECRET: return {"ok": False, "error": "BINANCE_TESTNET_KEY/SECRET not set"}
     _bot_running = True
-    threading.Thread(target=_bot_loop, daemon=True).start()
+    _cycle_count = 0
+    _bot_thread = threading.Thread(target=_bot_loop, daemon=True)
+    _bot_thread.start()
     u = "ONLINE" if ULTRON_ENABLED and ULTRON_API_KEY else "OFFLINE"
     return {"ok": True, "message": f"Iron Legion deployed, Ultron {u}, interval={BOT_INTERVAL}s"}
 
@@ -432,8 +459,11 @@ def stop_bot():
     return {"ok": True, "message": "Iron Legion standing down..."}
 
 def bot_status():
+    thread_alive = _bot_thread.is_alive() if _bot_thread else False
     return {
-        "running": _bot_running, "interval": BOT_INTERVAL, "testnet_url": TESTNET_URL,
+        "running": _bot_running, "thread_alive": thread_alive,
+        "cycle_count": _cycle_count,
+        "interval": BOT_INTERVAL, "testnet_url": TESTNET_URL,
         "has_keys": bool(TESTNET_KEY and TESTNET_SECRET),
         "ultron": {"enabled": ULTRON_ENABLED, "has_key": bool(ULTRON_API_KEY), "model": ULTRON_MODEL},
         "trade_count": _trade_count, "open_trades": dict(_open_trades),
