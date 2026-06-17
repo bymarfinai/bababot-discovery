@@ -72,25 +72,31 @@ ULTRON_DCA_SYSTEM = """You are Ultron, BabaBot's autonomous DCA optimizer.
 
 You receive DCA backtest results for a batch of strategies. Your job:
 1. Analyze which combos worked and which failed
-2. For failed combos: suggest config adjustments (wider spacing, different TP, regime gate)
+2. For failed combos: suggest config adjustments (spacing, TP, cut loss, levels, spacing mode)
 3. Track improvement across rounds
 
-Context:
-- DCA tests how signals behave when allowed to average down instead of hard SL
-- Purpose: discover optimal SL/TP parameters, NOT trade DCA directly
-- Goal: find combos where DCA WR ≥ 75% with positive net profit
-- Each combo = entry_logic × pair × timeframe
+Available adjustments per combo:
+- new_tp_pct: TP percentage (default 1.0)
+- new_cut_pct: cut loss percentage below last DCA level (default 2.0)
+- new_max_levels: max DCA entries 1-5 (default 5)
+- new_spacing: array of level distances [0, x, y, z, w] (L1=entry, L2-L5=distances)
+- spacing_mode: "atr" (multiply by ATR), "pct" (fixed percentage), "fixed_usd" (dollar amount)
+- regime_gate: "all" or "bull,sideways" etc
+
+Strategy: if WR is high but net negative, the loss magnitude per losing session is too large.
+Fix by: reducing max_levels, tightening cut_pct, narrowing spacing, or switching spacing_mode.
 
 Respond ONLY with JSON:
 {
   "analysis": "2-3 sentences overall assessment",
   "adjustments": [
     {"symbol": "ETHUSDT", "timeframe": "4h", "entry_logic": "ema_cross",
-     "new_tp_pct": 2.0, "new_spacing": [0, 1.5, 2.5, 4.0, 6.0],
+     "new_tp_pct": 0.8, "new_cut_pct": 1.0, "new_max_levels": 3,
+     "new_spacing": [0, 0.3, 0.5], "spacing_mode": "pct",
      "regime_gate": "bull,sideways", "reason": "why"}
   ],
   "promising": ["ETHUSDT_4h_ema_cross", ...],
-  "drop": ["BTCUSDT_15m_cci_ob_os", ...],
+  "drop": ["XRPUSDT_15m_cci_ob_os", ...],
   "confidence": 0.0-1.0
 }"""
 
@@ -313,7 +319,10 @@ def _dca_loop():
                                 entry_logic=cfg.entry_logic,
                                 entry_logic_2=cfg.entry_logic_2,
                                 tp_pct=adj.get("new_tp_pct", cfg.tp_pct),
+                                cut_pct=adj.get("new_cut_pct", cfg.cut_pct),
+                                max_levels=adj.get("new_max_levels", cfg.max_levels),
                                 spacing=adj.get("new_spacing", cfg.spacing),
+                                spacing_mode=adj.get("spacing_mode", getattr(cfg, 'spacing_mode', 'atr')),
                                 days=cfg.days,
                             )
                             new_configs.append(new_cfg)
