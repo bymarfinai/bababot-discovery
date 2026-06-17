@@ -108,12 +108,14 @@ def call_ultron(context: str) -> dict:
         return {"decision": "PROCEED", "reason": str(e)[:50], "confidence": 0.5}
 
 def get_btc_context() -> dict:
-    # Try Workers proxy first (uses /bot/klines)
+    # OKX first
     try:
-        r = requests.get(f"{WORKER_URL}/bot/klines", params={"symbol": "BTCUSDT", "interval": "1h", "limit": 3}, timeout=10)
+        r = requests.get("https://www.okx.com/api/v5/market/candles",
+            params={"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 3}, timeout=5)
         if r.status_code == 200:
-            kl = r.json().get("klines", [])
-            if kl and len(kl) >= 3:
+            d = r.json()
+            if d.get("code") == "0" and d.get("data") and len(d["data"]) >= 3:
+                kl = list(reversed(d["data"]))  # oldest first
                 return {"price": float(kl[-1][4]), "change_2h": round((float(kl[-1][4]) - float(kl[0][1])) / float(kl[0][1]) * 100, 2)}
     except: pass
     # Mainnet fallback
@@ -159,15 +161,44 @@ def binance_get(path, params=None, signed=False):
 def binance_post(path, params):
     return requests.post(f"{TESTNET_URL}{path}", params=_sign(params), headers=_h(), timeout=10).json()
 
+OKX_TF_MAP = {"1m":"1m","3m":"3m","5m":"5m","15m":"15m","1h":"1H","4h":"4H"}
+
+def _symbol_to_okx(symbol):
+    """BTCUSDT → BTC-USDT-SWAP, 1000PEPEUSDT → 1000PEPE-USDT-SWAP"""
+    if symbol.endswith("USDT"):
+        return symbol[:-4] + "-USDT-SWAP"
+    return None
+
+def _okx_to_binance_klines(okx_data):
+    """Convert OKX kline format to Binance format for klines_to_data() compatibility"""
+    # OKX: [ts, open, high, low, close, vol_contracts, vol_base, vol_quote, confirm]
+    # Binance: [ts, open, high, low, close, volume, close_ts, quote_vol, trades, taker_buy_base, taker_buy_quote, ignore]
+    result = []
+    for k in reversed(okx_data):  # OKX is newest-first, Binance is oldest-first
+        result.append([k[0], k[1], k[2], k[3], k[4], k[6], "0", k[7], "0", k[6], "0", "0"])
+    return result
+
 def fetch_klines(symbol, interval, limit=300):
-    # Workers proxy first — Railway can always reach Cloudflare
+    # 1) OKX — always accessible from cloud, fast
+    okx_inst = _symbol_to_okx(symbol)
+    okx_bar = OKX_TF_MAP.get(interval)
+    if okx_inst and okx_bar:
+        try:
+            r = requests.get("https://www.okx.com/api/v5/market/candles",
+                params={"instId": okx_inst, "bar": okx_bar, "limit": min(limit, 300)}, timeout=10)
+            if r.status_code == 200:
+                d = r.json()
+                if d.get("code") == "0" and d.get("data"):
+                    return _okx_to_binance_klines(d["data"])
+        except: pass
+    # 2) Workers proxy fallback
     try:
         r = requests.get(f"{WORKER_URL}/bot/klines", params={"symbol": symbol, "interval": interval, "limit": limit}, timeout=10)
         if r.status_code == 200:
             kl = r.json().get("klines", [])
             if kl: return kl
     except: pass
-    # Mainnet fallback — Railway IP might be blocked
+    # 3) Mainnet last resort
     try:
         r = requests.get("https://fapi.binance.com/fapi/v1/klines", params={"symbol": symbol, "interval": interval, "limit": limit}, timeout=5)
         if r.status_code == 200: return r.json()
@@ -180,6 +211,17 @@ def klines_to_data(klines):
     return {"open_time":arr[:,0],"open":arr[:,1],"high":arr[:,2],"low":arr[:,3],"close":arr[:,4],"volume":arr[:,5],"taker_buy_volume":arr[:,6]}
 
 def get_current_price(symbol):
+    # OKX ticker first
+    okx_inst = _symbol_to_okx(symbol)
+    if okx_inst:
+        try:
+            r = requests.get("https://www.okx.com/api/v5/market/ticker", params={"instId": okx_inst}, timeout=3)
+            if r.status_code == 200:
+                d = r.json()
+                if d.get("code") == "0" and d.get("data"):
+                    return float(d["data"][0]["last"])
+        except: pass
+    # Binance fallback
     try:
         r = requests.get("https://fapi.binance.com/fapi/v1/ticker/price", params={"symbol": symbol}, timeout=3)
         if r.status_code == 200: return float(r.json()["price"])
