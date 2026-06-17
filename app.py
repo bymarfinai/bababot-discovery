@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
-from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test, DCAConfig, backtest_dca
+from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test, DCAConfig, backtest_dca, backtest_deret_statistik
 from live_bot import start_bot, stop_bot, bot_status, get_activity_log
 from dca_bot import start_dca, stop_dca, dca_status, get_dca_log, get_dca_results
 
@@ -1404,6 +1404,58 @@ def dca_results_endpoint(round: int = None):
     results = get_dca_results(round)
     return {"ok": True, "round": round, "count": len(results), "results": results[:50]}
 
+
+# ============================================================
+# DERET STATISTIK — Predicted Range Entry (Boss method, 2010)
+# ============================================================
+
+@app.post("/backtest/deret-statistik")
+def run_deret_statistik(req: dict, _=Security(verify_token)):
+    """Single deret statistik backtest"""
+    try:
+        result = backtest_deret_statistik(
+            db_path=DB_PATH,
+            symbol=req.get("symbol", "SOLUSDT").upper(),
+            timeframe=req.get("timeframe", "4h"),
+            window=req.get("window", 5),
+            buffer_pct=req.get("buffer_pct", 0.5),
+            tp_pct=req.get("tp_pct", 1.0),
+            sl_pct=req.get("sl_pct", 1.0),
+            fee_pct=req.get("fee_pct", 0.10),
+            days=req.get("days", 1825),
+            direction=req.get("direction", "both"),
+        )
+        return {"ok": True, **result}
+    except Exception as e:
+        import traceback
+        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+
+@app.post("/backtest/deret-statistik/sweep")
+def run_deret_sweep(req: dict, _=Security(verify_token)):
+    """Sweep deret statistik across all pairs x TFs"""
+    try:
+        symbols = req.get("symbols", ["BTCUSDT","ETHUSDT","SOLUSDT","AVAXUSDT",
+                                       "BNBUSDT","XRPUSDT","DOGEUSDT","LINKUSDT",
+                                       "YFIUSDT","1000PEPEUSDT"])
+        timeframes = req.get("timeframes", ["15m", "1h", "4h"])
+        results = []
+        for symbol in symbols:
+            for tf in timeframes:
+                r = backtest_deret_statistik(DB_PATH, symbol, tf,
+                    window=req.get("window", 5), buffer_pct=req.get("buffer_pct", 0.5),
+                    tp_pct=req.get("tp_pct", 1.0), sl_pct=req.get("sl_pct", 1.0),
+                    days=req.get("days", 1825))
+                if r.get("status") == "ok":
+                    results.append(r)
+                    print(f"[Deret] {symbol} {tf}: WR={r['win_rate']}% trades={r['total_trades']} profit=${r['net_profit']}")
+        results.sort(key=lambda x: x.get("win_rate", 0), reverse=True)
+        return {"ok": True, "total_tested": len(results),
+                "total_profitable": len([r for r in results if r.get("net_profit", 0) > 0]),
+                "avg_wr": round(sum(r["win_rate"] for r in results) / len(results), 1) if results else 0,
+                "results": results}
+    except Exception as e:
+        import traceback
+        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
 
 
 # ============================================================
