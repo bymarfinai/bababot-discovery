@@ -3797,7 +3797,7 @@ def backtest_deret_statistik(db_path: str, symbol: str, timeframe: str,
         if i + 1 >= n:
             break
 
-        # Predict next candle range
+        # Step 1: Predict next candle CLOSE, HIGH, LOW
         avg_h = float(np.mean(h_ratios[i-window:i]))
         avg_l = float(np.mean(l_ratios[i-window:i]))
         pred_high = highs[i] * avg_h
@@ -3806,75 +3806,69 @@ def backtest_deret_statistik(db_path: str, symbol: str, timeframe: str,
         actual_high = highs[i+1]
         actual_low = lows[i+1]
         actual_close = closes[i+1]
-        actual_open = closes[i]  # use previous close as reference
 
-        # === LONG: entry at predicted_low - buffer ===
-        if direction in ("both", "long"):
-            entry_long = pred_low * (1 - buffer_pct / 100)
-            if actual_low <= entry_long:
-                tp_price = entry_long * (1 + tp_pct / 100)
-                sl_price = entry_long * (1 - sl_pct / 100)
+        # Step 2: TWO limit orders → whichever hits FIRST = the trade
+        # Only 1 entry per predicted candle
+        entry_long = pred_low * (1 - buffer_pct / 100)
+        entry_short = pred_high * (1 + buffer_pct / 100)
 
-                # Determine outcome within candle
-                # Conservative: assume SL checked before TP if both could hit
-                if actual_low <= sl_price:
-                    pnl_pct = -sl_pct - fee_pct * 2
-                    exit_reason = "sl"
-                elif actual_high >= tp_price:
-                    pnl_pct = tp_pct - fee_pct * 2
-                    exit_reason = "tp"
-                else:
-                    pnl_pct = (actual_close - entry_long) / entry_long * 100 - fee_pct * 2
-                    exit_reason = "close"
+        long_hit = actual_low <= entry_long
+        short_hit = actual_high >= entry_short
 
-                notional = equity * position_size_pct / 100 * leverage
-                pnl_dollar = notional * pnl_pct / 100
-                equity += pnl_dollar
-                peak_equity = max(peak_equity, equity)
-                dd = (peak_equity - equity) / peak_equity * 100
-                max_dd = max(max_dd, dd)
+        # Which hit first? Use open proximity as heuristic
+        actual_open = data['open'][i+1] if 'open' in data else closes[i]
+        dist_to_low = actual_open - actual_low
+        dist_to_high = actual_high - actual_open
 
-                trades.append({
-                    "side": "LONG", "entry": round(entry_long, 6),
-                    "pnl_pct": round(pnl_pct, 4), "pnl_dollar": round(pnl_dollar, 2),
-                    "exit_reason": exit_reason,
-                    "pred_low": round(pred_low, 6), "pred_high": round(pred_high, 6),
-                    "actual_low": round(actual_low, 6), "actual_high": round(actual_high, 6),
-                    "candle_idx": i + 1,
-                })
+        trade_side = None
+        if long_hit and short_hit:
+            trade_side = "LONG" if dist_to_low < dist_to_high else "SHORT"
+        elif long_hit:
+            trade_side = "LONG"
+        elif short_hit:
+            trade_side = "SHORT"
 
-        # === SHORT: entry at predicted_high + buffer ===
-        if direction in ("both", "short"):
-            entry_short = pred_high * (1 + buffer_pct / 100)
-            if actual_high >= entry_short:
-                tp_price = entry_short * (1 - tp_pct / 100)
-                sl_price = entry_short * (1 + sl_pct / 100)
+        if trade_side == "LONG" and direction in ("both", "long"):
+            tp_price = entry_long * (1 + tp_pct / 100)
+            sl_price = entry_long * (1 - sl_pct / 100)
+            if actual_high >= tp_price:
+                pnl_pct = tp_pct - fee_pct * 2; exit_reason = "tp"
+            elif actual_low <= sl_price:
+                pnl_pct = -sl_pct - fee_pct * 2; exit_reason = "sl"
+            else:
+                pnl_pct = (actual_close - entry_long) / entry_long * 100 - fee_pct * 2; exit_reason = "close"
 
-                if actual_high >= sl_price:
-                    pnl_pct = -sl_pct - fee_pct * 2
-                    exit_reason = "sl"
-                elif actual_low <= tp_price:
-                    pnl_pct = tp_pct - fee_pct * 2
-                    exit_reason = "tp"
-                else:
-                    pnl_pct = (entry_short - actual_close) / entry_short * 100 - fee_pct * 2
-                    exit_reason = "close"
+            notional = equity * position_size_pct / 100 * leverage
+            pnl_dollar = notional * pnl_pct / 100
+            equity += pnl_dollar
+            peak_equity = max(peak_equity, equity)
+            max_dd = max(max_dd, (peak_equity - equity) / peak_equity * 100)
+            trades.append({"side": "LONG", "entry": round(entry_long, 6),
+                "pnl_pct": round(pnl_pct, 4), "pnl_dollar": round(pnl_dollar, 2),
+                "exit_reason": exit_reason, "pred_low": round(pred_low, 6),
+                "pred_high": round(pred_high, 6), "actual_low": round(actual_low, 6),
+                "actual_high": round(actual_high, 6), "candle_idx": i + 1})
 
-                notional = equity * position_size_pct / 100 * leverage
-                pnl_dollar = notional * pnl_pct / 100
-                equity += pnl_dollar
-                peak_equity = max(peak_equity, equity)
-                dd = (peak_equity - equity) / peak_equity * 100
-                max_dd = max(max_dd, dd)
+        elif trade_side == "SHORT" and direction in ("both", "short"):
+            tp_price = entry_short * (1 - tp_pct / 100)
+            sl_price = entry_short * (1 + sl_pct / 100)
+            if actual_low <= tp_price:
+                pnl_pct = tp_pct - fee_pct * 2; exit_reason = "tp"
+            elif actual_high >= sl_price:
+                pnl_pct = -sl_pct - fee_pct * 2; exit_reason = "sl"
+            else:
+                pnl_pct = (entry_short - actual_close) / entry_short * 100 - fee_pct * 2; exit_reason = "close"
 
-                trades.append({
-                    "side": "SHORT", "entry": round(entry_short, 6),
-                    "pnl_pct": round(pnl_pct, 4), "pnl_dollar": round(pnl_dollar, 2),
-                    "exit_reason": exit_reason,
-                    "pred_low": round(pred_low, 6), "pred_high": round(pred_high, 6),
-                    "actual_low": round(actual_low, 6), "actual_high": round(actual_high, 6),
-                    "candle_idx": i + 1,
-                })
+            notional = equity * position_size_pct / 100 * leverage
+            pnl_dollar = notional * pnl_pct / 100
+            equity += pnl_dollar
+            peak_equity = max(peak_equity, equity)
+            max_dd = max(max_dd, (peak_equity - equity) / peak_equity * 100)
+            trades.append({"side": "SHORT", "entry": round(entry_short, 6),
+                "pnl_pct": round(pnl_pct, 4), "pnl_dollar": round(pnl_dollar, 2),
+                "exit_reason": exit_reason, "pred_low": round(pred_low, 6),
+                "pred_high": round(pred_high, 6), "actual_low": round(actual_low, 6),
+                "actual_high": round(actual_high, 6), "candle_idx": i + 1})
 
     if not trades:
         return {"status": "no_trades", "symbol": symbol, "timeframe": timeframe}
@@ -3912,4 +3906,225 @@ def backtest_deret_statistik(db_path: str, symbol: str, timeframe: str,
         "short_trades": len(short_trades),
         "short_wr": round(len(short_wins) / len(short_trades) * 100, 1) if short_trades else 0,
         "trades_per_day": round(len(trades) / data_days, 2) if data_days > 0 else 0,
+    }
+
+# ============================================================
+# DERET STATISTIK — Predicted Range Entry Strategy
+# Boss method (2010): ratio average × last price = predicted close/high/low
+# Entry at predicted extremes with buffer → TP/SL within candle
+# ============================================================
+
+def backtest_deret_statistik(
+    db_path: str,
+    symbol: str = "ETHUSDT",
+    timeframe: str = "4h",
+    window: int = 5,
+    buffer_pct: float = 0.5,
+    tp_pct: float = 1.0,
+    sl_pct: float = 1.0,
+    days: int = 1825,
+    position_usd: float = 100.0,
+    leverage: int = 50,
+    fee_pct: float = 0.10,
+) -> dict:
+    """
+    Backtest Deret Statistik strategy on historical data.
+    
+    Formula:
+      ratio[i] = price[i] / price[i-1]  (for close, high, low independently)
+      avg_ratio = mean(last N ratios)
+      predicted = last_price × avg_ratio
+    
+    Entry logic (1 trade per candle max):
+      LONG entry  = predicted_low × (1 - buffer_pct/100)
+      SHORT entry = predicted_high × (1 + buffer_pct/100)
+      Whichever limit order hits FIRST = active trade, other cancelled
+    
+    Exit: TP or SL hit within candle, else close at candle close
+    """
+    import sqlite3
+    
+    conn = sqlite3.connect(db_path)
+    query = """
+        SELECT open, high, low, close, volume, open_time 
+        FROM klines 
+        WHERE symbol = ? AND timeframe = ?
+        ORDER BY open_time ASC
+    """
+    rows = conn.execute(query, (symbol, timeframe)).fetchall()
+    conn.close()
+    
+    if len(rows) < window + 10:
+        return {"status": "insufficient_data", "rows": len(rows)}
+    
+    # Limit to last N days
+    if days and days > 0:
+        ms_limit = days * 86400 * 1000
+        last_time = rows[-1][5]
+        rows = [r for r in rows if r[5] >= last_time - ms_limit]
+    
+    opens  = [r[0] for r in rows]
+    highs  = [r[1] for r in rows]
+    lows   = [r[2] for r in rows]
+    closes = [r[3] for r in rows]
+    times  = [r[5] for r in rows]
+    n = len(closes)
+    
+    if n < window + 10:
+        return {"status": "insufficient_data", "candles": n}
+    
+    # Calculate ratios
+    close_ratios = [closes[i] / closes[i-1] if closes[i-1] != 0 else 1.0 for i in range(1, n)]
+    high_ratios  = [highs[i] / highs[i-1] if highs[i-1] != 0 else 1.0 for i in range(1, n)]
+    low_ratios   = [lows[i] / lows[i-1] if lows[i-1] != 0 else 1.0 for i in range(1, n)]
+    
+    trades = []
+    notional = position_usd * leverage
+    fee_per_trade = notional * fee_pct / 100 * 2  # entry + exit
+    
+    for i in range(window, len(close_ratios)):
+        if i + 1 >= n:
+            break
+        
+        # Predicted range for next candle
+        avg_h = sum(high_ratios[i-window:i]) / window
+        avg_l = sum(low_ratios[i-window:i]) / window
+        
+        pred_high = highs[i] * avg_h
+        pred_low  = lows[i] * avg_l
+        
+        # Entry levels with buffer
+        long_entry  = pred_low * (1 - buffer_pct / 100)
+        short_entry = pred_high * (1 + buffer_pct / 100)
+        
+        # Next candle OHLC
+        ao = opens[i+1]
+        ah = highs[i+1]
+        al = lows[i+1]
+        ac = closes[i+1]
+        
+        # Check which limit order hit
+        long_hit  = al <= long_entry
+        short_hit = ah >= short_entry
+        
+        # Determine trade (first-hit wins, max 1 per candle)
+        trade_side = None
+        if long_hit and not short_hit:
+            trade_side = "LONG"
+        elif short_hit and not long_hit:
+            trade_side = "SHORT"
+        elif long_hit and short_hit:
+            # Both hit — heuristic: open proximity
+            dist_low  = ao - al
+            dist_high = ah - ao
+            trade_side = "LONG" if dist_low < dist_high else "SHORT"
+        else:
+            continue  # No trade
+        
+        # Execute trade
+        if trade_side == "LONG":
+            entry = long_entry
+            tp_price = entry * (1 + tp_pct / 100)
+            sl_price = entry * (1 - sl_pct / 100)
+            
+            if ah >= tp_price:
+                exit_price = tp_price
+                exit_reason = "TP"
+            elif al <= sl_price:
+                exit_price = sl_price
+                exit_reason = "SL"
+            else:
+                exit_price = ac
+                exit_reason = "CLOSE"
+            
+            pnl_pct = (exit_price - entry) / entry * 100
+            
+        else:  # SHORT
+            entry = short_entry
+            tp_price = entry * (1 - tp_pct / 100)
+            sl_price = entry * (1 + sl_pct / 100)
+            
+            if al <= tp_price:
+                exit_price = tp_price
+                exit_reason = "TP"
+            elif ah >= sl_price:
+                exit_price = sl_price
+                exit_reason = "SL"
+            else:
+                exit_price = ac
+                exit_reason = "CLOSE"
+            
+            pnl_pct = (entry - exit_price) / entry * 100
+        
+        pnl_dollar = notional * pnl_pct / 100 - fee_per_trade
+        
+        trades.append({
+            "side": trade_side,
+            "entry": round(entry, 6),
+            "exit": round(exit_price, 6),
+            "exit_reason": exit_reason,
+            "pnl_pct": round(pnl_pct, 4),
+            "pnl_dollar": round(pnl_dollar, 4),
+            "pred_high": round(pred_high, 6),
+            "pred_low": round(pred_low, 6),
+            "time": times[i+1],
+        })
+    
+    if not trades:
+        return {"status": "no_trades", "candles": n}
+    
+    # Calculate metrics
+    wins = [t for t in trades if t["pnl_dollar"] > 0]
+    losses = [t for t in trades if t["pnl_dollar"] <= 0]
+    long_trades = [t for t in trades if t["side"] == "LONG"]
+    short_trades = [t for t in trades if t["side"] == "SHORT"]
+    long_wins = [t for t in long_trades if t["pnl_dollar"] > 0]
+    short_wins = [t for t in short_trades if t["pnl_dollar"] > 0]
+    
+    net_profit = sum(t["pnl_dollar"] for t in trades)
+    data_days = (times[-1] - times[0]) / (86400 * 1000) if len(times) > 1 else 1
+    
+    # Equity curve for max drawdown
+    equity = position_usd
+    peak = equity
+    max_dd = 0
+    for t in trades:
+        equity += t["pnl_dollar"]
+        peak = max(peak, equity)
+        dd = (peak - equity) / peak * 100 if peak > 0 else 0
+        max_dd = max(max_dd, dd)
+    
+    # Exit reason breakdown
+    tp_count = len([t for t in trades if t["exit_reason"] == "TP"])
+    sl_count = len([t for t in trades if t["exit_reason"] == "SL"])
+    close_count = len([t for t in trades if t["exit_reason"] == "CLOSE"])
+    
+    return {
+        "status": "ok",
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "window": window,
+        "buffer_pct": buffer_pct,
+        "tp_pct": tp_pct,
+        "sl_pct": sl_pct,
+        "total_trades": len(trades),
+        "wins": len(wins),
+        "losses": len(losses),
+        "win_rate": round(len(wins) / len(trades) * 100, 1),
+        "net_profit": round(net_profit, 2),
+        "profit_per_day": round(net_profit / data_days, 4) if data_days > 0 else 0,
+        "profit_factor": round(sum(t["pnl_dollar"] for t in wins) / abs(sum(t["pnl_dollar"] for t in losses)), 2) if losses and sum(t["pnl_dollar"] for t in losses) != 0 else 999,
+        "max_drawdown": round(max_dd, 2),
+        "final_equity": round(equity, 2),
+        "avg_pnl_pct": round(np.mean([t["pnl_pct"] for t in trades]), 4),
+        "avg_win_pct": round(np.mean([t["pnl_pct"] for t in wins]), 4) if wins else 0,
+        "avg_loss_pct": round(np.mean([t["pnl_pct"] for t in losses]), 4) if losses else 0,
+        "long_trades": len(long_trades),
+        "long_wr": round(len(long_wins) / len(long_trades) * 100, 1) if long_trades else 0,
+        "short_trades": len(short_trades),
+        "short_wr": round(len(short_wins) / len(short_trades) * 100, 1) if short_trades else 0,
+        "trades_per_day": round(len(trades) / data_days, 2) if data_days > 0 else 0,
+        "exit_reasons": {"TP": tp_count, "SL": sl_count, "CLOSE": close_count},
+        "data_days": round(data_days, 1),
+        "candles": n,
     }
