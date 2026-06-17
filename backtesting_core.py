@@ -3411,6 +3411,7 @@ class DCAConfig:
 
     # ATR spacing (V10 spec: L1=0, L2=-1ATR, L3=-1.5ATR, L4=-2.5ATR, L5=-4ATR)
     spacing: list = field(default_factory=lambda: [0, 1.0, 1.5, 2.5, 4.0])
+    spacing_mode: str = "atr"  # "atr" | "pct" | "fixed_usd"
 
     # Costs
     fee_pct: float = 0.10
@@ -3490,7 +3491,15 @@ def simulate_trades_dca(data: dict, ind: dict, signals: np.ndarray,
     def dca_level_price(ep, atr_val, level_idx, direction):
         if level_idx >= len(dca_cfg.spacing): return None
         mult = dca_cfg.spacing[level_idx]
-        return ep - mult * atr_val if direction == 1 else ep + mult * atr_val
+        if mult == 0: return ep
+        mode = getattr(dca_cfg, 'spacing_mode', 'atr')
+        if mode == "pct":
+            offset = ep * mult / 100
+        elif mode == "fixed_usd":
+            offset = mult
+        else:  # atr (default)
+            offset = mult * atr_val
+        return ep - offset if direction == 1 else ep + offset
 
     for i in range(start_idx, n):
         if not in_session:
