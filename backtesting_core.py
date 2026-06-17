@@ -3926,8 +3926,9 @@ def backtest_deret_statistik(
     position_usd: float = 100.0,
     leverage: int = 50,
     fee_pct: float = 0.10,
-    mode: str = "baret",            # "baret" = single entry, "baret_dca" = L1 + L2 DCA
+    mode: str = "baret",            # "baret" = single entry, "baret_dca" = L1 + L2 DCA, "baret_marfin" = buffer + close filter
     buffer2_pct: float = 1.0,       # L2 DCA distance from predicted extreme (only in baret_dca)
+    close_filter_pct: float = 0.3,  # Min gap between predicted_close and predicted_low (only in baret_marfin)
 ) -> dict:
     """
     Backtest Deret Statistik strategy on historical data.
@@ -3992,9 +3993,11 @@ def backtest_deret_statistik(
         # Predicted range for next candle
         avg_h = sum(high_ratios[i-window:i]) / window
         avg_l = sum(low_ratios[i-window:i]) / window
+        avg_c = sum(close_ratios[i-window:i]) / window
         
         pred_high = highs[i] * avg_h
         pred_low  = lows[i] * avg_l
+        pred_close = closes[i] * avg_c
         
         # Entry levels with buffer (L1)
         long_entry  = pred_low * (1 - buffer_pct / 100)
@@ -4032,6 +4035,17 @@ def backtest_deret_statistik(
             trade_side = "LONG" if dist_low < dist_high else "SHORT"
         else:
             continue  # No trade
+        
+        # Close filter (baret_marfin mode): skip if predicted close too near predicted extreme
+        if mode == "baret_marfin":
+            if trade_side == "LONG":
+                close_gap = (pred_close - pred_low) / pred_low * 100 if pred_low > 0 else 0
+                if close_gap < close_filter_pct:
+                    continue  # Predicted close too near low = bearish momentum, skip
+            else:
+                close_gap = (pred_high - pred_close) / pred_high * 100 if pred_high > 0 else 0
+                if close_gap < close_filter_pct:
+                    continue  # Predicted close too near high = bullish momentum, skip
         
         # Execute trade — with optional DCA (baret_dca mode)
         dca_triggered = False
@@ -4139,6 +4153,7 @@ def backtest_deret_statistik(
         "sl_pct": sl_pct,
         "mode": mode,
         "buffer2_pct": buffer2_pct if mode == "baret_dca" else None,
+        "close_filter_pct": close_filter_pct if mode == "baret_marfin" else None,
         "dca_rate": round(dca_count / len(trades) * 100, 1) if trades else 0,
         "total_trades": len(trades),
         "wins": len(wins),
