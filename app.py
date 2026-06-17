@@ -15,9 +15,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
-from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test, DCAConfig, backtest_dca, backtest_deret_statistik
+from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test, backtest_deret_statistik
 from live_bot import start_bot, stop_bot, bot_status, get_activity_log
-from dca_bot import start_dca, stop_dca, dca_status, get_dca_log, get_dca_results
+try:
+    from baret_bot import start_baret, stop_baret, baret_status, get_baret_log
+except ImportError:
+    def start_baret(*a, **kw): return {"ok": False, "error": "baret_bot.py not found"}
+    def stop_baret(*a, **kw): return {"ok": False, "error": "baret_bot.py not found"}
+    def baret_status(*a, **kw): return {"ok": False, "error": "baret_bot.py not found"}
+    def get_baret_log(*a, **kw): return []
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -1308,232 +1314,6 @@ def run_combined_equity(req: CombinedEquityRequest, _=Security(verify_token)):
         import traceback
         return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
 
-
-# ============================================================
-# DERET STATISTIK — Predicted Range Entry Strategy
-# ============================================================
-
-@app.post("/backtest/deret-statistik")
-def run_deret_backtest(req: dict, _=Security(verify_token)):
-    """Single deret statistik backtest."""
-    try:
-        result = backtest_deret_statistik(
-            db_path=DB_PATH,
-            symbol=req.get("symbol", "ETHUSDT").upper(),
-            timeframe=req.get("timeframe", "4h"),
-            window=req.get("window", 5),
-            buffer_pct=req.get("buffer_pct", 0.5),
-            tp_pct=req.get("tp_pct", 1.0),
-            sl_pct=req.get("sl_pct", 1.0),
-            days=req.get("days", 1825),
-        )
-        return {"ok": True, **result}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-
-
-@app.post("/backtest/deret-statistik/sweep")
-def run_deret_sweep(req: dict, _=Security(verify_token)):
-    """Sweep all pairs × TFs × buffer/TP/SL combinations. Find optimal per combo."""
-    try:
-        pairs = req.get("pairs", ["ETHUSDT","SOLUSDT","AVAXUSDT","DOGEUSDT","LINKUSDT","XRPUSDT","DOTUSDT","BTCUSDT","1000PEPEUSDT"])
-        tfs = req.get("timeframes", ["15m","1h","4h"])
-        buffers = req.get("buffers", [0.3, 0.5, 0.8, 1.0])
-        tps = req.get("tps", [0.5, 0.8, 1.0, 1.5])
-        sls = req.get("sls", [0.5, 0.8, 1.0, 1.5])
-        window = req.get("window", 5)
-        days = req.get("days", 1825)
-        
-        all_results = []
-        best_per_combo = {}
-        
-        for symbol in pairs:
-            for tf in tfs:
-                combo_key = f"{symbol}_{tf}"
-                best = None
-                for buf in buffers:
-                    for tp in tps:
-                        for sl in sls:
-                            r = backtest_deret_statistik(
-                                db_path=DB_PATH, symbol=symbol, timeframe=tf,
-                                window=window, buffer_pct=buf, tp_pct=tp, sl_pct=sl, days=days,
-                            )
-                            if r.get("status") != "ok":
-                                continue
-                            r["combo"] = combo_key
-                            all_results.append(r)
-                            # Track best: WR ≥ 75%, most profit/day, min 10 trades
-                            if (r["win_rate"] >= 75 and r["total_trades"] >= 10 and
-                                r["profit_per_day"] >= 2.0 and
-                                (best is None or r["profit_per_day"] > best["profit_per_day"])):
-                                best = r
-                
-                if best:
-                    best_per_combo[combo_key] = best
-        
-        # Summary
-        passed = [r for r in all_results if r["win_rate"] >= 75 and r["total_trades"] >= 10 and r["profit_per_day"] >= 2.0]
-        
-        return {
-            "ok": True,
-            "total_tested": len(all_results),
-            "passed": len(passed),
-            "best_per_combo": best_per_combo,
-            "top_10": sorted(passed, key=lambda x: x["profit_per_day"], reverse=True)[:10],
-        }
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-
-
-# ============================================================
-# DCA BACKTEST ENDPOINT
-# ============================================================
-
-@app.post("/backtest/dca")
-def run_dca_backtest(req: dict, _=Security(verify_token)):
-    """Run DCA backtest for a strategy. Compares DCA vs traditional SL/TP."""
-    try:
-        dca_cfg = DCAConfig(
-            symbol=req.get("symbol", "ETHUSDT").upper(),
-            timeframe=req.get("timeframe", "4h"),
-            entry_logic=req.get("entry_logic", "ema_cross"),
-            entry_logic_2=req.get("entry_logic_2"),
-            entry_usd=req.get("entry_usd", 1.0),
-            leverage=req.get("leverage", 50),
-            max_levels=req.get("max_levels", 5),
-            tp_pct=req.get("tp_pct", 1.0),
-            cut_pct=req.get("cut_pct", 2.0),
-            capital_pool=req.get("capital_pool", 100.0),
-            days=req.get("days", 1825),
-            direction=req.get("direction", "both"),
-        )
-        if req.get("spacing"):
-            dca_cfg.spacing = req["spacing"]
-
-        rule_filter = req.get("rule_filter", req.get("rule", ""))
-        result = backtest_dca(DB_PATH, dca_cfg, rule_filter=rule_filter or None)
-        return {"ok": True, **result}
-    except Exception as e:
-        import traceback
-        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
-
-
-@app.post("/backtest/dca/sweep")
-def run_dca_sweep(req: dict, _=Security(verify_token)):
-    """Single DCA sweep (manual, one-off). For autonomous loop use /dca/start."""
-    try:
-        symbols = req.get("symbols", ["ETHUSDT", "SOLUSDT", "AVAXUSDT", "BNBUSDT",
-                                       "XRPUSDT", "DOGEUSDT", "LINKUSDT", "YFIUSDT",
-                                       "1000PEPEUSDT"])
-        symbols = [s for s in symbols if s != "BTCUSDT"]
-        timeframes = req.get("timeframes", ["15m", "1h", "4h"])
-        entry_logics = req.get("entry_logics", ENTRY_LOGICS[:10])
-        max_combos = req.get("max_combos", 50)
-
-        results = []
-        count = 0
-        for symbol in symbols:
-            for tf in timeframes:
-                for logic in entry_logics:
-                    if count >= max_combos: break
-                    count += 1
-                    dca_cfg = DCAConfig(symbol=symbol, timeframe=tf, entry_logic=logic, days=req.get("days", 1825))
-                    r = backtest_dca(DB_PATH, dca_cfg)
-                    if r.get("status") == "ok" and r.get("total_sessions", 0) > 0:
-                        results.append(r)
-        results.sort(key=lambda x: x.get("win_rate", 0), reverse=True)
-        return {"ok": True, "total_tested": count, "results": results[:50]}
-    except Exception as e:
-        import traceback
-        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
-
-
-# ============================================================
-# DCA MODE CONTROL — V10 spec: /dca/start, /dca/stop, /dca/status
-# DCA ON = Pipeline 1 SL/TP OFF (Railway can't parallel)
-# ============================================================
-
-@app.get("/dca/start")
-def dca_start_endpoint():
-    """Start DCA Discovery mode — stops Pipeline 1 SL/TP cron automatically"""
-    global _p2_cron_running
-    # Mode switch: stop P1 SL/TP cron
-    if _p2_cron_running:
-        _p2_cron_running = False
-        print("[Mode Switch] Pipeline 1 SL/TP cron STOPPED — DCA mode taking over")
-    return start_dca()
-
-@app.get("/dca/stop")
-def dca_stop_endpoint():
-    return stop_dca()
-
-@app.get("/dca/status")
-def dca_status_endpoint():
-    return dca_status()
-
-@app.get("/dca/log")
-def dca_log_endpoint(limit: int = 100):
-    return {"ok": True, "log": get_dca_log(limit)}
-
-@app.get("/dca/results")
-def dca_results_endpoint(round: int = None):
-    results = get_dca_results(round)
-    return {"ok": True, "round": round, "count": len(results), "results": results[:50]}
-
-
-# ============================================================
-# DERET STATISTIK — Predicted Range Entry (Boss method, 2010)
-# ============================================================
-
-@app.post("/backtest/deret-statistik")
-def run_deret_statistik(req: dict, _=Security(verify_token)):
-    """Single deret statistik backtest"""
-    try:
-        result = backtest_deret_statistik(
-            db_path=DB_PATH,
-            symbol=req.get("symbol", "SOLUSDT").upper(),
-            timeframe=req.get("timeframe", "4h"),
-            window=req.get("window", 5),
-            buffer_pct=req.get("buffer_pct", 0.5),
-            tp_pct=req.get("tp_pct", 1.0),
-            sl_pct=req.get("sl_pct", 1.0),
-            fee_pct=req.get("fee_pct", 0.10),
-            days=req.get("days", 1825),
-            direction=req.get("direction", "both"),
-        )
-        return {"ok": True, **result}
-    except Exception as e:
-        import traceback
-        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
-
-@app.post("/backtest/deret-statistik/sweep")
-def run_deret_sweep(req: dict, _=Security(verify_token)):
-    """Sweep deret statistik across all pairs x TFs"""
-    try:
-        symbols = req.get("symbols", ["BTCUSDT","ETHUSDT","SOLUSDT","AVAXUSDT",
-                                       "BNBUSDT","XRPUSDT","DOGEUSDT","LINKUSDT",
-                                       "YFIUSDT","1000PEPEUSDT"])
-        timeframes = req.get("timeframes", ["15m", "1h", "4h"])
-        results = []
-        for symbol in symbols:
-            for tf in timeframes:
-                r = backtest_deret_statistik(DB_PATH, symbol, tf,
-                    window=req.get("window", 5), buffer_pct=req.get("buffer_pct", 0.5),
-                    tp_pct=req.get("tp_pct", 1.0), sl_pct=req.get("sl_pct", 1.0),
-                    days=req.get("days", 1825))
-                if r.get("status") == "ok":
-                    results.append(r)
-                    print(f"[Deret] {symbol} {tf}: WR={r['win_rate']}% trades={r['total_trades']} profit=${r['net_profit']}")
-        results.sort(key=lambda x: x.get("win_rate", 0), reverse=True)
-        return {"ok": True, "total_tested": len(results),
-                "total_profitable": len([r for r in results if r.get("net_profit", 0) > 0]),
-                "avg_wr": round(sum(r["win_rate"] for r in results) / len(results), 1) if results else 0,
-                "results": results}
-    except Exception as e:
-        import traceback
-        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
-
-
 # ============================================================
 # PIPELINE 2 CRON — Background thread hits Worker run-next
 # ============================================================
@@ -1679,6 +1459,182 @@ def _auto_start_p2_cron():
         t = threading.Thread(target=_p2_cron_loop, daemon=True)
         t.start()
         print(f"[P2 Cron] Auto-started (includes sweep processing)")
+
+# ============================================================
+# DERET STATISTIK / BARET BACKTESTING
+# ============================================================
+
+class DeretStatistikRequest(BaseModel):
+    symbol: str = "SOLUSDT"
+    timeframe: str = "4h"
+    window: int = 5
+    buffer_pct: float = 0.5
+    tp_pct: float = 1.0
+    sl_pct: float = 1.0
+    days: int = 1825
+    position_usd: float = 1.0
+    leverage: int = 50
+    fee_pct: float = 0.10
+    mode: str = "baret"          # "baret" or "baret_dca"
+    buffer2_pct: float = 1.0     # only used in baret_dca mode
+
+class DeretSweepRequest(BaseModel):
+    pairs: list[str] = ["ETHUSDT","SOLUSDT","AVAXUSDT","DOGEUSDT","LINKUSDT","XRPUSDT","1000PEPEUSDT"]
+    timeframes: list[str] = ["4h"]
+    buffers: list[float] = [0.3, 0.5, 0.8, 1.0, 1.5]
+    tps: list[float] = [0.5, 0.8, 1.0, 1.5, 2.0]
+    sls: list[float] = [0.5, 0.8, 1.0, 1.5, 2.0]
+    windows: list[int] = [5]
+    days: int = 1825
+    position_usd: float = 1.0
+    leverage: int = 50
+    fee_pct: float = 0.10
+    mode: str = "baret"          # "baret" or "baret_dca"
+    buffer2s: list[float] = [0.8, 1.0, 1.5, 2.0]  # only for baret_dca
+
+@app.post("/backtest/deret-statistik")
+def run_deret_statistik(req: DeretStatistikRequest):
+    try:
+        result = backtest_deret_statistik(
+            db_path=DB_PATH,
+            symbol=req.symbol, timeframe=req.timeframe,
+            window=req.window, buffer_pct=req.buffer_pct,
+            tp_pct=req.tp_pct, sl_pct=req.sl_pct,
+            days=req.days, position_usd=req.position_usd,
+            leverage=req.leverage, fee_pct=req.fee_pct,
+            mode=req.mode, buffer2_pct=req.buffer2_pct,
+        )
+        return result
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+@app.post("/backtest/deret-statistik/sweep")
+def run_deret_sweep(req: DeretSweepRequest):
+    """Sweep all param combinations. Returns best per pair×TF and full results."""
+    all_results = []
+    best_per_combo = {}
+    tested = 0
+    passed = 0
+
+    pairs = req.pairs
+    tfs = req.timeframes
+    buffers = req.buffers
+    tps = req.tps
+    sls = req.sls
+    windows = req.windows
+
+    # For baret_dca, also sweep buffer2
+    buffer2_list = req.buffer2s if req.mode == "baret_dca" else [1.0]
+
+    total_combos = len(pairs) * len(tfs) * len(buffers) * len(tps) * len(sls) * len(windows) * len(buffer2_list)
+    print(f"[Baret Sweep] Starting: {total_combos} combos, mode={req.mode}")
+
+    for symbol in pairs:
+        for tf in tfs:
+            for w in windows:
+                for buf in buffers:
+                    for buf2 in buffer2_list:
+                        for tp in tps:
+                            for sl in sls:
+                                tested += 1
+                                try:
+                                    r = backtest_deret_statistik(
+                                        db_path=DB_PATH,
+                                        symbol=symbol, timeframe=tf,
+                                        window=w, buffer_pct=buf,
+                                        tp_pct=tp, sl_pct=sl,
+                                        days=req.days, position_usd=req.position_usd,
+                                        leverage=req.leverage, fee_pct=req.fee_pct,
+                                        mode=req.mode, buffer2_pct=buf2,
+                                    )
+                                    if r.get("status") != "ok":
+                                        continue
+
+                                    wr = r.get("win_rate", 0)
+                                    ppd = r.get("profit_per_day", 0)
+                                    tt = r.get("total_trades", 0)
+                                    mdd = r.get("max_drawdown", 0)
+
+                                    # Quality gate
+                                    is_pass = wr >= 75 and ppd >= 2.0 and tt >= 10 and mdd <= 50
+
+                                    entry = {
+                                        "symbol": symbol, "timeframe": tf, "mode": req.mode,
+                                        "window": w, "buffer_pct": buf, "buffer2_pct": buf2,
+                                        "tp_pct": tp, "sl_pct": sl,
+                                        "win_rate": wr, "total_trades": tt,
+                                        "net_profit": r.get("net_profit", 0),
+                                        "profit_per_day": ppd,
+                                        "profit_factor": r.get("profit_factor", 0),
+                                        "max_drawdown": mdd,
+                                        "long_wr": r.get("long_wr", 0),
+                                        "short_wr": r.get("short_wr", 0),
+                                        "dca_rate": r.get("dca_rate", 0),
+                                        "trades_per_day": r.get("trades_per_day", 0),
+                                        "exit_reasons": r.get("exit_reasons", {}),
+                                        "passed": is_pass,
+                                    }
+                                    all_results.append(entry)
+                                    if is_pass:
+                                        passed += 1
+
+                                    # Track best per pair×TF (by profit_per_day)
+                                    key = f"{symbol}_{tf}"
+                                    if key not in best_per_combo or ppd > best_per_combo[key].get("profit_per_day", 0):
+                                        best_per_combo[key] = entry
+
+                                except Exception as e:
+                                    print(f"[Baret Sweep] Error {symbol} {tf}: {e}")
+
+                                if tested % 50 == 0:
+                                    print(f"[Baret Sweep] Progress: {tested}/{total_combos} ({passed} passed)")
+
+    # Sort all by profit_per_day desc
+    all_results.sort(key=lambda x: -x.get("profit_per_day", 0))
+
+    print(f"[Baret Sweep] DONE: {tested} tested, {passed} passed, {len(best_per_combo)} pairs with best")
+
+    return {
+        "ok": True,
+        "mode": req.mode,
+        "total_tested": tested,
+        "passed": passed,
+        "best_per_combo": best_per_combo,
+        "top_20": all_results[:20],
+        "all_passed": [r for r in all_results if r.get("passed")],
+    }
+
+
+# ============================================================
+# BARET DISCOVERY BOT CONTROL
+# ============================================================
+
+_baret_mode_active = False
+
+@app.get("/baret/start")
+def baret_start_endpoint(mode: str = "baret"):
+    global _p2_cron_running, _baret_mode_active
+    # Only 1 discovery mode at a time — stop P2 cron
+    _p2_cron_running = False
+    _baret_mode_active = True
+    result = start_baret(DB_PATH, mode=mode)
+    print(f"[Baret] Started mode={mode}: {result}")
+    return result
+
+@app.get("/baret/stop")
+def baret_stop_endpoint():
+    global _baret_mode_active
+    _baret_mode_active = False
+    return stop_baret()
+
+@app.get("/baret/status")
+def baret_status_endpoint():
+    return baret_status()
+
+@app.get("/baret/log")
+def baret_log_endpoint(limit: int = 200):
+    return {"ok": True, "log": get_baret_log(limit)}
+
 
 # ============================================================
 # P4 — LIVE BOT CONTROL
