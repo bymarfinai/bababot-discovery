@@ -1501,6 +1501,7 @@ def run_deret_statistik(req: dict, _=Security(verify_token)):
             days=req.get("days", 1825),
             mode=req.get("mode", "baret"),
             buffer2_pct=req.get("buffer2_pct", 1.0),
+            close_filter_pct=req.get("close_filter_pct", 0.3),
         )
         return {"ok": True, **result}
     except Exception as e:
