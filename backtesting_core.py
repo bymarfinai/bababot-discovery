@@ -3382,3 +3382,402 @@ def run_paper_test(
         "discovery_days": discovery_days,
         "rule_applied": rule_filter or "(none)",
     }
+
+
+# ============================================================
+# DCA BACKTESTER — Dollar Cost Averaging Recovery Mode
+# ============================================================
+
+@dataclass
+class DCAConfig:
+    """Config for DCA backtesting"""
+    symbol: str = "ETHUSDT"
+    timeframe: str = "4h"
+    entry_logic: str = "ema_cross"
+    entry_logic_2: Optional[str] = None
+    
+    # DCA parameters
+    entry_usd: float = 1.0         # $ per DCA level
+    leverage: int = 50             # leverage multiplier
+    max_levels: int = 5            # max DCA entries (L1-L5)
+    tp_pct: float = 1.0            # TP at avg_entry + X%
+    cut_pct: float = 2.0           # cut loss: price drops cut_pct% below last DCA level
+    capital_pool: float = 100.0    # total DCA capital
+    
+    # ATR-based spacing multipliers (from entry)
+    spacing: list = field(default_factory=lambda: [0, 1.0, 1.5, 2.5, 4.0])
+    # L1=entry, L2=-1.0×ATR, L3=-1.5×ATR, L4=-2.5×ATR, L5=-4.0×ATR
+    
+    # Costs
+    fee_pct: float = 0.10
+    
+    # Indicator params (inherit defaults)
+    indicators: dict = field(default_factory=lambda: {
+        "ema_fast": 9, "ema_slow": 21, "sma_fast": 10, "sma_slow": 50,
+        "supertrend_period": 10, "supertrend_factor": 3.0,
+        "sar_acceleration": 0.02, "sar_max": 0.2,
+        "ichimoku_tenkan": 9, "ichimoku_kijun": 26, "ichimoku_senkou": 52,
+        "rsi_period": 14, "rsi_oversold": 30, "rsi_overbought": 70,
+        "macd_fast": 12, "macd_slow": 26, "macd_signal": 9,
+        "stoch_k": 14, "stoch_d": 3, "stoch_oversold": 20, "stoch_overbought": 80,
+        "adx_period": 14, "adx_threshold": 25,
+        "cci_period": 14, "cci_oversold": -100, "cci_overbought": 100,
+        "volume_sma_period": 20, "volume_spike_mult": 2.0,
+        "taker_buy_ratio_threshold": 0.55, "obv_ema_period": 20,
+        "bb_period": 20, "bb_std": 2.0, "atr_period": 14,
+        "keltner_period": 20, "keltner_mult": 1.5, "donchian_period": 20,
+    })
+    
+    # Data
+    days: int = 1825
+    direction: str = "both"
+    
+    # Filters (same as StrategyConfig)
+    session_filter: Optional[str] = None
+    trend_filter: Optional[str] = None
+    volatility_filter: Optional[str] = None
+    volume_filter: Optional[str] = None
+    regime_filter: Optional[str] = None
+
+
+def simulate_trades_dca(data: dict, ind: dict, signals: np.ndarray,
+                        dca_cfg: DCAConfig, regimes: np.ndarray = None,
+                        start_idx: int = 0, end_idx: int = None) -> list:
+    """
+    DCA trade simulator.
+    
+    Signal → L1 entry → price drops → L2-L5 at ATR spacing → TP at avg+X% or cut loss.
+    One session at a time. Returns list of DCA sessions.
+    """
+    closes = data['close']
+    highs = data['high']
+    lows = data['low']
+    n = end_idx or len(closes)
+    atr = ind.get('atr', np.zeros(len(closes)))
+    
+    sessions = []
+    in_session = False
+    
+    # Session state
+    levels = []          # list of {"price": float, "qty_usd": float, "idx": int}
+    side = 0             # 1=LONG, -1=SHORT
+    atr_at_entry = 0.0
+    tp_price = 0.0
+    cut_price = 0.0
+    entry_idx = 0
+    
+    def avg_entry():
+        if not levels: return 0.0
+        total_usd = sum(l["qty_usd"] for l in levels)
+        weighted = sum(l["price"] * l["qty_usd"] for l in levels)
+        return weighted / total_usd if total_usd > 0 else 0.0
+    
+    def calc_tp(avg_p, direction):
+        if direction == 1:  # LONG
+            return avg_p * (1 + dca_cfg.tp_pct / 100)
+        else:  # SHORT
+            return avg_p * (1 - dca_cfg.tp_pct / 100)
+    
+    def calc_cut(last_entry_price, direction):
+        if direction == 1:  # LONG — cut below last entry
+            return last_entry_price * (1 - dca_cfg.cut_pct / 100)
+        else:  # SHORT — cut above last entry
+            return last_entry_price * (1 + dca_cfg.cut_pct / 100)
+    
+    def dca_level_price(entry_p, atr_val, level_idx, direction):
+        """Calculate target price for DCA level"""
+        if level_idx >= len(dca_cfg.spacing):
+            return None
+        mult = dca_cfg.spacing[level_idx]
+        if direction == 1:  # LONG — DCA below entry
+            return entry_p - mult * atr_val
+        else:  # SHORT — DCA above entry
+            return entry_p + mult * atr_val
+    
+    for i in range(start_idx, n):
+        if not in_session:
+            if signals[i] != 0:
+                # Start new DCA session
+                in_session = True
+                side = int(signals[i])
+                entry_p = closes[i]
+                entry_idx = i
+                atr_at_entry = float(atr[i]) if not np.isnan(atr[i]) else entry_p * 0.02
+                
+                levels = [{"price": entry_p, "qty_usd": dca_cfg.entry_usd, "idx": i}]
+                tp_price = calc_tp(entry_p, side)
+                cut_price = calc_cut(entry_p, side)  # initially based on L1
+        else:
+            # Check for DCA level triggers (add more levels)
+            if len(levels) < dca_cfg.max_levels:
+                next_level_idx = len(levels)
+                target = dca_level_price(levels[0]["price"], atr_at_entry, next_level_idx, side)
+                
+                if target is not None:
+                    triggered = False
+                    if side == 1 and closes[i] <= target:    # LONG — price dropped to DCA level
+                        triggered = True
+                    elif side == -1 and closes[i] >= target:  # SHORT — price rose to DCA level
+                        triggered = True
+                    
+                    if triggered:
+                        levels.append({"price": closes[i], "qty_usd": dca_cfg.entry_usd, "idx": i})
+                        # Recalculate TP based on new average
+                        tp_price = calc_tp(avg_entry(), side)
+                        # Update cut loss based on last entry
+                        cut_price = calc_cut(closes[i], side)
+            
+            # Check exit conditions
+            exit_price = None
+            exit_reason = None
+            
+            if side == 1:  # LONG
+                if closes[i] >= tp_price:
+                    exit_price = tp_price
+                    exit_reason = "tp"
+                elif closes[i] <= cut_price and len(levels) >= dca_cfg.max_levels:
+                    exit_price = closes[i]
+                    exit_reason = "cut"
+                elif closes[i] <= cut_price and len(levels) < dca_cfg.max_levels:
+                    pass  # still has DCA levels, don't cut yet
+            else:  # SHORT
+                if closes[i] <= tp_price:
+                    exit_price = tp_price
+                    exit_reason = "tp"
+                elif closes[i] >= cut_price and len(levels) >= dca_cfg.max_levels:
+                    exit_price = closes[i]
+                    exit_reason = "cut"
+                elif closes[i] >= cut_price and len(levels) < dca_cfg.max_levels:
+                    pass
+            
+            if exit_price is not None:
+                avg_p = avg_entry()
+                total_usd = sum(l["qty_usd"] for l in levels)
+                notional = total_usd * dca_cfg.leverage
+                
+                if side == 1:
+                    pnl_pct = (exit_price - avg_p) / avg_p * 100
+                else:
+                    pnl_pct = (avg_p - exit_price) / avg_p * 100
+                
+                # Deduct fees (per level entry + 1 exit)
+                fee_total = dca_cfg.fee_pct * (len(levels) + 1)
+                pnl_pct -= fee_total
+                
+                pnl_dollar = notional * pnl_pct / 100
+                
+                session = {
+                    "entry_idx": entry_idx,
+                    "exit_idx": i,
+                    "side": "LONG" if side == 1 else "SHORT",
+                    "levels_used": len(levels),
+                    "avg_entry": round(avg_p, 6),
+                    "exit_price": round(exit_price, 6),
+                    "exit_reason": exit_reason,
+                    "pnl_pct": round(pnl_pct, 4),
+                    "pnl_dollar": round(pnl_dollar, 4),
+                    "duration_bars": i - entry_idx,
+                    "atr_at_entry": round(atr_at_entry, 6),
+                    "regime": int(regimes[entry_idx]) if regimes is not None else 0,
+                    "timestamp_entry": float(data["open_time"][entry_idx]),
+                    "timestamp_exit": float(data["open_time"][i]),
+                    "level_prices": [round(l["price"], 6) for l in levels],
+                    "win": 1 if pnl_pct > 0 else 0,
+                }
+                sessions.append(session)
+                in_session = False
+                levels = []
+    
+    return sessions
+
+
+def calc_dca_metrics(sessions: list, data_days: float) -> dict:
+    """Calculate aggregate metrics for DCA sessions"""
+    if not sessions:
+        return {"status": "no_trades", "total_sessions": 0}
+    
+    total = len(sessions)
+    wins = sum(1 for s in sessions if s["win"])
+    losses = total - wins
+    wr = wins / total * 100 if total > 0 else 0
+    
+    pnls = [s["pnl_dollar"] for s in sessions]
+    net_profit = sum(pnls)
+    profit_per_day = net_profit / data_days if data_days > 0 else 0
+    
+    win_pnls = [p for p in pnls if p > 0]
+    loss_pnls = [p for p in pnls if p <= 0]
+    avg_win = np.mean(win_pnls) if win_pnls else 0
+    avg_loss = np.mean(loss_pnls) if loss_pnls else 0
+    
+    gross_profit = sum(win_pnls)
+    gross_loss = abs(sum(loss_pnls))
+    profit_factor = gross_profit / gross_loss if gross_loss > 0 else 999
+    
+    # Level distribution
+    level_counts = [0] * 5
+    for s in sessions:
+        idx = min(s["levels_used"] - 1, 4)
+        level_counts[idx] += 1
+    level_dist = [round(c / total * 100, 1) for c in level_counts]
+    
+    # Max drawdown (sequential PnL)
+    equity = 0
+    peak = 0
+    max_dd = 0
+    for p in pnls:
+        equity += p
+        peak = max(peak, equity)
+        dd = peak - equity
+        max_dd = max(max_dd, dd)
+    
+    # Per-regime stats
+    regime_map = {0: "sideways", 1: "bull", -1: "bear", 2: "shock"}
+    regime_stats = {}
+    for r_val, r_name in regime_map.items():
+        r_sessions = [s for s in sessions if s["regime"] == r_val]
+        if r_sessions:
+            r_wins = sum(1 for s in r_sessions if s["win"])
+            regime_stats[r_name] = {
+                "sessions": len(r_sessions),
+                "win_rate": round(r_wins / len(r_sessions) * 100, 1),
+                "net_pnl": round(sum(s["pnl_dollar"] for s in r_sessions), 2),
+            }
+    
+    # Avg levels used
+    avg_levels = np.mean([s["levels_used"] for s in sessions])
+    avg_duration = np.mean([s["duration_bars"] for s in sessions])
+    
+    return {
+        "status": "ok",
+        "total_sessions": total,
+        "wins": wins,
+        "losses": losses,
+        "win_rate": round(wr, 1),
+        "net_profit": round(net_profit, 2),
+        "profit_per_day": round(profit_per_day, 4),
+        "avg_win": round(float(avg_win), 2),
+        "avg_loss": round(float(avg_loss), 2),
+        "profit_factor": round(profit_factor, 2),
+        "max_drawdown": round(max_dd, 2),
+        "avg_levels_used": round(float(avg_levels), 2),
+        "avg_duration_bars": round(float(avg_duration), 1),
+        "level_dist": level_dist,  # [L1%, L2%, L3%, L4%, L5%]
+        "regime_stats": regime_stats,
+        "worst_session": round(min(pnls), 2),
+        "best_session": round(max(pnls), 2),
+    }
+
+
+def backtest_dca(db_path: str, dca_cfg: DCAConfig, rule_filter: str = None) -> dict:
+    """
+    Full DCA backtest: load data → signals → DCA simulate → metrics.
+    Returns dict with metrics + sessions summary.
+    """
+    # Load data
+    bt = Backtester(db_path=db_path)
+    data = bt._load_data(dca_cfg.symbol, dca_cfg.timeframe, dca_cfg.days)
+    if data is None or len(data['close']) < 100:
+        return {"status": "insufficient_data", "error": f"Not enough data for {dca_cfg.symbol} {dca_cfg.timeframe}"}
+    
+    n = len(data['close'])
+    cpd = {'1m': 1440, '3m': 480, '5m': 288, '15m': 96, '1h': 24, '4h': 6}.get(dca_cfg.timeframe, 96)
+    data_days = n / cpd
+    
+    # Build StrategyConfig for signal generation (reuse existing logic)
+    sc = StrategyConfig(
+        symbol=dca_cfg.symbol, timeframe=dca_cfg.timeframe,
+        entry_logic=dca_cfg.entry_logic,
+        entry_logic_2=dca_cfg.entry_logic_2 if dca_cfg.entry_logic_2 in ENTRY_LOGICS else None,
+        indicators=dca_cfg.indicators,
+        direction=dca_cfg.direction,
+        session_filter=dca_cfg.session_filter,
+        trend_filter=dca_cfg.trend_filter,
+        volatility_filter=dca_cfg.volatility_filter,
+        volume_filter=dca_cfg.volume_filter,
+        regime_filter=dca_cfg.regime_filter,
+        days=dca_cfg.days,
+    )
+    
+    # Precompute + signals
+    ind = precompute_indicators(data, sc)
+    signals = get_signals(data, ind, sc)
+    
+    # AND combo
+    if sc.entry_logic_2 and sc.entry_logic_2 in ENTRY_LOGICS:
+        from dataclasses import replace as dc_replace
+        c2 = dc_replace(sc, entry_logic=sc.entry_logic_2)
+        s2 = get_signals(data, ind, c2)
+        combined = np.zeros(len(signals), dtype=int)
+        for i in range(3, len(signals)):
+            if signals[i] != 0:
+                for j in range(max(0, i-3), i+1):
+                    if s2[j] == signals[i]: combined[i] = signals[i]; break
+            elif s2[i] != 0:
+                for j in range(max(0, i-3), i+1):
+                    if signals[j] == s2[i]: combined[i] = s2[i]; break
+        signals = combined
+    
+    # Apply filters
+    signals = apply_filters(data, ind, signals, sc)
+    
+    # Regimes
+    regimes = classify_regime(data, ind)
+    
+    # Apply rule filter if provided
+    if rule_filter:
+        conditions = parse_rule(rule_filter)
+        if conditions:
+            combo_label = dca_cfg.entry_logic + (" AND " + dca_cfg.entry_logic_2 if dca_cfg.entry_logic_2 else "")
+            for i in range(len(signals)):
+                if signals[i] != 0:
+                    features = extract_signal_features(combo_label, data, ind, i, signals, regimes)
+                    for feat, op, val in conditions:
+                        fv = features.get(feat)
+                        if fv is None: signals[i] = 0; break
+                        if op == ">=" and not fv >= val: signals[i] = 0; break
+                        if op == "<=" and not fv <= val: signals[i] = 0; break
+                        if op == ">" and not fv > val: signals[i] = 0; break
+                        if op == "<" and not fv < val: signals[i] = 0; break
+    
+    # Count total signals
+    total_signals = int(np.sum(signals != 0))
+    
+    # Run DCA simulation
+    sessions = simulate_trades_dca(data, ind, signals, dca_cfg, regimes)
+    
+    # Also run traditional backtest for comparison
+    trad_sc = StrategyConfig(
+        symbol=dca_cfg.symbol, timeframe=dca_cfg.timeframe,
+        entry_logic=dca_cfg.entry_logic, entry_logic_2=sc.entry_logic_2,
+        sl_pct=0.6, tp_pct=1.5, fee_pct=dca_cfg.fee_pct,
+        indicators=dca_cfg.indicators, direction=dca_cfg.direction,
+        days=dca_cfg.days,
+    )
+    trad_trades = simulate_trades(data, ind, signals, trad_sc, regimes=regimes)
+    trad_wr = sum(1 for t in trad_trades if t["pnl_pct"] > 0) / len(trad_trades) * 100 if trad_trades else 0
+    
+    # Metrics
+    metrics = calc_dca_metrics(sessions, data_days)
+    
+    # Add context
+    metrics["symbol"] = dca_cfg.symbol
+    metrics["timeframe"] = dca_cfg.timeframe
+    metrics["entry_logic"] = dca_cfg.entry_logic
+    metrics["entry_logic_2"] = dca_cfg.entry_logic_2 or ""
+    metrics["data_days"] = round(data_days, 1)
+    metrics["total_signals"] = total_signals
+    metrics["dca_config"] = {
+        "entry_usd": dca_cfg.entry_usd,
+        "leverage": dca_cfg.leverage,
+        "max_levels": dca_cfg.max_levels,
+        "tp_pct": dca_cfg.tp_pct,
+        "cut_pct": dca_cfg.cut_pct,
+        "spacing": dca_cfg.spacing,
+    }
+    metrics["traditional_wr"] = round(trad_wr, 1)
+    metrics["traditional_trades"] = len(trad_trades)
+    metrics["better_mode"] = "DCA" if metrics.get("win_rate", 0) > trad_wr else "SL/TP"
+    metrics["rule_filter"] = rule_filter or ""
+    
+    return metrics
