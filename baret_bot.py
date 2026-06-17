@@ -43,18 +43,32 @@ ULTRON_BARET_SYSTEM = """You are Ultron, BabaBot's Baret optimizer.
 You receive Baret backtest results for all pair×TF combos. Your job:
 1. Analyze which combos are profitable (WR ≥ 75%, profit/day ≥ $2, trades ≥ 10)
 2. For underperforming combos: suggest adjusted buffer, TP, SL, window
-3. Compare modes if both baret and baret_dca are tested
-4. Track improvement across rounds
+3. Track improvement across rounds
+
+PROVEN KNOWLEDGE from prior testing (use as starting guidance):
+- Buffer 0.8-1.5% works best (NOT 0.3-0.5%, too shallow)
+- TP 1.0-1.5% is the sweet spot (NOT 0.5% too small, NOT 2%+ too greedy)
+- SL 0.5-1.2% works (tight SL is OK because buffer ensures good entries)
+- Higher buffer = higher WR but fewer trades. Balance is key.
+- Each pair has DIFFERENT optimal: SOL likes buf=0.8, LINK likes buf=1.5, DOGE likes buf=0.7
+
+EXPLORATION RULES:
+- Do NOT make tiny adjustments (0.1% changes are useless). Make BOLD moves: ±0.3% minimum per parameter.
+- If WR < 70%, try MUCH bigger buffer (jump to 1.0-1.5%)
+- If WR > 80% but profit low, try bigger TP (jump to 1.5%)  
+- If WR dropped from last round, GO OPPOSITE direction (don't keep pushing same way)
+- NEVER drop a pair just because one round was bad. Try different params first.
+- Test extreme configs sometimes: buf=1.5% + TP=2% or buf=0.5% + SL=0.5%
 
 Available adjustments per combo:
-- buffer_pct: L1 entry distance (0.1-2.0%)
-- buffer2_pct: L2 DCA distance (MUST be larger than buffer_pct, e.g. if buffer_pct=0.5 then buffer2_pct=1.0+)
-- tp_pct: TP percentage (0.3-3.0%)
-- sl_pct: SL percentage (0.3-3.0%)
+- buffer_pct: L1 entry distance (0.3-2.0%)
+- buffer2_pct: L2 DCA distance (MUST be larger than buffer_pct)
+- tp_pct: TP percentage (0.5-2.5%)
+- sl_pct: SL percentage (0.3-2.0%)
 - window: ratio window (3, 5, 10, 20)
+- close_filter_pct: min gap predicted_close vs predicted_low (0.1-1.0%, baret_marfin mode only)
 
-IMPORTANT: buffer2_pct is the DEEPER DCA level. It MUST always be bigger than buffer_pct.
-Example: buffer_pct=0.5%, buffer2_pct=1.0% means L1 at -0.5%, L2 DCA at -1.0% (deeper).
+IMPORTANT: buffer2_pct MUST always be bigger than buffer_pct.
 
 Respond ONLY with valid JSON (no markdown, no preamble):
 {
@@ -62,13 +76,13 @@ Respond ONLY with valid JSON (no markdown, no preamble):
   "adjustments": [
     {
       "symbol": "SOLUSDT", "timeframe": "4h",
-      "buffer_pct": 0.8, "tp_pct": 0.8, "sl_pct": 1.0, "window": 5,
-      "buffer2_pct": 1.5,
+      "buffer_pct": 0.8, "tp_pct": 1.5, "sl_pct": 0.8, "window": 5,
+      "buffer2_pct": 1.5, "close_filter_pct": 0.3,
       "reason": "why this adjustment"
     }
   ],
   "promising": ["SOLUSDT_4h", "AVAXUSDT_4h"],
-  "drop": ["BTCUSDT_4h"],
+  "drop": [],
   "confidence": 0.8
 }"""
 
@@ -139,8 +153,8 @@ def _baret_loop(db_path: str, mode: str = "baret"):
             key = f"{symbol}_{tf}"
             configs[key] = {
                 "symbol": symbol, "timeframe": tf,
-                "buffer_pct": 0.5, "tp_pct": 1.0, "sl_pct": 1.0,
-                "window": 5, "buffer2_pct": 1.0, "close_filter_pct": 0.3,
+                "buffer_pct": 0.8, "tp_pct": 1.5, "sl_pct": 0.8,
+                "window": 5, "buffer2_pct": 1.5, "close_filter_pct": 0.3,
             }
 
     prev_avg_wr = 0
@@ -172,7 +186,7 @@ def _baret_loop(db_path: str, mode: str = "baret"):
                     symbol=symbol, timeframe=tf,
                     window=cfg["window"], buffer_pct=cfg["buffer_pct"],
                     tp_pct=cfg["tp_pct"], sl_pct=cfg["sl_pct"],
-                    days=1825, position_usd=1.0, leverage=50, fee_pct=0.10,
+                    days=1825, position_usd=100.0, leverage=50, fee_pct=0.10,
                     mode=mode, buffer2_pct=cfg.get("buffer2_pct", 1.0),
                     close_filter_pct=cfg.get("close_filter_pct", 0.3),
                 )
@@ -235,10 +249,14 @@ def _baret_loop(db_path: str, mode: str = "baret"):
         _save_to_d1("baret/save-round", round_summary)
 
         # ── Check convergence ──
-        if round_num > 1 and abs(improvement) < 1.0:
-            _log(f"  ✅ CONVERGED — improvement {improvement:+.1f}% < 1%")
+        if round_num > 3 and abs(improvement) < 1.0 and avg_wr > prev_avg_wr - 2:
+            _log(f"  ✅ CONVERGED — improvement {improvement:+.1f}% < 1% (after 3+ rounds)")
             _baret_state["converged"] = True
             break
+        
+        # Don't converge if WR dropped — that means Ultron made bad adjustment, try different direction
+        if round_num > 1 and improvement < -5:
+            _log(f"  ⚠️ WR dropped {improvement:.1f}% — reverting to wider exploration")
 
         prev_avg_wr = avg_wr
 
