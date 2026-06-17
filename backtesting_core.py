@@ -3172,285 +3172,6 @@ class Backtester:
 
 
 # ============================================================
-# DERET STATISTIK / BARET BACKTESTER
-# ============================================================
-
-def backtest_deret_statistik(
-    db_path: str,
-    symbol: str = "ETHUSDT",
-    timeframe: str = "4h",
-    window: int = 5,
-    buffer_pct: float = 0.5,
-    tp_pct: float = 1.0,
-    sl_pct: float = 1.0,
-    days: int = 1825,
-    position_usd: float = 1.0,
-    leverage: int = 50,
-    fee_pct: float = 0.10,
-    mode: str = "baret",          # "baret" or "baret_dca"
-    buffer2_pct: float = 1.0,     # L2 DCA distance (only baret_dca)
-) -> dict:
-    """
-    Deret Statistik / Baret backtester.
-    
-    Mode baret: single entry at predicted_low - buffer (LONG) or predicted_high + buffer (SHORT)
-    Mode baret_dca: L1 at predicted_low - buffer1, L2 DCA at predicted_low - buffer2 (deeper)
-    
-    Per candle: place 2 limit orders (buy + sell). First-hit wins. Max 1 trade per candle.
-    """
-    import sqlite3 as _sql
-    conn = _sql.connect(db_path)
-    try:
-        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-        cutoff_ms = now_ms - days * 24 * 3600 * 1000
-        rows = conn.execute("""
-            SELECT open_time, open, high, low, close, volume
-            FROM klines WHERE symbol=? AND timeframe=? AND open_time >= ?
-            ORDER BY open_time ASC
-        """, (symbol, timeframe, cutoff_ms)).fetchall()
-    finally:
-        conn.close()
-
-    if not rows or len(rows) < window + 10:
-        return {"status": "insufficient_data", "symbol": symbol, "timeframe": timeframe,
-                "total_trades": 0, "error": f"Only {len(rows) if rows else 0} candles"}
-
-    arr = np.array(rows, dtype=np.float64)
-    open_times = arr[:, 0]
-    opens   = arr[:, 1]
-    highs   = arr[:, 2]
-    lows    = arr[:, 3]
-    closes  = arr[:, 4]
-    volumes = arr[:, 5]
-    n = len(closes)
-
-    # ── Calculate rolling ratios ──
-    close_ratio = np.ones(n)
-    high_ratio  = np.ones(n)
-    low_ratio   = np.ones(n)
-    for i in range(1, n):
-        close_ratio[i] = closes[i] / closes[i-1] if closes[i-1] != 0 else 1.0
-        high_ratio[i]  = highs[i] / highs[i-1]   if highs[i-1] != 0 else 1.0
-        low_ratio[i]   = lows[i] / lows[i-1]     if lows[i-1] != 0 else 1.0
-
-    # ── Simulate trades ──
-    notional = position_usd * leverage  # e.g. $1 × 50 = $50 notional
-    fee_per_trade = notional * fee_pct / 100  # roundtrip fee in $
-    capital = 100.0  # tracking capital for drawdown
-    initial_capital = capital
-    peak_capital = capital
-
-    trades = []
-    exit_tp = 0
-    exit_sl = 0
-    exit_close = 0
-    dca_count = 0
-    equity_points = [capital]
-
-    for i in range(window + 1, n - 1):
-        # Predict next candle range using rolling average of last `window` ratios
-        avg_cr = np.mean(close_ratio[i - window + 1 : i + 1])
-        avg_hr = np.mean(high_ratio[i - window + 1 : i + 1])
-        avg_lr = np.mean(low_ratio[i - window + 1 : i + 1])
-
-        pred_close = closes[i] * avg_cr
-        pred_high  = highs[i] * avg_hr
-        pred_low   = lows[i] * avg_lr
-
-        # Entry levels
-        long_l1  = pred_low * (1 - buffer_pct / 100)
-        short_l1 = pred_high * (1 + buffer_pct / 100)
-
-        if mode == "baret_dca":
-            long_l2  = pred_low * (1 - buffer2_pct / 100)
-            short_l2 = pred_high * (1 + buffer2_pct / 100)
-
-        # Next candle (i+1) is where the trade happens
-        ni = i + 1
-        ao, ah, al, ac = opens[ni], highs[ni], lows[ni], closes[ni]
-
-        # Determine which side triggers
-        long_hit  = al <= long_l1
-        short_hit = ah >= short_l1
-
-        if not long_hit and not short_hit:
-            continue  # No trade this candle
-
-        # Determine side (first-hit wins via open proximity heuristic)
-        if long_hit and not short_hit:
-            side = 1  # LONG
-        elif short_hit and not long_hit:
-            side = -1  # SHORT
-        elif long_hit and short_hit:
-            # Both triggered — open proximity heuristic
-            if (ao - al) < (ah - ao):
-                side = 1  # LONG (open closer to low → went down first)
-            else:
-                side = -1  # SHORT
-        else:
-            continue
-
-        # Calculate entry price + DCA
-        dca_triggered = False
-        if side == 1:  # LONG
-            entry_l1 = long_l1
-            if mode == "baret_dca" and al <= long_l2:
-                avg_entry = (long_l1 + long_l2) / 2
-                dca_triggered = True
-            else:
-                avg_entry = long_l1
-        else:  # SHORT
-            entry_l1 = short_l1
-            if mode == "baret_dca" and ah >= short_l2:
-                avg_entry = (short_l1 + short_l2) / 2
-                dca_triggered = True
-            else:
-                avg_entry = short_l1
-
-        if dca_triggered:
-            dca_count += 1
-            pos_mult = 2.0  # double position
-        else:
-            pos_mult = 1.0
-
-        # TP/SL from avg_entry
-        if side == 1:
-            tp_price = avg_entry * (1 + tp_pct / 100)
-            sl_price = avg_entry * (1 - sl_pct / 100)
-        else:
-            tp_price = avg_entry * (1 - tp_pct / 100)
-            sl_price = avg_entry * (1 + sl_pct / 100)
-
-        # Check exit within same candle
-        if side == 1:
-            tp_hit = ah >= tp_price
-            sl_hit = al <= sl_price
-        else:
-            tp_hit = al <= tp_price
-            sl_hit = ah >= sl_price
-
-        if tp_hit and sl_hit:
-            # Both hit — assume worst case (SL first) for conservative estimate
-            exit_price = sl_price
-            exit_reason = "SL"
-        elif tp_hit:
-            exit_price = tp_price
-            exit_reason = "TP"
-        elif sl_hit:
-            exit_price = sl_price
-            exit_reason = "SL"
-        else:
-            exit_price = ac  # close at candle close
-            exit_reason = "CLOSE"
-
-        # PnL calculation
-        if side == 1:
-            pnl_pct = (exit_price - avg_entry) / avg_entry * 100
-        else:
-            pnl_pct = (avg_entry - exit_price) / avg_entry * 100
-
-        trade_notional = notional * pos_mult
-        pnl_dollar = trade_notional * pnl_pct / 100 - fee_per_trade * pos_mult
-        is_win = pnl_dollar > 0
-
-        if exit_reason == "TP":
-            exit_tp += 1
-        elif exit_reason == "SL":
-            exit_sl += 1
-        else:
-            exit_close += 1
-
-        capital += pnl_dollar
-        peak_capital = max(peak_capital, capital)
-        equity_points.append(capital)
-
-        trades.append({
-            "idx": ni,
-            "side": side,
-            "entry_l1": round(entry_l1, 6),
-            "avg_entry": round(avg_entry, 6),
-            "exit_price": round(exit_price, 6),
-            "exit_reason": exit_reason,
-            "pnl_pct": round(pnl_pct, 4),
-            "pnl_dollar": round(pnl_dollar, 4),
-            "dca": dca_triggered,
-            "win": is_win,
-            "timestamp": int(open_times[ni]),
-        })
-
-    # ── Metrics ──
-    total = len(trades)
-    if total == 0:
-        return {"status": "no_trades", "symbol": symbol, "timeframe": timeframe,
-                "mode": mode, "total_trades": 0, "buffer_pct": buffer_pct,
-                "tp_pct": tp_pct, "sl_pct": sl_pct, "window": window}
-
-    wins = sum(1 for t in trades if t["win"])
-    losses = total - wins
-    win_rate = wins / total * 100
-    net_profit = sum(t["pnl_dollar"] for t in trades)
-
-    candles_per_day = {"15m": 96, "1h": 24, "4h": 6, "1d": 1}.get(timeframe, 6)
-    data_days = n / candles_per_day
-    profit_per_day = net_profit / data_days if data_days > 0 else 0
-
-    # Profit factor
-    gross_win = sum(t["pnl_dollar"] for t in trades if t["win"])
-    gross_loss = abs(sum(t["pnl_dollar"] for t in trades if not t["win"]))
-    profit_factor = gross_win / gross_loss if gross_loss > 0 else 999.0
-
-    # Max drawdown
-    eq = np.array(equity_points)
-    peak = np.maximum.accumulate(eq)
-    dd = (peak - eq) / peak * 100
-    max_drawdown = float(np.max(dd)) if len(dd) > 0 else 0
-
-    # Long/Short breakdown
-    long_trades = [t for t in trades if t["side"] == 1]
-    short_trades = [t for t in trades if t["side"] == -1]
-    long_wins = sum(1 for t in long_trades if t["win"])
-    short_wins = sum(1 for t in short_trades if t["win"])
-
-    avg_win_pct = np.mean([t["pnl_pct"] for t in trades if t["win"]]) if wins > 0 else 0
-    avg_loss_pct = np.mean([t["pnl_pct"] for t in trades if not t["win"]]) if losses > 0 else 0
-
-    return {
-        "status": "ok",
-        "symbol": symbol,
-        "timeframe": timeframe,
-        "mode": mode,
-        "window": window,
-        "buffer_pct": buffer_pct,
-        "buffer2_pct": buffer2_pct if mode == "baret_dca" else None,
-        "tp_pct": tp_pct,
-        "sl_pct": sl_pct,
-        "position_usd": position_usd,
-        "leverage": leverage,
-        "total_trades": total,
-        "wins": wins,
-        "losses": losses,
-        "win_rate": round(win_rate, 2),
-        "net_profit": round(net_profit, 2),
-        "profit_per_day": round(profit_per_day, 4),
-        "profit_factor": round(profit_factor, 3),
-        "max_drawdown": round(max_drawdown, 2),
-        "final_equity": round(capital, 2),
-        "avg_pnl_pct": round(float(np.mean([t["pnl_pct"] for t in trades])), 4),
-        "avg_win_pct": round(float(avg_win_pct), 4),
-        "avg_loss_pct": round(float(avg_loss_pct), 4),
-        "long_trades": len(long_trades),
-        "long_wr": round(long_wins / len(long_trades) * 100, 2) if long_trades else 0,
-        "short_trades": len(short_trades),
-        "short_wr": round(short_wins / len(short_trades) * 100, 2) if short_trades else 0,
-        "trades_per_day": round(total / data_days, 2) if data_days > 0 else 0,
-        "exit_reasons": {"TP": exit_tp, "SL": exit_sl, "CLOSE": exit_close},
-        "dca_rate": round(dca_count / total * 100, 1) if mode == "baret_dca" and total > 0 else 0,
-        "data_days": round(data_days, 1),
-        "candles": n,
-    }
-
-
-# ============================================================
 # QUICK TEST
 # ============================================================
 
@@ -3660,4 +3381,778 @@ def run_paper_test(
         "regime_breakdown": regime_stats,
         "discovery_days": discovery_days,
         "rule_applied": rule_filter or "(none)",
+    }
+
+
+
+# ============================================================
+# DCA MODE — Dollar Cost Averaging Discovery Tool
+# Purpose: Find optimal SL/TP by observing how signals behave
+#          when allowed to DCA (average down) vs hard SL.
+# Ultron (MiniMax) analyzes raw output and suggests params.
+# ============================================================
+
+@dataclass
+class DCAConfig:
+    """Config for DCA simulation — matches V10 spec"""
+    symbol: str = "ETHUSDT"
+    timeframe: str = "4h"
+    entry_logic: str = "ema_cross"
+    entry_logic_2: Optional[str] = None
+    direction: str = "both"
+
+    # DCA parameters (V10 spec)
+    entry_usd: float = 1.0         # $ per DCA level
+    leverage: int = 50             # 50x
+    max_levels: int = 5            # L1-L5
+    tp_pct: float = 1.0            # TP at avg_entry + X%
+    cut_pct: float = 2.0           # cut loss below last DCA
+    capital_pool: float = 100.0    # $100 separate pool
+
+    # ATR spacing (V10 spec: L1=0, L2=-1ATR, L3=-1.5ATR, L4=-2.5ATR, L5=-4ATR)
+    spacing: list = field(default_factory=lambda: [0, 1.0, 1.5, 2.5, 4.0])
+    spacing_mode: str = "atr"  # "atr" | "pct" | "fixed_usd"
+
+    # Costs
+    fee_pct: float = 0.10
+
+    # Indicator defaults (same as StrategyConfig)
+    indicators: dict = field(default_factory=lambda: {
+        "ema_fast": 9, "ema_slow": 21, "sma_fast": 10, "sma_slow": 50,
+        "supertrend_period": 10, "supertrend_factor": 3.0,
+        "sar_acceleration": 0.02, "sar_max": 0.2,
+        "ichimoku_tenkan": 9, "ichimoku_kijun": 26, "ichimoku_senkou": 52,
+        "rsi_period": 14, "rsi_oversold": 30, "rsi_overbought": 70,
+        "macd_fast": 12, "macd_slow": 26, "macd_signal": 9,
+        "stoch_k": 14, "stoch_d": 3, "stoch_oversold": 20, "stoch_overbought": 80,
+        "adx_period": 14, "adx_threshold": 25,
+        "cci_period": 14, "cci_oversold": -100, "cci_overbought": 100,
+        "volume_sma_period": 20, "volume_spike_mult": 2.0,
+        "taker_buy_ratio_threshold": 0.55, "obv_ema_period": 20,
+        "bb_period": 20, "bb_std": 2.0, "atr_period": 14,
+        "keltner_period": 20, "keltner_mult": 1.5, "donchian_period": 20,
+    })
+
+    # Data
+    days: int = 1825
+
+    # Filters
+    session_filter: Optional[str] = None
+    trend_filter: Optional[str] = None
+    volatility_filter: Optional[str] = None
+    volume_filter: Optional[str] = None
+    regime_filter: Optional[str] = None
+
+
+def simulate_trades_dca(data: dict, ind: dict, signals: np.ndarray,
+                        dca_cfg: DCAConfig, regimes: np.ndarray = None,
+                        start_idx: int = 0, end_idx: int = None) -> list:
+    """
+    DCA trade simulator. Per signal:
+    - Track max adverse (deepest drawdown from entry)
+    - Track max favorable (best move in favor)
+    - Track DCA levels triggered
+    - Track recovery behavior
+
+    Returns list of DCA sessions with full data for Ultron analysis.
+    """
+    closes = data['close']
+    highs = data['high']
+    lows = data['low']
+    n = end_idx or len(closes)
+    atr = ind.get('atr', np.zeros(len(closes)))
+
+    sessions = []
+    in_session = False
+
+    # Session state
+    levels = []
+    side = 0
+    atr_at_entry = 0.0
+    tp_price = 0.0
+    cut_price = 0.0
+    entry_idx = 0
+    entry_price = 0.0
+    max_adverse_pct = 0.0
+    max_favorable_pct = 0.0
+
+    def avg_entry():
+        if not levels: return 0.0
+        total_usd = sum(l["qty_usd"] for l in levels)
+        weighted = sum(l["price"] * l["qty_usd"] for l in levels)
+        return weighted / total_usd if total_usd > 0 else 0.0
+
+    def calc_tp(avg_p, direction):
+        return avg_p * (1 + dca_cfg.tp_pct / 100) if direction == 1 else avg_p * (1 - dca_cfg.tp_pct / 100)
+
+    def calc_cut(last_p, direction):
+        return last_p * (1 - dca_cfg.cut_pct / 100) if direction == 1 else last_p * (1 + dca_cfg.cut_pct / 100)
+
+    def dca_level_price(ep, atr_val, level_idx, direction):
+        if level_idx >= len(dca_cfg.spacing): return None
+        mult = dca_cfg.spacing[level_idx]
+        if mult == 0: return ep
+        mode = getattr(dca_cfg, 'spacing_mode', 'atr')
+        if mode == "pct":
+            offset = ep * mult / 100
+        elif mode == "fixed_usd":
+            offset = mult
+        else:  # atr (default)
+            offset = mult * atr_val
+        return ep - offset if direction == 1 else ep + offset
+
+    for i in range(start_idx, n):
+        if not in_session:
+            if signals[i] != 0:
+                in_session = True
+                side = int(signals[i])
+                entry_price = closes[i]
+                entry_idx = i
+                atr_at_entry = float(atr[i]) if not np.isnan(atr[i]) and atr[i] > 0 else entry_price * 0.02
+                levels = [{"price": entry_price, "qty_usd": dca_cfg.entry_usd, "idx": i}]
+                tp_price = calc_tp(entry_price, side)
+                cut_price = calc_cut(entry_price, side)
+                max_adverse_pct = 0.0
+                max_favorable_pct = 0.0
+        else:
+            # Track max adverse/favorable from ENTRY price (not avg)
+            if side == 1:
+                adv = (entry_price - lows[i]) / entry_price * 100
+                fav = (highs[i] - entry_price) / entry_price * 100
+            else:
+                adv = (highs[i] - entry_price) / entry_price * 100
+                fav = (entry_price - lows[i]) / entry_price * 100
+            max_adverse_pct = max(max_adverse_pct, adv)
+            max_favorable_pct = max(max_favorable_pct, fav)
+
+            # Check DCA level triggers
+            if len(levels) < dca_cfg.max_levels:
+                target = dca_level_price(levels[0]["price"], atr_at_entry, len(levels), side)
+                if target is not None:
+                    triggered = (side == 1 and closes[i] <= target) or (side == -1 and closes[i] >= target)
+                    if triggered:
+                        levels.append({"price": closes[i], "qty_usd": dca_cfg.entry_usd, "idx": i})
+                        tp_price = calc_tp(avg_entry(), side)
+                        cut_price = calc_cut(closes[i], side)
+
+            # Check exit
+            exit_price = None
+            exit_reason = None
+
+            if side == 1:
+                if closes[i] >= tp_price:
+                    exit_price, exit_reason = tp_price, "tp"
+                elif closes[i] <= cut_price and len(levels) >= dca_cfg.max_levels:
+                    exit_price, exit_reason = closes[i], "cut"
+            else:
+                if closes[i] <= tp_price:
+                    exit_price, exit_reason = tp_price, "tp"
+                elif closes[i] >= cut_price and len(levels) >= dca_cfg.max_levels:
+                    exit_price, exit_reason = closes[i], "cut"
+
+            if exit_price is not None:
+                avg_p = avg_entry()
+                total_usd = sum(l["qty_usd"] for l in levels)
+                notional = total_usd * dca_cfg.leverage
+
+                pnl_pct = ((exit_price - avg_p) / avg_p * 100 if side == 1
+                           else (avg_p - exit_price) / avg_p * 100)
+                fee_total = dca_cfg.fee_pct * (len(levels) + 1)
+                pnl_pct -= fee_total
+                pnl_dollar = notional * pnl_pct / 100
+
+                sessions.append({
+                    "entry_idx": entry_idx, "exit_idx": i,
+                    "side": "LONG" if side == 1 else "SHORT",
+                    "entry_price": round(entry_price, 6),
+                    "avg_entry": round(avg_p, 6),
+                    "exit_price": round(exit_price, 6),
+                    "exit_reason": exit_reason,
+                    "levels_used": len(levels),
+                    "level_prices": [round(l["price"], 6) for l in levels],
+                    "pnl_pct": round(pnl_pct, 4),
+                    "pnl_dollar": round(pnl_dollar, 4),
+                    "duration_bars": i - entry_idx,
+                    "atr_at_entry": round(atr_at_entry, 6),
+                    "max_adverse_pct": round(max_adverse_pct, 4),
+                    "max_favorable_pct": round(max_favorable_pct, 4),
+                    "regime": int(regimes[entry_idx]) if regimes is not None else 0,
+                    "timestamp_entry": float(data["open_time"][entry_idx]),
+                    "timestamp_exit": float(data["open_time"][i]),
+                    "win": 1 if pnl_pct > 0 else 0,
+                })
+                in_session = False
+                levels = []
+
+    return sessions
+
+
+def calc_dca_metrics(sessions: list, data_days: float) -> dict:
+    """Aggregate metrics from DCA sessions"""
+    if not sessions:
+        return {"status": "no_trades", "total_sessions": 0}
+
+    total = len(sessions)
+    wins = sum(1 for s in sessions if s["win"])
+    wr = wins / total * 100
+
+    pnls = [s["pnl_dollar"] for s in sessions]
+    net = sum(pnls)
+    win_pnls = [p for p in pnls if p > 0]
+    loss_pnls = [p for p in pnls if p <= 0]
+
+    # Level distribution
+    level_counts = [0] * 5
+    for s in sessions:
+        level_counts[min(s["levels_used"] - 1, 4)] += 1
+    level_dist = [round(c / total * 100, 1) for c in level_counts]
+
+    # Per-regime
+    regime_map = {0: "sideways", 1: "bull", -1: "bear", 2: "shock"}
+    regime_stats = {}
+    for rv, rname in regime_map.items():
+        rs = [s for s in sessions if s["regime"] == rv]
+        if rs:
+            rw = sum(1 for s in rs if s["win"])
+            regime_stats[rname] = {
+                "sessions": len(rs), "win_rate": round(rw / len(rs) * 100, 1),
+                "net_pnl": round(sum(s["pnl_dollar"] for s in rs), 2),
+                "avg_adverse": round(float(np.mean([s["max_adverse_pct"] for s in rs])), 2),
+                "avg_favorable": round(float(np.mean([s["max_favorable_pct"] for s in rs])), 2),
+            }
+
+    return {
+        "status": "ok",
+        "total_sessions": total, "wins": wins, "losses": total - wins,
+        "win_rate": round(wr, 1),
+        "net_profit": round(net, 2),
+        "profit_per_day": round(net / data_days, 4) if data_days > 0 else 0,
+        "avg_win": round(float(np.mean(win_pnls)), 2) if win_pnls else 0,
+        "avg_loss": round(float(np.mean(loss_pnls)), 2) if loss_pnls else 0,
+        "profit_factor": round(sum(win_pnls) / abs(sum(loss_pnls)), 2) if loss_pnls and sum(loss_pnls) != 0 else 999,
+        "avg_levels_used": round(float(np.mean([s["levels_used"] for s in sessions])), 2),
+        "avg_duration_bars": round(float(np.mean([s["duration_bars"] for s in sessions])), 1),
+        "level_dist": level_dist,
+        "regime_stats": regime_stats,
+        "worst_session": round(min(pnls), 2),
+        "best_session": round(max(pnls), 2),
+        # Drawdown/recovery stats for Ultron analysis
+        "drawdown_stats": {
+            "mean": round(float(np.mean([s["max_adverse_pct"] for s in sessions])), 2),
+            "median": round(float(np.median([s["max_adverse_pct"] for s in sessions])), 2),
+            "p75": round(float(np.percentile([s["max_adverse_pct"] for s in sessions], 75)), 2),
+            "p90": round(float(np.percentile([s["max_adverse_pct"] for s in sessions], 90)), 2),
+        },
+        "recovery_stats": {
+            "mean": round(float(np.mean([s["max_favorable_pct"] for s in sessions])), 2),
+            "median": round(float(np.median([s["max_favorable_pct"] for s in sessions])), 2),
+            "p75": round(float(np.percentile([s["max_favorable_pct"] for s in sessions], 75)), 2),
+            "p90": round(float(np.percentile([s["max_favorable_pct"] for s in sessions], 90)), 2),
+        },
+    }
+
+
+def backtest_dca(db_path: str, dca_cfg: DCAConfig, rule_filter: str = None) -> dict:
+    """
+    Full DCA backtest: load data → signals → DCA simulate → metrics.
+    Returns raw data + metrics for Ultron to analyze.
+    Does NOT make optimization decisions — that's Ultron's job.
+    """
+    bt = Backtester(db_path=db_path)
+    data = bt._load_data(dca_cfg.symbol, dca_cfg.timeframe, dca_cfg.days)
+    if data is None or len(data['close']) < 100:
+        return {"status": "insufficient_data", "error": f"Not enough data for {dca_cfg.symbol} {dca_cfg.timeframe}"}
+
+    n = len(data['close'])
+    cpd = {'1m': 1440, '3m': 480, '5m': 288, '15m': 96, '1h': 24, '4h': 6}.get(dca_cfg.timeframe, 96)
+    data_days = n / cpd
+
+    # Build StrategyConfig for signal generation
+    sc = StrategyConfig(
+        symbol=dca_cfg.symbol, timeframe=dca_cfg.timeframe,
+        entry_logic=dca_cfg.entry_logic,
+        entry_logic_2=dca_cfg.entry_logic_2 if dca_cfg.entry_logic_2 and dca_cfg.entry_logic_2 in ENTRY_LOGICS else None,
+        indicators=dca_cfg.indicators, direction=dca_cfg.direction,
+        session_filter=dca_cfg.session_filter, trend_filter=dca_cfg.trend_filter,
+        volatility_filter=dca_cfg.volatility_filter, volume_filter=dca_cfg.volume_filter,
+        regime_filter=dca_cfg.regime_filter, days=dca_cfg.days,
+    )
+
+    ind = precompute_indicators(data, sc)
+    signals = get_signals(data, ind, sc)
+
+    # AND combo
+    if sc.entry_logic_2 and sc.entry_logic_2 in ENTRY_LOGICS:
+        from dataclasses import replace as dc_replace
+        c2 = dc_replace(sc, entry_logic=sc.entry_logic_2)
+        s2 = get_signals(data, ind, c2)
+        combined = np.zeros(len(signals), dtype=int)
+        for i in range(3, len(signals)):
+            if signals[i] != 0:
+                for j in range(max(0, i-3), i+1):
+                    if s2[j] == signals[i]: combined[i] = signals[i]; break
+            elif s2[i] != 0:
+                for j in range(max(0, i-3), i+1):
+                    if signals[j] == s2[i]: combined[i] = s2[i]; break
+        signals = combined
+
+    signals = apply_filters(data, ind, signals, sc)
+    regimes = classify_regime(data, ind)
+
+    # Apply rule filter if provided
+    if rule_filter:
+        conditions = parse_rule(rule_filter)
+        if conditions:
+            combo_label = dca_cfg.entry_logic + (" AND " + dca_cfg.entry_logic_2 if dca_cfg.entry_logic_2 else "")
+            for i in range(len(signals)):
+                if signals[i] != 0:
+                    features = extract_signal_features(combo_label, data, ind, i, signals, regimes)
+                    for feat, op, val in conditions:
+                        fv = features.get(feat)
+                        if fv is None: signals[i] = 0; break
+                        if op == ">=" and not fv >= val: signals[i] = 0; break
+                        if op == "<=" and not fv <= val: signals[i] = 0; break
+                        if op == ">" and not fv > val: signals[i] = 0; break
+                        if op == "<" and not fv < val: signals[i] = 0; break
+
+    total_signals = int(np.sum(signals != 0))
+
+    # Run DCA simulation
+    sessions = simulate_trades_dca(data, ind, signals, dca_cfg, regimes)
+
+    # Calc metrics
+    metrics = calc_dca_metrics(sessions, data_days)
+
+    # Also run traditional backtest for comparison
+    trad_sc = StrategyConfig(
+        symbol=dca_cfg.symbol, timeframe=dca_cfg.timeframe,
+        entry_logic=dca_cfg.entry_logic, entry_logic_2=sc.entry_logic_2,
+        sl_pct=0.6, tp_pct=1.5, fee_pct=dca_cfg.fee_pct,
+        indicators=dca_cfg.indicators, direction=dca_cfg.direction, days=dca_cfg.days,
+    )
+    trad_trades = simulate_trades(data, ind, signals, trad_sc, regimes=regimes)
+    trad_wr = sum(1 for t in trad_trades if t["pnl_pct"] > 0) / len(trad_trades) * 100 if trad_trades else 0
+
+    # Context
+    metrics["symbol"] = dca_cfg.symbol
+    metrics["timeframe"] = dca_cfg.timeframe
+    metrics["entry_logic"] = dca_cfg.entry_logic
+    metrics["entry_logic_2"] = dca_cfg.entry_logic_2 or ""
+    metrics["data_days"] = round(data_days, 1)
+    metrics["total_signals"] = total_signals
+    metrics["rule_filter"] = rule_filter or ""
+    metrics["traditional_wr"] = round(trad_wr, 1)
+    metrics["traditional_trades"] = len(trad_trades)
+    metrics["dca_config"] = {
+        "entry_usd": dca_cfg.entry_usd, "leverage": dca_cfg.leverage,
+        "max_levels": dca_cfg.max_levels, "tp_pct": dca_cfg.tp_pct,
+        "cut_pct": dca_cfg.cut_pct, "spacing": dca_cfg.spacing,
+    }
+
+    return metrics
+
+
+# ============================================================
+# DERET STATISTIK — Predicted Range Entry Strategy
+# Predicts next candle High/Low using avg ratio, entries at extremes
+# Found by Boss (Marthias) in 2010, adapted for crypto 2026
+# ============================================================
+
+def backtest_deret_statistik(db_path: str, symbol: str, timeframe: str,
+                              window: int = 5, buffer_pct: float = 0.5,
+                              tp_pct: float = 1.0, sl_pct: float = 1.0,
+                              fee_pct: float = 0.10, days: int = 1825,
+                              direction: str = "both") -> dict:
+    """
+    Deret Statistik backtest:
+    1. Calculate rolling ratio for High and Low
+    2. Predict next candle High/Low = last × avg_ratio
+    3. LONG: limit entry at predicted_low - buffer → TP/SL
+    4. SHORT: limit entry at predicted_high + buffer → TP/SL
+    """
+    bt = Backtester(db_path=db_path)
+    data = bt._load_data(symbol, timeframe, days)
+    if data is None or len(data['close']) < window + 10:
+        return {"status": "insufficient_data"}
+
+    closes = data['close']
+    highs = data['high']
+    lows = data['low']
+    n = len(closes)
+    cpd = {'15m': 96, '1h': 24, '4h': 6}.get(timeframe, 24)
+    data_days = n / cpd
+
+    # Ratios
+    h_ratios = [highs[i] / highs[i-1] if highs[i-1] > 0 else 1.0 for i in range(1, n)]
+    l_ratios = [lows[i] / lows[i-1] if lows[i-1] > 0 else 1.0 for i in range(1, n)]
+
+    trades = []
+    equity = 10000.0
+    position_size_pct = 10.5
+    leverage = 50
+    peak_equity = equity
+    max_dd = 0.0
+
+    for i in range(window, len(h_ratios)):
+        if i + 1 >= n:
+            break
+
+        # Step 1: Predict next candle CLOSE, HIGH, LOW
+        avg_h = float(np.mean(h_ratios[i-window:i]))
+        avg_l = float(np.mean(l_ratios[i-window:i]))
+        pred_high = highs[i] * avg_h
+        pred_low = lows[i] * avg_l
+
+        actual_high = highs[i+1]
+        actual_low = lows[i+1]
+        actual_close = closes[i+1]
+
+        # Step 2: TWO limit orders → whichever hits FIRST = the trade
+        # Only 1 entry per predicted candle
+        entry_long = pred_low * (1 - buffer_pct / 100)
+        entry_short = pred_high * (1 + buffer_pct / 100)
+
+        long_hit = actual_low <= entry_long
+        short_hit = actual_high >= entry_short
+
+        # Which hit first? Use open proximity as heuristic
+        actual_open = data['open'][i+1] if 'open' in data else closes[i]
+        dist_to_low = actual_open - actual_low
+        dist_to_high = actual_high - actual_open
+
+        trade_side = None
+        if long_hit and short_hit:
+            trade_side = "LONG" if dist_to_low < dist_to_high else "SHORT"
+        elif long_hit:
+            trade_side = "LONG"
+        elif short_hit:
+            trade_side = "SHORT"
+
+        if trade_side == "LONG" and direction in ("both", "long"):
+            tp_price = entry_long * (1 + tp_pct / 100)
+            sl_price = entry_long * (1 - sl_pct / 100)
+            if actual_high >= tp_price:
+                pnl_pct = tp_pct - fee_pct * 2; exit_reason = "tp"
+            elif actual_low <= sl_price:
+                pnl_pct = -sl_pct - fee_pct * 2; exit_reason = "sl"
+            else:
+                pnl_pct = (actual_close - entry_long) / entry_long * 100 - fee_pct * 2; exit_reason = "close"
+
+            notional = equity * position_size_pct / 100 * leverage
+            pnl_dollar = notional * pnl_pct / 100
+            equity += pnl_dollar
+            peak_equity = max(peak_equity, equity)
+            max_dd = max(max_dd, (peak_equity - equity) / peak_equity * 100)
+            trades.append({"side": "LONG", "entry": round(entry_long, 6),
+                "pnl_pct": round(pnl_pct, 4), "pnl_dollar": round(pnl_dollar, 2),
+                "exit_reason": exit_reason, "pred_low": round(pred_low, 6),
+                "pred_high": round(pred_high, 6), "actual_low": round(actual_low, 6),
+                "actual_high": round(actual_high, 6), "candle_idx": i + 1})
+
+        elif trade_side == "SHORT" and direction in ("both", "short"):
+            tp_price = entry_short * (1 - tp_pct / 100)
+            sl_price = entry_short * (1 + sl_pct / 100)
+            if actual_low <= tp_price:
+                pnl_pct = tp_pct - fee_pct * 2; exit_reason = "tp"
+            elif actual_high >= sl_price:
+                pnl_pct = -sl_pct - fee_pct * 2; exit_reason = "sl"
+            else:
+                pnl_pct = (entry_short - actual_close) / entry_short * 100 - fee_pct * 2; exit_reason = "close"
+
+            notional = equity * position_size_pct / 100 * leverage
+            pnl_dollar = notional * pnl_pct / 100
+            equity += pnl_dollar
+            peak_equity = max(peak_equity, equity)
+            max_dd = max(max_dd, (peak_equity - equity) / peak_equity * 100)
+            trades.append({"side": "SHORT", "entry": round(entry_short, 6),
+                "pnl_pct": round(pnl_pct, 4), "pnl_dollar": round(pnl_dollar, 2),
+                "exit_reason": exit_reason, "pred_low": round(pred_low, 6),
+                "pred_high": round(pred_high, 6), "actual_low": round(actual_low, 6),
+                "actual_high": round(actual_high, 6), "candle_idx": i + 1})
+
+    if not trades:
+        return {"status": "no_trades", "symbol": symbol, "timeframe": timeframe}
+
+    wins = [t for t in trades if t["pnl_pct"] > 0]
+    losses = [t for t in trades if t["pnl_pct"] <= 0]
+    long_trades = [t for t in trades if t["side"] == "LONG"]
+    short_trades = [t for t in trades if t["side"] == "SHORT"]
+    long_wins = [t for t in long_trades if t["pnl_pct"] > 0]
+    short_wins = [t for t in short_trades if t["pnl_pct"] > 0]
+    net_profit = equity - 10000.0
+    profit_per_day = net_profit / data_days if data_days > 0 else 0
+
+    return {
+        "status": "ok",
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "data_days": round(data_days, 1),
+        "config": {
+            "window": window, "buffer_pct": buffer_pct,
+            "tp_pct": tp_pct, "sl_pct": sl_pct, "fee_pct": fee_pct,
+            "direction": direction,
+        },
+        "total_trades": len(trades),
+        "win_rate": round(len(wins) / len(trades) * 100, 1),
+        "net_profit": round(net_profit, 2),
+        "profit_per_day": round(profit_per_day, 2),
+        "max_drawdown": round(max_dd, 2),
+        "final_equity": round(equity, 2),
+        "profit_factor": round(sum(t["pnl_dollar"] for t in wins) / abs(sum(t["pnl_dollar"] for t in losses)), 2) if losses and sum(t["pnl_dollar"] for t in losses) != 0 else 999,
+        "avg_win": round(np.mean([t["pnl_pct"] for t in wins]), 4) if wins else 0,
+        "avg_loss": round(np.mean([t["pnl_pct"] for t in losses]), 4) if losses else 0,
+        "long_trades": len(long_trades),
+        "long_wr": round(len(long_wins) / len(long_trades) * 100, 1) if long_trades else 0,
+        "short_trades": len(short_trades),
+        "short_wr": round(len(short_wins) / len(short_trades) * 100, 1) if short_trades else 0,
+        "trades_per_day": round(len(trades) / data_days, 2) if data_days > 0 else 0,
+    }
+
+# ============================================================
+# DERET STATISTIK — Predicted Range Entry Strategy
+# Boss method (2010): ratio average × last price = predicted close/high/low
+# Entry at predicted extremes with buffer → TP/SL within candle
+# ============================================================
+
+def backtest_deret_statistik(
+    db_path: str,
+    symbol: str = "ETHUSDT",
+    timeframe: str = "4h",
+    window: int = 5,
+    buffer_pct: float = 0.5,
+    tp_pct: float = 1.0,
+    sl_pct: float = 1.0,
+    days: int = 1825,
+    position_usd: float = 100.0,
+    leverage: int = 50,
+    fee_pct: float = 0.10,
+    mode: str = "baret",            # "baret" = single entry, "baret_dca" = L1 + L2 DCA
+    buffer2_pct: float = 1.0,       # L2 DCA distance from predicted extreme (only in baret_dca)
+) -> dict:
+    """
+    Backtest Deret Statistik strategy on historical data.
+    
+    Formula:
+      ratio[i] = price[i] / price[i-1]  (for close, high, low independently)
+      avg_ratio = mean(last N ratios)
+      predicted = last_price × avg_ratio
+    
+    Entry logic (1 trade per candle max):
+      LONG entry  = predicted_low × (1 - buffer_pct/100)
+      SHORT entry = predicted_high × (1 + buffer_pct/100)
+      Whichever limit order hits FIRST = active trade, other cancelled
+    
+    Exit: TP or SL hit within candle, else close at candle close
+    """
+    import sqlite3
+    
+    conn = sqlite3.connect(db_path)
+    query = """
+        SELECT open, high, low, close, volume, open_time 
+        FROM klines 
+        WHERE symbol = ? AND timeframe = ?
+        ORDER BY open_time ASC
+    """
+    rows = conn.execute(query, (symbol, timeframe)).fetchall()
+    conn.close()
+    
+    if len(rows) < window + 10:
+        return {"status": "insufficient_data", "rows": len(rows)}
+    
+    # Limit to last N days
+    if days and days > 0:
+        ms_limit = days * 86400 * 1000
+        last_time = rows[-1][5]
+        rows = [r for r in rows if r[5] >= last_time - ms_limit]
+    
+    opens  = [r[0] for r in rows]
+    highs  = [r[1] for r in rows]
+    lows   = [r[2] for r in rows]
+    closes = [r[3] for r in rows]
+    times  = [r[5] for r in rows]
+    n = len(closes)
+    
+    if n < window + 10:
+        return {"status": "insufficient_data", "candles": n}
+    
+    # Calculate ratios
+    close_ratios = [closes[i] / closes[i-1] if closes[i-1] != 0 else 1.0 for i in range(1, n)]
+    high_ratios  = [highs[i] / highs[i-1] if highs[i-1] != 0 else 1.0 for i in range(1, n)]
+    low_ratios   = [lows[i] / lows[i-1] if lows[i-1] != 0 else 1.0 for i in range(1, n)]
+    
+    trades = []
+    notional = position_usd * leverage
+    fee_per_trade = notional * fee_pct / 100 * 2  # entry + exit
+    dca_count = 0
+    
+    for i in range(window, len(close_ratios)):
+        if i + 1 >= n:
+            break
+        
+        # Predicted range for next candle
+        avg_h = sum(high_ratios[i-window:i]) / window
+        avg_l = sum(low_ratios[i-window:i]) / window
+        
+        pred_high = highs[i] * avg_h
+        pred_low  = lows[i] * avg_l
+        
+        # Entry levels with buffer (L1)
+        long_entry  = pred_low * (1 - buffer_pct / 100)
+        short_entry = pred_high * (1 + buffer_pct / 100)
+        
+        # L2 DCA levels (only used in baret_dca mode)
+        long_l2  = pred_low * (1 - buffer2_pct / 100) if mode == "baret_dca" else None
+        short_l2 = pred_high * (1 + buffer2_pct / 100) if mode == "baret_dca" else None
+        
+        # Next candle OHLC
+        ao = opens[i+1]
+        ah = highs[i+1]
+        al = lows[i+1]
+        ac = closes[i+1]
+        
+        # Check which limit order hit
+        long_hit  = al <= long_entry
+        short_hit = ah >= short_entry
+        
+        # Determine trade (first-hit wins, max 1 per candle)
+        trade_side = None
+        if long_hit and not short_hit:
+            trade_side = "LONG"
+        elif short_hit and not long_hit:
+            trade_side = "SHORT"
+        elif long_hit and short_hit:
+            # Both hit — heuristic: open proximity
+            dist_low  = ao - al
+            dist_high = ah - ao
+            trade_side = "LONG" if dist_low < dist_high else "SHORT"
+        else:
+            continue  # No trade
+        
+        # Execute trade — with optional DCA (baret_dca mode)
+        dca_triggered = False
+        if trade_side == "LONG":
+            # Check if L2 DCA also hit
+            if mode == "baret_dca" and long_l2 and al <= long_l2:
+                entry = (long_entry + long_l2) / 2  # avg entry from L1 + L2
+                dca_triggered = True
+                dca_count += 1
+                trade_fee = fee_per_trade * 2  # double position
+            else:
+                entry = long_entry
+                trade_fee = fee_per_trade
+            
+            tp_price = entry * (1 + tp_pct / 100)
+            sl_price = entry * (1 - sl_pct / 100)
+            
+            if ah >= tp_price:
+                exit_price = tp_price
+                exit_reason = "TP"
+            elif al <= sl_price:
+                exit_price = sl_price
+                exit_reason = "SL"
+            else:
+                exit_price = ac
+                exit_reason = "CLOSE"
+            
+            pnl_pct = (exit_price - entry) / entry * 100
+            
+        else:  # SHORT
+            if mode == "baret_dca" and short_l2 and ah >= short_l2:
+                entry = (short_entry + short_l2) / 2
+                dca_triggered = True
+                dca_count += 1
+                trade_fee = fee_per_trade * 2
+            else:
+                entry = short_entry
+                trade_fee = fee_per_trade
+            
+            tp_price = entry * (1 - tp_pct / 100)
+            sl_price = entry * (1 + sl_pct / 100)
+            
+            if al <= tp_price:
+                exit_price = tp_price
+                exit_reason = "TP"
+            elif ah >= sl_price:
+                exit_price = sl_price
+                exit_reason = "SL"
+            else:
+                exit_price = ac
+                exit_reason = "CLOSE"
+            
+            pnl_pct = (entry - exit_price) / entry * 100
+        
+        pnl_dollar = notional * pnl_pct / 100 - trade_fee
+        
+        trades.append({
+            "side": trade_side,
+            "entry": round(entry, 6),
+            "exit": round(exit_price, 6),
+            "exit_reason": exit_reason,
+            "pnl_pct": round(pnl_pct, 4),
+            "pnl_dollar": round(pnl_dollar, 4),
+            "pred_high": round(pred_high, 6),
+            "pred_low": round(pred_low, 6),
+            "time": times[i+1],
+        })
+    
+    if not trades:
+        return {"status": "no_trades", "candles": n}
+    
+    # Calculate metrics
+    wins = [t for t in trades if t["pnl_dollar"] > 0]
+    losses = [t for t in trades if t["pnl_dollar"] <= 0]
+    long_trades = [t for t in trades if t["side"] == "LONG"]
+    short_trades = [t for t in trades if t["side"] == "SHORT"]
+    long_wins = [t for t in long_trades if t["pnl_dollar"] > 0]
+    short_wins = [t for t in short_trades if t["pnl_dollar"] > 0]
+    
+    net_profit = sum(t["pnl_dollar"] for t in trades)
+    data_days = (times[-1] - times[0]) / (86400 * 1000) if len(times) > 1 else 1
+    
+    # Equity curve for max drawdown
+    equity = position_usd
+    peak = equity
+    max_dd = 0
+    for t in trades:
+        equity += t["pnl_dollar"]
+        peak = max(peak, equity)
+        dd = (peak - equity) / peak * 100 if peak > 0 else 0
+        max_dd = max(max_dd, dd)
+    
+    # Exit reason breakdown
+    tp_count = len([t for t in trades if t["exit_reason"] == "TP"])
+    sl_count = len([t for t in trades if t["exit_reason"] == "SL"])
+    close_count = len([t for t in trades if t["exit_reason"] == "CLOSE"])
+    
+    return {
+        "status": "ok",
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "window": window,
+        "buffer_pct": buffer_pct,
+        "tp_pct": tp_pct,
+        "sl_pct": sl_pct,
+        "mode": mode,
+        "buffer2_pct": buffer2_pct if mode == "baret_dca" else None,
+        "dca_rate": round(dca_count / len(trades) * 100, 1) if trades else 0,
+        "total_trades": len(trades),
+        "wins": len(wins),
+        "losses": len(losses),
+        "win_rate": round(len(wins) / len(trades) * 100, 1),
+        "net_profit": round(net_profit, 2),
+        "profit_per_day": round(net_profit / data_days, 4) if data_days > 0 else 0,
+        "profit_factor": round(sum(t["pnl_dollar"] for t in wins) / abs(sum(t["pnl_dollar"] for t in losses)), 2) if losses and sum(t["pnl_dollar"] for t in losses) != 0 else 999,
+        "max_drawdown": round(max_dd, 2),
+        "final_equity": round(equity, 2),
+        "avg_pnl_pct": round(np.mean([t["pnl_pct"] for t in trades]), 4),
+        "avg_win_pct": round(np.mean([t["pnl_pct"] for t in wins]), 4) if wins else 0,
+        "avg_loss_pct": round(np.mean([t["pnl_pct"] for t in losses]), 4) if losses else 0,
+        "long_trades": len(long_trades),
+        "long_wr": round(len(long_wins) / len(long_trades) * 100, 1) if long_trades else 0,
+        "short_trades": len(short_trades),
+        "short_wr": round(len(short_wins) / len(short_trades) * 100, 1) if short_trades else 0,
+        "trades_per_day": round(len(trades) / data_days, 2) if data_days > 0 else 0,
+        "exit_reasons": {"TP": tp_count, "SL": sl_count, "CLOSE": close_count},
+        "data_days": round(data_days, 1),
+        "candles": n,
     }
