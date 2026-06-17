@@ -130,6 +130,18 @@ def call_ultron_dca(context: str) -> dict:
 # DCA AUTONOMOUS LOOP — Ultron drives rounds
 # ============================================================
 
+def _save_to_d1(endpoint: str, data: dict):
+    """Save DCA data to D1 via Workers"""
+    try:
+        resp = requests.post(f"{WORKER_URL}/{endpoint}", json=data, timeout=10)
+        if resp.status_code == 200:
+            return True
+        _log("⚠️", "D1", f"Save failed: {resp.status_code}")
+    except Exception as e:
+        _log("⚠️", "D1", f"Save error: {e}")
+    return False
+
+
 def _run_dca_round(round_num: int, configs: list) -> list:
     """Run one round of DCA backtests for all configs"""
     results = []
@@ -146,8 +158,11 @@ def _run_dca_round(round_num: int, configs: list) -> list:
             r = backtest_dca(DB_PATH, cfg)
             if r.get("status") == "ok" and r.get("total_sessions", 0) > 0:
                 r["combo"] = combo
+                r["round"] = round_num
                 results.append(r)
                 _log("✅", "DCA", f"{combo}: WR={r['win_rate']}% ({r['total_sessions']}s) net=${r['net_profit']}")
+                # Save to D1 via Workers
+                _save_to_d1("dca/save-result", r)
             else:
                 _log("⏭️", "DCA", f"{combo}: {r.get('status', 'no data')}")
         except Exception as e:
@@ -242,6 +257,7 @@ def _dca_loop():
             _log("📊", "DCA", f"Round {round_num}: {profitable}/{len(results)} profitable, avg WR={avg_wr:.1f}%")
 
             # Check convergence
+            improvement = 0.0
             if prev_results:
                 prev_avg = sum(r.get("win_rate", 0) for r in prev_results) / len(prev_results)
                 improvement = avg_wr - prev_avg
@@ -249,7 +265,20 @@ def _dca_loop():
 
                 if abs(improvement) < 1.0:
                     _log("✅", "DCA", f"CONVERGED at Round {round_num} — improvement <1%")
+                    # Save converged round to D1
+                    _save_to_d1("dca/save-round", {
+                        "round": round_num, "profitable": profitable,
+                        "failed": len(results) - profitable, "avg_wr": avg_wr,
+                        "improvement_pct": improvement, "converged": True,
+                    })
                     break
+
+            # Save round summary to D1
+            _save_to_d1("dca/save-round", {
+                "round": round_num, "profitable": profitable,
+                "failed": len(results) - profitable, "avg_wr": avg_wr,
+                "improvement_pct": improvement, "converged": False,
+            })
 
             # Ask Ultron to analyze and suggest adjustments
             context = _build_ultron_context(round_num, results, prev_results)
