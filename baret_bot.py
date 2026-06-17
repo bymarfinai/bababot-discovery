@@ -48,10 +48,13 @@ You receive Baret backtest results for all pair×TF combos. Your job:
 
 Available adjustments per combo:
 - buffer_pct: L1 entry distance (0.1-2.0%)
-- buffer2_pct: L2 DCA distance (0.5-3.0%, only baret_dca mode)
+- buffer2_pct: L2 DCA distance (MUST be larger than buffer_pct, e.g. if buffer_pct=0.5 then buffer2_pct=1.0+)
 - tp_pct: TP percentage (0.3-3.0%)
 - sl_pct: SL percentage (0.3-3.0%)
 - window: ratio window (3, 5, 10, 20)
+
+IMPORTANT: buffer2_pct is the DEEPER DCA level. It MUST always be bigger than buffer_pct.
+Example: buffer_pct=0.5%, buffer2_pct=1.0% means L1 at -0.5%, L2 DCA at -1.0% (deeper).
 
 Respond ONLY with valid JSON (no markdown, no preamble):
 {
