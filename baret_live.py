@@ -151,20 +151,24 @@ def _place_sl_tp(symbol, side, sl_price, tp_price):
         results["sl"] = _api_post("/fapi/v1/order", {
             "symbol": symbol, "side": close_side,
             "type": "STOP_MARKET",
-            "stopPrice": _fmt_price(symbol, sl_price),
+            "stopPrice": f"{sl_price:.6f}",
             "closePosition": "true",
         })
+        _log(f"    SL order: {results['sl'].get('orderId', results['sl'].get('msg', 'UNKNOWN'))}")
     except Exception as e:
         results["sl"] = {"error": str(e)}
+        _log(f"    SL error: {e}")
     try:
         results["tp"] = _api_post("/fapi/v1/order", {
             "symbol": symbol, "side": close_side,
             "type": "TAKE_PROFIT_MARKET",
-            "stopPrice": _fmt_price(symbol, tp_price),
+            "stopPrice": f"{tp_price:.6f}",
             "closePosition": "true",
         })
+        _log(f"    TP order: {results['tp'].get('orderId', results['tp'].get('msg', 'UNKNOWN'))}")
     except Exception as e:
         results["tp"] = {"error": str(e)}
+        _log(f"    TP error: {e}")
     return results
 
 
@@ -514,7 +518,69 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                     _baret_live_state["positions"][symbol] = {
                         "side": side, "entry": entry_price,
                         "tp": tp_price, "sl": sl_price,
+                        "qty": abs(amt),
                     }
+
+            # Check positions for TP/SL hit (manual monitoring - don't rely on exchange orders)
+            for sym in list(_baret_live_state["positions"].keys()):
+                if not _baret_live_running:
+                    break
+                pos_info = _baret_live_state["positions"][sym]
+                current_price = _get_price(sym)
+                if current_price <= 0:
+                    continue
+                
+                side = pos_info["side"]
+                tp = pos_info["tp"]
+                sl = pos_info["sl"]
+                entry = pos_info["entry"]
+                qty = pos_info.get("qty", 0)
+                
+                hit = None
+                if side == "LONG":
+                    if current_price >= tp:
+                        hit = "TP"
+                    elif current_price <= sl:
+                        hit = "SL"
+                elif side == "SHORT":
+                    if current_price <= tp:
+                        hit = "TP"
+                    elif current_price >= sl:
+                        hit = "SL"
+                
+                if hit:
+                    # Close position with market order
+                    close_side = "SELL" if side == "LONG" else "BUY"
+                    _cancel_all_orders(sym)
+                    
+                    # Get actual position from exchange to close
+                    ex_pos = _get_position(sym)
+                    if ex_pos:
+                        close_qty = abs(float(ex_pos.get("positionAmt", 0)))
+                        if close_qty > 0:
+                            _place_market_close(sym, "BUY" if side == "LONG" else "SELL", close_qty)
+                    
+                    if side == "LONG":
+                        pnl_pct = (current_price - entry) / entry * 100
+                    else:
+                        pnl_pct = (entry - current_price) / entry * 100
+                    pnl_dollar = pnl_pct / 100 * entry * (qty if qty else 1)
+                    
+                    _log(f"  {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${current_price:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
+                    _send_telegram(f"{'🎯' if hit == 'TP' else '🛑'} *{sym} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${current_price:.4f}\nPnL: {pnl_pct:+.2f}%")
+                    
+                    # Save to D1
+                    try:
+                        req.post(f"{WORKER_URL}/bot/trade-log", json={
+                            "symbol": sym, "side": side, "entry_price": entry,
+                            "exit_price": current_price, "pnl_pct": pnl_pct,
+                            "pnl_dollar": pnl_dollar, "exit_reason": hit,
+                            "source": f"baret_live", "status": "closed",
+                        }, timeout=10)
+                    except:
+                        pass
+                    
+                    del _baret_live_state["positions"][sym]
 
             # Log progress every 5 minutes
             if checks % 10 == 0:
