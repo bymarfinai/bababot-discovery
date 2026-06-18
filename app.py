@@ -1327,6 +1327,9 @@ def run_deret_backtest(req: dict, _=Security(verify_token)):
             tp_pct=req.get("tp_pct", 1.0),
             sl_pct=req.get("sl_pct", 1.0),
             days=req.get("days", 1825),
+            mode=req.get("mode", "baret"),
+            buffer2_pct=req.get("buffer2_pct", 1.0),
+            close_filter_pct=req.get("close_filter_pct", 0.3),
         )
         return {"ok": True, **result}
     except Exception as e:
