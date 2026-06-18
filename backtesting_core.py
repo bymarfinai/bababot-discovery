@@ -4003,11 +4003,10 @@ def backtest_deret_statistik(
         long_entry  = pred_low * (1 - buffer_pct / 100)
         short_entry = pred_high * (1 + buffer_pct / 100)
         
-        # L2 DCA levels (only used in baret_dca mode, must be deeper than L1)
+        # L2 DCA levels: relative to L1 ENTRY (not predicted low)
         if mode == "baret_dca":
-            actual_buf2 = max(buffer2_pct, buffer_pct + 0.3)  # enforce DCA deeper than L1
-            long_l2  = pred_low * (1 - actual_buf2 / 100)
-            short_l2 = pred_high * (1 + actual_buf2 / 100)
+            long_l2  = long_entry * (1 - buffer2_pct / 100)
+            short_l2 = short_entry * (1 + buffer2_pct / 100)
         else:
             long_l2 = None
             short_l2 = None
