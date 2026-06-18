@@ -19,6 +19,7 @@ from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_L
 from live_bot import start_bot, stop_bot, bot_status, get_activity_log
 from dca_bot import start_dca, stop_dca, dca_status, get_dca_log, get_dca_results
 from baret_bot import start_baret, stop_baret, baret_status, get_baret_log
+from baret_live import start_baret_live, stop_baret_live, baret_live_status, get_baret_live_log
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -1709,6 +1710,12 @@ def bot_activity_log(limit: int = 100):
 def _auto_start_bot():
     if os.environ.get("BOT_ENABLED", "false").lower() == "true":
         result = start_bot()
+    if os.environ.get("BARET_LIVE_ENABLED", "false").lower() == "true":
+        mode = os.environ.get("BARET_LIVE_MODE", "baret")
+        pos_usd = float(os.environ.get("BARET_LIVE_POSITION", "10"))
+        min_wr = float(os.environ.get("BARET_LIVE_MIN_WR", "75"))
+        max_dd = float(os.environ.get("BARET_LIVE_MAX_DD", "20"))
+        result = start_baret_live(mode=mode, position_usd=pos_usd, min_wr=min_wr, max_dd=max_dd)
 
 # ============================================================
 # BARET — Deret Statistik Discovery Mode (Ultron Loop)
@@ -1734,3 +1741,24 @@ def baret_status_endpoint():
 @app.get("/baret/log")
 def baret_log_endpoint(limit: int = 200):
     return {"ok": True, "log": get_baret_log(limit)}
+
+# ============================================================
+# BARET LIVE TRADING — Demo execution
+# ============================================================
+
+@app.get("/baret-live/start")
+def baret_live_start(mode: str = "baret", position_usd: float = 10.0, min_wr: float = 75.0, max_dd: float = 20.0, min_ppd: float = 0.0):
+    """Start Baret live demo trading. Configs pulled from D1 based on filters."""
+    return start_baret_live(mode=mode, position_usd=position_usd, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd)
+
+@app.get("/baret-live/stop")
+def baret_live_stop():
+    return stop_baret_live()
+
+@app.get("/baret-live/status")
+def baret_live_status_endpoint():
+    return baret_live_status()
+
+@app.get("/baret-live/log")
+def baret_live_log_endpoint(limit: int = 200):
+    return {"ok": True, "log": get_baret_live_log(limit)}
