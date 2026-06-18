@@ -54,7 +54,7 @@ PRECISION = {
     "BTCUSDT":       {"price": 1, "qty": 3},
     "ETHUSDT":       {"price": 2, "qty": 3},
     "SOLUSDT":       {"price": 2, "qty": 1},
-    "AVAXUSDT":      {"price": 2, "qty": 1},
+    "AVAXUSDT":      {"price": 3, "qty": 0},
     "DOGEUSDT":      {"price": 5, "qty": 0},
     "XRPUSDT":       {"price": 4, "qty": 1},
     "LINKUSDT":      {"price": 3, "qty": 1},
@@ -205,11 +205,16 @@ OKX_TF_MAP = {"4h": "4H", "1h": "1H"}
 
 def _fetch_candles(symbol, tf="4h", limit=15):
     """Fetch candles from OKX."""
-    inst = symbol.replace("USDT", "-USDT-SWAP")
+    # Handle special symbol mappings
+    okx_symbol = symbol.replace("1000PEPEUSDT", "PEPE-USDT-SWAP").replace("USDT", "-USDT-SWAP")
+    if "1000PEPE" in symbol:
+        okx_symbol = "PEPE-USDT-SWAP"
+    else:
+        okx_symbol = symbol.replace("USDT", "-USDT-SWAP")
     bar = OKX_TF_MAP.get(tf, "4H")
     try:
         r = req.get("https://www.okx.com/api/v5/market/candles",
-                     params={"instId": inst, "bar": bar, "limit": limit}, timeout=10)
+                     params={"instId": okx_symbol, "bar": bar, "limit": limit}, timeout=10)
         data = r.json().get("data", [])
         candles = []
         for c in reversed(data):
@@ -226,7 +231,10 @@ def _fetch_candles(symbol, tf="4h", limit=15):
 
 def _get_price(symbol):
     """Get current price from OKX."""
-    inst = symbol.replace("USDT", "-USDT-SWAP")
+    if "1000PEPE" in symbol:
+        inst = "PEPE-USDT-SWAP"
+    else:
+        inst = symbol.replace("USDT", "-USDT-SWAP")
     try:
         r = req.get("https://www.okx.com/api/v5/market/ticker",
                      params={"instId": inst}, timeout=5)
