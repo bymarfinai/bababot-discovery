@@ -324,9 +324,10 @@ def _send_telegram(msg):
 
 
 # ── Main Trading Loop ──
-def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0):
+def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50):
     """Main Baret live trading loop. Runs every 4h candle cycle."""
-    global _baret_live_running, _baret_live_state
+    global _baret_live_running, _baret_live_state, LEVERAGE
+    LEVERAGE = leverage
 
     if not TESTNET_KEY or not TESTNET_SECRET:
         _log("❌ BINANCE_TESTNET_KEY/SECRET not set. Cannot trade.")
@@ -524,16 +525,16 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
 
 # ── Public API ──
 
-def start_baret_live(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0):
+def start_baret_live(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50):
     global _baret_live_running, _baret_live_thread
     if _baret_live_running:
         return {"ok": True, "message": "Already running", "state": _baret_live_state}
     _baret_live_running = True
     _baret_live_thread = threading.Thread(
-        target=_baret_live_loop, args=(mode, position_usd, min_wr, max_dd, min_ppd), daemon=True
+        target=_baret_live_loop, args=(mode, position_usd, min_wr, max_dd, min_ppd, leverage), daemon=True
     )
     _baret_live_thread.start()
-    return {"ok": True, "message": f"Baret live started, mode={mode}, ${position_usd}/trade, WR≥{min_wr}% DD≤{max_dd}%"}
+    return {"ok": True, "message": f"Baret live started, mode={mode}, ${position_usd}×{leverage}x, WR≥{min_wr}% DD≤{max_dd}%"}
 
 
 def stop_baret_live():
