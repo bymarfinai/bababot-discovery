@@ -49,7 +49,25 @@ def _log(msg):
     print(f"[BaretLive] {entry}")
 
 
-# ── Exchange API ──
+# ── Symbol Precision Rules (Binance Futures) ──
+PRECISION = {
+    "BTCUSDT":       {"price": 1, "qty": 3},
+    "ETHUSDT":       {"price": 2, "qty": 3},
+    "SOLUSDT":       {"price": 2, "qty": 1},
+    "AVAXUSDT":      {"price": 2, "qty": 1},
+    "DOGEUSDT":      {"price": 5, "qty": 0},
+    "XRPUSDT":       {"price": 4, "qty": 1},
+    "LINKUSDT":      {"price": 3, "qty": 1},
+    "1000PEPEUSDT":  {"price": 7, "qty": 0},
+}
+
+def _fmt_price(symbol, price):
+    d = PRECISION.get(symbol, {"price": 4})["price"]
+    return f"{price:.{d}f}"
+
+def _fmt_qty(symbol, qty):
+    d = PRECISION.get(symbol, {"qty": 1})["qty"]
+    return f"{qty:.{d}f}"
 def _sign(params):
     params["timestamp"] = int(time.time() * 1000)
     params["recvWindow"] = 10000
@@ -96,12 +114,12 @@ def _place_limit_order(symbol, side, price, qty):
             "symbol": symbol,
             "side": side,
             "type": "LIMIT",
-            "price": f"{price:.6f}",
-            "quantity": f"{qty:.4f}",
+            "price": _fmt_price(symbol, price),
+            "quantity": _fmt_qty(symbol, qty),
             "timeInForce": "GTC",
         })
         if "orderId" in result:
-            _log(f"  📋 Limit {side} {symbol} @ ${price:.4f} qty={qty:.4f} → orderId={result['orderId']}")
+            _log(f"  📋 Limit {side} {symbol} @ ${_fmt_price(symbol, price)} qty={_fmt_qty(symbol, qty)} → orderId={result['orderId']}")
         else:
             _log(f"  ❌ Limit order failed: {result.get('msg', result)}")
         return result
@@ -118,7 +136,7 @@ def _place_market_close(symbol, side, qty):
             "symbol": symbol,
             "side": close_side,
             "type": "MARKET",
-            "quantity": f"{qty:.4f}",
+            "quantity": _fmt_qty(symbol, qty),
         })
         return result
     except Exception as e:
@@ -133,7 +151,7 @@ def _place_sl_tp(symbol, side, sl_price, tp_price):
         results["sl"] = _api_post("/fapi/v1/order", {
             "symbol": symbol, "side": close_side,
             "type": "STOP_MARKET",
-            "stopPrice": f"{sl_price:.6f}",
+            "stopPrice": _fmt_price(symbol, sl_price),
             "closePosition": "true",
         })
     except Exception as e:
@@ -142,7 +160,7 @@ def _place_sl_tp(symbol, side, sl_price, tp_price):
         results["tp"] = _api_post("/fapi/v1/order", {
             "symbol": symbol, "side": close_side,
             "type": "TAKE_PROFIT_MARKET",
-            "stopPrice": f"{tp_price:.6f}",
+            "stopPrice": _fmt_price(symbol, tp_price),
             "closePosition": "true",
         })
     except Exception as e:
@@ -303,13 +321,8 @@ def _calc_quantity(symbol, price, position_usd=10.0):
     """Calculate order quantity based on position size and price."""
     notional = position_usd * LEVERAGE
     qty = notional / price
-    # Round to appropriate decimals based on pair
-    if "BTC" in symbol:
-        return round(qty, 3)
-    elif "ETH" in symbol:
-        return round(qty, 3)
-    else:
-        return round(qty, 1)
+    d = PRECISION.get(symbol, {"qty": 1})["qty"]
+    return round(qty, d)
 
 
 # ── Telegram ──
