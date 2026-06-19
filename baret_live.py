@@ -382,78 +382,49 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
     cycle = 0
     while _baret_live_running:
         # ── Wait for next 4h candle close ──
-        # Binance/OKX 4h candles close at: 00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC
         now = datetime.now(timezone.utc)
-        current_hour = now.hour
-        # Next 4h boundary
-        next_boundary = (current_hour // 4 + 1) * 4
-        if next_boundary >= 24:
-            next_boundary = 0
-            next_close = now.replace(hour=0, minute=0, second=5, microsecond=0) + __import__('datetime').timedelta(days=1)
-        else:
-            next_close = now.replace(hour=next_boundary, minute=0, second=5, microsecond=0)
+        at_boundary = (now.hour % 4 == 0 and now.minute < 2)
         
-        wait_seconds = (next_close - now).total_seconds()
-        if wait_seconds < 0:
-            wait_seconds = 0
-        
-        if cycle == 0 and wait_seconds > 60:
-            _log(f"  ⏰ Waiting for next 4h candle close at {next_close.strftime('%H:%M')} UTC ({int(wait_seconds//60)} min)")
-        
-        # Wait in 30s chunks so we can check _baret_live_running and monitor existing positions
-        while wait_seconds > 0 and _baret_live_running:
-            sleep_chunk = min(30, wait_seconds)
-            time.sleep(sleep_chunk)
-            wait_seconds -= sleep_chunk
-            
-            # While waiting, still monitor existing positions for TP/SL
-            for sym in list(_baret_live_state["positions"].keys()):
-                if not _baret_live_running:
-                    break
-                pos_info = _baret_live_state["positions"][sym]
-                current_price = _get_price(sym)
-                if current_price <= 0:
-                    continue
-                
-                side = pos_info["side"]
-                tp = pos_info["tp"]
-                sl = pos_info["sl"]
-                entry = pos_info["entry"]
-                qty = pos_info.get("qty", 0)
-                
-                hit = None
-                if side == "LONG":
-                    if current_price >= tp: hit = "TP"
-                    elif current_price <= sl: hit = "SL"
-                elif side == "SHORT":
-                    if current_price <= tp: hit = "TP"
-                    elif current_price >= sl: hit = "SL"
-                
-                if hit:
-                    _cancel_all_orders(sym)
-                    ex_pos = _get_position(sym)
-                    if ex_pos:
-                        close_qty = abs(float(ex_pos.get("positionAmt", 0)))
-                        if close_qty > 0:
-                            _place_market_close(sym, "BUY" if side == "LONG" else "SELL", close_qty)
-                    
-                    pnl_pct = ((current_price - entry) / entry * 100) if side == "LONG" else ((entry - current_price) / entry * 100)
-                    pnl_dollar = pnl_pct / 100 * entry * qty
-                    
-                    _log(f"  {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${current_price:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
-                    _send_telegram(f"{'🎯' if hit == 'TP' else '🛑'} *{sym} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${current_price:.4f}\nPnL: {pnl_pct:+.2f}%")
-                    
-                    try:
-                        req.post(f"{WORKER_URL}/bot/trade-log", json={
-                            "symbol": sym, "side": side, "entry_price": entry,
-                            "exit_price": current_price, "pnl_pct": pnl_pct,
-                            "pnl_dollar": pnl_dollar, "exit_reason": hit,
-                            "source": "baret_live", "status": "closed",
-                        }, timeout=10)
-                    except:
-                        pass
-                    
-                    del _baret_live_state["positions"][sym]
+        if not at_boundary:
+            next_h = ((now.hour // 4) + 1) * 4
+            if next_h >= 24:
+                next_close = now.replace(hour=0, minute=0, second=5, microsecond=0) + __import__('datetime').timedelta(days=1)
+            else:
+                next_close = now.replace(hour=next_h, minute=0, second=5, microsecond=0)
+            wait_secs = max(0, (next_close - now).total_seconds())
+            _log(f"  ⏰ Waiting for candle close at {next_close.strftime('%H:%M')} UTC ({int(wait_secs//60)} min)")
+            while wait_secs > 0 and _baret_live_running:
+                time.sleep(min(30, wait_secs))
+                wait_secs -= 30
+                # Monitor existing positions for TP/SL while waiting
+                for sym in list(_baret_live_state["positions"].keys()):
+                    pos_info = _baret_live_state["positions"][sym]
+                    cp = _get_price(sym)
+                    if cp <= 0:
+                        continue
+                    side, tp, sl = pos_info["side"], pos_info["tp"], pos_info["sl"]
+                    entry, qty = pos_info["entry"], pos_info.get("qty", 0)
+                    hit = None
+                    if side == "LONG" and cp >= tp: hit = "TP"
+                    elif side == "LONG" and cp <= sl: hit = "SL"
+                    elif side == "SHORT" and cp <= tp: hit = "TP"
+                    elif side == "SHORT" and cp >= sl: hit = "SL"
+                    if hit:
+                        _cancel_all_orders(sym)
+                        ex_pos = _get_position(sym)
+                        if ex_pos:
+                            cq = abs(float(ex_pos.get("positionAmt", 0)))
+                            if cq > 0:
+                                _place_market_close(sym, "BUY" if side == "LONG" else "SELL", cq)
+                        pnl_pct = ((cp - entry) / entry * 100) if side == "LONG" else ((entry - cp) / entry * 100)
+                        pnl_dollar = pnl_pct / 100 * entry * qty
+                        _log(f"  {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${cp:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
+                        _send_telegram(f"{'🎯' if hit == 'TP' else '🛑'} *{sym} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${cp:.4f}\nPnL: {pnl_pct:+.2f}%")
+                        try:
+                            req.post(f"{WORKER_URL}/bot/trade-log", json={"symbol": sym, "side": side, "entry_price": entry, "exit_price": cp, "pnl_pct": pnl_pct, "pnl_dollar": pnl_dollar, "exit_reason": hit, "source": "baret_live", "status": "closed"}, timeout=10)
+                        except:
+                            pass
+                        del _baret_live_state["positions"][sym]
         
         if not _baret_live_running:
             break
@@ -671,8 +642,8 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                 saved = _baret_live_state["positions"].pop(symbol)
                 _log(f"  📊 {symbol}: position closed (TP/SL hit)")
 
-        _log(f"═══ CYCLE {cycle} DONE ═══ Next cycle in 10s")
-        time.sleep(10)
+        _log(f"═══ CYCLE {cycle} DONE ═══")
+        time.sleep(5)  # Small delay, then immediately recalculate (candle just closed)
 
     _log("═══ BARET LIVE STOPPED ═══")
     _baret_live_running = False
