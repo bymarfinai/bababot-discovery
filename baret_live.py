@@ -553,13 +553,16 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
 
         # 8. Monitor fills until next candle close (check every 30s)
         _log(f"  ⏳ Monitoring fills until next 4h candle close...")
-        monitor_until = datetime.now(timezone.utc).replace(
-            hour=((datetime.now(timezone.utc).hour // 4 + 1) * 4) % 24,
-            minute=0, second=0, microsecond=0
-        )
-        if monitor_until <= datetime.now(timezone.utc):
-            from datetime import timedelta
-            monitor_until += timedelta(hours=4)
+        now_m = datetime.now(timezone.utc)
+        next_h = ((now_m.hour // 4) + 1) * 4
+        if next_h >= 24:
+            # Wraps to next day (e.g., 20:00 → next close is 00:00 tomorrow)
+            from datetime import timedelta as td
+            monitor_until = (now_m + td(days=1)).replace(hour=next_h % 24, minute=0, second=0, microsecond=0)
+        else:
+            monitor_until = now_m.replace(hour=next_h, minute=0, second=0, microsecond=0)
+        
+        _log(f"  📊 Monitor until {monitor_until.strftime('%Y-%m-%d %H:%M')} UTC ({int((monitor_until - now_m).total_seconds() // 60)} min)")
         
         while _baret_live_running and datetime.now(timezone.utc) < monitor_until:
             time.sleep(30)
