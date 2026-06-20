@@ -540,8 +540,12 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                     buf2 = cfg.get("buffer2_pct", 1.0)
                     long_l2 = long_entry * (1 - buf2 / 100)
                     short_l2 = short_entry * (1 + buf2 / 100)
-                    _place_limit_order(symbol, "BUY", long_l2, qty)
-                    _place_limit_order(symbol, "SELL", short_l2, qty)
+                    long_l2_order = _place_limit_order(symbol, "BUY", long_l2, qty)
+                    short_l2_order = _place_limit_order(symbol, "SELL", short_l2, qty)
+                    _baret_live_state["pending_orders"][symbol]["long_l2_id"] = long_l2_order.get("orderId")
+                    _baret_live_state["pending_orders"][symbol]["short_l2_id"] = short_l2_order.get("orderId")
+                    _baret_live_state["pending_orders"][symbol]["long_l2_entry"] = long_l2
+                    _baret_live_state["pending_orders"][symbol]["short_l2_entry"] = short_l2
                     _log(f"     DCA L2: LONG=${long_l2:.4f}, SHORT=${short_l2:.4f}")
 
             except Exception as e:
@@ -574,39 +578,91 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                     amt = float(pos["positionAmt"])
                     entry_price = float(pos.get("entryPrice", 0))
                     side = "LONG" if amt > 0 else "SHORT"
+                    existing_pos = _baret_live_state["positions"].get(symbol)
 
-                    # Cancel remaining orders
-                    _cancel_all_orders(symbol)
+                    if existing_pos and mode == "baret_dca":
+                        # ── DCA UPDATE: check if L2 filled (qty increased) ──
+                        old_qty = existing_pos.get("qty", 0)
+                        if abs(amt) > old_qty * 1.3:
+                            # L2 filled! Binance auto-averaged entry price
+                            _cancel_all_orders(symbol)
+                            if side == "LONG":
+                                tp_price = entry_price * (1 + pending["tp_pct"] / 100)
+                                sl_price = entry_price * (1 - pending["sl_pct"] / 100)
+                            else:
+                                tp_price = entry_price * (1 - pending["tp_pct"] / 100)
+                                sl_price = entry_price * (1 + pending["sl_pct"] / 100)
+                            order_side = "BUY" if amt > 0 else "SELL"
+                            _place_sl_tp(symbol, order_side, sl_price, tp_price)
+                            _log(f"  🔄 {symbol} DCA L2 FILLED → avg entry ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}")
+                            _send_telegram(f"🔄 DCA L2 FILLED\n{symbol} {side} avg entry ${entry_price:.4f}\nTP: ${tp_price:.4f} SL: ${sl_price:.4f}")
+                            existing_pos["entry"] = entry_price
+                            existing_pos["tp"] = tp_price
+                            existing_pos["sl"] = sl_price
+                            existing_pos["qty"] = abs(amt)
+                            existing_pos["dca_filled"] = True
+                            if symbol in _baret_live_state["pending_orders"]:
+                                del _baret_live_state["pending_orders"][symbol]
 
-                    # Calculate TP/SL from entry
-                    if side == "LONG":
-                        tp_price = entry_price * (1 + pending["tp_pct"] / 100)
-                        sl_price = entry_price * (1 - pending["sl_pct"] / 100)
-                    else:
-                        tp_price = entry_price * (1 - pending["tp_pct"] / 100)
-                        sl_price = entry_price * (1 + pending["sl_pct"] / 100)
+                    elif not existing_pos:
+                        # ── NEW FILL (L1) ──
+                        if mode == "baret_dca" and pending:
+                            # DCA mode: cancel opposite side only, keep same-side L2
+                            if side == "LONG":
+                                # Cancel SHORT L1 + SHORT L2, keep LONG L2
+                                if pending.get("short_id"):
+                                    try: _cancel_order(symbol, pending["short_id"])
+                                    except: pass
+                                if pending.get("short_l2_id"):
+                                    try: _cancel_order(symbol, pending["short_l2_id"])
+                                    except: pass
+                                _log(f"     DCA: cancelled SHORT orders, LONG L2 still active")
+                            else:
+                                # Cancel LONG L1 + LONG L2, keep SHORT L2
+                                if pending.get("long_id"):
+                                    try: _cancel_order(symbol, pending["long_id"])
+                                    except: pass
+                                if pending.get("long_l2_id"):
+                                    try: _cancel_order(symbol, pending["long_l2_id"])
+                                    except: pass
+                                _log(f"     DCA: cancelled LONG orders, SHORT L2 still active")
+                        else:
+                            # Standard baret: cancel everything
+                            _cancel_all_orders(symbol)
 
-                    order_side = "BUY" if amt > 0 else "SELL"
-                    _place_sl_tp(symbol, order_side, sl_price, tp_price)
+                        # Calculate TP/SL from entry
+                        if side == "LONG":
+                            tp_price = entry_price * (1 + pending["tp_pct"] / 100)
+                            sl_price = entry_price * (1 - pending["sl_pct"] / 100)
+                        else:
+                            tp_price = entry_price * (1 - pending["tp_pct"] / 100)
+                            sl_price = entry_price * (1 + pending["sl_pct"] / 100)
 
-                    _log(f"  ✅ {symbol} {side} FILLED @ ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}")
-                    _send_telegram(f"📐 *BARET ENTRY*\n{symbol} {side} @ ${entry_price:.4f}\nTP: ${tp_price:.4f}\nSL: ${sl_price:.4f}")
+                        order_side = "BUY" if amt > 0 else "SELL"
+                        _place_sl_tp(symbol, order_side, sl_price, tp_price)
 
-                    try:
-                        req.post(f"{WORKER_URL}/bot/trade-log", json={
-                            "symbol": symbol, "side": side, "entry_price": entry_price,
-                            "tp_price": tp_price, "sl_price": sl_price,
-                            "source": f"baret_{mode}", "status": "open",
-                        }, timeout=10)
-                    except:
-                        pass
+                        dca_label = " (L1, L2 pending)" if mode == "baret_dca" else ""
+                        _log(f"  ✅ {symbol} {side} FILLED @ ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}{dca_label}")
+                        _send_telegram(f"📐 BARET ENTRY{dca_label}\n{symbol} {side} @ ${entry_price:.4f}\nTP: ${tp_price:.4f}\nSL: ${sl_price:.4f}")
 
-                    del _baret_live_state["pending_orders"][symbol]
-                    _baret_live_state["positions"][symbol] = {
-                        "side": side, "entry": entry_price,
-                        "tp": tp_price, "sl": sl_price,
-                        "qty": abs(amt),
-                    }
+                        try:
+                            req.post(f"{WORKER_URL}/bot/trade-log", json={
+                                "symbol": symbol, "side": side, "entry_price": entry_price,
+                                "tp_price": tp_price, "sl_price": sl_price,
+                                "source": f"baret_{mode}", "status": "open",
+                            }, timeout=10)
+                        except:
+                            pass
+
+                        # Don't delete pending in DCA mode (L2 still active)
+                        if mode != "baret_dca":
+                            del _baret_live_state["pending_orders"][symbol]
+                        _baret_live_state["positions"][symbol] = {
+                            "side": side, "entry": entry_price,
+                            "tp": tp_price, "sl": sl_price,
+                            "qty": abs(amt),
+                            "dca_filled": False,
+                        }
             
             # Monitor TP/SL for open positions
             for sym in list(_baret_live_state["positions"].keys()):
