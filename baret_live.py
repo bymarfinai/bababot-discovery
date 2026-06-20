@@ -372,12 +372,15 @@ def _calc_quantity(symbol, price, position_usd=10.0):
 # ── Telegram ──
 def _send_telegram(msg):
     if not TELEGRAM_BOT_TOKEN:
+        _log("⚠️ TELEGRAM_BOT_TOKEN not set, skip notification")
         return
     try:
-        req.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+        resp = req.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
                  json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "Markdown"}, timeout=5)
-    except:
-        pass
+        if resp.status_code != 200:
+            _log(f"⚠️ Telegram send failed: {resp.status_code} {resp.text[:200]}")
+    except Exception as e:
+        _log(f"⚠️ Telegram error: {e}")
 
 
 # ── Main Trading Loop ──
