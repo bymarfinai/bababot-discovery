@@ -280,7 +280,7 @@ def _calculate_predicted_range(candles, window=10):
 
 
 # ── Baret Config from D1 (same source as Dashboard recommendations) ──
-def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0):
+def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit"):
     """Fetch best config per pair from D1, applying same filters as Dashboard."""
     try:
         r = req.get(f"{WORKER_URL}/baret/results?mode={mode}", timeout=15)
@@ -301,18 +301,36 @@ def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0):
     filtered = [r for r in results if 
         r["win_rate"] >= min_wr and 
         r["max_drawdown"] <= max_dd and
-        r["profit_per_day"] >= min_ppd
+        r["profit_per_day"] >= min_ppd and
+        (r.get("both_hit_pct") is None or r.get("both_hit_pct", 0) <= max_bh) and
+        (buffer is None or r.get("buffer1_pct") == buffer) and
+        (tp is None or r.get("tp_pct") == tp) and
+        (sl is None or r.get("sl_pct") == sl)
     ]
 
-    # Pick best per pair (highest profit/day that passes filter)
+    # Pick best per pair based on sort criteria
     best = {}
     for r in filtered:
         pair = r["symbol"]
-        if pair not in best or r["profit_per_day"] > best[pair]["profit_per_day"]:
+        if pair not in best:
+            best[pair] = r
+        elif sort_by == "wr" and r["win_rate"] > best[pair]["win_rate"]:
+            best[pair] = r
+        elif sort_by == "safe" and r["max_drawdown"] < best[pair]["max_drawdown"]:
+            best[pair] = r
+        elif sort_by == "profit" and r["profit_per_day"] > best[pair]["profit_per_day"]:
             best[pair] = r
 
+    # Sort final list
+    if sort_by == "wr":
+        sorted_pairs = sorted(best.items(), key=lambda x: -x[1]["win_rate"])
+    elif sort_by == "safe":
+        sorted_pairs = sorted(best.items(), key=lambda x: x[1]["max_drawdown"])
+    else:
+        sorted_pairs = sorted(best.items(), key=lambda x: -x[1]["profit_per_day"])
+
     configs = []
-    for pair, r in sorted(best.items(), key=lambda x: -x[1]["profit_per_day"]):
+    for pair, r in sorted_pairs:
         configs.append({
             "symbol": pair,
             "buffer_pct": r.get("buffer1_pct", 0.8),
@@ -356,7 +374,7 @@ def _send_telegram(msg):
 
 
 # ── Main Trading Loop ──
-def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50):
+def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit"):
     """Main Baret live trading loop. Runs every 4h candle cycle."""
     global _baret_live_running, _baret_live_state, LEVERAGE
     LEVERAGE = leverage
@@ -368,8 +386,8 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
 
     _baret_live_state["mode"] = mode
     _baret_live_state["started_at"] = datetime.now(timezone.utc).isoformat()
-    _baret_live_state["filters"] = {"min_wr": min_wr, "max_dd": max_dd, "min_ppd": min_ppd}
-    configs = _fetch_baret_configs(mode=mode, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd)
+    _baret_live_state["filters"] = {"min_wr": min_wr, "max_dd": max_dd, "min_ppd": min_ppd, "max_bh": max_bh, "buffer": buffer, "tp": tp, "sl": sl, "sort_by": sort_by}
+    configs = _fetch_baret_configs(mode=mode, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd, max_bh=max_bh, buffer=buffer, tp=tp, sl=sl, sort_by=sort_by)
     _baret_live_state["active_pairs"] = [c["symbol"] for c in configs]
 
     _log(f"═══ BARET LIVE STARTED ═══ mode={mode}, {len(configs)} pairs, ${position_usd}/trade")
@@ -651,13 +669,13 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
 
 # ── Public API ──
 
-def start_baret_live(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50):
+def start_baret_live(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit"):
     global _baret_live_running, _baret_live_thread
     if _baret_live_running:
         return {"ok": True, "message": "Already running", "state": _baret_live_state}
     _baret_live_running = True
     _baret_live_thread = threading.Thread(
-        target=_baret_live_loop, args=(mode, position_usd, min_wr, max_dd, min_ppd, leverage), daemon=True
+        target=_baret_live_loop, args=(mode, position_usd, min_wr, max_dd, min_ppd, leverage, max_bh, buffer, tp, sl, sort_by), daemon=True
     )
     _baret_live_thread.start()
     return {"ok": True, "message": f"Baret live started, mode={mode}, ${position_usd}×{leverage}x, WR≥{min_wr}% DD≤{max_dd}%"}
