@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
-from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test, DCAConfig, backtest_dca, backtest_deret_statistik
+from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test, DCAConfig, backtest_dca, backtest_deret_statistik, analyze_deviation_clusters
 from live_bot import start_bot, stop_bot, bot_status, get_activity_log
 from dca_bot import start_dca, stop_dca, dca_status, get_dca_log, get_dca_results
 from baret_bot import start_baret, stop_baret, baret_status, get_baret_log
@@ -1741,6 +1741,26 @@ def baret_status_endpoint():
 @app.get("/baret/log")
 def baret_log_endpoint(limit: int = 200):
     return {"ok": True, "log": get_baret_log(limit)}
+
+# ============================================================
+# CLUSTERING — Optimal SL/TP dari distribusi deviation
+# ============================================================
+
+@app.post("/backtest/clustering")
+def run_clustering(req: dict, _=Security(verify_token)):
+    """Analyze deviation clusters for optimal SL/TP per pair."""
+    try:
+        result = analyze_deviation_clusters(
+            db_path=DB_PATH,
+            symbol=req.get("symbol", "SOLUSDT").upper(),
+            timeframe=req.get("timeframe", "4h"),
+            window=req.get("window", 10),
+            days=req.get("days", 1825),
+            buffer_pct=req.get("buffer_pct", 0.8),
+        )
+        return {"ok": True, **result}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 # ============================================================
 # BARET LIVE TRADING — Demo execution
