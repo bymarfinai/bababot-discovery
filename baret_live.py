@@ -375,8 +375,9 @@ def _send_telegram(msg):
         _log("⚠️ TELEGRAM_BOT_TOKEN not set, skip notification")
         return
     try:
+        # Use HTML or no parse_mode to avoid Markdown underscore issues (baret_dca etc)
         resp = req.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                 json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "Markdown"}, timeout=5)
+                 json={"chat_id": ADMIN_CHAT_ID, "text": msg}, timeout=5)
         if resp.status_code != 200:
             _log(f"⚠️ Telegram send failed: {resp.status_code} {resp.text[:200]}")
     except Exception as e:
