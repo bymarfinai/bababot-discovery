@@ -4318,10 +4318,11 @@ def analyze_deviation_clusters(db_path: str, symbol: str, timeframe: str = "4h",
         return tp_analysis[0]["tp_pct"]
     
     def find_optimal_buffer(trigger_target):
+        result = buffer_analysis[0]["buffer_pct"]
         for b in buffer_analysis:
-            if b["trigger_rate"] <= trigger_target:
-                return b["buffer_pct"]
-        return buffer_analysis[-1]["buffer_pct"]
+            if b["trigger_rate"] >= trigger_target:
+                result = b["buffer_pct"]
+        return result
     
     return {
         "symbol": symbol, "timeframe": timeframe, "window": window, "buffer_pct": buffer_pct,
