@@ -3985,6 +3985,7 @@ def backtest_deret_statistik(
     notional = position_usd * leverage
     fee_per_trade = notional * fee_pct / 100 * 2  # entry + exit
     dca_count = 0
+    both_hit_count = 0
     
     for i in range(window, len(close_ratios)):
         if i + 1 >= n:
@@ -4062,10 +4063,22 @@ def backtest_deret_statistik(
             tp_price = entry * (1 + tp_pct / 100)
             sl_price = entry * (1 - sl_pct / 100)
             
-            if ah >= tp_price:
+            sl_hit = al <= sl_price
+            tp_hit = ah >= tp_price
+            
+            if sl_hit and tp_hit:
+                # Both hit same candle — proximity heuristic
+                both_hit_count += 1
+                if (ao - al) < (ah - ao):
+                    exit_price = sl_price
+                    exit_reason = "SL"
+                else:
+                    exit_price = tp_price
+                    exit_reason = "TP"
+            elif tp_hit:
                 exit_price = tp_price
                 exit_reason = "TP"
-            elif al <= sl_price:
+            elif sl_hit:
                 exit_price = sl_price
                 exit_reason = "SL"
             else:
@@ -4087,10 +4100,22 @@ def backtest_deret_statistik(
             tp_price = entry * (1 - tp_pct / 100)
             sl_price = entry * (1 + sl_pct / 100)
             
-            if al <= tp_price:
+            sl_hit = ah >= sl_price
+            tp_hit = al <= tp_price
+            
+            if sl_hit and tp_hit:
+                # Both hit same candle — proximity heuristic (SHORT)
+                both_hit_count += 1
+                if (ah - ao) < (ao - al):
+                    exit_price = sl_price
+                    exit_reason = "SL"
+                else:
+                    exit_price = tp_price
+                    exit_reason = "TP"
+            elif tp_hit:
                 exit_price = tp_price
                 exit_reason = "TP"
-            elif ah >= sl_price:
+            elif sl_hit:
                 exit_price = sl_price
                 exit_reason = "SL"
             else:
@@ -4172,6 +4197,7 @@ def backtest_deret_statistik(
         "short_wr": round(len(short_wins) / len(short_trades) * 100, 1) if short_trades else 0,
         "trades_per_day": round(len(trades) / data_days, 2) if data_days > 0 else 0,
         "exit_reasons": {"TP": tp_count, "SL": sl_count, "CLOSE": close_count},
+        "both_hit_count": both_hit_count,
         "data_days": round(data_days, 1),
         "candles": n,
     }
