@@ -4207,11 +4207,13 @@ def backtest_deret_statistik(
 # CLUSTERING — Optimal SL/TP dari distribusi deviation
 # ============================================================
 
+
 def analyze_deviation_clusters(db_path: str, symbol: str, timeframe: str = "4h", 
                                 window: int = 10, days: int = 1825, buffer_pct: float = 0.8):
     """
-    Analyze how far actual price deviates from ENTRY POINT (not predicted).
-    Returns optimal SL/TP for different tolerance levels.
+    Two-stage clustering:
+    Stage 1: Predicted vs Actual → optimal Buffer
+    Stage 2: Entry vs Actual (after trigger) → optimal SL/TP
     """
     import sqlite3, numpy as np
     
@@ -4225,7 +4227,6 @@ def analyze_deviation_clusters(db_path: str, symbol: str, timeframe: str = "4h",
     if len(rows) < window + 10:
         return {"error": "Not enough data"}
     
-    # Limit to requested days
     max_candles = days * (24 // {"1h":1,"4h":4,"15m":0.25}.get(timeframe, 4))
     if len(rows) > max_candles:
         rows = rows[-int(max_candles):]
@@ -4238,70 +4239,72 @@ def analyze_deviation_clusters(db_path: str, symbol: str, timeframe: str = "4h",
     h_ratios = [highs[i] / highs[i-1] for i in range(1, len(highs)) if highs[i-1] > 0]
     l_ratios = [lows[i] / lows[i-1] for i in range(1, len(lows)) if lows[i-1] > 0]
     
-    # Collect deviations from ENTRY POINT
-    long_sl_devs = []    # how far below LONG entry did price go
-    long_tp_avail = []   # how far above LONG entry did price go
-    short_sl_devs = []   # how far above SHORT entry did price go
-    short_tp_avail = []  # how far below SHORT entry did price go
+    # ═══ STAGE 1: Predicted vs Actual → optimal Buffer ═══
+    low_pred_devs = []
+    high_pred_devs = []
     
     for i in range(window, len(h_ratios)):
         avg_h = float(np.mean(h_ratios[i-window:i]))
         avg_l = float(np.mean(l_ratios[i-window:i]))
-        
         pred_high = highs[i] * avg_h
         pred_low = lows[i] * avg_l
-        
-        # Entry points WITH buffer
-        entry_long = pred_low * (1 - buffer_pct / 100)
-        entry_short = pred_high * (1 + buffer_pct / 100)
-        
         if i + 1 >= len(highs):
             break
         actual_high = highs[i+1]
         actual_low = lows[i+1]
-        
-        # LONG side: only when trade would trigger (price reaches entry)
+        if pred_low > 0:
+            low_pred_devs.append(max(0, (pred_low - actual_low) / pred_low * 100))
+        if pred_high > 0:
+            high_pred_devs.append(max(0, (actual_high - pred_high) / pred_high * 100))
+    
+    buffer_analysis = []
+    for buf_x10 in range(1, 31):
+        buf = buf_x10 / 10
+        trigger_count = sum(1 for d in low_pred_devs if d >= buf)
+        trigger_rate = trigger_count / len(low_pred_devs) * 100 if low_pred_devs else 0
+        buffer_analysis.append({"buffer_pct": buf, "trigger_rate": round(trigger_rate, 1), "trigger_count": trigger_count, "total": len(low_pred_devs)})
+    
+    # ═══ STAGE 2: Entry vs Actual (after trigger) → optimal SL/TP ═══
+    long_sl_devs = []
+    long_tp_avail = []
+    short_sl_devs = []
+    short_tp_avail = []
+    
+    for i in range(window, len(h_ratios)):
+        avg_h = float(np.mean(h_ratios[i-window:i]))
+        avg_l = float(np.mean(l_ratios[i-window:i]))
+        pred_high = highs[i] * avg_h
+        pred_low = lows[i] * avg_l
+        entry_long = pred_low * (1 - buffer_pct / 100)
+        entry_short = pred_high * (1 + buffer_pct / 100)
+        if i + 1 >= len(highs):
+            break
+        actual_high = highs[i+1]
+        actual_low = lows[i+1]
         if actual_low <= entry_long:
-            # SL deviation: how far below entry did price go
-            sl_dev = (entry_long - actual_low) / entry_long * 100
-            long_sl_devs.append(sl_dev)
-            # TP available: how far above entry did price bounce
-            tp_bounce = (actual_high - entry_long) / entry_long * 100
-            long_tp_avail.append(tp_bounce)
-        
-        # SHORT side: only when trade would trigger
+            long_sl_devs.append((entry_long - actual_low) / entry_long * 100)
+            long_tp_avail.append((actual_high - entry_long) / entry_long * 100)
         if actual_high >= entry_short:
-            # SL deviation: how far above entry did price go
-            sl_dev = (actual_high - entry_short) / entry_short * 100
-            short_sl_devs.append(sl_dev)
-            # TP available: how far below entry did price drop
-            tp_drop = (entry_short - actual_low) / entry_short * 100
-            short_tp_avail.append(tp_drop)
+            short_sl_devs.append((actual_high - entry_short) / entry_short * 100)
+            short_tp_avail.append((entry_short - actual_low) / entry_short * 100)
     
-    if not long_sl_devs and not short_sl_devs:
-        return {"error": "No triggered trades found"}
-    
-    # Combine LONG + SHORT for unified SL/TP analysis
     all_sl_devs = sorted(long_sl_devs + short_sl_devs)
     all_tp_avail = sorted(long_tp_avail + short_tp_avail)
     
-    # SL analysis: for each SL%, what's the hit rate?
     sl_analysis = []
-    for sl_pct_x10 in range(1, 31):  # 0.1% to 3.0%
-        sl_pct = sl_pct_x10 / 10
-        hit_count = sum(1 for d in all_sl_devs if d > sl_pct)
+    for sl_x10 in range(1, 51):
+        sl = sl_x10 / 10
+        hit_count = sum(1 for d in all_sl_devs if d > sl)
         hit_rate = hit_count / len(all_sl_devs) * 100 if all_sl_devs else 0
-        sl_analysis.append({"sl_pct": sl_pct, "hit_rate": round(hit_rate, 1), "hit_count": hit_count, "total": len(all_sl_devs)})
+        sl_analysis.append({"sl_pct": sl, "hit_rate": round(hit_rate, 1), "hit_count": hit_count, "total": len(all_sl_devs)})
     
-    # TP analysis: for each TP%, what's the hit rate?
     tp_analysis = []
-    for tp_pct_x10 in range(1, 31):
-        tp_pct = tp_pct_x10 / 10
-        hit_count = sum(1 for b in all_tp_avail if b >= tp_pct)
+    for tp_x10 in range(1, 51):
+        tp = tp_x10 / 10
+        hit_count = sum(1 for b in all_tp_avail if b >= tp)
         hit_rate = hit_count / len(all_tp_avail) * 100 if all_tp_avail else 0
-        tp_analysis.append({"tp_pct": tp_pct, "hit_rate": round(hit_rate, 1), "hit_count": hit_count, "total": len(all_tp_avail)})
+        tp_analysis.append({"tp_pct": tp, "hit_rate": round(hit_rate, 1), "hit_count": hit_count, "total": len(all_tp_avail)})
     
-    # Find optimal for different tolerance levels
     def find_optimal_sl(tolerance):
         for s in sl_analysis:
             if s["hit_rate"] <= tolerance:
@@ -4314,30 +4317,51 @@ def analyze_deviation_clusters(db_path: str, symbol: str, timeframe: str = "4h",
                 return t["tp_pct"]
         return tp_analysis[0]["tp_pct"]
     
+    def find_optimal_buffer(trigger_target):
+        for b in buffer_analysis:
+            if b["trigger_rate"] <= trigger_target:
+                return b["buffer_pct"]
+        return buffer_analysis[-1]["buffer_pct"]
+    
     return {
-        "symbol": symbol,
-        "timeframe": timeframe,
-        "window": window,
-        "buffer_pct": buffer_pct,
-        "long_trades": len(long_sl_devs),
-        "short_trades": len(short_sl_devs),
-        "total_triggered": len(all_sl_devs),
-        "sl_analysis": sl_analysis,
-        "tp_analysis": tp_analysis,
-        "percentiles": {
-            "sl_p50": round(float(np.percentile(all_sl_devs, 50)), 3) if all_sl_devs else 0,
-            "sl_p75": round(float(np.percentile(all_sl_devs, 75)), 3) if all_sl_devs else 0,
-            "sl_p90": round(float(np.percentile(all_sl_devs, 90)), 3) if all_sl_devs else 0,
-            "sl_p95": round(float(np.percentile(all_sl_devs, 95)), 3) if all_sl_devs else 0,
-            "sl_p99": round(float(np.percentile(all_sl_devs, 99)), 3) if all_sl_devs else 0,
-            "tp_p50": round(float(np.percentile(all_tp_avail, 50)), 3) if all_tp_avail else 0,
-            "tp_p75": round(float(np.percentile(all_tp_avail, 75)), 3) if all_tp_avail else 0,
-            "tp_p90": round(float(np.percentile(all_tp_avail, 90)), 3) if all_tp_avail else 0,
+        "symbol": symbol, "timeframe": timeframe, "window": window, "buffer_pct": buffer_pct,
+        "stage1_buffer": {
+            "total_candles": len(low_pred_devs),
+            "buffer_analysis": buffer_analysis,
+            "prediction_percentiles": {
+                "low_p50": round(float(np.percentile(low_pred_devs, 50)), 3) if low_pred_devs else 0,
+                "low_p75": round(float(np.percentile(low_pred_devs, 75)), 3) if low_pred_devs else 0,
+                "low_p90": round(float(np.percentile(low_pred_devs, 90)), 3) if low_pred_devs else 0,
+                "low_p95": round(float(np.percentile(low_pred_devs, 95)), 3) if low_pred_devs else 0,
+                "high_p50": round(float(np.percentile(high_pred_devs, 50)), 3) if high_pred_devs else 0,
+                "high_p90": round(float(np.percentile(high_pred_devs, 90)), 3) if high_pred_devs else 0,
+            },
+            "optimal_buffer": {
+                "trigger_80pct": find_optimal_buffer(80),
+                "trigger_50pct": find_optimal_buffer(50),
+                "trigger_30pct": find_optimal_buffer(30),
+            },
         },
-        "optimal": {
-            "strict_0pct": {"sl": find_optimal_sl(0), "tp": find_optimal_tp(0)},
-            "tolerant_2pct": {"sl": find_optimal_sl(2), "tp": find_optimal_tp(2)},
-            "tolerant_3pct": {"sl": find_optimal_sl(3), "tp": find_optimal_tp(3)},
-            "tolerant_5pct": {"sl": find_optimal_sl(5), "tp": find_optimal_tp(5)},
+        "stage2_sltp": {
+            "long_trades": len(long_sl_devs), "short_trades": len(short_sl_devs),
+            "total_triggered": len(all_sl_devs),
+            "sl_analysis": sl_analysis, "tp_analysis": tp_analysis,
+            "sl_percentiles": {
+                "p50": round(float(np.percentile(all_sl_devs, 50)), 3) if all_sl_devs else 0,
+                "p75": round(float(np.percentile(all_sl_devs, 75)), 3) if all_sl_devs else 0,
+                "p90": round(float(np.percentile(all_sl_devs, 90)), 3) if all_sl_devs else 0,
+                "p95": round(float(np.percentile(all_sl_devs, 95)), 3) if all_sl_devs else 0,
+            },
+            "tp_percentiles": {
+                "p50": round(float(np.percentile(all_tp_avail, 50)), 3) if all_tp_avail else 0,
+                "p75": round(float(np.percentile(all_tp_avail, 75)), 3) if all_tp_avail else 0,
+                "p90": round(float(np.percentile(all_tp_avail, 90)), 3) if all_tp_avail else 0,
+            },
+            "optimal": {
+                "strict_0pct": {"sl": find_optimal_sl(0), "tp": find_optimal_tp(0)},
+                "tolerant_2pct": {"sl": find_optimal_sl(2), "tp": find_optimal_tp(2)},
+                "tolerant_3pct": {"sl": find_optimal_sl(3), "tp": find_optimal_tp(3)},
+                "tolerant_5pct": {"sl": find_optimal_sl(5), "tp": find_optimal_tp(5)},
+            },
         },
     }
