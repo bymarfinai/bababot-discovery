@@ -280,8 +280,11 @@ def _calculate_predicted_range(candles, window=10):
 
 
 # ── Baret Config from D1 (same source as Dashboard recommendations) ──
-def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit"):
-    """Fetch best config per pair from D1, applying same filters as Dashboard."""
+def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit", position_usd=100.0):
+    """Fetch best config per pair from D1, applying EXACT same filters as Dashboard.
+    Dashboard scales profit: ppd_scaled = ppd_raw * position_usd / 100
+    min_ppd filter applies on scaled value (same as dashboard).
+    """
     try:
         r = req.get(f"{WORKER_URL}/baret/results?mode={mode}", timeout=15)
         results = r.json().get("results", [])
@@ -297,11 +300,14 @@ def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0, ma
             {"symbol": "DOGEUSDT", "buffer_pct": 1.0, "tp_pct": 1.5, "sl_pct": 0.3, "window": 10, "buffer2_pct": 1.0, "close_filter_pct": 0.3},
         ]
 
-    # Filter by user criteria (same as Dashboard)
+    # Scale profit same as Dashboard: ppd_scaled = ppd_raw * position_usd / 100
+    scale = position_usd / 100.0
+
+    # Filter by user criteria (EXACT same as Dashboard)
     filtered = [r for r in results if 
         r["win_rate"] >= min_wr and 
         r["max_drawdown"] <= max_dd and
-        r["profit_per_day"] >= min_ppd and
+        (r["profit_per_day"] * scale) >= min_ppd and
         (r.get("both_hit_pct") is None or r.get("both_hit_pct", 0) <= max_bh) and
         (buffer is None or r.get("buffer1_pct") == buffer) and
         (tp is None or r.get("tp_pct") == tp) and
@@ -343,13 +349,14 @@ def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0, ma
             "profit_per_day": r.get("profit_per_day", 0),
             "max_drawdown": r.get("max_drawdown", 0),
         })
-        _log(f"  📋 {pair}: buf={r.get('buffer1_pct')}% TP={r.get('tp_pct')}% SL={r.get('sl_pct')}% WR={r.get('win_rate'):.1f}% DD={r.get('max_drawdown'):.1f}%")
+        ppd_scaled = r.get("profit_per_day", 0) * scale
+        _log(f"  📋 {pair}: buf={r.get('buffer1_pct')}% TP={r.get('tp_pct')}% SL={r.get('sl_pct')}% WR={r.get('win_rate'):.1f}% DD={r.get('max_drawdown'):.1f}% ${ppd_scaled:.2f}/day")
 
     # Exclude pairs with known issues
     SKIP_PAIRS = {"1000PEPEUSDT"}
     configs = [c for c in configs if c["symbol"] not in SKIP_PAIRS]
     
-    _log(f"  📊 {len(configs)} pairs loaded from D1 (WR≥{min_wr}% DD≤{max_dd}%)")
+    _log(f"  📊 {len(configs)} pairs loaded from D1 (WR≥{min_wr}% DD≤{max_dd}% BH≤{max_bh}% PPD≥${min_ppd} sort={sort_by})")
     return configs
 
 
@@ -387,7 +394,7 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
     _baret_live_state["mode"] = mode
     _baret_live_state["started_at"] = datetime.now(timezone.utc).isoformat()
     _baret_live_state["filters"] = {"min_wr": min_wr, "max_dd": max_dd, "min_ppd": min_ppd, "max_bh": max_bh, "buffer": buffer, "tp": tp, "sl": sl, "sort_by": sort_by}
-    configs = _fetch_baret_configs(mode=mode, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd, max_bh=max_bh, buffer=buffer, tp=tp, sl=sl, sort_by=sort_by)
+    configs = _fetch_baret_configs(mode=mode, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd, max_bh=max_bh, buffer=buffer, tp=tp, sl=sl, sort_by=sort_by, position_usd=position_usd)
     _baret_live_state["active_pairs"] = [c["symbol"] for c in configs]
 
     _log(f"═══ BARET LIVE STARTED ═══ mode={mode}, {len(configs)} pairs, ${position_usd}/trade")
