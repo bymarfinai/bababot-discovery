@@ -19,7 +19,7 @@ from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_L
 from live_bot import start_bot, stop_bot, bot_status, get_activity_log
 from dca_bot import start_dca, stop_dca, dca_status, get_dca_log, get_dca_results
 from baret_bot import start_baret, stop_baret, baret_status, get_baret_log
-from baret_live import start_baret_live, stop_baret_live, baret_live_status, get_baret_live_log
+from baret_live import start_baret_live, stop_baret_live, baret_live_status, get_baret_live_log, close_position, close_all_positions
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -1783,3 +1783,10 @@ def baret_live_status_endpoint():
 @app.get("/baret-live/log")
 def baret_live_log_endpoint(limit: int = 200):
     return {"ok": True, "log": get_baret_live_log(limit)}
+
+@app.get("/baret-live/close")
+def baret_live_close(symbol: str = None):
+    """Close a specific position or all positions."""
+    if symbol:
+        return close_position(symbol)
+    return close_all_positions()
