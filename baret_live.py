@@ -831,3 +831,40 @@ def baret_live_status():
 
 def get_baret_live_log(limit=200):
     return list(_baret_live_log)[-limit:]
+
+
+def close_position(symbol):
+    """Close a specific position and cancel all orders for symbol."""
+    symbol = symbol.upper()
+    _cancel_all_orders(symbol)
+    pos = _get_position(symbol)
+    if not pos:
+        return {"ok": True, "message": f"{symbol}: no position found"}
+    amt = float(pos.get("positionAmt", 0))
+    if amt == 0:
+        return {"ok": True, "message": f"{symbol}: position already flat"}
+    side = "SELL" if amt > 0 else "BUY"
+    qty = abs(amt)
+    result = _place_market_close(symbol, "BUY" if amt > 0 else "SELL", qty)
+    # Clean from bot state
+    if symbol in _baret_live_state.get("positions", {}):
+        del _baret_live_state["positions"][symbol]
+    if symbol in _baret_live_state.get("pending_orders", {}):
+        del _baret_live_state["pending_orders"][symbol]
+    _log(f"  🔒 {symbol}: closed {side} {qty} → {result.get('orderId', result.get('msg', result))}")
+    return {"ok": True, "symbol": symbol, "side": side, "qty": qty, "result": result}
+
+
+def close_all_positions():
+    """Close all open positions."""
+    try:
+        positions = _api_get("/fapi/v2/positionRisk", signed=True)
+    except:
+        return {"ok": False, "error": "Failed to fetch positions"}
+    closed = []
+    for p in positions:
+        amt = float(p.get("positionAmt", 0))
+        if amt != 0:
+            r = close_position(p["symbol"])
+            closed.append(r)
+    return {"ok": True, "closed": len(closed), "details": closed}
