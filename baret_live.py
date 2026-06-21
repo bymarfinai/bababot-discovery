@@ -279,6 +279,44 @@ def _calculate_predicted_range(candles, window=10):
     }
 
 
+# ── Custom Configs from D1 (per-pair custom settings) ──
+def _fetch_custom_configs(mode="baret"):
+    """Fetch custom configs from D1 where live_enabled=true."""
+    try:
+        r = req.get(f"{WORKER_URL}/custom-configs/list?live_only=true", timeout=15)
+        all_configs = r.json().get("configs", [])
+    except:
+        _log("⚠️ Failed to fetch custom configs from D1")
+        return []
+
+    # Filter by mode
+    filtered = [c for c in all_configs if c.get("mode", "baret") == mode]
+
+    if not filtered:
+        return []
+
+    configs = []
+    for c in filtered:
+        configs.append({
+            "symbol": c["symbol"],
+            "buffer_pct": c.get("buffer1_pct", 0.8),
+            "tp_pct": c.get("tp_pct", 1.5),
+            "sl_pct": c.get("sl_pct", 0.3),
+            "window": c.get("window", 10),
+            "buffer2_pct": c.get("buffer2_pct", 1.0),
+            "close_filter_pct": c.get("close_filter_pct", 0.3),
+            "win_rate": c.get("win_rate", 0),
+            "profit_per_day": c.get("profit_per_day", 0),
+            "max_drawdown": c.get("max_drawdown", 0),
+        })
+        _log(f"  📋 [CUSTOM] {c['symbol']}: buf={c.get('buffer1_pct')}% TP={c.get('tp_pct')}% SL={c.get('sl_pct')}% WR={c.get('win_rate', 0):.1f}%")
+
+    SKIP_PAIRS = {"1000PEPEUSDT"}
+    configs = [c for c in configs if c["symbol"] not in SKIP_PAIRS]
+    _log(f"  📊 {len(configs)} custom configs loaded from D1 (mode={mode})")
+    return configs
+
+
 # ── Baret Config from D1 (same source as Dashboard recommendations) ──
 def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit", position_usd=100.0):
     """Fetch best config per pair from D1, applying EXACT same filters as Dashboard.
@@ -385,7 +423,7 @@ def _send_telegram(msg):
 
 
 # ── Main Trading Loop ──
-def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit"):
+def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit", use_custom_configs=False):
     """Main Baret live trading loop. Runs every 4h candle cycle."""
     global _baret_live_running, _baret_live_state, LEVERAGE
     LEVERAGE = leverage
@@ -398,7 +436,12 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
     _baret_live_state["mode"] = mode
     _baret_live_state["started_at"] = datetime.now(timezone.utc).isoformat()
     _baret_live_state["filters"] = {"min_wr": min_wr, "max_dd": max_dd, "min_ppd": min_ppd, "max_bh": max_bh, "buffer": buffer, "tp": tp, "sl": sl, "sort_by": sort_by}
-    configs = _fetch_baret_configs(mode=mode, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd, max_bh=max_bh, buffer=buffer, tp=tp, sl=sl, sort_by=sort_by, position_usd=position_usd)
+    # Try custom configs first, fallback to sweep-based configs
+    configs = []
+    if use_custom_configs:
+        configs = _fetch_custom_configs(mode=mode)
+    if not configs:
+        configs = _fetch_baret_configs(mode=mode, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd, max_bh=max_bh, buffer=buffer, tp=tp, sl=sl, sort_by=sort_by, position_usd=position_usd)
     _baret_live_state["active_pairs"] = [c["symbol"] for c in configs]
 
     _log(f"═══ BARET LIVE STARTED ═══ mode={mode}, {len(configs)} pairs, ${position_usd}/trade")
@@ -739,16 +782,17 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
 
 # ── Public API ──
 
-def start_baret_live(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit"):
+def start_baret_live(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit", use_custom_configs=False):
     global _baret_live_running, _baret_live_thread
     if _baret_live_running:
         return {"ok": True, "message": "Already running", "state": _baret_live_state}
     _baret_live_running = True
     _baret_live_thread = threading.Thread(
-        target=_baret_live_loop, args=(mode, position_usd, min_wr, max_dd, min_ppd, leverage, max_bh, buffer, tp, sl, sort_by), daemon=True
+        target=_baret_live_loop, args=(mode, position_usd, min_wr, max_dd, min_ppd, leverage, max_bh, buffer, tp, sl, sort_by, use_custom_configs), daemon=True
     )
     _baret_live_thread.start()
-    return {"ok": True, "message": f"Baret live started, mode={mode}, ${position_usd}×{leverage}x, WR≥{min_wr}% DD≤{max_dd}%"}
+    src = "custom configs" if use_custom_configs else "sweep filter"
+    return {"ok": True, "message": f"Baret live started, mode={mode}, ${position_usd}×{leverage}x, source={src}"}
 
 
 def stop_baret_live():
