@@ -477,6 +477,9 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
         since_boundary = elapsed % interval_sec
         return since_boundary < 120  # within 2 minutes
 
+    # Poll interval based on shortest TF
+    poll_sec = 10 if interval_min <= 15 else 20 if interval_min <= 60 else 30
+
     cycle = 0
     while _baret_live_running:
         # ── Wait for next candle close ──
@@ -487,7 +490,7 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
             wait_secs = max(0, (next_close - now).total_seconds()) + 5  # +5s buffer
             _log(f"  ⏰ Waiting for {shortest_tf} candle close at {next_close.strftime('%H:%M')} UTC ({int(wait_secs//60)} min)")
             while wait_secs > 0 and _baret_live_running:
-                time.sleep(min(30, wait_secs))
+                time.sleep(min(poll_sec, wait_secs))
                 wait_secs -= 30
                 # Monitor existing positions for TP/SL while waiting
                 for sym in list(_baret_live_state["positions"].keys()):
@@ -624,7 +627,7 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
         _log(f"  📊 Monitor until {monitor_until.strftime('%Y-%m-%d %H:%M')} UTC ({int((monitor_until - now_m).total_seconds() // 60)} min)")
         
         while _baret_live_running and datetime.now(timezone.utc) < monitor_until:
-            time.sleep(30)
+            time.sleep(poll_sec)
 
             for cfg in configs:
                 if not _baret_live_running:
