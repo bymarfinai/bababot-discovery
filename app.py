@@ -1722,13 +1722,14 @@ def _auto_start_bot():
 # ============================================================
 
 @app.get("/baret/start")
-def baret_start_endpoint(mode: str = "baret"):
-    """Start Baret discovery — auto-stops P1 cron + DCA"""
+def baret_start_endpoint(mode: str = "baret", timeframes: str = ""):
+    """Start Baret discovery — auto-stops P1 cron + DCA. timeframes: comma-separated e.g. '15m,1h'"""
     global _p2_cron_running
     _p2_cron_running = False
     try: stop_dca()
     except: pass
-    return start_baret(DB_PATH, mode=mode)
+    tfs = [t.strip() for t in timeframes.split(",") if t.strip()] or None
+    return start_baret(DB_PATH, mode=mode, timeframes=tfs)
 
 @app.get("/baret/stop")
 def baret_stop_endpoint():
