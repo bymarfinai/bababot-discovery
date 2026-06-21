@@ -1768,9 +1768,9 @@ def run_clustering(req: dict, _=Security(verify_token)):
 # ============================================================
 
 @app.get("/baret-live/start")
-def baret_live_start(mode: str = "baret", position_usd: float = 10.0, min_wr: float = 75.0, max_dd: float = 20.0, min_ppd: float = 0.0, leverage: int = 50, max_bh: float = 100.0, buffer: float = None, tp: float = None, sl: float = None, sort_by: str = "profit"):
-    """Start Baret live demo trading. Configs pulled from D1 based on filters."""
-    return start_baret_live(mode=mode, position_usd=position_usd, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd, leverage=leverage, max_bh=max_bh, buffer=buffer, tp=tp, sl=sl, sort_by=sort_by)
+def baret_live_start(mode: str = "baret", position_usd: float = 10.0, min_wr: float = 75.0, max_dd: float = 20.0, min_ppd: float = 0.0, leverage: int = 50, max_bh: float = 100.0, buffer: float = None, tp: float = None, sl: float = None, sort_by: str = "profit", use_custom_configs: bool = False):
+    """Start Baret live demo trading. Configs pulled from D1 based on filters or custom configs."""
+    return start_baret_live(mode=mode, position_usd=position_usd, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd, leverage=leverage, max_bh=max_bh, buffer=buffer, tp=tp, sl=sl, sort_by=sort_by, use_custom_configs=use_custom_configs)
 
 @app.get("/baret-live/stop")
 def baret_live_stop():
