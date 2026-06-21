@@ -205,7 +205,7 @@ def _get_position(symbol):
 
 
 # ── OKX Data ──
-OKX_TF_MAP = {"4h": "4H", "1h": "1H"}
+OKX_TF_MAP = {"4h": "4H", "1h": "1H", "15m": "15m"}
 
 def _fetch_candles(symbol, tf="4h", limit=15):
     """Fetch candles from OKX."""
@@ -299,6 +299,7 @@ def _fetch_custom_configs(mode="baret"):
     for c in filtered:
         configs.append({
             "symbol": c["symbol"],
+            "timeframe": c.get("timeframe", "4h"),
             "buffer_pct": c.get("buffer1_pct", 0.8),
             "tp_pct": c.get("tp_pct", 1.5),
             "sl_pct": c.get("sl_pct", 0.3),
@@ -309,7 +310,7 @@ def _fetch_custom_configs(mode="baret"):
             "profit_per_day": c.get("profit_per_day", 0),
             "max_drawdown": c.get("max_drawdown", 0),
         })
-        _log(f"  📋 [CUSTOM] {c['symbol']}: buf={c.get('buffer1_pct')}% TP={c.get('tp_pct')}% SL={c.get('sl_pct')}% WR={c.get('win_rate', 0):.1f}%")
+        _log(f"  📋 [CUSTOM] {c['symbol']} {c.get('timeframe','4h')}: buf={c.get('buffer1_pct')}% TP={c.get('tp_pct')}% SL={c.get('sl_pct')}% WR={c.get('win_rate', 0):.1f}%")
 
     SKIP_PAIRS = {"1000PEPEUSDT"}
     configs = [c for c in configs if c["symbol"] not in SKIP_PAIRS]
@@ -424,7 +425,7 @@ def _send_telegram(msg):
 
 # ── Main Trading Loop ──
 def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit", use_custom_configs=False):
-    """Main Baret live trading loop. Runs every 4h candle cycle."""
+    """Main Baret live trading loop. Supports 15m/1h/4h candle cycles."""
     global _baret_live_running, _baret_live_state, LEVERAGE
     LEVERAGE = leverage
 
@@ -444,27 +445,47 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
         configs = _fetch_baret_configs(mode=mode, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd, max_bh=max_bh, buffer=buffer, tp=tp, sl=sl, sort_by=sort_by, position_usd=position_usd)
     _baret_live_state["active_pairs"] = [c["symbol"] for c in configs]
 
-    _log(f"═══ BARET LIVE STARTED ═══ mode={mode}, {len(configs)} pairs, ${position_usd}/trade")
-    _send_telegram(f"📐 *BARET LIVE STARTED*\nMode: {mode}\nPairs: {', '.join(c['symbol'] for c in configs)}\nPosition: ${position_usd}")
+    # Determine shortest timeframe from configs for candle sync
+    tf_minutes = {"15m": 15, "1h": 60, "4h": 240}
+    all_tfs = set(c.get("timeframe", "4h") for c in configs)
+    shortest_tf = min(all_tfs, key=lambda t: tf_minutes.get(t, 240))
+    interval_min = tf_minutes.get(shortest_tf, 240)
+    _log(f"═══ BARET LIVE STARTED ═══ mode={mode}, {len(configs)} pairs, ${position_usd}/trade, TFs: {all_tfs}, cycle={interval_min}min")
+    _send_telegram(f"📐 *BARET LIVE STARTED*\nMode: {mode}\nPairs: {', '.join(c['symbol'] for c in configs)}\nPosition: ${position_usd}\nCycle: {interval_min}min")
 
     # Set leverage for all pairs
     for cfg in configs:
         _set_leverage(cfg["symbol"])
 
+    # Helper: next candle boundary for a given interval
+    def _next_boundary(now, interval):
+        """Calculate next candle close time for given interval in minutes."""
+        from datetime import timedelta as td
+        epoch = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        elapsed = (now - epoch).total_seconds()
+        interval_sec = interval * 60
+        current_boundary = epoch + td(seconds=(elapsed // interval_sec) * interval_sec)
+        next_b = current_boundary + td(seconds=interval_sec)
+        return next_b
+
+    def _at_boundary(now, interval):
+        """Check if we're within 2 minutes after a candle boundary."""
+        from datetime import timedelta as td
+        epoch = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        elapsed = (now - epoch).total_seconds()
+        interval_sec = interval * 60
+        since_boundary = elapsed % interval_sec
+        return since_boundary < 120  # within 2 minutes
+
     cycle = 0
     while _baret_live_running:
-        # ── Wait for next 4h candle close ──
+        # ── Wait for next candle close ──
         now = datetime.now(timezone.utc)
-        at_boundary = (now.hour % 4 == 0 and now.minute < 2)
         
-        if not at_boundary:
-            next_h = ((now.hour // 4) + 1) * 4
-            if next_h >= 24:
-                next_close = now.replace(hour=0, minute=0, second=5, microsecond=0) + __import__('datetime').timedelta(days=1)
-            else:
-                next_close = now.replace(hour=next_h, minute=0, second=5, microsecond=0)
-            wait_secs = max(0, (next_close - now).total_seconds())
-            _log(f"  ⏰ Waiting for candle close at {next_close.strftime('%H:%M')} UTC ({int(wait_secs//60)} min)")
+        if not _at_boundary(now, interval_min):
+            next_close = _next_boundary(now, interval_min)
+            wait_secs = max(0, (next_close - now).total_seconds()) + 5  # +5s buffer
+            _log(f"  ⏰ Waiting for {shortest_tf} candle close at {next_close.strftime('%H:%M')} UTC ({int(wait_secs//60)} min)")
             while wait_secs > 0 and _baret_live_running:
                 time.sleep(min(30, wait_secs))
                 wait_secs -= 30
@@ -529,7 +550,8 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                     continue
 
                 # 3. Fetch candles + calculate predicted range
-                candles = _fetch_candles(symbol, "4h", window + 5)
+                cfg_tf = cfg.get("timeframe", "4h")
+                candles = _fetch_candles(symbol, cfg_tf, window + 5)
                 if not candles:
                     _log(f"  ⚠️ {symbol}: no candle data")
                     continue
@@ -595,15 +617,9 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                 _log(f"  ❌ {symbol} error: {e}")
 
         # 8. Monitor fills until next candle close (check every 30s)
-        _log(f"  ⏳ Monitoring fills until next 4h candle close...")
+        _log(f"  ⏳ Monitoring fills until next {shortest_tf} candle close...")
         now_m = datetime.now(timezone.utc)
-        next_h = ((now_m.hour // 4) + 1) * 4
-        if next_h >= 24:
-            # Wraps to next day (e.g., 20:00 → next close is 00:00 tomorrow)
-            from datetime import timedelta as td
-            monitor_until = (now_m + td(days=1)).replace(hour=next_h % 24, minute=0, second=0, microsecond=0)
-        else:
-            monitor_until = now_m.replace(hour=next_h, minute=0, second=0, microsecond=0)
+        monitor_until = _next_boundary(now_m, interval_min)
         
         _log(f"  📊 Monitor until {monitor_until.strftime('%Y-%m-%d %H:%M')} UTC ({int((monitor_until - now_m).total_seconds() // 60)} min)")
         
