@@ -67,11 +67,16 @@ class ExchangeClient:
         return r.json()
 
     def place_limit(self, symbol, side, price, qty):
-        return self.api_post("/fapi/v1/order", {
+        result = self.api_post("/fapi/v1/order", {
             "symbol": symbol, "side": side, "type": "LIMIT",
             "timeInForce": "GTC", "quantity": _fmt_qty(symbol, qty),
             "price": _fmt_price(symbol, price),
         })
+        if result.get("orderId"):
+            _log(f"  📋 Limit {side} {symbol} @ ${_fmt_price(symbol, price)} qty={_fmt_qty(symbol, qty)} → orderId={result['orderId']}")
+        elif result.get("code") or result.get("msg"):
+            _log(f"  ❌ Order FAILED {side} {symbol}: {result.get('msg', result)}")
+        return result
 
     def place_market_close(self, symbol, side, qty):
         result = self.api_post("/fapi/v1/order", {
@@ -674,14 +679,31 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
             window = cfg.get("window", 10)
 
             try:
-                # 1. Cancel any existing open orders for this pair
-                client.cancel_all_orders(symbol)
-
-                # 2. Check if already in position
+                # 1. Check if already in position
                 pos = client.get_position(symbol)
                 if pos:
-                    _log(f"{prefix}  ⏩ {symbol}: already in position ({pos.get('positionSide','?')} {pos.get('positionAmt','?')}), skipping")
-                    continue
+                    tracked = state["positions"].get(symbol)
+                    if tracked and not tracked.get("dca_filled") and mode == "baret_dca":
+                        # Position open, DCA not filled — re-place DCA L2
+                        client.cancel_all_orders(symbol)
+                        buf2 = cfg.get("buffer2_pct", 1.0)
+                        side = tracked["side"]
+                        entry = tracked["entry"]
+                        qty_dca = abs(float(pos.get("positionAmt", 0)))
+                        if side == "LONG":
+                            l2_price = entry * (1 - buf2 / 100)
+                            l2_order = client.place_limit(symbol, "BUY", l2_price, qty_dca)
+                        else:
+                            l2_price = entry * (1 + buf2 / 100)
+                            l2_order = client.place_limit(symbol, "SELL", l2_price, qty_dca)
+                        _log(f"{prefix}  🔄 {symbol}: re-placed DCA L2 {side} @ ${l2_price:.4f} (qty={qty_dca})")
+                        continue
+                    else:
+                        _log(f"{prefix}  ⏩ {symbol}: already in position ({pos.get('positionSide','?')} {pos.get('positionAmt','?')}), skipping")
+                        continue
+
+                # 2. Cancel any existing open orders for this pair
+                client.cancel_all_orders(symbol)
 
                 # 3. Fetch candles + calculate predicted range
                 cfg_tf = cfg.get("timeframe", "4h")
