@@ -981,6 +981,26 @@ def _account_loop(account_id, client, account_info, mode="baret_dca"):
     if not bot:
         return
     
+    acct_name = account_info.get("name", f"Account-{account_id}")
+    
+    try:
+        _account_loop_inner(account_id, client, account_info, mode)
+    except Exception as e:
+        import traceback
+        _log(f"[{acct_name}] ❌ CRASH: {e}")
+        _log(f"[{acct_name}] {traceback.format_exc()}")
+        bot["running"] = False
+        try:
+            req.post(f"{WORKER_URL}/trading-accounts/update-status", json={"id": account_id, "status": "crashed"}, timeout=10)
+        except:
+            pass
+
+
+def _account_loop_inner(account_id, client, account_info, mode="baret_dca"):
+    bot = _account_bots.get(account_id)
+    if not bot:
+        return
+    
     state = bot["state"]
     position_usd = account_info.get("position_usd", 10)
     leverage = account_info.get("leverage", 50)
