@@ -19,13 +19,104 @@ from collections import deque
 from urllib.parse import urlencode
 
 # ── Config ──
-TESTNET_URL = os.environ.get("BINANCE_TESTNET_URL", "https://demo-fapi.binance.com")
-TESTNET_KEY = os.environ.get("BINANCE_TESTNET_KEY", "")
-TESTNET_SECRET = os.environ.get("BINANCE_TESTNET_SECRET", "")
 WORKER_URL = os.environ.get("WORKER_URL", "https://bababot-pro.bymarfinai.workers.dev")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 ADMIN_CHAT_ID = os.environ.get("ADMIN_TELEGRAM_ID", "888366328")
+
+# Legacy single-account (backward compat)
+TESTNET_URL = os.environ.get("BINANCE_TESTNET_URL", "https://demo-fapi.binance.com")
+TESTNET_KEY = os.environ.get("BINANCE_TESTNET_KEY", "")
+TESTNET_SECRET = os.environ.get("BINANCE_TESTNET_SECRET", "")
 LEVERAGE = int(os.environ.get("LEVERAGE", "50"))
+
+
+# ── Exchange Client (per-account) ──
+class ExchangeClient:
+    def __init__(self, base_url, api_key, api_secret, leverage=50):
+        self.base_url = base_url
+        self.api_key = api_key
+        self.api_secret = api_secret
+        self.leverage = leverage
+
+    def _sign(self, params):
+        params["timestamp"] = int(time.time() * 1000)
+        params["recvWindow"] = 10000
+        qs = urlencode(params)
+        sig = hmac.new(self.api_secret.encode(), qs.encode(), hashlib.sha256).hexdigest()
+        return qs + f"&signature={sig}"
+
+    def api_post(self, path, params):
+        headers = {"X-MBX-APIKEY": self.api_key}
+        body = self._sign(params)
+        r = req.post(f"{self.base_url}{path}", data=body, headers=headers, timeout=10)
+        return r.json()
+
+    def api_get(self, path, params=None, signed=False):
+        headers = {"X-MBX-APIKEY": self.api_key}
+        if signed:
+            qs = self._sign(params or {})
+            r = req.get(f"{self.base_url}{path}?{qs}", headers=headers, timeout=10)
+        else:
+            r = req.get(f"{self.base_url}{path}", params=params, headers=headers, timeout=10)
+        return r.json()
+
+    def api_delete(self, path, params):
+        headers = {"X-MBX-APIKEY": self.api_key}
+        body = self._sign(params)
+        r = req.delete(f"{self.base_url}{path}?{body}", headers=headers, timeout=10)
+        return r.json()
+
+    def place_limit(self, symbol, side, price, qty):
+        return self.api_post("/fapi/v1/order", {
+            "symbol": symbol, "side": side, "type": "LIMIT",
+            "timeInForce": "GTC", "quantity": _fmt_qty(symbol, qty),
+            "price": _fmt_price(symbol, price),
+        })
+
+    def place_market_close(self, symbol, side, qty):
+        return self.api_post("/fapi/v1/order", {
+            "symbol": symbol, "side": side, "type": "MARKET",
+            "quantity": _fmt_qty(symbol, qty),
+        })
+
+    def cancel_all_orders(self, symbol):
+        try:
+            return self.api_delete("/fapi/v1/allOpenOrders", {"symbol": symbol})
+        except:
+            return {}
+
+    def get_position(self, symbol):
+        try:
+            positions = self.api_get("/fapi/v2/positionRisk", signed=True)
+            for p in positions:
+                if p["symbol"] == symbol and float(p.get("positionAmt", 0)) != 0:
+                    return p
+        except:
+            pass
+        return None
+
+    def set_leverage(self, symbol):
+        try:
+            self.api_post("/fapi/v1/leverage", {"symbol": symbol, "leverage": self.leverage})
+        except:
+            pass
+
+    def get_all_positions(self):
+        try:
+            positions = self.api_get("/fapi/v2/positionRisk", signed=True)
+            return [p for p in positions if float(p.get("positionAmt", 0)) != 0]
+        except:
+            return []
+
+
+# Default client (legacy)
+_default_client = None
+def _get_default_client():
+    global _default_client
+    if not _default_client:
+        _default_client = ExchangeClient(TESTNET_URL, TESTNET_KEY, TESTNET_SECRET, LEVERAGE)
+    return _default_client
+
 
 # ── State ──
 _baret_live_running = False
@@ -40,6 +131,9 @@ _baret_live_state = {
     "mode": "baret",
     "started_at": None,
 }
+
+# Multi-account state
+_account_bots = {}  # {account_id: {"thread": Thread, "running": bool, "state": {...}, "client": ExchangeClient, "account": {...}}}
 
 # ── Logging ──
 def _log(msg):
@@ -69,35 +163,16 @@ def _fmt_qty(symbol, qty):
     d = PRECISION.get(symbol, {"qty": 1})["qty"]
     return f"{qty:.{d}f}"
 def _sign(params):
-    params["timestamp"] = int(time.time() * 1000)
-    params["recvWindow"] = 10000
-    qs = urlencode(params)
-    sig = hmac.new(TESTNET_SECRET.encode(), qs.encode(), hashlib.sha256).hexdigest()
-    return qs + f"&signature={sig}"
-
+    return _get_default_client()._sign(params)
 
 def _api_post(path, params):
-    headers = {"X-MBX-APIKEY": TESTNET_KEY}
-    body = _sign(params)
-    r = req.post(f"{TESTNET_URL}{path}", data=body, headers=headers, timeout=10)
-    return r.json()
-
+    return _get_default_client().api_post(path, params)
 
 def _api_get(path, params=None, signed=False):
-    headers = {"X-MBX-APIKEY": TESTNET_KEY}
-    if signed:
-        qs = _sign(params or {})
-        r = req.get(f"{TESTNET_URL}{path}?{qs}", headers=headers, timeout=10)
-    else:
-        r = req.get(f"{TESTNET_URL}{path}", params=params, headers=headers, timeout=10)
-    return r.json()
-
+    return _get_default_client().api_get(path, params, signed)
 
 def _api_delete(path, params):
-    headers = {"X-MBX-APIKEY": TESTNET_KEY}
-    body = _sign(params)
-    r = req.delete(f"{TESTNET_URL}{path}?{body}", headers=headers, timeout=10)
-    return r.json()
+    return _get_default_client().api_delete(path, params)
 
 
 def _set_leverage(symbol):
@@ -895,3 +970,417 @@ def close_all_positions():
             r = close_position(p["symbol"])
             closed.append(r)
     return {"ok": True, "closed": len(closed), "details": closed}
+
+# ══════════════════════════════════════════════
+# MULTI-ACCOUNT SYSTEM
+# ══════════════════════════════════════════════
+
+def _account_loop(account_id, client, account_info, mode="baret_dca"):
+    """Trading loop for a specific account. Reuses the same logic as _baret_live_loop."""
+    bot = _account_bots.get(account_id)
+    if not bot:
+        return
+    
+    state = bot["state"]
+    position_usd = account_info.get("position_usd", 10)
+    leverage = account_info.get("leverage", 50)
+    client.leverage = leverage
+    acct_name = account_info.get("name", f"Account-{account_id}")
+    
+    # Fetch custom configs
+    configs = _fetch_custom_configs(mode=mode)
+    if not configs:
+        _log(f"[{acct_name}] ❌ No custom configs found. Stopping.")
+        bot["running"] = False
+        return
+    
+    state["active_pairs"] = [c["symbol"] for c in configs]
+    state["mode"] = mode
+    state["started_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # TF and poll interval
+    tf_minutes = {"15m": 15, "1h": 60, "4h": 240}
+    all_tfs = set(c.get("timeframe", "4h") for c in configs)
+    shortest_tf = min(all_tfs, key=lambda t: tf_minutes.get(t, 240))
+    interval_min = tf_minutes.get(shortest_tf, 240)
+    poll_sec = 10 if interval_min <= 15 else 20 if interval_min <= 60 else 30
+    
+    _log(f"[{acct_name}] ═══ STARTED ═══ mode={mode}, {len(configs)} pairs, ${position_usd}/trade, cycle={interval_min}min")
+    _send_telegram(f"📐 *{acct_name} STARTED*\nMode: {mode}\nPairs: {', '.join(c['symbol'] for c in configs)}\nPosition: ${position_usd}")
+    
+    # Set leverage
+    for cfg in configs:
+        client.set_leverage(cfg["symbol"])
+    
+    def _next_boundary(now, interval):
+        from datetime import timedelta as td
+        epoch = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        elapsed = (now - epoch).total_seconds()
+        interval_sec = interval * 60
+        current_boundary = epoch + td(seconds=(elapsed // interval_sec) * interval_sec)
+        return current_boundary + td(seconds=interval_sec)
+    
+    def _at_boundary(now, interval):
+        epoch = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        elapsed = (now - epoch).total_seconds()
+        return (elapsed % (interval * 60)) < 120
+    
+    cycle = 0
+    while bot["running"]:
+        now = datetime.now(timezone.utc)
+        if not _at_boundary(now, interval_min):
+            next_close = _next_boundary(now, interval_min)
+            wait_secs = max(0, (next_close - now).total_seconds()) + 5
+            _log(f"[{acct_name}] ⏰ Waiting for {shortest_tf} candle at {next_close.strftime('%H:%M')} UTC ({int(wait_secs//60)} min)")
+            while wait_secs > 0 and bot["running"]:
+                time.sleep(min(poll_sec, wait_secs))
+                wait_secs -= poll_sec
+                # Monitor positions
+                for sym in list(state["positions"].keys()):
+                    pos_info = state["positions"].get(sym)
+                    if not pos_info:
+                        continue
+                    cp = _get_price(sym)
+                    if cp <= 0:
+                        continue
+                    side, tp, sl = pos_info["side"], pos_info["tp"], pos_info["sl"]
+                    entry, qty = pos_info["entry"], pos_info.get("qty", 0)
+                    hit = None
+                    if side == "LONG" and cp >= tp: hit = "TP"
+                    elif side == "LONG" and cp <= sl: hit = "SL"
+                    elif side == "SHORT" and cp <= tp: hit = "TP"
+                    elif side == "SHORT" and cp >= sl: hit = "SL"
+                    if hit:
+                        client.cancel_all_orders(sym)
+                        ex_pos = client.get_position(sym)
+                        if ex_pos:
+                            cq = abs(float(ex_pos.get("positionAmt", 0)))
+                            if cq > 0:
+                                client.place_market_close(sym, "BUY" if side == "LONG" else "SELL", cq)
+                        pnl_pct = ((cp - entry) / entry * 100) if side == "LONG" else ((entry - cp) / entry * 100)
+                        pnl_dollar = pnl_pct / 100 * entry * qty
+                        _log(f"[{acct_name}] {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${cp:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
+                        try:
+                            cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == sym), "15m")
+                            req.post(f"{WORKER_URL}/bot/trade-log", json={
+                                "strategy_id": 0, "symbol": sym, "timeframe": cfg_tf, "side": side,
+                                "entry_price": entry, "exit_price": cp,
+                                "entry_time": pos_info.get("filled_at", datetime.now(timezone.utc).isoformat()),
+                                "exit_time": datetime.now(timezone.utc).isoformat(),
+                                "sl_pct": None, "tp_pct": None,
+                                "pnl_dollar": pnl_dollar, "pnl_pct": pnl_pct, "exit_reason": hit,
+                                "regime_at_entry": None, "minimax_entry_verdict": None,
+                                "minimax_exit_verdict": None, "minimax_adjustments": None,
+                                "bars_held": None, "max_favorable": None, "max_adverse": None,
+                                "backtest_wr": None, "notes": f"baret_live_{acct_name}",
+                            }, timeout=10)
+                        except:
+                            pass
+                        del state["positions"][sym]
+        
+        if not bot["running"]:
+            break
+        
+        cycle += 1
+        state["cycle_count"] = cycle
+        _log(f"[{acct_name}] ═══ CYCLE {cycle} ═══")
+        
+        notional = position_usd * leverage
+        
+        for cfg in configs:
+            if not bot["running"]:
+                break
+            symbol = cfg["symbol"]
+            
+            # Skip if already in position
+            ex_pos = client.get_position(symbol)
+            if ex_pos:
+                amt = float(ex_pos.get("positionAmt", 0))
+                if amt != 0:
+                    _log(f"[{acct_name}] ⏩ {symbol}: already in position (BOTH {amt}), skipping")
+                    continue
+            
+            cfg_tf = cfg.get("timeframe", "4h")
+            window = cfg.get("window", 10)
+            candles = _fetch_candles(symbol, cfg_tf, window + 5)
+            if not candles or len(candles) < window + 2:
+                _log(f"[{acct_name}] ⚠️ {symbol}: insufficient candles ({len(candles) if candles else 0})")
+                continue
+            
+            candles = candles[:-1]  # Drop last (still open)
+            closes = [c[4] for c in candles]
+            highs = [c[2] for c in candles]
+            lows = [c[3] for c in candles]
+            
+            high_ratios = [highs[i] / highs[i-1] if highs[i-1] != 0 else 1.0 for i in range(1, len(highs))]
+            low_ratios = [lows[i] / lows[i-1] if lows[i-1] != 0 else 1.0 for i in range(1, len(lows))]
+            
+            avg_h = sum(high_ratios[-window:]) / window
+            avg_l = sum(low_ratios[-window:]) / window
+            
+            pred_high = highs[-1] * avg_h
+            pred_low = lows[-1] * avg_l
+            current_price = closes[-1]
+            
+            buffer_pct = cfg.get("buffer_pct", 0.5)
+            long_entry = pred_low * (1 - buffer_pct / 100)
+            short_entry = pred_high * (1 + buffer_pct / 100)
+            
+            qty = notional / current_price
+            qty = round(qty, PRECISION.get(symbol, {"qty": 1})["qty"])
+            
+            _log(f"[{acct_name}] 📐 {symbol}: pred_range ${pred_low:.4f}-${pred_high:.4f}, current=${current_price:.4f}")
+            _log(f"[{acct_name}]    LONG entry=${long_entry:.4f}, SHORT entry=${short_entry:.4f}, qty={qty}")
+            
+            # Cancel old orders
+            client.cancel_all_orders(symbol)
+            
+            # Place L1 orders
+            try:
+                lr = client.place_limit(symbol, "BUY", long_entry, qty)
+                sr = client.place_limit(symbol, "SELL", short_entry, qty)
+                _log(f"[{acct_name}] 📋 L1: BUY ${_fmt_price(symbol, long_entry)} / SELL ${_fmt_price(symbol, short_entry)}")
+                
+                pending = {
+                    "long_id": lr.get("orderId"), "short_id": sr.get("orderId"),
+                    "long_entry": long_entry, "short_entry": short_entry,
+                    "tp_pct": cfg.get("tp_pct", 0.5), "sl_pct": cfg.get("sl_pct", 1.2),
+                    "qty": qty, "placed_at": datetime.now(timezone.utc).isoformat(),
+                }
+                
+                # L2 DCA
+                if mode == "baret_dca":
+                    buf2 = cfg.get("buffer2_pct", 1.0)
+                    long_l2 = long_entry * (1 - buf2 / 100)
+                    short_l2 = short_entry * (1 + buf2 / 100)
+                    l2lr = client.place_limit(symbol, "BUY", long_l2, qty)
+                    l2sr = client.place_limit(symbol, "SELL", short_l2, qty)
+                    pending["long_l2_id"] = l2lr.get("orderId")
+                    pending["short_l2_id"] = l2sr.get("orderId")
+                    pending["long_l2_entry"] = long_l2
+                    pending["short_l2_entry"] = short_l2
+                    _log(f"[{acct_name}]    DCA L2: LONG=${_fmt_price(symbol, long_l2)}, SHORT=${_fmt_price(symbol, short_l2)}")
+                
+                state["pending_orders"][symbol] = pending
+            except Exception as e:
+                _log(f"[{acct_name}] ❌ {symbol}: order failed: {e}")
+        
+        # Monitor fills until next candle close
+        _log(f"[{acct_name}] ⏳ Monitoring fills...")
+        now_m = datetime.now(timezone.utc)
+        monitor_until = _next_boundary(now_m, interval_min)
+        
+        while bot["running"] and datetime.now(timezone.utc) < monitor_until:
+            time.sleep(poll_sec)
+            for cfg in configs:
+                if not bot["running"]:
+                    break
+                symbol = cfg["symbol"]
+                pending = state["pending_orders"].get(symbol)
+                if not pending:
+                    continue
+                
+                ex_pos = client.get_position(symbol)
+                if not ex_pos:
+                    continue
+                amt = float(ex_pos.get("positionAmt", 0))
+                if amt == 0:
+                    continue
+                
+                # Determine side and entry
+                side = "LONG" if amt > 0 else "SHORT"
+                entry_price = pending["long_entry"] if side == "LONG" else pending["short_entry"]
+                tp_pct = pending["tp_pct"]
+                sl_pct = pending["sl_pct"]
+                
+                if side == "LONG":
+                    tp_price = entry_price * (1 + tp_pct / 100)
+                    sl_price = entry_price * (1 - sl_pct / 100)
+                else:
+                    tp_price = entry_price * (1 - tp_pct / 100)
+                    sl_price = entry_price * (1 + sl_pct / 100)
+                
+                if symbol not in state["positions"]:
+                    _log(f"[{acct_name}] ✅ {symbol} {side} FILLED @ ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}")
+                    state["positions"][symbol] = {
+                        "side": side, "entry": entry_price,
+                        "tp": tp_price, "sl": sl_price,
+                        "qty": abs(amt), "dca_filled": False,
+                        "filled_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                    try:
+                        cfg_tf = cfg.get("timeframe", "15m")
+                        req.post(f"{WORKER_URL}/bot/trade-log", json={
+                            "strategy_id": 0, "symbol": symbol, "timeframe": cfg_tf, "side": side,
+                            "entry_price": entry_price, "exit_price": None,
+                            "entry_time": datetime.now(timezone.utc).isoformat(), "exit_time": None,
+                            "sl_pct": None, "tp_pct": None, "pnl_dollar": None, "pnl_pct": None, "exit_reason": None,
+                            "regime_at_entry": None, "minimax_entry_verdict": None,
+                            "minimax_exit_verdict": None, "minimax_adjustments": None,
+                            "bars_held": None, "max_favorable": None, "max_adverse": None,
+                            "backtest_wr": None, "notes": f"baret_live_{acct_name}",
+                        }, timeout=10)
+                    except:
+                        pass
+                
+                # Check TP/SL
+                pos_info = state["positions"].get(symbol)
+                if pos_info:
+                    current_price = _get_price(symbol)
+                    if current_price <= 0:
+                        continue
+                    hit = None
+                    if side == "LONG":
+                        if current_price >= pos_info["tp"]: hit = "TP"
+                        elif current_price <= pos_info["sl"]: hit = "SL"
+                    else:
+                        if current_price <= pos_info["tp"]: hit = "TP"
+                        elif current_price >= pos_info["sl"]: hit = "SL"
+                    
+                    if hit:
+                        client.cancel_all_orders(symbol)
+                        cq = abs(amt)
+                        client.place_market_close(symbol, "BUY" if side == "LONG" else "SELL", cq)
+                        pnl_pct = ((current_price - pos_info["entry"]) / pos_info["entry"] * 100) if side == "LONG" else ((pos_info["entry"] - current_price) / pos_info["entry"] * 100)
+                        pnl_dollar = pnl_pct / 100 * pos_info["entry"] * cq
+                        _log(f"[{acct_name}] {'🎯' if hit == 'TP' else '🛑'} {symbol} {side} {hit} @ ${current_price:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
+                        try:
+                            cfg_tf = cfg.get("timeframe", "15m")
+                            req.post(f"{WORKER_URL}/bot/trade-log", json={
+                                "strategy_id": 0, "symbol": symbol, "timeframe": cfg_tf, "side": side,
+                                "entry_price": pos_info["entry"], "exit_price": current_price,
+                                "entry_time": pos_info.get("filled_at", datetime.now(timezone.utc).isoformat()),
+                                "exit_time": datetime.now(timezone.utc).isoformat(),
+                                "sl_pct": None, "tp_pct": None,
+                                "pnl_dollar": pnl_dollar, "pnl_pct": pnl_pct, "exit_reason": hit,
+                                "regime_at_entry": None, "minimax_entry_verdict": None,
+                                "minimax_exit_verdict": None, "minimax_adjustments": None,
+                                "bars_held": None, "max_favorable": None, "max_adverse": None,
+                                "backtest_wr": None, "notes": f"baret_live_{acct_name}",
+                            }, timeout=10)
+                        except:
+                            pass
+                        del state["positions"][symbol]
+                        if symbol in state["pending_orders"]:
+                            del state["pending_orders"][symbol]
+        
+        # Cancel unfilled
+        for cfg in configs:
+            symbol = cfg["symbol"]
+            if symbol in state["pending_orders"]:
+                client.cancel_all_orders(symbol)
+                _log(f"[{acct_name}] 🗑 {symbol}: unfilled orders cancelled")
+                del state["pending_orders"][symbol]
+        
+        _log(f"[{acct_name}] ═══ CYCLE {cycle} DONE ═══")
+        time.sleep(5)
+    
+    _log(f"[{acct_name}] ═══ STOPPED ═══")
+    bot["running"] = False
+    # Update D1 status
+    try:
+        req.post(f"{WORKER_URL}/trading-accounts/update-status", json={"id": account_id, "status": "stopped"}, timeout=10)
+    except:
+        pass
+
+
+def start_account_bot(account_id, mode="baret_dca"):
+    """Start bot for a specific account."""
+    global _account_bots
+    
+    if account_id in _account_bots and _account_bots[account_id].get("running"):
+        return {"ok": True, "message": f"Account {account_id} already running"}
+    
+    # Fetch account from D1
+    try:
+        r = req.get(f"{WORKER_URL}/trading-accounts/list", timeout=10)
+        accounts = r.json().get("accounts", [])
+        account = next((a for a in accounts if a["id"] == int(account_id)), None)
+    except Exception as e:
+        return {"ok": False, "error": f"Failed to fetch account: {e}"}
+    
+    if not account:
+        return {"ok": False, "error": f"Account {account_id} not found"}
+    
+    # Get API keys from env vars
+    api_key = os.environ.get(account["env_key_name"], "")
+    api_secret = os.environ.get(account["env_secret_name"], "")
+    
+    if not api_key or not api_secret:
+        return {"ok": False, "error": f"API keys not found in env: {account['env_key_name']} / {account['env_secret_name']}"}
+    
+    client = ExchangeClient(account["base_url"], api_key, api_secret, account.get("leverage", 50))
+    
+    bot_state = {
+        "active_pairs": [], "positions": {}, "pending_orders": {},
+        "cycle_count": 0, "last_cycle": None, "mode": mode, "started_at": None,
+    }
+    
+    _account_bots[account_id] = {
+        "running": True,
+        "state": bot_state,
+        "client": client,
+        "account": account,
+        "thread": None,
+    }
+    
+    t = threading.Thread(target=_account_loop, args=(account_id, client, account, mode), daemon=True)
+    _account_bots[account_id]["thread"] = t
+    t.start()
+    
+    # Update D1 status
+    try:
+        req.post(f"{WORKER_URL}/trading-accounts/update-status", json={"id": account_id, "status": "running"}, timeout=10)
+    except:
+        pass
+    
+    return {"ok": True, "message": f"Account '{account['name']}' started, mode={mode}, ${account['position_usd']}×{account['leverage']}x"}
+
+
+def stop_account_bot(account_id):
+    """Stop bot for a specific account."""
+    account_id = int(account_id)
+    bot = _account_bots.get(account_id)
+    if not bot or not bot.get("running"):
+        return {"ok": True, "message": f"Account {account_id} not running"}
+    
+    bot["running"] = False
+    _log(f"[Account-{account_id}] Stop signal sent")
+    
+    # Update D1 status
+    try:
+        req.post(f"{WORKER_URL}/trading-accounts/update-status", json={"id": account_id, "status": "stopped"}, timeout=10)
+    except:
+        pass
+    
+    return {"ok": True, "message": f"Account {account_id} stopping..."}
+
+
+def account_bot_status(account_id=None):
+    """Get status of one or all account bots."""
+    if account_id:
+        account_id = int(account_id)
+        bot = _account_bots.get(account_id)
+        if not bot:
+            return {"ok": True, "running": False, "account_id": account_id}
+        return {
+            "ok": True,
+            "account_id": account_id,
+            "running": bot["running"],
+            "thread_alive": bot["thread"].is_alive() if bot.get("thread") else False,
+            "state": bot["state"],
+            "account_name": bot["account"].get("name", ""),
+        }
+    
+    # All accounts
+    result = {}
+    for aid, bot in _account_bots.items():
+        result[aid] = {
+            "running": bot["running"],
+            "thread_alive": bot["thread"].is_alive() if bot.get("thread") else False,
+            "account_name": bot["account"].get("name", ""),
+            "pairs": bot["state"].get("active_pairs", []),
+            "cycle": bot["state"].get("cycle_count", 0),
+            "positions": len(bot["state"].get("positions", {})),
+        }
+    return {"ok": True, "accounts": result}
