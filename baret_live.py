@@ -518,7 +518,18 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                         _send_telegram(f"{'🎯' if hit == 'TP' else '🛑'} *{sym} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${cp:.4f}\nPnL: {pnl_pct:+.2f}%")
                         try:
                             cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == sym), "15m")
-                            req.post(f"{WORKER_URL}/bot/trade-log", json={"symbol": sym, "side": side, "entry_price": entry, "exit_price": cp, "pnl_pct": pnl_pct, "pnl_dollar": pnl_dollar, "exit_reason": hit, "timeframe": cfg_tf, "entry_time": pos_data.get("filled_at", datetime.now(timezone.utc).isoformat()), "exit_time": datetime.now(timezone.utc).isoformat(), "notes": "baret_live"}, timeout=10)
+                            req.post(f"{WORKER_URL}/bot/trade-log", json={
+                                "strategy_id": 0, "symbol": sym, "timeframe": cfg_tf, "side": side,
+                                "entry_price": entry, "exit_price": cp,
+                                "entry_time": pos_data.get("filled_at", datetime.now(timezone.utc).isoformat()),
+                                "exit_time": datetime.now(timezone.utc).isoformat(),
+                                "sl_pct": None, "tp_pct": None,
+                                "pnl_dollar": pnl_dollar, "pnl_pct": pnl_pct, "exit_reason": hit,
+                                "regime_at_entry": None, "minimax_entry_verdict": None,
+                                "minimax_exit_verdict": None, "minimax_adjustments": None,
+                                "bars_held": None, "max_favorable": None, "max_adverse": None,
+                                "backtest_wr": None, "notes": "baret_live",
+                            }, timeout=10)
                         except:
                             pass
                         del _baret_live_state["positions"][sym]
@@ -714,11 +725,15 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                         try:
                             cfg_tf = cfg.get("timeframe", "15m")
                             req.post(f"{WORKER_URL}/bot/trade-log", json={
-                                "symbol": symbol, "side": side, "entry_price": entry_price,
-                                "tp_pct": cfg.get("tp_pct"), "sl_pct": cfg.get("sl_pct"),
-                                "timeframe": cfg_tf,
-                                "entry_time": datetime.now(timezone.utc).isoformat(),
-                                "notes": "baret_live",
+                                "strategy_id": 0, "symbol": symbol, "timeframe": cfg_tf, "side": side,
+                                "entry_price": entry_price, "exit_price": None,
+                                "entry_time": datetime.now(timezone.utc).isoformat(), "exit_time": None,
+                                "sl_pct": cfg.get("sl_pct"), "tp_pct": cfg.get("tp_pct"),
+                                "pnl_dollar": None, "pnl_pct": None, "exit_reason": None,
+                                "regime_at_entry": None, "minimax_entry_verdict": None,
+                                "minimax_exit_verdict": None, "minimax_adjustments": None,
+                                "bars_held": None, "max_favorable": None, "max_adverse": None,
+                                "backtest_wr": None, "notes": "baret_live",
                             }, timeout=10)
                         except:
                             pass
@@ -774,13 +789,16 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                     try:
                         cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == sym), "15m")
                         req.post(f"{WORKER_URL}/bot/trade-log", json={
-                            "symbol": sym, "side": side, "entry_price": entry,
-                            "exit_price": current_price, "pnl_pct": pnl_pct,
-                            "pnl_dollar": pnl_dollar, "exit_reason": hit,
-                            "timeframe": cfg_tf,
+                            "strategy_id": 0, "symbol": sym, "timeframe": cfg_tf, "side": side,
+                            "entry_price": entry, "exit_price": current_price,
                             "entry_time": pos_data.get("filled_at", datetime.now(timezone.utc).isoformat()),
                             "exit_time": datetime.now(timezone.utc).isoformat(),
-                            "notes": "baret_live",
+                            "sl_pct": None, "tp_pct": None,
+                            "pnl_dollar": pnl_dollar, "pnl_pct": pnl_pct, "exit_reason": hit,
+                            "regime_at_entry": None, "minimax_entry_verdict": None,
+                            "minimax_exit_verdict": None, "minimax_adjustments": None,
+                            "bars_held": None, "max_favorable": None, "max_adverse": None,
+                            "backtest_wr": None, "notes": "baret_live",
                         }, timeout=10)
                     except:
                         pass
