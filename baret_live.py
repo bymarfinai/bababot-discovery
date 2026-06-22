@@ -517,7 +517,8 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                         _log(f"  {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${cp:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
                         _send_telegram(f"{'🎯' if hit == 'TP' else '🛑'} *{sym} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${cp:.4f}\nPnL: {pnl_pct:+.2f}%")
                         try:
-                            req.post(f"{WORKER_URL}/bot/trade-log", json={"symbol": sym, "side": side, "entry_price": entry, "exit_price": cp, "pnl_pct": pnl_pct, "pnl_dollar": pnl_dollar, "exit_reason": hit, "source": "baret_live", "status": "closed"}, timeout=10)
+                            cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == sym), "15m")
+                            req.post(f"{WORKER_URL}/bot/trade-log", json={"symbol": sym, "side": side, "entry_price": entry, "exit_price": cp, "pnl_pct": pnl_pct, "pnl_dollar": pnl_dollar, "exit_reason": hit, "timeframe": cfg_tf, "entry_time": pos_data.get("filled_at", datetime.now(timezone.utc).isoformat()), "exit_time": datetime.now(timezone.utc).isoformat(), "notes": "baret_live"}, timeout=10)
                         except:
                             pass
                         del _baret_live_state["positions"][sym]
@@ -711,10 +712,13 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                         _send_telegram(f"📐 BARET ENTRY{dca_label}\n{symbol} {side} @ ${entry_price:.4f}\nTP: ${tp_price:.4f}\nSL: ${sl_price:.4f}")
 
                         try:
+                            cfg_tf = cfg.get("timeframe", "15m")
                             req.post(f"{WORKER_URL}/bot/trade-log", json={
                                 "symbol": symbol, "side": side, "entry_price": entry_price,
-                                "tp_price": tp_price, "sl_price": sl_price,
-                                "source": f"baret_{mode}", "status": "open",
+                                "tp_pct": cfg.get("tp_pct"), "sl_pct": cfg.get("sl_pct"),
+                                "timeframe": cfg_tf,
+                                "entry_time": datetime.now(timezone.utc).isoformat(),
+                                "notes": "baret_live",
                             }, timeout=10)
                         except:
                             pass
@@ -727,6 +731,7 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                             "tp": tp_price, "sl": sl_price,
                             "qty": abs(amt),
                             "dca_filled": False,
+                            "filled_at": datetime.now(timezone.utc).isoformat(),
                         }
             
             # Monitor TP/SL for open positions
@@ -767,11 +772,15 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                     _send_telegram(f"{'🎯' if hit == 'TP' else '🛑'} *{sym} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${current_price:.4f}\nPnL: {pnl_pct:+.2f}%")
                     
                     try:
+                        cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == sym), "15m")
                         req.post(f"{WORKER_URL}/bot/trade-log", json={
                             "symbol": sym, "side": side, "entry_price": entry,
                             "exit_price": current_price, "pnl_pct": pnl_pct,
                             "pnl_dollar": pnl_dollar, "exit_reason": hit,
-                            "source": "baret_live", "status": "closed",
+                            "timeframe": cfg_tf,
+                            "entry_time": pos_data.get("filled_at", datetime.now(timezone.utc).isoformat()),
+                            "exit_time": datetime.now(timezone.utc).isoformat(),
+                            "notes": "baret_live",
                         }, timeout=10)
                     except:
                         pass
