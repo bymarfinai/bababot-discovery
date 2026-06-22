@@ -74,10 +74,14 @@ class ExchangeClient:
         })
 
     def place_market_close(self, symbol, side, qty):
-        return self.api_post("/fapi/v1/order", {
+        result = self.api_post("/fapi/v1/order", {
             "symbol": symbol, "side": side, "type": "MARKET",
             "quantity": _fmt_qty(symbol, qty),
+            "reduceOnly": "true",
         })
+        if result.get("code"):
+            _log(f"  ⚠️ Close order error: {result.get('msg', result)}")
+        return result
 
     def cancel_all_orders(self, symbol):
         try:
@@ -212,6 +216,7 @@ def _place_market_close(symbol, side, qty):
             "side": close_side,
             "type": "MARKET",
             "quantity": _fmt_qty(symbol, qty),
+            "reduceOnly": "true",
         })
         return result
     except Exception as e:
@@ -544,6 +549,25 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
     for cfg in configs:
         client.set_leverage(cfg["symbol"])
 
+    # Auto-cleanup orphan positions from previous sessions
+    _log(f"{prefix}  🔍 Checking for orphan positions...")
+    orphan_count = 0
+    for cfg in configs:
+        symbol = cfg["symbol"]
+        pos = client.get_position(symbol)
+        if pos:
+            amt = float(pos.get("positionAmt", 0))
+            if amt != 0:
+                side_close = "SELL" if amt > 0 else "BUY"
+                client.cancel_all_orders(symbol)
+                client.place_market_close(symbol, side_close, abs(amt))
+                _log(f"{prefix}  🧹 {symbol}: closed orphan {'LONG' if amt > 0 else 'SHORT'} {abs(amt)}")
+                orphan_count += 1
+    if orphan_count > 0:
+        _log(f"{prefix}  ✅ {orphan_count} orphan positions cleaned up")
+    else:
+        _log(f"{prefix}  ✅ No orphan positions found")
+
     # Helper: next candle boundary for a given interval
     def _next_boundary(now, interval):
         """Calculate next candle close time for given interval in minutes."""
@@ -595,12 +619,20 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                     if hit:
                         client.cancel_all_orders(sym)
                         ex_pos = client.get_position(sym)
+                        actual_qty = 0
                         if ex_pos:
-                            cq = abs(float(ex_pos.get("positionAmt", 0)))
-                            if cq > 0:
-                                client.place_market_close(sym, "BUY" if side == "LONG" else "SELL", cq)
+                            actual_qty = abs(float(ex_pos.get("positionAmt", 0)))
+                            if actual_qty > 0:
+                                close_result = client.place_market_close(sym, "BUY" if side == "LONG" else "SELL", actual_qty)
+                                # Verify position actually closed
+                                time.sleep(1)
+                                verify = client.get_position(sym)
+                                if verify and abs(float(verify.get("positionAmt", 0))) > 0:
+                                    _log(f"{prefix}  ⚠️ {sym}: close failed, position still open!")
+                                    continue
+                        use_qty = actual_qty if actual_qty > 0 else qty
                         pnl_pct = ((cp - entry) / entry * 100) if side == "LONG" else ((entry - cp) / entry * 100)
-                        pnl_dollar = pnl_pct / 100 * entry * qty
+                        pnl_dollar = pnl_pct / 100 * entry * use_qty
                         _log(f"{prefix}  {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${cp:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
                         _send_telegram(f"{'🎯' if hit == 'TP' else '🛑'} *{sym} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${cp:.4f}\nPnL: {pnl_pct:+.2f}%")
                         try:
@@ -862,13 +894,20 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                 if hit:
                     client.cancel_all_orders(sym)
                     ex_pos = client.get_position(sym)
+                    actual_qty = 0
                     if ex_pos:
-                        close_qty = abs(float(ex_pos.get("positionAmt", 0)))
-                        if close_qty > 0:
-                            client.place_market_close(sym, "BUY" if side == "LONG" else "SELL", close_qty)
-                    
+                        actual_qty = abs(float(ex_pos.get("positionAmt", 0)))
+                        if actual_qty > 0:
+                            client.place_market_close(sym, "BUY" if side == "LONG" else "SELL", actual_qty)
+                            # Verify position actually closed
+                            time.sleep(1)
+                            verify = client.get_position(sym)
+                            if verify and abs(float(verify.get("positionAmt", 0))) > 0:
+                                _log(f"{prefix}  ⚠️ {sym}: close failed, position still open!")
+                                continue
+                    use_qty = actual_qty if actual_qty > 0 else qty
                     pnl_pct = ((current_price - entry) / entry * 100) if side == "LONG" else ((entry - current_price) / entry * 100)
-                    pnl_dollar = pnl_pct / 100 * entry * qty
+                    pnl_dollar = pnl_pct / 100 * entry * use_qty
                     
                     _log(f"{prefix}  {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${current_price:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
                     _send_telegram(f"{'🎯' if hit == 'TP' else '🛑'} *{sym} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${current_price:.4f}\nPnL: {pnl_pct:+.2f}%")
