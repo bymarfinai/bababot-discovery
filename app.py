@@ -19,7 +19,7 @@ from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_L
 from live_bot import start_bot, stop_bot, bot_status, get_activity_log
 from dca_bot import start_dca, stop_dca, dca_status, get_dca_log, get_dca_results
 from baret_bot import start_baret, stop_baret, baret_status, get_baret_log
-from baret_live import start_baret_live, stop_baret_live, baret_live_status, get_baret_live_log, close_position, close_all_positions
+from baret_live import start_baret_live, stop_baret_live, baret_live_status, get_baret_live_log, close_position, close_all_positions, start_account_bot, stop_account_bot, account_bot_status
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -1784,9 +1784,34 @@ def baret_live_status_endpoint():
 def baret_live_log_endpoint(limit: int = 200):
     return {"ok": True, "log": get_baret_live_log(limit)}
 
+@app.get("/server-ip")
+def server_ip():
+    """Get Railway server's outbound IP."""
+    try:
+        import requests as _req
+        r = _req.get("https://api.ipify.org?format=json", timeout=5)
+        return {"ok": True, "ip": r.json().get("ip")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
 @app.get("/baret-live/close")
 def baret_live_close(symbol: str = None):
     """Close a specific position or all positions."""
     if symbol:
         return close_position(symbol)
     return close_all_positions()
+
+@app.get("/baret-live/start-account")
+def baret_live_start_account(account_id: int = 0, mode: str = "baret_dca"):
+    """Start bot for a specific trading account."""
+    return start_account_bot(account_id, mode=mode)
+
+@app.get("/baret-live/stop-account")
+def baret_live_stop_account(account_id: int = 0):
+    """Stop bot for a specific trading account."""
+    return stop_account_bot(account_id)
+
+@app.get("/baret-live/account-status")
+def baret_live_account_status(account_id: int = None):
+    """Get status of account bots."""
+    return account_bot_status(account_id)
