@@ -499,38 +499,50 @@ def _send_telegram(msg):
 
 
 # ── Main Trading Loop ──
-def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit", use_custom_configs=False):
-    """Main Baret live trading loop. Supports 15m/1h/4h candle cycles."""
+def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit", use_custom_configs=False, client=None, state=None, running_check=None, acct_name=""):
+    """Main Baret live trading loop. Supports 15m/1h/4h candle cycles. Used by both legacy and multi-account."""
     global _baret_live_running, _baret_live_state, LEVERAGE
-    LEVERAGE = leverage
+    
+    # Use defaults for legacy mode
+    if client is None:
+        LEVERAGE = leverage
+        if not TESTNET_KEY or not TESTNET_SECRET:
+            _log("❌ BINANCE_TESTNET_KEY/SECRET not set. Cannot trade.")
+            _baret_live_running = False
+            return
+        client = _get_default_client()
+        client.leverage = leverage
+    
+    if state is None:
+        state = _baret_live_state
+    
+    if running_check is None:
+        running_check = lambda: _baret_live_running
+    
+    prefix = f"[{acct_name}] " if acct_name else ""
 
-    if not TESTNET_KEY or not TESTNET_SECRET:
-        _log("❌ BINANCE_TESTNET_KEY/SECRET not set. Cannot trade.")
-        _baret_live_running = False
-        return
-
-    _baret_live_state["mode"] = mode
-    _baret_live_state["started_at"] = datetime.now(timezone.utc).isoformat()
-    _baret_live_state["filters"] = {"min_wr": min_wr, "max_dd": max_dd, "min_ppd": min_ppd, "max_bh": max_bh, "buffer": buffer, "tp": tp, "sl": sl, "sort_by": sort_by}
+    state["mode"] = mode
+    state["started_at"] = datetime.now(timezone.utc).isoformat()
+    state["filters"] = {"min_wr": min_wr, "max_dd": max_dd, "min_ppd": min_ppd, "max_bh": max_bh, "buffer": buffer, "tp": tp, "sl": sl, "sort_by": sort_by}
     # Try custom configs first, fallback to sweep-based configs
     configs = []
     if use_custom_configs:
         configs = _fetch_custom_configs(mode=mode)
     if not configs:
         configs = _fetch_baret_configs(mode=mode, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd, max_bh=max_bh, buffer=buffer, tp=tp, sl=sl, sort_by=sort_by, position_usd=position_usd)
-    _baret_live_state["active_pairs"] = [c["symbol"] for c in configs]
+    state["active_pairs"] = [c["symbol"] for c in configs]
 
     # Determine shortest timeframe from configs for candle sync
     tf_minutes = {"15m": 15, "1h": 60, "4h": 240}
     all_tfs = set(c.get("timeframe", "4h") for c in configs)
     shortest_tf = min(all_tfs, key=lambda t: tf_minutes.get(t, 240))
     interval_min = tf_minutes.get(shortest_tf, 240)
-    _log(f"═══ BARET LIVE STARTED ═══ mode={mode}, {len(configs)} pairs, ${position_usd}/trade, TFs: {all_tfs}, cycle={interval_min}min")
+    _log(f"{prefix}═══ BARET LIVE STARTED ═══ mode={mode}, {len(configs)} pairs, ${position_usd}/trade, TFs: {all_tfs}, cycle={interval_min}min")
     _send_telegram(f"📐 *BARET LIVE STARTED*\nMode: {mode}\nPairs: {', '.join(c['symbol'] for c in configs)}\nPosition: ${position_usd}\nCycle: {interval_min}min")
 
     # Set leverage for all pairs
     for cfg in configs:
-        _set_leverage(cfg["symbol"])
+        client.set_leverage(cfg["symbol"])
 
     # Helper: next candle boundary for a given interval
     def _next_boundary(now, interval):
@@ -556,20 +568,20 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
     poll_sec = 10 if interval_min <= 15 else 20 if interval_min <= 60 else 30
 
     cycle = 0
-    while _baret_live_running:
+    while running_check():
         # ── Wait for next candle close ──
         now = datetime.now(timezone.utc)
         
         if not _at_boundary(now, interval_min):
             next_close = _next_boundary(now, interval_min)
             wait_secs = max(0, (next_close - now).total_seconds()) + 5  # +5s buffer
-            _log(f"  ⏰ Waiting for {shortest_tf} candle close at {next_close.strftime('%H:%M')} UTC ({int(wait_secs//60)} min)")
-            while wait_secs > 0 and _baret_live_running:
+            _log(f"{prefix}  ⏰ Waiting for {shortest_tf} candle close at {next_close.strftime('%H:%M')} UTC ({int(wait_secs//60)} min)")
+            while wait_secs > 0 and running_check():
                 time.sleep(min(poll_sec, wait_secs))
                 wait_secs -= 30
                 # Monitor existing positions for TP/SL while waiting
-                for sym in list(_baret_live_state["positions"].keys()):
-                    pos_info = _baret_live_state["positions"][sym]
+                for sym in list(state["positions"].keys()):
+                    pos_info = state["positions"][sym]
                     cp = _get_price(sym)
                     if cp <= 0:
                         continue
@@ -581,15 +593,15 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                     elif side == "SHORT" and cp <= tp: hit = "TP"
                     elif side == "SHORT" and cp >= sl: hit = "SL"
                     if hit:
-                        _cancel_all_orders(sym)
-                        ex_pos = _get_position(sym)
+                        client.cancel_all_orders(sym)
+                        ex_pos = client.get_position(sym)
                         if ex_pos:
                             cq = abs(float(ex_pos.get("positionAmt", 0)))
                             if cq > 0:
-                                _place_market_close(sym, "BUY" if side == "LONG" else "SELL", cq)
+                                client.place_market_close(sym, "BUY" if side == "LONG" else "SELL", cq)
                         pnl_pct = ((cp - entry) / entry * 100) if side == "LONG" else ((entry - cp) / entry * 100)
                         pnl_dollar = pnl_pct / 100 * entry * qty
-                        _log(f"  {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${cp:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
+                        _log(f"{prefix}  {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${cp:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
                         _send_telegram(f"{'🎯' if hit == 'TP' else '🛑'} *{sym} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${cp:.4f}\nPnL: {pnl_pct:+.2f}%")
                         try:
                             cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == sym), "15m")
@@ -603,24 +615,24 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                                 "regime_at_entry": None, "minimax_entry_verdict": None,
                                 "minimax_exit_verdict": None, "minimax_adjustments": None,
                                 "bars_held": None, "max_favorable": None, "max_adverse": None,
-                                "backtest_wr": None, "notes": "baret_live",
+                                "backtest_wr": None, "notes": f"baret_live_{acct_name}" if acct_name else "baret_live",
                             }, timeout=10)
                         except:
                             pass
-                        del _baret_live_state["positions"][sym]
+                        del state["positions"][sym]
         
-        if not _baret_live_running:
+        if not running_check():
             break
 
         # ── Candle just closed — start new cycle ──
         cycle += 1
-        _baret_live_state["cycle_count"] = cycle
-        _baret_live_state["last_cycle"] = datetime.now(timezone.utc).isoformat()
+        state["cycle_count"] = cycle
+        state["last_cycle"] = datetime.now(timezone.utc).isoformat()
 
-        _log(f"═══ CYCLE {cycle} ═══")
+        _log(f"{prefix}═══ CYCLE {cycle} ═══")
 
         for cfg in configs:
-            if not _baret_live_running:
+            if not running_check():
                 break
 
             symbol = cfg["symbol"]
@@ -631,24 +643,24 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
 
             try:
                 # 1. Cancel any existing open orders for this pair
-                _cancel_all_orders(symbol)
+                client.cancel_all_orders(symbol)
 
                 # 2. Check if already in position
-                pos = _get_position(symbol)
+                pos = client.get_position(symbol)
                 if pos:
-                    _log(f"  ⏩ {symbol}: already in position ({pos.get('positionSide','?')} {pos.get('positionAmt','?')}), skipping")
+                    _log(f"{prefix}  ⏩ {symbol}: already in position ({pos.get('positionSide','?')} {pos.get('positionAmt','?')}), skipping")
                     continue
 
                 # 3. Fetch candles + calculate predicted range
                 cfg_tf = cfg.get("timeframe", "4h")
                 candles = _fetch_candles(symbol, cfg_tf, window + 5)
                 if not candles:
-                    _log(f"  ⚠️ {symbol}: no candle data")
+                    _log(f"{prefix}  ⚠️ {symbol}: no candle data")
                     continue
 
                 pred = _calculate_predicted_range(candles, window)
                 if not pred:
-                    _log(f"  ⚠️ {symbol}: insufficient data for prediction")
+                    _log(f"{prefix}  ⚠️ {symbol}: insufficient data for prediction")
                     continue
 
                 pred_high = pred["pred_high"]
@@ -662,7 +674,7 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                     close_gap_long = (pred_close - pred_low) / pred_low * 100 if pred_low > 0 else 0
                     close_gap_short = (pred_high - pred_close) / pred_high * 100 if pred_high > 0 else 0
                     if close_gap_long < close_filter and close_gap_short < close_filter:
-                        _log(f"  ⏩ {symbol}: close filter skip (gap L={close_gap_long:.2f}% S={close_gap_short:.2f}% < {close_filter}%)")
+                        _log(f"{prefix}  ⏩ {symbol}: close filter skip (gap L={close_gap_long:.2f}% S={close_gap_short:.2f}% < {close_filter}%)")
                         continue
 
                 # 5. Calculate entry levels
@@ -671,15 +683,15 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
 
                 qty = _calc_quantity(symbol, current, position_usd)
 
-                _log(f"  📐 {symbol}: pred_range ${pred_low:.4f}-${pred_high:.4f}, current=${current:.4f}")
-                _log(f"     LONG entry=${long_entry:.4f}, SHORT entry=${short_entry:.4f}, qty={qty}")
+                _log(f"{prefix}  📐 {symbol}: pred_range ${pred_low:.4f}-${pred_high:.4f}, current=${current:.4f}")
+                _log(f"{prefix}     LONG entry=${long_entry:.4f}, SHORT entry=${short_entry:.4f}, qty={qty}")
 
                 # 6. Place limit orders (both sides)
-                long_order = _place_limit_order(symbol, "BUY", long_entry, qty)
-                short_order = _place_limit_order(symbol, "SELL", short_entry, qty)
+                long_order = client.place_limit(symbol, "BUY", long_entry, qty)
+                short_order = client.place_limit(symbol, "SELL", short_entry, qty)
 
                 # Track pending orders
-                _baret_live_state["pending_orders"][symbol] = {
+                state["pending_orders"][symbol] = {
                     "long_id": long_order.get("orderId"),
                     "short_id": short_order.get("orderId"),
                     "long_entry": long_entry,
@@ -695,49 +707,49 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                     buf2 = cfg.get("buffer2_pct", 1.0)
                     long_l2 = long_entry * (1 - buf2 / 100)
                     short_l2 = short_entry * (1 + buf2 / 100)
-                    long_l2_order = _place_limit_order(symbol, "BUY", long_l2, qty)
-                    short_l2_order = _place_limit_order(symbol, "SELL", short_l2, qty)
-                    _baret_live_state["pending_orders"][symbol]["long_l2_id"] = long_l2_order.get("orderId")
-                    _baret_live_state["pending_orders"][symbol]["short_l2_id"] = short_l2_order.get("orderId")
-                    _baret_live_state["pending_orders"][symbol]["long_l2_entry"] = long_l2
-                    _baret_live_state["pending_orders"][symbol]["short_l2_entry"] = short_l2
-                    _log(f"     DCA L2: LONG=${long_l2:.4f}, SHORT=${short_l2:.4f}")
+                    long_l2_order = client.place_limit(symbol, "BUY", long_l2, qty)
+                    short_l2_order = client.place_limit(symbol, "SELL", short_l2, qty)
+                    state["pending_orders"][symbol]["long_l2_id"] = long_l2_order.get("orderId")
+                    state["pending_orders"][symbol]["short_l2_id"] = short_l2_order.get("orderId")
+                    state["pending_orders"][symbol]["long_l2_entry"] = long_l2
+                    state["pending_orders"][symbol]["short_l2_entry"] = short_l2
+                    _log(f"{prefix}     DCA L2: LONG=${long_l2:.4f}, SHORT=${short_l2:.4f}")
 
             except Exception as e:
-                _log(f"  ❌ {symbol} error: {e}")
+                _log(f"{prefix}  ❌ {symbol} error: {e}")
 
         # 8. Monitor fills until next candle close (check every 30s)
-        _log(f"  ⏳ Monitoring fills until next {shortest_tf} candle close...")
+        _log(f"{prefix}  ⏳ Monitoring fills until next {shortest_tf} candle close...")
         now_m = datetime.now(timezone.utc)
         monitor_until = _next_boundary(now_m, interval_min)
         
-        _log(f"  📊 Monitor until {monitor_until.strftime('%Y-%m-%d %H:%M')} UTC ({int((monitor_until - now_m).total_seconds() // 60)} min)")
+        _log(f"{prefix}  📊 Monitor until {monitor_until.strftime('%Y-%m-%d %H:%M')} UTC ({int((monitor_until - now_m).total_seconds() // 60)} min)")
         
-        while _baret_live_running and datetime.now(timezone.utc) < monitor_until:
+        while running_check() and datetime.now(timezone.utc) < monitor_until:
             time.sleep(poll_sec)
 
             for cfg in configs:
-                if not _baret_live_running:
+                if not running_check():
                     break
                 symbol = cfg["symbol"]
-                pending = _baret_live_state["pending_orders"].get(symbol)
+                pending = state["pending_orders"].get(symbol)
                 if not pending:
                     continue
 
                 # Check if position opened (order filled)
-                pos = _get_position(symbol)
+                pos = client.get_position(symbol)
                 if pos and float(pos.get("positionAmt", 0)) != 0:
                     amt = float(pos["positionAmt"])
                     entry_price = float(pos.get("entryPrice", 0))
                     side = "LONG" if amt > 0 else "SHORT"
-                    existing_pos = _baret_live_state["positions"].get(symbol)
+                    existing_pos = state["positions"].get(symbol)
 
                     if existing_pos and mode == "baret_dca":
                         # ── DCA UPDATE: check if L2 filled (qty increased) ──
                         old_qty = existing_pos.get("qty", 0)
                         if abs(amt) > old_qty * 1.3:
                             # L2 filled! Binance auto-averaged entry price
-                            _cancel_all_orders(symbol)
+                            client.cancel_all_orders(symbol)
                             if side == "LONG":
                                 tp_price = entry_price * (1 + pending["tp_pct"] / 100)
                                 sl_price = entry_price * (1 - pending["sl_pct"] / 100)
@@ -746,15 +758,15 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                                 sl_price = entry_price * (1 + pending["sl_pct"] / 100)
                             order_side = "BUY" if amt > 0 else "SELL"
                             _place_sl_tp(symbol, order_side, sl_price, tp_price)
-                            _log(f"  🔄 {symbol} DCA L2 FILLED → avg entry ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}")
+                            _log(f"{prefix}  🔄 {symbol} DCA L2 FILLED → avg entry ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}")
                             _send_telegram(f"🔄 DCA L2 FILLED\n{symbol} {side} avg entry ${entry_price:.4f}\nTP: ${tp_price:.4f} SL: ${sl_price:.4f}")
                             existing_pos["entry"] = entry_price
                             existing_pos["tp"] = tp_price
                             existing_pos["sl"] = sl_price
                             existing_pos["qty"] = abs(amt)
                             existing_pos["dca_filled"] = True
-                            if symbol in _baret_live_state["pending_orders"]:
-                                del _baret_live_state["pending_orders"][symbol]
+                            if symbol in state["pending_orders"]:
+                                del state["pending_orders"][symbol]
 
                     elif not existing_pos:
                         # ── NEW FILL (L1) ──
@@ -768,7 +780,7 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                                 if pending.get("short_l2_id"):
                                     try: _cancel_order(symbol, pending["short_l2_id"])
                                     except: pass
-                                _log(f"     DCA: cancelled SHORT orders, LONG L2 still active")
+                                _log(f"{prefix}     DCA: cancelled SHORT orders, LONG L2 still active")
                             else:
                                 # Cancel LONG L1 + LONG L2, keep SHORT L2
                                 if pending.get("long_id"):
@@ -777,10 +789,10 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                                 if pending.get("long_l2_id"):
                                     try: _cancel_order(symbol, pending["long_l2_id"])
                                     except: pass
-                                _log(f"     DCA: cancelled LONG orders, SHORT L2 still active")
+                                _log(f"{prefix}     DCA: cancelled LONG orders, SHORT L2 still active")
                         else:
                             # Standard baret: cancel everything
-                            _cancel_all_orders(symbol)
+                            client.cancel_all_orders(symbol)
 
                         # Calculate TP/SL from entry
                         if side == "LONG":
@@ -794,7 +806,7 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                         _place_sl_tp(symbol, order_side, sl_price, tp_price)
 
                         dca_label = " (L1, L2 pending)" if mode == "baret_dca" else ""
-                        _log(f"  ✅ {symbol} {side} FILLED @ ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}{dca_label}")
+                        _log(f"{prefix}  ✅ {symbol} {side} FILLED @ ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}{dca_label}")
                         _send_telegram(f"📐 BARET ENTRY{dca_label}\n{symbol} {side} @ ${entry_price:.4f}\nTP: ${tp_price:.4f}\nSL: ${sl_price:.4f}")
 
                         try:
@@ -808,15 +820,15 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                                 "regime_at_entry": None, "minimax_entry_verdict": None,
                                 "minimax_exit_verdict": None, "minimax_adjustments": None,
                                 "bars_held": None, "max_favorable": None, "max_adverse": None,
-                                "backtest_wr": None, "notes": "baret_live",
+                                "backtest_wr": None, "notes": f"baret_live_{acct_name}" if acct_name else "baret_live",
                             }, timeout=10)
                         except:
                             pass
 
                         # Don't delete pending in DCA mode (L2 still active)
                         if mode != "baret_dca":
-                            del _baret_live_state["pending_orders"][symbol]
-                        _baret_live_state["positions"][symbol] = {
+                            del state["pending_orders"][symbol]
+                        state["positions"][symbol] = {
                             "side": side, "entry": entry_price,
                             "tp": tp_price, "sl": sl_price,
                             "qty": abs(amt),
@@ -825,10 +837,10 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                         }
             
             # Monitor TP/SL for open positions
-            for sym in list(_baret_live_state["positions"].keys()):
-                if not _baret_live_running:
+            for sym in list(state["positions"].keys()):
+                if not running_check():
                     break
-                pos_info = _baret_live_state["positions"][sym]
+                pos_info = state["positions"][sym]
                 current_price = _get_price(sym)
                 if current_price <= 0:
                     continue
@@ -848,17 +860,17 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                     elif current_price >= sl: hit = "SL"
                 
                 if hit:
-                    _cancel_all_orders(sym)
-                    ex_pos = _get_position(sym)
+                    client.cancel_all_orders(sym)
+                    ex_pos = client.get_position(sym)
                     if ex_pos:
                         close_qty = abs(float(ex_pos.get("positionAmt", 0)))
                         if close_qty > 0:
-                            _place_market_close(sym, "BUY" if side == "LONG" else "SELL", close_qty)
+                            client.place_market_close(sym, "BUY" if side == "LONG" else "SELL", close_qty)
                     
                     pnl_pct = ((current_price - entry) / entry * 100) if side == "LONG" else ((entry - current_price) / entry * 100)
                     pnl_dollar = pnl_pct / 100 * entry * qty
                     
-                    _log(f"  {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${current_price:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
+                    _log(f"{prefix}  {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${current_price:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
                     _send_telegram(f"{'🎯' if hit == 'TP' else '🛑'} *{sym} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${current_price:.4f}\nPnL: {pnl_pct:+.2f}%")
                     
                     try:
@@ -873,32 +885,33 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                             "regime_at_entry": None, "minimax_entry_verdict": None,
                             "minimax_exit_verdict": None, "minimax_adjustments": None,
                             "bars_held": None, "max_favorable": None, "max_adverse": None,
-                            "backtest_wr": None, "notes": "baret_live",
+                            "backtest_wr": None, "notes": f"baret_live_{acct_name}" if acct_name else "baret_live",
                         }, timeout=10)
                     except:
                         pass
                     
-                    del _baret_live_state["positions"][sym]
+                    del state["positions"][sym]
         # 9. Candle close: cancel all unfilled orders
         for cfg in configs:
             symbol = cfg["symbol"]
-            if symbol in _baret_live_state["pending_orders"]:
-                _cancel_all_orders(symbol)
-                _log(f"  🗑 {symbol}: unfilled orders cancelled (candle close)")
-                del _baret_live_state["pending_orders"][symbol]
+            if symbol in state["pending_orders"]:
+                client.cancel_all_orders(symbol)
+                _log(f"{prefix}  🗑 {symbol}: unfilled orders cancelled (candle close)")
+                del state["pending_orders"][symbol]
 
         # Check positions that closed (TP/SL hit)
-        for symbol in list(_baret_live_state["positions"].keys()):
-            pos = _get_position(symbol)
+        for symbol in list(state["positions"].keys()):
+            pos = client.get_position(symbol)
             if not pos or float(pos.get("positionAmt", 0)) == 0:
-                saved = _baret_live_state["positions"].pop(symbol)
-                _log(f"  📊 {symbol}: position closed (TP/SL hit)")
+                saved = state["positions"].pop(symbol)
+                _log(f"{prefix}  📊 {symbol}: position closed (TP/SL hit)")
 
-        _log(f"═══ CYCLE {cycle} DONE ═══")
+        _log(f"{prefix}═══ CYCLE {cycle} DONE ═══")
         time.sleep(5)  # Small delay, then immediately recalculate (candle just closed)
 
-    _log("═══ BARET LIVE STOPPED ═══")
-    _baret_live_running = False
+    _log(f"{prefix}═══ BARET LIVE STOPPED ═══")
+    if not acct_name:
+        _baret_live_running = False
 
 
 # ── Public API ──
@@ -976,332 +989,33 @@ def close_all_positions():
 # ══════════════════════════════════════════════
 
 def _account_loop(account_id, client, account_info, mode="baret_dca"):
-    """Trading loop for a specific account. Reuses the same logic as _baret_live_loop."""
+    """Trading loop for a specific account. Calls the SAME _baret_live_loop with account-specific client."""
     bot = _account_bots.get(account_id)
     if not bot:
         return
     
     acct_name = account_info.get("name", f"Account-{account_id}")
+    position_usd = account_info.get("position_usd", 10)
+    leverage = account_info.get("leverage", 50)
+    client.leverage = leverage
     
     try:
-        _account_loop_inner(account_id, client, account_info, mode)
+        _baret_live_loop(
+            mode=mode, position_usd=position_usd, leverage=leverage,
+            use_custom_configs=True, client=client, state=bot["state"],
+            running_check=lambda: bot["running"], acct_name=acct_name,
+        )
     except Exception as e:
         import traceback
         _log(f"[{acct_name}] ❌ CRASH: {e}")
         _log(f"[{acct_name}] {traceback.format_exc()}")
-        bot["running"] = False
-        try:
-            req.post(f"{WORKER_URL}/trading-accounts/update-status", json={"id": account_id, "status": "crashed"}, timeout=10)
-        except:
-            pass
-
-
-def _account_loop_inner(account_id, client, account_info, mode="baret_dca"):
-    bot = _account_bots.get(account_id)
-    if not bot:
-        return
     
-    state = bot["state"]
-    position_usd = account_info.get("position_usd", 10)
-    leverage = account_info.get("leverage", 50)
-    client.leverage = leverage
-    acct_name = account_info.get("name", f"Account-{account_id}")
-    
-    # Fetch custom configs
-    configs = _fetch_custom_configs(mode=mode)
-    if not configs:
-        _log(f"[{acct_name}] ❌ No custom configs found. Stopping.")
-        bot["running"] = False
-        return
-    
-    state["active_pairs"] = [c["symbol"] for c in configs]
-    state["mode"] = mode
-    state["started_at"] = datetime.now(timezone.utc).isoformat()
-    
-    # TF and poll interval
-    tf_minutes = {"15m": 15, "1h": 60, "4h": 240}
-    all_tfs = set(c.get("timeframe", "4h") for c in configs)
-    shortest_tf = min(all_tfs, key=lambda t: tf_minutes.get(t, 240))
-    interval_min = tf_minutes.get(shortest_tf, 240)
-    poll_sec = 10 if interval_min <= 15 else 20 if interval_min <= 60 else 30
-    
-    _log(f"[{acct_name}] ═══ STARTED ═══ mode={mode}, {len(configs)} pairs, ${position_usd}/trade, cycle={interval_min}min")
-    _send_telegram(f"📐 *{acct_name} STARTED*\nMode: {mode}\nPairs: {', '.join(c['symbol'] for c in configs)}\nPosition: ${position_usd}")
-    
-    # Set leverage
-    for cfg in configs:
-        client.set_leverage(cfg["symbol"])
-    
-    def _next_boundary(now, interval):
-        from datetime import timedelta as td
-        epoch = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        elapsed = (now - epoch).total_seconds()
-        interval_sec = interval * 60
-        current_boundary = epoch + td(seconds=(elapsed // interval_sec) * interval_sec)
-        return current_boundary + td(seconds=interval_sec)
-    
-    def _at_boundary(now, interval):
-        epoch = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        elapsed = (now - epoch).total_seconds()
-        return (elapsed % (interval * 60)) < 120
-    
-    cycle = 0
-    while bot["running"]:
-        now = datetime.now(timezone.utc)
-        if not _at_boundary(now, interval_min):
-            next_close = _next_boundary(now, interval_min)
-            wait_secs = max(0, (next_close - now).total_seconds()) + 5
-            _log(f"[{acct_name}] ⏰ Waiting for {shortest_tf} candle at {next_close.strftime('%H:%M')} UTC ({int(wait_secs//60)} min)")
-            while wait_secs > 0 and bot["running"]:
-                time.sleep(min(poll_sec, wait_secs))
-                wait_secs -= poll_sec
-                # Monitor positions
-                for sym in list(state["positions"].keys()):
-                    pos_info = state["positions"].get(sym)
-                    if not pos_info:
-                        continue
-                    cp = _get_price(sym)
-                    if cp <= 0:
-                        continue
-                    side, tp, sl = pos_info["side"], pos_info["tp"], pos_info["sl"]
-                    entry, qty = pos_info["entry"], pos_info.get("qty", 0)
-                    hit = None
-                    if side == "LONG" and cp >= tp: hit = "TP"
-                    elif side == "LONG" and cp <= sl: hit = "SL"
-                    elif side == "SHORT" and cp <= tp: hit = "TP"
-                    elif side == "SHORT" and cp >= sl: hit = "SL"
-                    if hit:
-                        client.cancel_all_orders(sym)
-                        ex_pos = client.get_position(sym)
-                        if ex_pos:
-                            cq = abs(float(ex_pos.get("positionAmt", 0)))
-                            if cq > 0:
-                                client.place_market_close(sym, "BUY" if side == "LONG" else "SELL", cq)
-                        pnl_pct = ((cp - entry) / entry * 100) if side == "LONG" else ((entry - cp) / entry * 100)
-                        pnl_dollar = pnl_pct / 100 * entry * qty
-                        _log(f"[{acct_name}] {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${cp:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
-                        try:
-                            cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == sym), "15m")
-                            req.post(f"{WORKER_URL}/bot/trade-log", json={
-                                "strategy_id": 0, "symbol": sym, "timeframe": cfg_tf, "side": side,
-                                "entry_price": entry, "exit_price": cp,
-                                "entry_time": pos_info.get("filled_at", datetime.now(timezone.utc).isoformat()),
-                                "exit_time": datetime.now(timezone.utc).isoformat(),
-                                "sl_pct": None, "tp_pct": None,
-                                "pnl_dollar": pnl_dollar, "pnl_pct": pnl_pct, "exit_reason": hit,
-                                "regime_at_entry": None, "minimax_entry_verdict": None,
-                                "minimax_exit_verdict": None, "minimax_adjustments": None,
-                                "bars_held": None, "max_favorable": None, "max_adverse": None,
-                                "backtest_wr": None, "notes": f"baret_live_{acct_name}",
-                            }, timeout=10)
-                        except:
-                            pass
-                        del state["positions"][sym]
-        
-        if not bot["running"]:
-            break
-        
-        cycle += 1
-        state["cycle_count"] = cycle
-        _log(f"[{acct_name}] ═══ CYCLE {cycle} ═══")
-        
-        notional = position_usd * leverage
-        
-        for cfg in configs:
-            if not bot["running"]:
-                break
-            symbol = cfg["symbol"]
-            
-            # Skip if already in position
-            ex_pos = client.get_position(symbol)
-            if ex_pos:
-                amt = float(ex_pos.get("positionAmt", 0))
-                if amt != 0:
-                    _log(f"[{acct_name}] ⏩ {symbol}: already in position (BOTH {amt}), skipping")
-                    continue
-            
-            cfg_tf = cfg.get("timeframe", "4h")
-            window = cfg.get("window", 10)
-            candles = _fetch_candles(symbol, cfg_tf, window + 5)
-            if not candles or len(candles) < window + 2:
-                _log(f"[{acct_name}] ⚠️ {symbol}: insufficient candles ({len(candles) if candles else 0})")
-                continue
-            
-            candles = candles[:-1]  # Drop last (still open)
-            closes = [c[4] for c in candles]
-            highs = [c[2] for c in candles]
-            lows = [c[3] for c in candles]
-            
-            high_ratios = [highs[i] / highs[i-1] if highs[i-1] != 0 else 1.0 for i in range(1, len(highs))]
-            low_ratios = [lows[i] / lows[i-1] if lows[i-1] != 0 else 1.0 for i in range(1, len(lows))]
-            
-            avg_h = sum(high_ratios[-window:]) / window
-            avg_l = sum(low_ratios[-window:]) / window
-            
-            pred_high = highs[-1] * avg_h
-            pred_low = lows[-1] * avg_l
-            current_price = closes[-1]
-            
-            buffer_pct = cfg.get("buffer_pct", 0.5)
-            long_entry = pred_low * (1 - buffer_pct / 100)
-            short_entry = pred_high * (1 + buffer_pct / 100)
-            
-            qty = notional / current_price
-            qty = round(qty, PRECISION.get(symbol, {"qty": 1})["qty"])
-            
-            _log(f"[{acct_name}] 📐 {symbol}: pred_range ${pred_low:.4f}-${pred_high:.4f}, current=${current_price:.4f}")
-            _log(f"[{acct_name}]    LONG entry=${long_entry:.4f}, SHORT entry=${short_entry:.4f}, qty={qty}")
-            
-            # Cancel old orders
-            client.cancel_all_orders(symbol)
-            
-            # Place L1 orders
-            try:
-                lr = client.place_limit(symbol, "BUY", long_entry, qty)
-                sr = client.place_limit(symbol, "SELL", short_entry, qty)
-                _log(f"[{acct_name}] 📋 L1: BUY ${_fmt_price(symbol, long_entry)} / SELL ${_fmt_price(symbol, short_entry)}")
-                
-                pending = {
-                    "long_id": lr.get("orderId"), "short_id": sr.get("orderId"),
-                    "long_entry": long_entry, "short_entry": short_entry,
-                    "tp_pct": cfg.get("tp_pct", 0.5), "sl_pct": cfg.get("sl_pct", 1.2),
-                    "qty": qty, "placed_at": datetime.now(timezone.utc).isoformat(),
-                }
-                
-                # L2 DCA
-                if mode == "baret_dca":
-                    buf2 = cfg.get("buffer2_pct", 1.0)
-                    long_l2 = long_entry * (1 - buf2 / 100)
-                    short_l2 = short_entry * (1 + buf2 / 100)
-                    l2lr = client.place_limit(symbol, "BUY", long_l2, qty)
-                    l2sr = client.place_limit(symbol, "SELL", short_l2, qty)
-                    pending["long_l2_id"] = l2lr.get("orderId")
-                    pending["short_l2_id"] = l2sr.get("orderId")
-                    pending["long_l2_entry"] = long_l2
-                    pending["short_l2_entry"] = short_l2
-                    _log(f"[{acct_name}]    DCA L2: LONG=${_fmt_price(symbol, long_l2)}, SHORT=${_fmt_price(symbol, short_l2)}")
-                
-                state["pending_orders"][symbol] = pending
-            except Exception as e:
-                _log(f"[{acct_name}] ❌ {symbol}: order failed: {e}")
-        
-        # Monitor fills until next candle close
-        _log(f"[{acct_name}] ⏳ Monitoring fills...")
-        now_m = datetime.now(timezone.utc)
-        monitor_until = _next_boundary(now_m, interval_min)
-        
-        while bot["running"] and datetime.now(timezone.utc) < monitor_until:
-            time.sleep(poll_sec)
-            for cfg in configs:
-                if not bot["running"]:
-                    break
-                symbol = cfg["symbol"]
-                pending = state["pending_orders"].get(symbol)
-                if not pending:
-                    continue
-                
-                ex_pos = client.get_position(symbol)
-                if not ex_pos:
-                    continue
-                amt = float(ex_pos.get("positionAmt", 0))
-                if amt == 0:
-                    continue
-                
-                # Determine side and entry
-                side = "LONG" if amt > 0 else "SHORT"
-                entry_price = pending["long_entry"] if side == "LONG" else pending["short_entry"]
-                tp_pct = pending["tp_pct"]
-                sl_pct = pending["sl_pct"]
-                
-                if side == "LONG":
-                    tp_price = entry_price * (1 + tp_pct / 100)
-                    sl_price = entry_price * (1 - sl_pct / 100)
-                else:
-                    tp_price = entry_price * (1 - tp_pct / 100)
-                    sl_price = entry_price * (1 + sl_pct / 100)
-                
-                if symbol not in state["positions"]:
-                    _log(f"[{acct_name}] ✅ {symbol} {side} FILLED @ ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}")
-                    state["positions"][symbol] = {
-                        "side": side, "entry": entry_price,
-                        "tp": tp_price, "sl": sl_price,
-                        "qty": abs(amt), "dca_filled": False,
-                        "filled_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                    try:
-                        cfg_tf = cfg.get("timeframe", "15m")
-                        req.post(f"{WORKER_URL}/bot/trade-log", json={
-                            "strategy_id": 0, "symbol": symbol, "timeframe": cfg_tf, "side": side,
-                            "entry_price": entry_price, "exit_price": None,
-                            "entry_time": datetime.now(timezone.utc).isoformat(), "exit_time": None,
-                            "sl_pct": None, "tp_pct": None, "pnl_dollar": None, "pnl_pct": None, "exit_reason": None,
-                            "regime_at_entry": None, "minimax_entry_verdict": None,
-                            "minimax_exit_verdict": None, "minimax_adjustments": None,
-                            "bars_held": None, "max_favorable": None, "max_adverse": None,
-                            "backtest_wr": None, "notes": f"baret_live_{acct_name}",
-                        }, timeout=10)
-                    except:
-                        pass
-                
-                # Check TP/SL
-                pos_info = state["positions"].get(symbol)
-                if pos_info:
-                    current_price = _get_price(symbol)
-                    if current_price <= 0:
-                        continue
-                    hit = None
-                    if side == "LONG":
-                        if current_price >= pos_info["tp"]: hit = "TP"
-                        elif current_price <= pos_info["sl"]: hit = "SL"
-                    else:
-                        if current_price <= pos_info["tp"]: hit = "TP"
-                        elif current_price >= pos_info["sl"]: hit = "SL"
-                    
-                    if hit:
-                        client.cancel_all_orders(symbol)
-                        cq = abs(amt)
-                        client.place_market_close(symbol, "BUY" if side == "LONG" else "SELL", cq)
-                        pnl_pct = ((current_price - pos_info["entry"]) / pos_info["entry"] * 100) if side == "LONG" else ((pos_info["entry"] - current_price) / pos_info["entry"] * 100)
-                        pnl_dollar = pnl_pct / 100 * pos_info["entry"] * cq
-                        _log(f"[{acct_name}] {'🎯' if hit == 'TP' else '🛑'} {symbol} {side} {hit} @ ${current_price:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
-                        try:
-                            cfg_tf = cfg.get("timeframe", "15m")
-                            req.post(f"{WORKER_URL}/bot/trade-log", json={
-                                "strategy_id": 0, "symbol": symbol, "timeframe": cfg_tf, "side": side,
-                                "entry_price": pos_info["entry"], "exit_price": current_price,
-                                "entry_time": pos_info.get("filled_at", datetime.now(timezone.utc).isoformat()),
-                                "exit_time": datetime.now(timezone.utc).isoformat(),
-                                "sl_pct": None, "tp_pct": None,
-                                "pnl_dollar": pnl_dollar, "pnl_pct": pnl_pct, "exit_reason": hit,
-                                "regime_at_entry": None, "minimax_entry_verdict": None,
-                                "minimax_exit_verdict": None, "minimax_adjustments": None,
-                                "bars_held": None, "max_favorable": None, "max_adverse": None,
-                                "backtest_wr": None, "notes": f"baret_live_{acct_name}",
-                            }, timeout=10)
-                        except:
-                            pass
-                        del state["positions"][symbol]
-                        if symbol in state["pending_orders"]:
-                            del state["pending_orders"][symbol]
-        
-        # Cancel unfilled
-        for cfg in configs:
-            symbol = cfg["symbol"]
-            if symbol in state["pending_orders"]:
-                client.cancel_all_orders(symbol)
-                _log(f"[{acct_name}] 🗑 {symbol}: unfilled orders cancelled")
-                del state["pending_orders"][symbol]
-        
-        _log(f"[{acct_name}] ═══ CYCLE {cycle} DONE ═══")
-        time.sleep(5)
-    
-    _log(f"[{acct_name}] ═══ STOPPED ═══")
     bot["running"] = False
-    # Update D1 status
     try:
         req.post(f"{WORKER_URL}/trading-accounts/update-status", json={"id": account_id, "status": "stopped"}, timeout=10)
     except:
         pass
+
 
 
 def start_account_bot(account_id, mode="baret_dca"):
