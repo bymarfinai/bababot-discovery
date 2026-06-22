@@ -1,10 +1,25 @@
 """
-BabaBot — Baret Live Trading (Demo)
+BabaBot — Baret Live Trading (v3 Production)
 Predicted range entry: limit orders at predicted extremes + buffer.
 Supports: baret (single), baret_dca (L1+L2), baret_marfin (close filter).
 
-Uses Binance Demo API (testnet) for order placement.
+Uses Binance Real/Demo API for order placement.
 Data from OKX (cloud-accessible).
+
+v3 Changes (from v2):
+- Verified endpoints from official Binance docs (June 2026):
+  * POST /fapi/v1/algoOrder (place SL/TP)
+  * DELETE /fapi/v1/algoOrder (cancel single, requires algoId)
+  * DELETE /fapi/v1/algoOpenOrders (cancel all algo per symbol)
+  * GET /fapi/v1/openAlgoOrders (list open algo)
+  * DELETE /fapi/v1/allOpenOrders does NOT cancel algo orders
+- Since 2025-12-09: STOP_MARKET/TAKE_PROFIT_MARKET REQUIRE algoOrder (error -4120 on /fapi/v1/order)
+- Store algoId for targeted cancellation
+- Cycle-end position close now logs PnL to D1
+- Deduplicated exchange-close detection into helper
+- Removed unused numpy import
+- close_position supports multi-account client
+- Consistent DCA L2 formula: always entry × (1 ± buf2%)
 """
 
 import os
@@ -12,9 +27,9 @@ import time
 import hmac
 import hashlib
 import threading
-import numpy as np
+import traceback
 import requests as req
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from collections import deque
 from urllib.parse import urlencode
 
@@ -30,7 +45,10 @@ TESTNET_SECRET = os.environ.get("BINANCE_TESTNET_SECRET", "")
 LEVERAGE = int(os.environ.get("LEVERAGE", "50"))
 
 
-# ── Exchange Client (per-account) ──
+# ══════════════════════════════════════════════
+# EXCHANGE CLIENT (per-account)
+# ══════════════════════════════════════════════
+
 class ExchangeClient:
     def __init__(self, base_url, api_key, api_secret, leverage=50):
         self.base_url = base_url
@@ -39,9 +57,10 @@ class ExchangeClient:
         self.leverage = leverage
 
     def _sign(self, params):
-        params["timestamp"] = int(time.time() * 1000)
-        params["recvWindow"] = 10000
-        qs = urlencode(params)
+        p = dict(params)  # don't mutate caller's dict
+        p["timestamp"] = int(time.time() * 1000)
+        p["recvWindow"] = 10000
+        qs = urlencode(p)
         sig = hmac.new(self.api_secret.encode(), qs.encode(), hashlib.sha256).hexdigest()
         return qs + f"&signature={sig}"
 
@@ -66,6 +85,8 @@ class ExchangeClient:
         r = req.delete(f"{self.base_url}{path}?{body}", headers=headers, timeout=10)
         return r.json()
 
+    # ── Standard Orders (LIMIT, MARKET only) ──
+
     def place_limit(self, symbol, side, price, qty):
         result = self.api_post("/fapi/v1/order", {
             "symbol": symbol, "side": side, "type": "LIMIT",
@@ -89,19 +110,30 @@ class ExchangeClient:
         return result
 
     def cancel_all_orders(self, symbol):
+        """Cancel all regular open orders (LIMIT, MARKET). Does NOT cancel algo orders."""
         try:
             return self.api_delete("/fapi/v1/allOpenOrders", {"symbol": symbol})
-        except:
+        except Exception as e:
+            _log(f"  ⚠️ cancel_all_orders {symbol}: {e}")
+            return {}
+
+    def cancel_order(self, symbol, order_id):
+        """Cancel a single regular order by orderId."""
+        try:
+            return self.api_delete("/fapi/v1/order", {"symbol": symbol, "orderId": order_id})
+        except Exception as e:
+            _log(f"  ⚠️ cancel_order {symbol} #{order_id}: {e}")
             return {}
 
     def get_position(self, symbol):
         try:
             positions = self.api_get("/fapi/v2/positionRisk", signed=True)
-            for p in positions:
-                if p["symbol"] == symbol and float(p.get("positionAmt", 0)) != 0:
-                    return p
-        except:
-            pass
+            if isinstance(positions, list):
+                for p in positions:
+                    if p["symbol"] == symbol and float(p.get("positionAmt", 0)) != 0:
+                        return p
+        except Exception as e:
+            _log(f"  ⚠️ get_position {symbol}: {e}")
         return None
 
     def set_leverage(self, symbol):
@@ -113,13 +145,97 @@ class ExchangeClient:
     def get_all_positions(self):
         try:
             positions = self.api_get("/fapi/v2/positionRisk", signed=True)
-            return [p for p in positions if float(p.get("positionAmt", 0)) != 0]
+            if isinstance(positions, list):
+                return [p for p in positions if float(p.get("positionAmt", 0)) != 0]
         except:
+            pass
+        return []
+
+    # ══════════════════════════════════════════
+    # algoOrder — SL/TP (Binance Real, mandatory since 2025-12-09)
+    #
+    # Verified endpoints from official Binance docs:
+    #   POST   /fapi/v1/algoOrder       — place conditional order
+    #   DELETE /fapi/v1/algoOrder        — cancel single (requires algoId)
+    #   DELETE /fapi/v1/algoOpenOrders   — cancel ALL open algo per symbol
+    #   GET    /fapi/v1/openAlgoOrders   — list open algo orders
+    #
+    # Since 2025-12-09, /fapi/v1/order REJECTS STOP_MARKET/TAKE_PROFIT_MARKET
+    # with error -4120. Must use algoOrder.
+    # ══════════════════════════════════════════
+
+    def place_algo_order(self, symbol, side, algo_type, trigger_price):
+        """Place SL or TP via algoOrder (CONDITIONAL).
+
+        Args:
+            symbol: e.g. "SOLUSDT"
+            side: "BUY" or "SELL" (close side, opposite of position)
+            algo_type: "STOP_MARKET" or "TAKE_PROFIT_MARKET"
+            trigger_price: price at which to trigger
+
+        Returns: API response dict with algoId
+        """
+        params = {
+            "symbol": symbol,
+            "side": side,
+            "algoType": "CONDITIONAL",
+            "type": algo_type,
+            "triggerPrice": _fmt_price(symbol, trigger_price),
+            "closePosition": "true",
+            # NOTE: timeInForce only for STOP/TAKE_PROFIT (limit types).
+            # STOP_MARKET/TAKE_PROFIT_MARKET don't use it.
+            # NOTE: quantity cannot be sent with closePosition=true.
+        }
+        result = self.api_post("/fapi/v1/algoOrder", params)
+        label = "SL" if algo_type == "STOP_MARKET" else "TP"
+
+        if result.get("algoId"):
+            _log(f"    ✅ {label} algoOrder {side} {symbol} trigger=${_fmt_price(symbol, trigger_price)} → algoId={result['algoId']}")
+        else:
+            _log(f"    ❌ {label} algoOrder FAILED {symbol}: code={result.get('code')} msg={result.get('msg', result)}")
+        return result
+
+    def cancel_algo_order(self, symbol, algo_id):
+        """Cancel a single algo order by algoId.
+        Endpoint: DELETE /fapi/v1/algoOrder
+        """
+        try:
+            result = self.api_delete("/fapi/v1/algoOrder", {"symbol": symbol, "algoId": algo_id})
+            _log(f"    🗑 Cancelled algo #{algo_id} for {symbol}")
+            return result
+        except Exception as e:
+            _log(f"    ⚠️ cancel_algo_order {symbol} #{algo_id}: {e}")
+            return {}
+
+    def cancel_all_algo_orders(self, symbol):
+        """Cancel ALL open algo orders for a symbol.
+        Endpoint: DELETE /fapi/v1/algoOpenOrders
+        """
+        try:
+            result = self.api_delete("/fapi/v1/algoOpenOrders", {"symbol": symbol})
+            _log(f"    🗑 Cancelled all algo orders for {symbol}")
+            return result
+        except Exception as e:
+            _log(f"    ⚠️ cancel_all_algo_orders {symbol}: {e}")
+            return {}
+
+    def get_open_algo_orders(self, symbol=None):
+        """Get all open algo orders (optionally filtered by symbol).
+        Endpoint: GET /fapi/v1/openAlgoOrders
+        """
+        try:
+            params = {}
+            if symbol:
+                params["symbol"] = symbol
+            return self.api_get("/fapi/v1/openAlgoOrders", params, signed=True)
+        except Exception as e:
+            _log(f"  ⚠️ get_open_algo_orders: {e}")
             return []
 
 
-# Default client (legacy)
+# ── Default Client (legacy) ──
 _default_client = None
+
 def _get_default_client():
     global _default_client
     if not _default_client:
@@ -127,7 +243,10 @@ def _get_default_client():
     return _default_client
 
 
-# ── State ──
+# ══════════════════════════════════════════════
+# STATE
+# ══════════════════════════════════════════════
+
 _baret_live_running = False
 _baret_live_thread = None
 _baret_live_log = deque(maxlen=500)
@@ -142,9 +261,13 @@ _baret_live_state = {
 }
 
 # Multi-account state
-_account_bots = {}  # {account_id: {"thread": Thread, "running": bool, "state": {...}, "client": ExchangeClient, "account": {...}}}
+_account_bots = {}
 
-# ── Logging ──
+
+# ══════════════════════════════════════════════
+# UTILITIES
+# ══════════════════════════════════════════════
+
 def _log(msg):
     ts = datetime.now().strftime("%H:%M:%S")
     entry = f"[{ts}] {msg}"
@@ -152,7 +275,7 @@ def _log(msg):
     print(f"[BaretLive] {entry}")
 
 
-# ── Symbol Precision Rules (Binance Futures) ──
+# ── Symbol Precision (Binance Futures) ──
 PRECISION = {
     "BTCUSDT":       {"price": 1, "qty": 3},
     "ETHUSDT":       {"price": 2, "qty": 3},
@@ -171,9 +294,9 @@ def _fmt_price(symbol, price):
 def _fmt_qty(symbol, qty):
     d = PRECISION.get(symbol, {"qty": 1})["qty"]
     return f"{qty:.{d}f}"
-def _sign(params):
-    return _get_default_client()._sign(params)
 
+
+# ── Legacy wrappers (backward compat) ──
 def _api_post(path, params):
     return _get_default_client().api_post(path, params)
 
@@ -184,118 +307,73 @@ def _api_delete(path, params):
     return _get_default_client().api_delete(path, params)
 
 
-def _set_leverage(symbol):
-    try:
-        _api_post("/fapi/v1/leverage", {"symbol": symbol, "leverage": LEVERAGE})
-    except:
-        pass
+# ── Quantity Calculation ──
+def _calc_quantity(symbol, price, position_usd=10.0, leverage=50):
+    """Calculate order qty from position size, price, and leverage."""
+    notional = position_usd * leverage
+    qty = notional / price
+    d = PRECISION.get(symbol, {"qty": 1})["qty"]
+    return round(qty, d)
 
 
-def _place_limit_order(symbol, side, price, qty):
-    """Place a limit order. Returns order dict with orderId."""
+# ── Telegram ──
+def _send_telegram(msg):
+    if not TELEGRAM_BOT_TOKEN:
+        return
     try:
-        result = _api_post("/fapi/v1/order", {
-            "symbol": symbol,
-            "side": side,
-            "type": "LIMIT",
-            "price": _fmt_price(symbol, price),
-            "quantity": _fmt_qty(symbol, qty),
-            "timeInForce": "GTC",
-        })
-        if "orderId" in result:
-            _log(f"  📋 Limit {side} {symbol} @ ${_fmt_price(symbol, price)} qty={_fmt_qty(symbol, qty)} → orderId={result['orderId']}")
-        else:
-            _log(f"  ❌ Limit order failed: {result.get('msg', result)}")
-        return result
+        resp = req.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                 json={"chat_id": ADMIN_CHAT_ID, "text": msg}, timeout=5)
+        if resp.status_code != 200:
+            _log(f"⚠️ Telegram send failed: {resp.status_code}")
     except Exception as e:
-        _log(f"  ❌ Order error: {e}")
-        return {"error": str(e)}
+        _log(f"⚠️ Telegram error: {e}")
 
 
-def _place_market_close(symbol, side, qty):
-    """Close position with market order."""
-    try:
-        close_side = "SELL" if side == "BUY" else "BUY"
-        result = _api_post("/fapi/v1/order", {
-            "symbol": symbol,
-            "side": close_side,
-            "type": "MARKET",
-            "quantity": _fmt_qty(symbol, qty),
-            "reduceOnly": "true",
-        })
-        return result
-    except Exception as e:
-        return {"error": str(e)}
+# ══════════════════════════════════════════════
+# SL/TP PLACEMENT & CANCELLATION (algoOrder)
+# ══════════════════════════════════════════════
 
+def _place_sl_tp(client, symbol, position_side, sl_price, tp_price):
+    """Place SL and TP via algoOrder. Exchange auto-closes position.
 
-def _place_sl_tp(symbol, side, sl_price, tp_price):
-    """Place SL and TP orders for an open position."""
-    close_side = "SELL" if side == "BUY" else "BUY"
+    Returns: dict with "sl" and "tp" results (each containing algoId on success)
+    """
+    close_side = "SELL" if position_side == "LONG" else "BUY"
     results = {}
+
     try:
-        results["sl"] = _api_post("/fapi/v1/order", {
-            "symbol": symbol, "side": close_side,
-            "type": "STOP_MARKET",
-            "stopPrice": f"{sl_price:.6f}",
-            "closePosition": "true",
-        })
-        _log(f"    SL order: {results['sl'].get('orderId', results['sl'].get('msg', 'UNKNOWN'))}")
+        results["sl"] = client.place_algo_order(symbol, close_side, "STOP_MARKET", sl_price)
     except Exception as e:
         results["sl"] = {"error": str(e)}
-        _log(f"    SL error: {e}")
+        _log(f"    ❌ SL algoOrder error {symbol}: {e}")
+
     try:
-        results["tp"] = _api_post("/fapi/v1/order", {
-            "symbol": symbol, "side": close_side,
-            "type": "TAKE_PROFIT_MARKET",
-            "stopPrice": f"{tp_price:.6f}",
-            "closePosition": "true",
-        })
-        _log(f"    TP order: {results['tp'].get('orderId', results['tp'].get('msg', 'UNKNOWN'))}")
+        results["tp"] = client.place_algo_order(symbol, close_side, "TAKE_PROFIT_MARKET", tp_price)
     except Exception as e:
         results["tp"] = {"error": str(e)}
-        _log(f"    TP error: {e}")
+        _log(f"    ❌ TP algoOrder error {symbol}: {e}")
+
     return results
 
 
-def _cancel_order(symbol, order_id):
+def _cancel_sl_tp(client, symbol):
+    """Cancel all SL/TP algo orders for a symbol.
+    Uses DELETE /fapi/v1/algoOpenOrders (bulk cancel).
+    """
     try:
-        return _api_delete("/fapi/v1/order", {"symbol": symbol, "orderId": order_id})
-    except:
-        return {}
+        client.cancel_all_algo_orders(symbol)
+    except Exception as e:
+        _log(f"    ⚠️ cancel SL/TP {symbol}: {e}")
 
 
-def _cancel_all_orders(symbol):
-    try:
-        return _api_delete("/fapi/v1/allOpenOrders", {"symbol": symbol})
-    except:
-        return {}
+# ══════════════════════════════════════════════
+# OKX DATA
+# ══════════════════════════════════════════════
 
-
-def _get_open_orders(symbol):
-    try:
-        return _api_get("/fapi/v1/openOrders", {"symbol": symbol}, signed=True)
-    except:
-        return []
-
-
-def _get_position(symbol):
-    try:
-        positions = _api_get("/fapi/v2/positionRisk", signed=True)
-        for p in positions:
-            if p["symbol"] == symbol and float(p.get("positionAmt", 0)) != 0:
-                return p
-    except:
-        pass
-    return None
-
-
-# ── OKX Data ──
 OKX_TF_MAP = {"4h": "4H", "1h": "1H", "15m": "15m"}
 
 def _fetch_candles(symbol, tf="4h", limit=15):
-    """Fetch candles from OKX."""
-    # Handle special symbol mappings
-    okx_symbol = symbol.replace("1000PEPEUSDT", "PEPE-USDT-SWAP").replace("USDT", "-USDT-SWAP")
+    """Fetch closed candles from OKX. Last (open) candle is dropped."""
     if "1000PEPE" in symbol:
         okx_symbol = "PEPE-USDT-SWAP"
     else:
@@ -312,12 +390,12 @@ def _fetch_candles(symbol, tf="4h", limit=15):
                 "low": float(c[3]), "close": float(c[4]),
                 "time": int(c[0]),
             })
-        # Drop last candle — it's still OPEN (incomplete)
+        # Drop last candle (still open/incomplete)
         if candles:
             candles = candles[:-1]
         return candles
     except Exception as e:
-        _log(f"  ❌ OKX fetch error: {e}")
+        _log(f"  ❌ OKX fetch error {symbol}: {e}")
         return []
 
 
@@ -335,9 +413,19 @@ def _get_price(symbol):
         return 0
 
 
-# ── Predicted Range Calculation ──
+# ══════════════════════════════════════════════════════════════
+# PREDICTED RANGE CALCULATION (Deret Statistik)
+#
+# Formula:
+#   ratio[i] = value[i] / value[i-1]   (for i in 1..n)
+#   avg_ratio = mean(ratio[-window:])   (last `window` ratios)
+#   prediction = last_value × avg_ratio
+#
+# Applied to high, low, close separately.
+# ══════════════════════════════════════════════════════════════
+
 def _calculate_predicted_range(candles, window=10):
-    """Calculate predicted high/low/close for next candle using Deret Statistik."""
+    """Calculate predicted high/low/close for next candle."""
     if len(candles) < window + 1:
         return None
 
@@ -364,7 +452,12 @@ def _calculate_predicted_range(candles, window=10):
     }
 
 
-# ── Custom Configs from D1 (per-pair custom settings) ──
+# ══════════════════════════════════════════════
+# CONFIG FETCHERS (from D1)
+# ══════════════════════════════════════════════
+
+SKIP_PAIRS = {"1000PEPEUSDT"}
+
 def _fetch_custom_configs(mode="baret"):
     """Fetch custom configs from D1 where live_enabled=true."""
     try:
@@ -374,14 +467,14 @@ def _fetch_custom_configs(mode="baret"):
         _log("⚠️ Failed to fetch custom configs from D1")
         return []
 
-    # Filter by mode
     filtered = [c for c in all_configs if c.get("mode", "baret") == mode]
-
     if not filtered:
         return []
 
     configs = []
     for c in filtered:
+        if c["symbol"] in SKIP_PAIRS:
+            continue
         configs.append({
             "symbol": c["symbol"],
             "timeframe": c.get("timeframe", "4h"),
@@ -395,20 +488,15 @@ def _fetch_custom_configs(mode="baret"):
             "profit_per_day": c.get("profit_per_day", 0),
             "max_drawdown": c.get("max_drawdown", 0),
         })
-        _log(f"  📋 [CUSTOM] {c['symbol']} {c.get('timeframe','4h')}: buf={c.get('buffer1_pct')}% TP={c.get('tp_pct')}% SL={c.get('sl_pct')}% WR={c.get('win_rate', 0):.1f}%")
+        _log(f"  📋 [CUSTOM] {c['symbol']} {c.get('timeframe','4h')}: buf={c.get('buffer1_pct')}% TP={c.get('tp_pct')}% SL={c.get('sl_pct')}%")
 
-    SKIP_PAIRS = {"1000PEPEUSDT"}
-    configs = [c for c in configs if c["symbol"] not in SKIP_PAIRS]
-    _log(f"  📊 {len(configs)} custom configs loaded from D1 (mode={mode})")
+    _log(f"  📊 {len(configs)} custom configs loaded (mode={mode})")
     return configs
 
 
-# ── Baret Config from D1 (same source as Dashboard recommendations) ──
-def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit", position_usd=100.0):
-    """Fetch best config per pair from D1, applying EXACT same filters as Dashboard.
-    Dashboard scales profit: ppd_scaled = ppd_raw * position_usd / 100
-    min_ppd filter applies on scaled value (same as dashboard).
-    """
+def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0, max_bh=100.0,
+                         buffer=None, tp=None, sl=None, sort_by="profit", position_usd=100.0):
+    """Fetch best config per pair from D1, applying same filters as Dashboard."""
     try:
         r = req.get(f"{WORKER_URL}/baret/results?mode={mode}", timeout=15)
         results = r.json().get("results", [])
@@ -421,15 +509,12 @@ def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0, ma
         return [
             {"symbol": "SOLUSDT", "buffer_pct": 0.8, "tp_pct": 1.5, "sl_pct": 0.3, "window": 10, "buffer2_pct": 1.0, "close_filter_pct": 0.3},
             {"symbol": "AVAXUSDT", "buffer_pct": 0.8, "tp_pct": 1.5, "sl_pct": 0.3, "window": 10, "buffer2_pct": 1.0, "close_filter_pct": 0.3},
-            {"symbol": "DOGEUSDT", "buffer_pct": 1.0, "tp_pct": 1.5, "sl_pct": 0.3, "window": 10, "buffer2_pct": 1.0, "close_filter_pct": 0.3},
         ]
 
-    # Scale profit same as Dashboard: ppd_scaled = ppd_raw * position_usd / 100
+    # Scale profit same as Dashboard: ppd_scaled = ppd_raw × position_usd / 100
     scale = position_usd / 100.0
-
-    # Filter by user criteria (EXACT same as Dashboard)
-    filtered = [r for r in results if 
-        r["win_rate"] >= min_wr and 
+    filtered = [r for r in results if
+        r["win_rate"] >= min_wr and
         r["max_drawdown"] <= max_dd and
         (r["profit_per_day"] * scale) >= min_ppd and
         (r.get("both_hit_pct") is None or r.get("both_hit_pct", 0) <= max_bh) and
@@ -438,10 +523,11 @@ def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0, ma
         (sl is None or r.get("sl_pct") == sl)
     ]
 
-    # Pick best per pair based on sort criteria
     best = {}
     for r in filtered:
         pair = r["symbol"]
+        if pair in SKIP_PAIRS:
+            continue
         if pair not in best:
             best[pair] = r
         elif sort_by == "wr" and r["win_rate"] > best[pair]["win_rate"]:
@@ -451,7 +537,6 @@ def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0, ma
         elif sort_by == "profit" and r["profit_per_day"] > best[pair]["profit_per_day"]:
             best[pair] = r
 
-    # Sort final list
     if sort_by == "wr":
         sorted_pairs = sorted(best.items(), key=lambda x: -x[1]["win_rate"])
     elif sort_by == "safe":
@@ -474,46 +559,245 @@ def _fetch_baret_configs(mode="baret", min_wr=75.0, max_dd=20.0, min_ppd=0.0, ma
             "max_drawdown": r.get("max_drawdown", 0),
         })
         ppd_scaled = r.get("profit_per_day", 0) * scale
-        _log(f"  📋 {pair}: buf={r.get('buffer1_pct')}% TP={r.get('tp_pct')}% SL={r.get('sl_pct')}% WR={r.get('win_rate'):.1f}% DD={r.get('max_drawdown'):.1f}% ${ppd_scaled:.2f}/day")
+        _log(f"  📋 {pair}: buf={r.get('buffer1_pct')}% TP={r.get('tp_pct')}% SL={r.get('sl_pct')}% WR={r.get('win_rate'):.1f}% ${ppd_scaled:.2f}/day")
 
-    # Exclude pairs with known issues
-    SKIP_PAIRS = {"1000PEPEUSDT"}
-    configs = [c for c in configs if c["symbol"] not in SKIP_PAIRS]
-    
-    _log(f"  📊 {len(configs)} pairs loaded from D1 (WR≥{min_wr}% DD≤{max_dd}% BH≤{max_bh}% PPD≥${min_ppd} sort={sort_by})")
+    _log(f"  📊 {len(configs)} pairs loaded (WR≥{min_wr}% DD≤{max_dd}% sort={sort_by})")
     return configs
 
 
-# ── Quantity Calculation ──
-def _calc_quantity(symbol, price, position_usd=10.0):
-    """Calculate order quantity based on position size and price."""
-    notional = position_usd * LEVERAGE
-    qty = notional / price
-    d = PRECISION.get(symbol, {"qty": 1})["qty"]
-    return round(qty, d)
+# ══════════════════════════════════════════════
+# TRADE LOGGING (to D1)
+# ══════════════════════════════════════════════
 
-
-# ── Telegram ──
-def _send_telegram(msg):
-    if not TELEGRAM_BOT_TOKEN:
-        _log("⚠️ TELEGRAM_BOT_TOKEN not set, skip notification")
-        return
+def _log_trade_to_d1(symbol, timeframe, side, entry_price, exit_price, entry_time, exit_time,
+                     sl_pct, tp_pct, pnl_dollar, pnl_pct, exit_reason, acct_name=""):
+    """Log a trade entry or exit to D1. Non-blocking, never raises."""
     try:
-        # Use HTML or no parse_mode to avoid Markdown underscore issues (baret_dca etc)
-        resp = req.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                 json={"chat_id": ADMIN_CHAT_ID, "text": msg}, timeout=5)
-        if resp.status_code != 200:
-            _log(f"⚠️ Telegram send failed: {resp.status_code} {resp.text[:200]}")
+        req.post(f"{WORKER_URL}/bot/trade-log", json={
+            "strategy_id": 0, "symbol": symbol, "timeframe": timeframe, "side": side,
+            "entry_price": entry_price, "exit_price": exit_price,
+            "entry_time": entry_time, "exit_time": exit_time,
+            "sl_pct": sl_pct, "tp_pct": tp_pct,
+            "pnl_dollar": pnl_dollar, "pnl_pct": pnl_pct, "exit_reason": exit_reason,
+            "regime_at_entry": None, "minimax_entry_verdict": None,
+            "minimax_exit_verdict": None, "minimax_adjustments": None,
+            "bars_held": None, "max_favorable": None, "max_adverse": None,
+            "backtest_wr": None,
+            "notes": f"baret_live_{acct_name}" if acct_name else "baret_live",
+        }, timeout=10)
+    except:
+        pass
+
+
+# ══════════════════════════════════════════════
+# CANDLE TIMING HELPERS
+# ══════════════════════════════════════════════
+
+_EPOCH = datetime(2020, 1, 1, tzinfo=timezone.utc)
+
+def _next_boundary(now, interval_min):
+    """Next candle close time for given interval in minutes."""
+    elapsed = (now - _EPOCH).total_seconds()
+    interval_sec = interval_min * 60
+    current = _EPOCH + timedelta(seconds=(elapsed // interval_sec) * interval_sec)
+    return current + timedelta(seconds=interval_sec)
+
+def _at_boundary(now, interval_min):
+    """Check if we're within 2 minutes after a candle boundary."""
+    elapsed = (now - _EPOCH).total_seconds()
+    interval_sec = interval_min * 60
+    since_boundary = elapsed % interval_sec
+    return since_boundary < 120
+
+
+# ══════════════════════════════════════════════════════════════
+# EXCHANGE-CLOSE DETECTION (deduplicated helper)
+# ══════════════════════════════════════════════════════════════
+
+def _detect_exchange_close(client, symbol, pos_info, configs, state, prefix, acct_name):
+    """Check if exchange closed position (algoOrder triggered).
+    If closed: log PnL, send Telegram, clean up state.
+    Returns True if position was closed, False if still open.
+    """
+    try:
+        ex_pos = client.get_position(symbol)
+        if ex_pos and float(ex_pos.get("positionAmt", 0)) != 0:
+            return False  # still open
+
+        _log(f"{prefix}  📊 {symbol}: position closed by exchange (algoOrder)")
+        cp = _get_price(symbol)
+        side = pos_info["side"]
+        entry = pos_info["entry"]
+        qty = pos_info.get("qty", 0)
+
+        if cp > 0 and entry > 0:
+            pnl_pct = ((cp - entry) / entry * 100) if side == "LONG" else ((entry - cp) / entry * 100)
+            pnl_dollar = pnl_pct / 100 * entry * qty
+            hit = "TP" if pnl_pct > 0 else "SL"
+            emoji = "🎯" if hit == "TP" else "🛑"
+            _log(f"{prefix}  {emoji} {symbol} {side} {hit} (exchange) @ ~${cp:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
+            _send_telegram(f"{emoji} *{symbol} {side} {hit}* (exchange)\nEntry: ${entry:.4f}\nExit: ~${cp:.4f}\nPnL: {pnl_pct:+.2f}%")
+            cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == symbol), "4h")
+            _log_trade_to_d1(symbol, cfg_tf, side, entry, cp,
+                pos_info.get("filled_at"), datetime.now(timezone.utc).isoformat(),
+                pos_info.get("cfg_sl_pct"), pos_info.get("cfg_tp_pct"),
+                pnl_dollar, pnl_pct, hit, acct_name)
+        else:
+            _log(f"{prefix}  📊 {symbol}: closed (price unavailable, PnL unknown)")
+
+        state["positions"].pop(symbol, None)
+        state.get("pending_orders", {}).pop(symbol, None)
+        return True
+
     except Exception as e:
-        _log(f"⚠️ Telegram error: {e}")
+        _log(f"{prefix}  ⚠️ exchange-close check error {symbol}: {e}")
+        return False
 
 
-# ── Main Trading Loop ──
-def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit", use_custom_configs=False, client=None, state=None, running_check=None, acct_name=""):
-    """Main Baret live trading loop. Supports 15m/1h/4h candle cycles. Used by both legacy and multi-account."""
+# ══════════════════════════════════════════════════════════════
+# BOT-SIDE POSITION CLOSE (backup for algoOrder)
+# ══════════════════════════════════════════════════════════════
+
+def _handle_position_close(client, symbol, pos_info, current_price, configs, state, prefix, acct_name):
+    """Check if price hit TP/SL, market-close, log trade, cleanup.
+    Bot-side backup — primary close is algoOrder at exchange.
+    """
+    side = pos_info["side"]
+    entry = pos_info["entry"]
+    qty = pos_info.get("qty", 0)
+    tp_val = pos_info["tp"]
+    sl_val = pos_info["sl"]
+
+    hit = None
+    if side == "LONG":
+        if current_price >= tp_val: hit = "TP"
+        elif current_price <= sl_val: hit = "SL"
+    else:
+        if current_price <= tp_val: hit = "TP"
+        elif current_price >= sl_val: hit = "SL"
+
+    if not hit:
+        return False
+
+    # Cancel all (regular + algo)
+    try: client.cancel_all_orders(symbol)
+    except: pass
+    try: _cancel_sl_tp(client, symbol)
+    except: pass
+
+    # Market close
+    try:
+        ex_pos = client.get_position(symbol)
+        if ex_pos:
+            actual_qty = abs(float(ex_pos.get("positionAmt", 0)))
+            if actual_qty > 0:
+                close_side = "SELL" if side == "LONG" else "BUY"
+                client.place_market_close(symbol, close_side, actual_qty)
+                time.sleep(1)
+                verify = client.get_position(symbol)
+                if verify and abs(float(verify.get("positionAmt", 0))) > 0:
+                    _log(f"{prefix}  ⚠️ {symbol}: market close failed, still open!")
+                    return False
+                qty = actual_qty
+    except Exception as e:
+        _log(f"{prefix}  ❌ {symbol} close error: {e}")
+        return False
+
+    pnl_pct = ((current_price - entry) / entry * 100) if side == "LONG" else ((entry - current_price) / entry * 100)
+    pnl_dollar = pnl_pct / 100 * entry * qty
+
+    emoji = "🎯" if hit == "TP" else "🛑"
+    _log(f"{prefix}  {emoji} {symbol} {side} {hit} @ ${current_price:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
+    _send_telegram(f"{emoji} *{symbol} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${current_price:.4f}\nPnL: {pnl_pct:+.2f}%")
+
+    cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == symbol), "4h")
+    _log_trade_to_d1(symbol, cfg_tf, side, entry, current_price,
+        pos_info.get("filled_at", datetime.now(timezone.utc).isoformat()),
+        datetime.now(timezone.utc).isoformat(),
+        pos_info.get("cfg_sl_pct"), pos_info.get("cfg_tp_pct"),
+        pnl_dollar, pnl_pct, hit, acct_name)
+
+    state["positions"].pop(symbol, None)
+    state.get("pending_orders", {}).pop(symbol, None)
+    return True
+
+
+# ══════════════════════════════════════════════════════════════
+# MONITOR POSITIONS (shared helper for Phase 1 & Phase 3)
+# ══════════════════════════════════════════════════════════════
+
+def _monitor_positions(client, configs, state, prefix, acct_name, last_debug_ref):
+    """Monitor all open positions: exchange-close detection + bot-side TP/SL backup.
+    Args: last_debug_ref: mutable [datetime] for 5-min debug log timing.
+    """
+    for sym in list(state["positions"].keys()):
+        try:
+            pos_info = state["positions"].get(sym)
+            if not pos_info:
+                continue
+
+            # 1. Exchange already closed? (algoOrder fired)
+            if _detect_exchange_close(client, sym, pos_info, configs, state, prefix, acct_name):
+                continue
+
+            # 2. Bot-side backup
+            cp = _get_price(sym)
+            if cp <= 0:
+                continue
+
+            # Debug log every 5 min
+            now_dbg = datetime.now(timezone.utc)
+            if (now_dbg - last_debug_ref[0]).total_seconds() > 300:
+                _log(f"{prefix}  🔎 {sym} {pos_info['side']}: price=${cp:.4f} tp=${pos_info['tp']:.4f} sl=${pos_info['sl']:.4f}")
+                last_debug_ref[0] = now_dbg
+
+            _handle_position_close(client, sym, pos_info, cp, configs, state, prefix, acct_name)
+
+        except Exception as e:
+            _log(f"{prefix}  ⚠️ Monitor error {sym}: {e}")
+
+
+# ══════════════════════════════════════════════════════════════
+# ENTRY LEVEL FORMULAS (documented for consistency)
+#
+# BARET (all modes):
+#   long_entry  = pred_low  × (1 - buffer_pct / 100)
+#   short_entry = pred_high × (1 + buffer_pct / 100)
+#
+# TP/SL from entry (all modes, applied to actual fill price):
+#   LONG TP  = entry × (1 + tp_pct / 100)
+#   LONG SL  = entry × (1 - sl_pct / 100)
+#   SHORT TP = entry × (1 - tp_pct / 100)
+#   SHORT SL = entry × (1 + sl_pct / 100)
+#
+# DCA L2 (baret_dca only):
+#   Initial:     long_l2  = long_entry  × (1 - buffer2_pct / 100)
+#                short_l2 = short_entry × (1 + buffer2_pct / 100)
+#   Re-placement: long_l2  = actual_entry × (1 - buffer2_pct / 100)
+#                 short_l2 = actual_entry × (1 + buffer2_pct / 100)
+#
+# DCA L2 fill → TP/SL recalculated from Binance avg entry:
+#   Same TP/SL formulas applied to new avg entry price
+#
+# CLOSE FILTER (baret_marfin only):
+#   gap_long  = (pred_close - pred_low) / pred_low × 100
+#   gap_short = (pred_high - pred_close) / pred_high × 100
+#   Skip pair if BOTH gaps < close_filter_pct
+# ══════════════════════════════════════════════════════════════
+
+
+# ══════════════════════════════════════════════
+# MAIN TRADING LOOP
+# ══════════════════════════════════════════════
+
+def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
+                     min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None,
+                     sl=None, sort_by="profit", use_custom_configs=False,
+                     client=None, state=None, running_check=None, acct_name=""):
+    """Main Baret live trading loop."""
     global _baret_live_running, _baret_live_state, LEVERAGE
-    
-    # Use defaults for legacy mode
+
+    # Defaults for legacy mode
     if client is None:
         LEVERAGE = leverage
         if not TESTNET_KEY or not TESTNET_SECRET:
@@ -522,150 +806,92 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
             return
         client = _get_default_client()
         client.leverage = leverage
-    
+
     if state is None:
         state = _baret_live_state
-    
     if running_check is None:
         running_check = lambda: _baret_live_running
-    
+
     prefix = f"[{acct_name}] " if acct_name else ""
 
+    # ── Load configs ──
     state["mode"] = mode
     state["started_at"] = datetime.now(timezone.utc).isoformat()
-    state["filters"] = {"min_wr": min_wr, "max_dd": max_dd, "min_ppd": min_ppd, "max_bh": max_bh, "buffer": buffer, "tp": tp, "sl": sl, "sort_by": sort_by}
-    # Try custom configs first, fallback to sweep-based configs
+    state["filters"] = {"min_wr": min_wr, "max_dd": max_dd, "min_ppd": min_ppd,
+                        "max_bh": max_bh, "buffer": buffer, "tp": tp, "sl": sl, "sort_by": sort_by}
+
     configs = []
     if use_custom_configs:
         configs = _fetch_custom_configs(mode=mode)
     if not configs:
-        configs = _fetch_baret_configs(mode=mode, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd, max_bh=max_bh, buffer=buffer, tp=tp, sl=sl, sort_by=sort_by, position_usd=position_usd)
+        configs = _fetch_baret_configs(
+            mode=mode, min_wr=min_wr, max_dd=max_dd, min_ppd=min_ppd,
+            max_bh=max_bh, buffer=buffer, tp=tp, sl=sl,
+            sort_by=sort_by, position_usd=position_usd,
+        )
     state["active_pairs"] = [c["symbol"] for c in configs]
 
-    # Determine shortest timeframe from configs for candle sync
+    # Cycle interval from shortest TF
     tf_minutes = {"15m": 15, "1h": 60, "4h": 240}
     all_tfs = set(c.get("timeframe", "4h") for c in configs)
     shortest_tf = min(all_tfs, key=lambda t: tf_minutes.get(t, 240))
     interval_min = tf_minutes.get(shortest_tf, 240)
-    _log(f"{prefix}═══ BARET LIVE STARTED ═══ mode={mode}, {len(configs)} pairs, ${position_usd}/trade, TFs: {all_tfs}, cycle={interval_min}min")
-    _send_telegram(f"📐 *BARET LIVE STARTED*\nMode: {mode}\nPairs: {', '.join(c['symbol'] for c in configs)}\nPosition: ${position_usd}\nCycle: {interval_min}min")
 
-    # Set leverage for all pairs
+    _log(f"{prefix}═══ BARET LIVE STARTED ═══ mode={mode}, {len(configs)} pairs, ${position_usd}/trade, cycle={interval_min}min")
+    _send_telegram(f"📐 BARET LIVE STARTED\nMode: {mode}\nPairs: {', '.join(c['symbol'] for c in configs)}\nPosition: ${position_usd}\nCycle: {interval_min}min")
+
     for cfg in configs:
         client.set_leverage(cfg["symbol"])
 
-    # Auto-cleanup orphan positions from previous sessions
+    # ── Auto-cleanup orphan positions ──
     _log(f"{prefix}  🔍 Checking for orphan positions...")
     orphan_count = 0
     for cfg in configs:
         symbol = cfg["symbol"]
-        pos = client.get_position(symbol)
-        if pos:
-            amt = float(pos.get("positionAmt", 0))
-            if amt != 0:
-                side_close = "SELL" if amt > 0 else "BUY"
-                client.cancel_all_orders(symbol)
-                client.place_market_close(symbol, side_close, abs(amt))
-                _log(f"{prefix}  🧹 {symbol}: closed orphan {'LONG' if amt > 0 else 'SHORT'} {abs(amt)}")
-                orphan_count += 1
-    if orphan_count > 0:
-        _log(f"{prefix}  ✅ {orphan_count} orphan positions cleaned up")
-    else:
-        _log(f"{prefix}  ✅ No orphan positions found")
+        try:
+            pos = client.get_position(symbol)
+            if pos:
+                amt = float(pos.get("positionAmt", 0))
+                if amt != 0:
+                    side_close = "SELL" if amt > 0 else "BUY"
+                    client.cancel_all_orders(symbol)
+                    _cancel_sl_tp(client, symbol)
+                    client.place_market_close(symbol, side_close, abs(amt))
+                    _log(f"{prefix}  🧹 {symbol}: closed orphan {'LONG' if amt > 0 else 'SHORT'} {abs(amt)}")
+                    orphan_count += 1
+        except Exception as e:
+            _log(f"{prefix}  ⚠️ Orphan cleanup {symbol}: {e}")
+    _log(f"{prefix}  ✅ {orphan_count} orphan positions cleaned" if orphan_count else f"{prefix}  ✅ No orphan positions")
 
-    # Helper: next candle boundary for a given interval
-    def _next_boundary(now, interval):
-        """Calculate next candle close time for given interval in minutes."""
-        from datetime import timedelta as td
-        epoch = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        elapsed = (now - epoch).total_seconds()
-        interval_sec = interval * 60
-        current_boundary = epoch + td(seconds=(elapsed // interval_sec) * interval_sec)
-        next_b = current_boundary + td(seconds=interval_sec)
-        return next_b
-
-    def _at_boundary(now, interval):
-        """Check if we're within 2 minutes after a candle boundary."""
-        from datetime import timedelta as td
-        epoch = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        elapsed = (now - epoch).total_seconds()
-        interval_sec = interval * 60
-        since_boundary = elapsed % interval_sec
-        return since_boundary < 120  # within 2 minutes
-
-    # Poll interval based on shortest TF
     poll_sec = 10 if interval_min <= 15 else 20 if interval_min <= 60 else 30
+    last_debug_ref = [datetime.min.replace(tzinfo=timezone.utc)]
 
     cycle = 0
     while running_check():
-        # ── Wait for next candle close ──
+
+        # ════════════════════════════════════════
+        # PHASE 1: Wait for candle close
+        # ════════════════════════════════════════
         now = datetime.now(timezone.utc)
-        
         if not _at_boundary(now, interval_min):
             next_close = _next_boundary(now, interval_min)
-            wait_secs = max(0, (next_close - now).total_seconds()) + 5  # +5s buffer
-            _log(f"{prefix}  ⏰ Waiting for {shortest_tf} candle close at {next_close.strftime('%H:%M')} UTC ({int(wait_secs//60)} min)")
+            wait_secs = max(0, (next_close - now).total_seconds()) + 5
+            _log(f"{prefix}  ⏰ Waiting for {shortest_tf} close at {next_close.strftime('%H:%M')} UTC ({int(wait_secs//60)}min)")
+
             while wait_secs > 0 and running_check():
                 time.sleep(min(poll_sec, wait_secs))
-                wait_secs -= 30
-                # Monitor existing positions for TP/SL while waiting
-                for sym in list(state["positions"].keys()):
-                    pos_info = state["positions"][sym]
-                    cp = _get_price(sym)
-                    if cp <= 0:
-                        continue
-                    side, tp, sl = pos_info["side"], pos_info["tp"], pos_info["sl"]
-                    entry, qty = pos_info["entry"], pos_info.get("qty", 0)
-                    hit = None
-                    if side == "LONG" and cp >= tp: hit = "TP"
-                    elif side == "LONG" and cp <= sl: hit = "SL"
-                    elif side == "SHORT" and cp <= tp: hit = "TP"
-                    elif side == "SHORT" and cp >= sl: hit = "SL"
-                    if hit:
-                        client.cancel_all_orders(sym)
-                        ex_pos = client.get_position(sym)
-                        actual_qty = 0
-                        if ex_pos:
-                            actual_qty = abs(float(ex_pos.get("positionAmt", 0)))
-                            if actual_qty > 0:
-                                close_result = client.place_market_close(sym, "BUY" if side == "LONG" else "SELL", actual_qty)
-                                # Verify position actually closed
-                                time.sleep(1)
-                                verify = client.get_position(sym)
-                                if verify and abs(float(verify.get("positionAmt", 0))) > 0:
-                                    _log(f"{prefix}  ⚠️ {sym}: close failed, position still open!")
-                                    continue
-                        use_qty = actual_qty if actual_qty > 0 else qty
-                        pnl_pct = ((cp - entry) / entry * 100) if side == "LONG" else ((entry - cp) / entry * 100)
-                        pnl_dollar = pnl_pct / 100 * entry * use_qty
-                        _log(f"{prefix}  {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${cp:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
-                        _send_telegram(f"{'🎯' if hit == 'TP' else '🛑'} *{sym} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${cp:.4f}\nPnL: {pnl_pct:+.2f}%")
-                        try:
-                            cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == sym), "15m")
-                            req.post(f"{WORKER_URL}/bot/trade-log", json={
-                                "strategy_id": 0, "symbol": sym, "timeframe": cfg_tf, "side": side,
-                                "entry_price": entry, "exit_price": cp,
-                                "entry_time": pos_info.get("filled_at", datetime.now(timezone.utc).isoformat()),
-                                "exit_time": datetime.now(timezone.utc).isoformat(),
-                                "sl_pct": None, "tp_pct": None,
-                                "pnl_dollar": pnl_dollar, "pnl_pct": pnl_pct, "exit_reason": hit,
-                                "regime_at_entry": None, "minimax_entry_verdict": None,
-                                "minimax_exit_verdict": None, "minimax_adjustments": None,
-                                "bars_held": None, "max_favorable": None, "max_adverse": None,
-                                "backtest_wr": None, "notes": f"baret_live_{acct_name}" if acct_name else "baret_live",
-                            }, timeout=10)
-                        except:
-                            pass
-                        del state["positions"][sym]
-        
+                wait_secs -= poll_sec
+                _monitor_positions(client, configs, state, prefix, acct_name, last_debug_ref)
+
         if not running_check():
             break
 
-        # ── Candle just closed — start new cycle ──
+        # ════════════════════════════════════════
+        # PHASE 2: New cycle — place orders
+        # ════════════════════════════════════════
         cycle += 1
         state["cycle_count"] = cycle
         state["last_cycle"] = datetime.now(timezone.utc).isoformat()
-
         _log(f"{prefix}═══ CYCLE {cycle} ═══")
 
         for cfg in configs:
@@ -677,36 +903,42 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
             tp_pct = cfg["tp_pct"]
             sl_pct = cfg["sl_pct"]
             window = cfg.get("window", 10)
+            cfg_tf = cfg.get("timeframe", "4h")
 
             try:
-                # 1. Check if already in position
                 pos = client.get_position(symbol)
-                if pos:
+                has_position = pos and float(pos.get("positionAmt", 0)) != 0
+
+                if has_position:
                     tracked = state["positions"].get(symbol)
-                    if tracked and not tracked.get("dca_filled") and mode == "baret_dca":
-                        # Position open, DCA not filled — re-place DCA L2
+
+                    if tracked and mode == "baret_dca" and not tracked.get("dca_filled"):
+                        # Re-place DCA L2.
+                        # cancel_all_orders only cancels LIMIT orders.
+                        # SL/TP algo orders stay active at exchange.
                         client.cancel_all_orders(symbol)
+
                         buf2 = cfg.get("buffer2_pct", 1.0)
                         side = tracked["side"]
                         entry = tracked["entry"]
-                        qty_dca = abs(float(pos.get("positionAmt", 0)))
+                        amt = abs(float(pos.get("positionAmt", 0)))
+
+                        # L2 = entry × (1 ± buf2%)
                         if side == "LONG":
                             l2_price = entry * (1 - buf2 / 100)
-                            l2_order = client.place_limit(symbol, "BUY", l2_price, qty_dca)
+                            client.place_limit(symbol, "BUY", l2_price, amt)
                         else:
                             l2_price = entry * (1 + buf2 / 100)
-                            l2_order = client.place_limit(symbol, "SELL", l2_price, qty_dca)
-                        _log(f"{prefix}  🔄 {symbol}: re-placed DCA L2 {side} @ ${l2_price:.4f} (qty={qty_dca})")
-                        continue
+                            client.place_limit(symbol, "SELL", l2_price, amt)
+                        _log(f"{prefix}  🔄 {symbol}: re-placed DCA L2 {side} @ ${l2_price:.4f}")
                     else:
-                        _log(f"{prefix}  ⏩ {symbol}: already in position ({pos.get('positionSide','?')} {pos.get('positionAmt','?')}), skipping")
-                        continue
+                        _log(f"{prefix}  ⏩ {symbol}: in position, skipping")
+                    continue
 
-                # 2. Cancel any existing open orders for this pair
+                # ── No position — place new orders ──
                 client.cancel_all_orders(symbol)
+                _cancel_sl_tp(client, symbol)
 
-                # 3. Fetch candles + calculate predicted range
-                cfg_tf = cfg.get("timeframe", "4h")
                 candles = _fetch_candles(symbol, cfg_tf, window + 5)
                 if not candles:
                     _log(f"{prefix}  ⚠️ {symbol}: no candle data")
@@ -714,7 +946,7 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
 
                 pred = _calculate_predicted_range(candles, window)
                 if not pred:
-                    _log(f"{prefix}  ⚠️ {symbol}: insufficient data for prediction")
+                    _log(f"{prefix}  ⚠️ {symbol}: insufficient data")
                     continue
 
                 pred_high = pred["pred_high"]
@@ -722,30 +954,27 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                 pred_close = pred["pred_close"]
                 current = pred["current_price"]
 
-                # 4. Close filter (baret_marfin mode)
+                # Close filter (baret_marfin only)
                 if mode == "baret_marfin":
                     close_filter = cfg.get("close_filter_pct", 0.3)
-                    close_gap_long = (pred_close - pred_low) / pred_low * 100 if pred_low > 0 else 0
-                    close_gap_short = (pred_high - pred_close) / pred_high * 100 if pred_high > 0 else 0
-                    if close_gap_long < close_filter and close_gap_short < close_filter:
-                        _log(f"{prefix}  ⏩ {symbol}: close filter skip (gap L={close_gap_long:.2f}% S={close_gap_short:.2f}% < {close_filter}%)")
+                    gap_long = (pred_close - pred_low) / pred_low * 100 if pred_low > 0 else 0
+                    gap_short = (pred_high - pred_close) / pred_high * 100 if pred_high > 0 else 0
+                    if gap_long < close_filter and gap_short < close_filter:
+                        _log(f"{prefix}  ⏩ {symbol}: close filter skip (L={gap_long:.2f}% S={gap_short:.2f}%)")
                         continue
 
-                # 5. Calculate entry levels
+                # Entry levels
                 long_entry = pred_low * (1 - buffer_pct / 100)
                 short_entry = pred_high * (1 + buffer_pct / 100)
+                qty = _calc_quantity(symbol, current, position_usd, client.leverage)
 
-                qty = _calc_quantity(symbol, current, position_usd)
+                _log(f"{prefix}  📐 {symbol}: range ${pred_low:.4f}-${pred_high:.4f}, cur=${current:.4f}")
+                _log(f"{prefix}     LONG@${long_entry:.4f} SHORT@${short_entry:.4f} qty={qty}")
 
-                _log(f"{prefix}  📐 {symbol}: pred_range ${pred_low:.4f}-${pred_high:.4f}, current=${current:.4f}")
-                _log(f"{prefix}     LONG entry=${long_entry:.4f}, SHORT entry=${short_entry:.4f}, qty={qty}")
-
-                # 6. Place limit orders (both sides)
                 long_order = client.place_limit(symbol, "BUY", long_entry, qty)
                 short_order = client.place_limit(symbol, "SELL", short_entry, qty)
 
-                # Track pending orders
-                state["pending_orders"][symbol] = {
+                pending = {
                     "long_id": long_order.get("orderId"),
                     "short_id": short_order.get("orderId"),
                     "long_entry": long_entry,
@@ -756,32 +985,36 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                     "placed_at": datetime.now(timezone.utc).isoformat(),
                 }
 
-                # 7. DCA: place L2 orders (baret_dca mode)
+                # DCA L2: L1_entry × (1 ± buf2%)
                 if mode == "baret_dca":
                     buf2 = cfg.get("buffer2_pct", 1.0)
                     long_l2 = long_entry * (1 - buf2 / 100)
                     short_l2 = short_entry * (1 + buf2 / 100)
-                    long_l2_order = client.place_limit(symbol, "BUY", long_l2, qty)
-                    short_l2_order = client.place_limit(symbol, "SELL", short_l2, qty)
-                    state["pending_orders"][symbol]["long_l2_id"] = long_l2_order.get("orderId")
-                    state["pending_orders"][symbol]["short_l2_id"] = short_l2_order.get("orderId")
-                    state["pending_orders"][symbol]["long_l2_entry"] = long_l2
-                    state["pending_orders"][symbol]["short_l2_entry"] = short_l2
-                    _log(f"{prefix}     DCA L2: LONG=${long_l2:.4f}, SHORT=${short_l2:.4f}")
+                    l2_long = client.place_limit(symbol, "BUY", long_l2, qty)
+                    l2_short = client.place_limit(symbol, "SELL", short_l2, qty)
+                    pending["long_l2_id"] = l2_long.get("orderId")
+                    pending["short_l2_id"] = l2_short.get("orderId")
+                    pending["long_l2_entry"] = long_l2
+                    pending["short_l2_entry"] = short_l2
+                    _log(f"{prefix}     DCA L2: LONG=${long_l2:.4f} SHORT=${short_l2:.4f}")
+
+                state["pending_orders"][symbol] = pending
 
             except Exception as e:
-                _log(f"{prefix}  ❌ {symbol} error: {e}")
+                _log(f"{prefix}  ❌ {symbol} order error: {e}")
+                _log(f"{prefix}     {traceback.format_exc()}")
 
-        # 8. Monitor fills until next candle close (check every 30s)
-        _log(f"{prefix}  ⏳ Monitoring fills until next {shortest_tf} candle close...")
+        # ════════════════════════════════════════
+        # PHASE 3: Monitor fills until next candle
+        # ════════════════════════════════════════
         now_m = datetime.now(timezone.utc)
         monitor_until = _next_boundary(now_m, interval_min)
-        
-        _log(f"{prefix}  📊 Monitor until {monitor_until.strftime('%Y-%m-%d %H:%M')} UTC ({int((monitor_until - now_m).total_seconds() // 60)} min)")
-        
+        _log(f"{prefix}  ⏳ Monitoring until {monitor_until.strftime('%H:%M')} UTC ({int((monitor_until - now_m).total_seconds() // 60)}min)")
+
         while running_check() and datetime.now(timezone.utc) < monitor_until:
             time.sleep(poll_sec)
 
+            # ── Check for new fills ──
             for cfg in configs:
                 if not running_check():
                     break
@@ -790,65 +1023,68 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                 if not pending:
                     continue
 
-                # Check if position opened (order filled)
-                pos = client.get_position(symbol)
-                if pos and float(pos.get("positionAmt", 0)) != 0:
+                try:
+                    pos = client.get_position(symbol)
+                    if not pos or float(pos.get("positionAmt", 0)) == 0:
+                        continue
+
                     amt = float(pos["positionAmt"])
                     entry_price = float(pos.get("entryPrice", 0))
                     side = "LONG" if amt > 0 else "SHORT"
-                    existing_pos = state["positions"].get(symbol)
+                    existing = state["positions"].get(symbol)
 
-                    if existing_pos and mode == "baret_dca":
-                        # ── DCA UPDATE: check if L2 filled (qty increased) ──
-                        old_qty = existing_pos.get("qty", 0)
+                    # ── DCA L2 fill (qty increased) ──
+                    if existing and mode == "baret_dca" and not existing.get("dca_filled"):
+                        old_qty = existing.get("qty", 0)
                         if abs(amt) > old_qty * 1.3:
-                            # L2 filled! Binance auto-averaged entry price
+                            # Cancel old orders + SL/TP, set new from avg entry
                             client.cancel_all_orders(symbol)
+                            _cancel_sl_tp(client, symbol)
+
                             if side == "LONG":
                                 tp_price = entry_price * (1 + pending["tp_pct"] / 100)
                                 sl_price = entry_price * (1 - pending["sl_pct"] / 100)
                             else:
                                 tp_price = entry_price * (1 - pending["tp_pct"] / 100)
                                 sl_price = entry_price * (1 + pending["sl_pct"] / 100)
-                            order_side = "BUY" if amt > 0 else "SELL"
-                            _place_sl_tp(symbol, order_side, sl_price, tp_price)
-                            _log(f"{prefix}  🔄 {symbol} DCA L2 FILLED → avg entry ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}")
-                            _send_telegram(f"🔄 DCA L2 FILLED\n{symbol} {side} avg entry ${entry_price:.4f}\nTP: ${tp_price:.4f} SL: ${sl_price:.4f}")
-                            existing_pos["entry"] = entry_price
-                            existing_pos["tp"] = tp_price
-                            existing_pos["sl"] = sl_price
-                            existing_pos["qty"] = abs(amt)
-                            existing_pos["dca_filled"] = True
-                            if symbol in state["pending_orders"]:
-                                del state["pending_orders"][symbol]
 
-                    elif not existing_pos:
-                        # ── NEW FILL (L1) ──
-                        if mode == "baret_dca" and pending:
-                            # DCA mode: cancel opposite side only, keep same-side L2
+                            sl_tp = _place_sl_tp(client, symbol, side, sl_price, tp_price)
+
+                            _log(f"{prefix}  🔄 {symbol} DCA L2 FILLED → avg ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}")
+                            _send_telegram(f"🔄 DCA L2 FILLED\n{symbol} {side} avg ${entry_price:.4f}\nTP: ${tp_price:.4f} SL: ${sl_price:.4f}")
+
+                            existing["entry"] = entry_price
+                            existing["tp"] = tp_price
+                            existing["sl"] = sl_price
+                            existing["qty"] = abs(amt)
+                            existing["dca_filled"] = True
+                            existing["sl_algo_id"] = sl_tp.get("sl", {}).get("algoId")
+                            existing["tp_algo_id"] = sl_tp.get("tp", {}).get("algoId")
+                            state["pending_orders"].pop(symbol, None)
+                        continue
+
+                    # ── New fill (L1) ──
+                    if not existing:
+                        if mode == "baret_dca":
+                            # Cancel opposite side only
                             if side == "LONG":
-                                # Cancel SHORT L1 + SHORT L2, keep LONG L2
-                                if pending.get("short_id"):
-                                    try: _cancel_order(symbol, pending["short_id"])
-                                    except: pass
-                                if pending.get("short_l2_id"):
-                                    try: _cancel_order(symbol, pending["short_l2_id"])
-                                    except: pass
-                                _log(f"{prefix}     DCA: cancelled SHORT orders, LONG L2 still active")
+                                for k in ["short_id", "short_l2_id"]:
+                                    oid = pending.get(k)
+                                    if oid:
+                                        try: client.cancel_order(symbol, oid)
+                                        except: pass
+                                _log(f"{prefix}     DCA: cancelled SHORT orders, LONG L2 active")
                             else:
-                                # Cancel LONG L1 + LONG L2, keep SHORT L2
-                                if pending.get("long_id"):
-                                    try: _cancel_order(symbol, pending["long_id"])
-                                    except: pass
-                                if pending.get("long_l2_id"):
-                                    try: _cancel_order(symbol, pending["long_l2_id"])
-                                    except: pass
-                                _log(f"{prefix}     DCA: cancelled LONG orders, SHORT L2 still active")
+                                for k in ["long_id", "long_l2_id"]:
+                                    oid = pending.get(k)
+                                    if oid:
+                                        try: client.cancel_order(symbol, oid)
+                                        except: pass
+                                _log(f"{prefix}     DCA: cancelled LONG orders, SHORT L2 active")
                         else:
-                            # Standard baret: cancel everything
                             client.cancel_all_orders(symbol)
 
-                        # Calculate TP/SL from entry
+                        # TP/SL from actual fill price
                         if side == "LONG":
                             tp_price = entry_price * (1 + pending["tp_pct"] / 100)
                             sl_price = entry_price * (1 - pending["sl_pct"] / 100)
@@ -856,134 +1092,77 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, 
                             tp_price = entry_price * (1 - pending["tp_pct"] / 100)
                             sl_price = entry_price * (1 + pending["sl_pct"] / 100)
 
-                        order_side = "BUY" if amt > 0 else "SELL"
-                        _place_sl_tp(symbol, order_side, sl_price, tp_price)
+                        sl_tp = _place_sl_tp(client, symbol, side, sl_price, tp_price)
 
                         dca_label = " (L1, L2 pending)" if mode == "baret_dca" else ""
                         _log(f"{prefix}  ✅ {symbol} {side} FILLED @ ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}{dca_label}")
-                        _send_telegram(f"📐 BARET ENTRY{dca_label}\n{symbol} {side} @ ${entry_price:.4f}\nTP: ${tp_price:.4f}\nSL: ${sl_price:.4f}")
+                        _send_telegram(f"📐 BARET ENTRY{dca_label}\n{symbol} {side} @ ${entry_price:.4f}\nTP: ${tp_price:.4f} SL: ${sl_price:.4f}")
 
-                        try:
-                            cfg_tf = cfg.get("timeframe", "15m")
-                            req.post(f"{WORKER_URL}/bot/trade-log", json={
-                                "strategy_id": 0, "symbol": symbol, "timeframe": cfg_tf, "side": side,
-                                "entry_price": entry_price, "exit_price": None,
-                                "entry_time": datetime.now(timezone.utc).isoformat(), "exit_time": None,
-                                "sl_pct": cfg.get("sl_pct"), "tp_pct": cfg.get("tp_pct"),
-                                "pnl_dollar": None, "pnl_pct": None, "exit_reason": None,
-                                "regime_at_entry": None, "minimax_entry_verdict": None,
-                                "minimax_exit_verdict": None, "minimax_adjustments": None,
-                                "bars_held": None, "max_favorable": None, "max_adverse": None,
-                                "backtest_wr": None, "notes": f"baret_live_{acct_name}" if acct_name else "baret_live",
-                            }, timeout=10)
-                        except:
-                            pass
+                        _log_trade_to_d1(symbol, cfg.get("timeframe", "4h"), side,
+                            entry_price, None, datetime.now(timezone.utc).isoformat(), None,
+                            cfg.get("sl_pct"), cfg.get("tp_pct"), None, None, None, acct_name)
 
-                        # Don't delete pending in DCA mode (L2 still active)
-                        if mode != "baret_dca":
-                            del state["pending_orders"][symbol]
                         state["positions"][symbol] = {
                             "side": side, "entry": entry_price,
                             "tp": tp_price, "sl": sl_price,
-                            "qty": abs(amt),
-                            "dca_filled": False,
+                            "qty": abs(amt), "dca_filled": False,
                             "filled_at": datetime.now(timezone.utc).isoformat(),
+                            "cfg_sl_pct": cfg.get("sl_pct"),
+                            "cfg_tp_pct": cfg.get("tp_pct"),
+                            "sl_algo_id": sl_tp.get("sl", {}).get("algoId"),
+                            "tp_algo_id": sl_tp.get("tp", {}).get("algoId"),
                         }
-            
-            # Monitor TP/SL for open positions
-            for sym in list(state["positions"].keys()):
-                if not running_check():
-                    break
-                pos_info = state["positions"][sym]
-                current_price = _get_price(sym)
-                if current_price <= 0:
-                    continue
-                
-                side = pos_info["side"]
-                tp = pos_info["tp"]
-                sl = pos_info["sl"]
-                entry = pos_info["entry"]
-                qty = pos_info.get("qty", 0)
-                
-                hit = None
-                if side == "LONG":
-                    if current_price >= tp: hit = "TP"
-                    elif current_price <= sl: hit = "SL"
-                elif side == "SHORT":
-                    if current_price <= tp: hit = "TP"
-                    elif current_price >= sl: hit = "SL"
-                
-                if hit:
-                    client.cancel_all_orders(sym)
-                    ex_pos = client.get_position(sym)
-                    actual_qty = 0
-                    if ex_pos:
-                        actual_qty = abs(float(ex_pos.get("positionAmt", 0)))
-                        if actual_qty > 0:
-                            client.place_market_close(sym, "BUY" if side == "LONG" else "SELL", actual_qty)
-                            # Verify position actually closed
-                            time.sleep(1)
-                            verify = client.get_position(sym)
-                            if verify and abs(float(verify.get("positionAmt", 0))) > 0:
-                                _log(f"{prefix}  ⚠️ {sym}: close failed, position still open!")
-                                continue
-                    use_qty = actual_qty if actual_qty > 0 else qty
-                    pnl_pct = ((current_price - entry) / entry * 100) if side == "LONG" else ((entry - current_price) / entry * 100)
-                    pnl_dollar = pnl_pct / 100 * entry * use_qty
-                    
-                    _log(f"{prefix}  {'🎯' if hit == 'TP' else '🛑'} {sym} {side} {hit} @ ${current_price:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
-                    _send_telegram(f"{'🎯' if hit == 'TP' else '🛑'} *{sym} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${current_price:.4f}\nPnL: {pnl_pct:+.2f}%")
-                    
-                    try:
-                        cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == sym), "15m")
-                        req.post(f"{WORKER_URL}/bot/trade-log", json={
-                            "strategy_id": 0, "symbol": sym, "timeframe": cfg_tf, "side": side,
-                            "entry_price": entry, "exit_price": current_price,
-                            "entry_time": pos_info.get("filled_at", datetime.now(timezone.utc).isoformat()),
-                            "exit_time": datetime.now(timezone.utc).isoformat(),
-                            "sl_pct": None, "tp_pct": None,
-                            "pnl_dollar": pnl_dollar, "pnl_pct": pnl_pct, "exit_reason": hit,
-                            "regime_at_entry": None, "minimax_entry_verdict": None,
-                            "minimax_exit_verdict": None, "minimax_adjustments": None,
-                            "bars_held": None, "max_favorable": None, "max_adverse": None,
-                            "backtest_wr": None, "notes": f"baret_live_{acct_name}" if acct_name else "baret_live",
-                        }, timeout=10)
-                    except:
-                        pass
-                    
-                    del state["positions"][sym]
-        # 9. Candle close: cancel all unfilled orders
+
+                        if mode != "baret_dca":
+                            state["pending_orders"].pop(symbol, None)
+
+                except Exception as e:
+                    _log(f"{prefix}  ⚠️ Fill check error {symbol}: {e}")
+
+            # ── Monitor existing positions ──
+            _monitor_positions(client, configs, state, prefix, acct_name, last_debug_ref)
+
+        # ════════════════════════════════════════
+        # PHASE 4: Candle close — cleanup
+        # ════════════════════════════════════════
         for cfg in configs:
             symbol = cfg["symbol"]
             if symbol in state["pending_orders"]:
-                client.cancel_all_orders(symbol)
-                _log(f"{prefix}  🗑 {symbol}: unfilled orders cancelled (candle close)")
+                try: client.cancel_all_orders(symbol)
+                except: pass
+                _log(f"{prefix}  🗑 {symbol}: unfilled orders cancelled")
                 del state["pending_orders"][symbol]
 
-        # Check positions that closed (TP/SL hit)
+        # Detect positions closed between monitoring and cycle end (with PnL)
         for symbol in list(state["positions"].keys()):
-            pos = client.get_position(symbol)
-            if not pos or float(pos.get("positionAmt", 0)) == 0:
-                saved = state["positions"].pop(symbol)
-                _log(f"{prefix}  📊 {symbol}: position closed (TP/SL hit)")
+            pos_info = state["positions"].get(symbol)
+            if pos_info:
+                _detect_exchange_close(client, symbol, pos_info, configs, state, prefix, acct_name)
 
         _log(f"{prefix}═══ CYCLE {cycle} DONE ═══")
-        time.sleep(5)  # Small delay, then immediately recalculate (candle just closed)
+        time.sleep(5)
 
     _log(f"{prefix}═══ BARET LIVE STOPPED ═══")
     if not acct_name:
         _baret_live_running = False
 
 
-# ── Public API ──
+# ══════════════════════════════════════════════
+# PUBLIC API
+# ══════════════════════════════════════════════
 
-def start_baret_live(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0, min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None, sl=None, sort_by="profit", use_custom_configs=False):
+def start_baret_live(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
+                     min_ppd=0.0, leverage=50, max_bh=100.0, buffer=None, tp=None,
+                     sl=None, sort_by="profit", use_custom_configs=False):
     global _baret_live_running, _baret_live_thread
     if _baret_live_running:
         return {"ok": True, "message": "Already running", "state": _baret_live_state}
     _baret_live_running = True
     _baret_live_thread = threading.Thread(
-        target=_baret_live_loop, args=(mode, position_usd, min_wr, max_dd, min_ppd, leverage, max_bh, buffer, tp, sl, sort_by, use_custom_configs), daemon=True
+        target=_baret_live_loop,
+        args=(mode, position_usd, min_wr, max_dd, min_ppd, leverage, max_bh,
+              buffer, tp, sl, sort_by, use_custom_configs),
+        daemon=True,
     )
     _baret_live_thread.start()
     src = "custom configs" if use_custom_configs else "sweep filter"
@@ -1009,11 +1188,14 @@ def get_baret_live_log(limit=200):
     return list(_baret_live_log)[-limit:]
 
 
-def close_position(symbol):
-    """Close a specific position and cancel all orders for symbol."""
+def close_position(symbol, client=None):
+    """Close a specific position. Supports multi-account via optional client."""
     symbol = symbol.upper()
-    _cancel_all_orders(symbol)
-    pos = _get_position(symbol)
+    if client is None:
+        client = _get_default_client()
+    client.cancel_all_orders(symbol)
+    _cancel_sl_tp(client, symbol)
+    pos = client.get_position(symbol)
     if not pos:
         return {"ok": True, "message": f"{symbol}: no position found"}
     amt = float(pos.get("positionAmt", 0))
@@ -1021,45 +1203,44 @@ def close_position(symbol):
         return {"ok": True, "message": f"{symbol}: position already flat"}
     side = "SELL" if amt > 0 else "BUY"
     qty = abs(amt)
-    result = _place_market_close(symbol, "BUY" if amt > 0 else "SELL", qty)
-    # Clean from bot state
-    if symbol in _baret_live_state.get("positions", {}):
-        del _baret_live_state["positions"][symbol]
-    if symbol in _baret_live_state.get("pending_orders", {}):
-        del _baret_live_state["pending_orders"][symbol]
-    _log(f"  🔒 {symbol}: closed {side} {qty} → {result.get('orderId', result.get('msg', result))}")
+    result = client.place_market_close(symbol, side, qty)
+    _baret_live_state.get("positions", {}).pop(symbol, None)
+    _baret_live_state.get("pending_orders", {}).pop(symbol, None)
+    _log(f"  🔒 {symbol}: closed {side} {qty}")
     return {"ok": True, "symbol": symbol, "side": side, "qty": qty, "result": result}
 
 
-def close_all_positions():
-    """Close all open positions."""
+def close_all_positions(client=None):
+    """Close all open positions. Supports multi-account via optional client."""
+    if client is None:
+        client = _get_default_client()
     try:
-        positions = _api_get("/fapi/v2/positionRisk", signed=True)
-    except:
-        return {"ok": False, "error": "Failed to fetch positions"}
+        positions = client.api_get("/fapi/v2/positionRisk", signed=True)
+        if not isinstance(positions, list):
+            return {"ok": False, "error": f"Unexpected response: {positions}"}
+    except Exception as e:
+        return {"ok": False, "error": f"Failed to fetch positions: {e}"}
     closed = []
     for p in positions:
         amt = float(p.get("positionAmt", 0))
         if amt != 0:
-            r = close_position(p["symbol"])
+            r = close_position(p["symbol"], client=client)
             closed.append(r)
     return {"ok": True, "closed": len(closed), "details": closed}
+
 
 # ══════════════════════════════════════════════
 # MULTI-ACCOUNT SYSTEM
 # ══════════════════════════════════════════════
 
 def _account_loop(account_id, client, account_info, mode="baret_dca"):
-    """Trading loop for a specific account. Calls the SAME _baret_live_loop with account-specific client."""
     bot = _account_bots.get(account_id)
     if not bot:
         return
-    
     acct_name = account_info.get("name", f"Account-{account_id}")
     position_usd = account_info.get("position_usd", 10)
     leverage = account_info.get("leverage", 50)
     client.leverage = leverage
-    
     try:
         _baret_live_loop(
             mode=mode, position_usd=position_usd, leverage=leverage,
@@ -1067,107 +1248,81 @@ def _account_loop(account_id, client, account_info, mode="baret_dca"):
             running_check=lambda: bot["running"], acct_name=acct_name,
         )
     except Exception as e:
-        import traceback
         _log(f"[{acct_name}] ❌ CRASH: {e}")
         _log(f"[{acct_name}] {traceback.format_exc()}")
-    
     bot["running"] = False
     try:
-        req.post(f"{WORKER_URL}/trading-accounts/update-status", json={"id": account_id, "status": "stopped"}, timeout=10)
+        req.post(f"{WORKER_URL}/trading-accounts/update-status",
+                 json={"id": account_id, "status": "stopped"}, timeout=10)
     except:
         pass
 
 
-
 def start_account_bot(account_id, mode="baret_dca"):
-    """Start bot for a specific account."""
     global _account_bots
-    
+    account_id = int(account_id)
     if account_id in _account_bots and _account_bots[account_id].get("running"):
         return {"ok": True, "message": f"Account {account_id} already running"}
-    
-    # Fetch account from D1
     try:
         r = req.get(f"{WORKER_URL}/trading-accounts/list", timeout=10)
         accounts = r.json().get("accounts", [])
-        account = next((a for a in accounts if a["id"] == int(account_id)), None)
+        account = next((a for a in accounts if a["id"] == account_id), None)
     except Exception as e:
         return {"ok": False, "error": f"Failed to fetch account: {e}"}
-    
     if not account:
         return {"ok": False, "error": f"Account {account_id} not found"}
-    
-    # Get API keys from env vars
     api_key = os.environ.get(account["env_key_name"], "")
     api_secret = os.environ.get(account["env_secret_name"], "")
-    
     if not api_key or not api_secret:
-        return {"ok": False, "error": f"API keys not found in env: {account['env_key_name']} / {account['env_secret_name']}"}
-    
+        return {"ok": False, "error": f"API keys not found: {account['env_key_name']}"}
     client = ExchangeClient(account["base_url"], api_key, api_secret, account.get("leverage", 50))
-    
     bot_state = {
         "active_pairs": [], "positions": {}, "pending_orders": {},
         "cycle_count": 0, "last_cycle": None, "mode": mode, "started_at": None,
     }
-    
     _account_bots[account_id] = {
-        "running": True,
-        "state": bot_state,
-        "client": client,
-        "account": account,
-        "thread": None,
+        "running": True, "state": bot_state,
+        "client": client, "account": account, "thread": None,
     }
-    
     t = threading.Thread(target=_account_loop, args=(account_id, client, account, mode), daemon=True)
     _account_bots[account_id]["thread"] = t
     t.start()
-    
-    # Update D1 status
     try:
-        req.post(f"{WORKER_URL}/trading-accounts/update-status", json={"id": account_id, "status": "running"}, timeout=10)
+        req.post(f"{WORKER_URL}/trading-accounts/update-status",
+                 json={"id": account_id, "status": "running"}, timeout=10)
     except:
         pass
-    
     return {"ok": True, "message": f"Account '{account['name']}' started, mode={mode}, ${account['position_usd']}×{account['leverage']}x"}
 
 
 def stop_account_bot(account_id):
-    """Stop bot for a specific account."""
     account_id = int(account_id)
     bot = _account_bots.get(account_id)
     if not bot or not bot.get("running"):
         return {"ok": True, "message": f"Account {account_id} not running"}
-    
     bot["running"] = False
     _log(f"[Account-{account_id}] Stop signal sent")
-    
-    # Update D1 status
     try:
-        req.post(f"{WORKER_URL}/trading-accounts/update-status", json={"id": account_id, "status": "stopped"}, timeout=10)
+        req.post(f"{WORKER_URL}/trading-accounts/update-status",
+                 json={"id": account_id, "status": "stopped"}, timeout=10)
     except:
         pass
-    
     return {"ok": True, "message": f"Account {account_id} stopping..."}
 
 
 def account_bot_status(account_id=None):
-    """Get status of one or all account bots."""
     if account_id:
         account_id = int(account_id)
         bot = _account_bots.get(account_id)
         if not bot:
             return {"ok": True, "running": False, "account_id": account_id}
         return {
-            "ok": True,
-            "account_id": account_id,
+            "ok": True, "account_id": account_id,
             "running": bot["running"],
             "thread_alive": bot["thread"].is_alive() if bot.get("thread") else False,
             "state": bot["state"],
             "account_name": bot["account"].get("name", ""),
         }
-    
-    # All accounts
     result = {}
     for aid, bot in _account_bots.items():
         result[aid] = {
