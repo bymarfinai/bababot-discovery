@@ -3929,6 +3929,7 @@ def backtest_deret_statistik(
     mode: str = "baret",            # "baret" = single entry, "baret_dca" = L1 + L2 DCA, "baret_marfin" = buffer + close filter
     buffer2_pct: float = 1.0,       # L2 DCA distance from predicted extreme (only in baret_dca)
     close_filter_pct: float = 0.3,  # Min gap between predicted_close and predicted_low (only in baret_marfin)
+    max_hold: int = 1,              # Max candles to hold before force close (1=original, 4=recommended)
 ) -> dict:
     """
     Backtest Deret Statistik strategy on historical data.
@@ -3943,7 +3944,9 @@ def backtest_deret_statistik(
       SHORT entry = predicted_high × (1 + buffer_pct/100)
       Whichever limit order hits FIRST = active trade, other cancelled
     
-    Exit: TP or SL hit within candle, else close at candle close
+    Exit: TP or SL hit within max_hold candles, else close at last candle close
+    
+    Stability metrics: per-day/week WR breakdown, worst streak, consistency score
     """
     import sqlite3
     
@@ -4050,7 +4053,7 @@ def backtest_deret_statistik(
         # Execute trade — with optional DCA (baret_dca mode)
         dca_triggered = False
         if trade_side == "LONG":
-            # Check if L2 DCA also hit
+            # Check if L2 DCA also hit (on first candle only)
             if mode == "baret_dca" and long_l2 and al <= long_l2:
                 entry = (long_entry + long_l2) / 2  # avg entry from L1 + L2
                 dca_triggered = True
@@ -4063,27 +4066,43 @@ def backtest_deret_statistik(
             tp_price = entry * (1 + tp_pct / 100)
             sl_price = entry * (1 - sl_pct / 100)
             
-            sl_hit = al <= sl_price
-            tp_hit = ah >= tp_price
+            # Check TP/SL across max_hold candles
+            exit_price = None
+            exit_reason = None
+            exit_candle_idx = 0
             
-            if sl_hit and tp_hit:
-                # Both hit same candle — proximity heuristic
-                both_hit_count += 1
-                if (ao - al) < (ah - ao):
-                    exit_price = sl_price
-                    exit_reason = "SL"
-                else:
-                    exit_price = tp_price
-                    exit_reason = "TP"
-            elif tp_hit:
-                exit_price = tp_price
-                exit_reason = "TP"
-            elif sl_hit:
-                exit_price = sl_price
-                exit_reason = "SL"
-            else:
-                exit_price = ac
+            for k in range(max_hold):
+                ci = i + 1 + k
+                if ci >= n:
+                    break
+                c_h, c_l, c_c, c_o = highs[ci], lows[ci], closes[ci], opens[ci]
+                
+                sl_hit = c_l <= sl_price
+                tp_hit = c_h >= tp_price
+                
+                if sl_hit and tp_hit:
+                    both_hit_count += 1
+                    if (c_o - c_l) < (c_h - c_o):
+                        exit_price = sl_price; exit_reason = "SL"
+                    else:
+                        exit_price = tp_price; exit_reason = "TP"
+                    exit_candle_idx = k
+                    break
+                elif tp_hit:
+                    exit_price = tp_price; exit_reason = "TP"
+                    exit_candle_idx = k
+                    break
+                elif sl_hit:
+                    exit_price = sl_price; exit_reason = "SL"
+                    exit_candle_idx = k
+                    break
+            
+            if exit_reason is None:
+                # Close at last hold candle
+                last_ci = min(i + max_hold, n - 1)
+                exit_price = closes[last_ci]
                 exit_reason = "CLOSE"
+                exit_candle_idx = min(max_hold - 1, n - i - 2)
             
             pnl_pct = (exit_price - entry) / entry * 100
             
@@ -4100,27 +4119,42 @@ def backtest_deret_statistik(
             tp_price = entry * (1 - tp_pct / 100)
             sl_price = entry * (1 + sl_pct / 100)
             
-            sl_hit = ah >= sl_price
-            tp_hit = al <= tp_price
+            # Check TP/SL across max_hold candles
+            exit_price = None
+            exit_reason = None
+            exit_candle_idx = 0
             
-            if sl_hit and tp_hit:
-                # Both hit same candle — proximity heuristic (SHORT)
-                both_hit_count += 1
-                if (ah - ao) < (ao - al):
-                    exit_price = sl_price
-                    exit_reason = "SL"
-                else:
-                    exit_price = tp_price
-                    exit_reason = "TP"
-            elif tp_hit:
-                exit_price = tp_price
-                exit_reason = "TP"
-            elif sl_hit:
-                exit_price = sl_price
-                exit_reason = "SL"
-            else:
-                exit_price = ac
+            for k in range(max_hold):
+                ci = i + 1 + k
+                if ci >= n:
+                    break
+                c_h, c_l, c_c, c_o = highs[ci], lows[ci], closes[ci], opens[ci]
+                
+                sl_hit = c_h >= sl_price
+                tp_hit = c_l <= tp_price
+                
+                if sl_hit and tp_hit:
+                    both_hit_count += 1
+                    if (c_h - c_o) < (c_o - c_l):
+                        exit_price = sl_price; exit_reason = "SL"
+                    else:
+                        exit_price = tp_price; exit_reason = "TP"
+                    exit_candle_idx = k
+                    break
+                elif tp_hit:
+                    exit_price = tp_price; exit_reason = "TP"
+                    exit_candle_idx = k
+                    break
+                elif sl_hit:
+                    exit_price = sl_price; exit_reason = "SL"
+                    exit_candle_idx = k
+                    break
+            
+            if exit_reason is None:
+                last_ci = min(i + max_hold, n - 1)
+                exit_price = closes[last_ci]
                 exit_reason = "CLOSE"
+                exit_candle_idx = min(max_hold - 1, n - i - 2)
             
             pnl_pct = (entry - exit_price) / entry * 100
         
@@ -4136,6 +4170,7 @@ def backtest_deret_statistik(
             "pred_high": round(pred_high, 6),
             "pred_low": round(pred_low, 6),
             "time": times[i+1],
+            "exit_candle": exit_candle_idx + 1,  # 1-based: which candle TP/SL/CLOSE hit
         })
     
     if not trades:
@@ -4167,6 +4202,83 @@ def backtest_deret_statistik(
     sl_count = len([t for t in trades if t["exit_reason"] == "SL"])
     close_count = len([t for t in trades if t["exit_reason"] == "CLOSE"])
     
+    # ═══ STABILITY METRICS ═══
+    from collections import defaultdict
+    
+    # Per-day stats
+    daily_stats = defaultdict(lambda: {"w": 0, "l": 0, "pnl": 0.0, "trades": 0})
+    # Per-week stats
+    weekly_stats = defaultdict(lambda: {"w": 0, "l": 0, "pnl": 0.0, "trades": 0})
+    
+    for t in trades:
+        ts_sec = t["time"] / 1000
+        dt = datetime.fromtimestamp(ts_sec, tz=timezone.utc)
+        day_key = dt.strftime("%Y-%m-%d")
+        week_key = f"{dt.year}-W{dt.isocalendar()[1]:02d}"
+        
+        for bucket, key in [(daily_stats, day_key), (weekly_stats, week_key)]:
+            bucket[key]["trades"] += 1
+            bucket[key]["pnl"] += t["pnl_dollar"]
+            if t["pnl_dollar"] > 0:
+                bucket[key]["w"] += 1
+            else:
+                bucket[key]["l"] += 1
+    
+    # Daily WR list (only days with >= 3 trades for meaningful WR)
+    daily_wrs = []
+    daily_pnls = []
+    for day in sorted(daily_stats.keys()):
+        d = daily_stats[day]
+        if d["trades"] >= 3:
+            wr = d["w"] / d["trades"] * 100
+            daily_wrs.append(wr)
+        daily_pnls.append(d["pnl"])
+    
+    # Weekly WR list (only weeks with >= 10 trades)
+    weekly_wrs = []
+    weekly_breakdown = []
+    for wk in sorted(weekly_stats.keys()):
+        d = weekly_stats[wk]
+        wr = d["w"] / d["trades"] * 100 if d["trades"] > 0 else 0
+        weekly_breakdown.append({
+            "week": wk, "trades": d["trades"], "wins": d["w"], "losses": d["l"],
+            "wr": round(wr, 1), "pnl": round(d["pnl"], 2),
+        })
+        if d["trades"] >= 10:
+            weekly_wrs.append(wr)
+    
+    # Worst losing streak
+    worst_streak = 0
+    current_streak = 0
+    for t in trades:
+        if t["pnl_dollar"] <= 0:
+            current_streak += 1
+            worst_streak = max(worst_streak, current_streak)
+        else:
+            current_streak = 0
+    
+    # Consistency: % of days with WR >= 75% (among days with >= 3 trades)
+    consistency_pct = round(
+        sum(1 for wr in daily_wrs if wr >= 75) / len(daily_wrs) * 100, 1
+    ) if daily_wrs else 0
+    
+    # Min weekly WR (among weeks with >= 10 trades)
+    min_weekly_wr = round(min(weekly_wrs), 1) if weekly_wrs else 0
+    
+    # Profitable days %
+    profitable_days_pct = round(
+        sum(1 for p in daily_pnls if p > 0) / len(daily_pnls) * 100, 1
+    ) if daily_pnls else 0
+    
+    # TP candle distribution (which candle TP hit on)
+    tp_trades_dist = [t["exit_candle"] for t in trades if t["exit_reason"] == "TP"]
+    tp_candle_dist = {}
+    if tp_trades_dist:
+        for k in range(1, max_hold + 1):
+            cnt = sum(1 for x in tp_trades_dist if x == k)
+            if cnt > 0:
+                tp_candle_dist[f"candle_{k}"] = cnt
+    
     return {
         "status": "ok",
         "symbol": symbol,
@@ -4178,6 +4290,7 @@ def backtest_deret_statistik(
         "mode": mode,
         "buffer2_pct": buffer2_pct if mode == "baret_dca" else None,
         "close_filter_pct": close_filter_pct if mode == "baret_marfin" else None,
+        "max_hold": max_hold,
         "dca_rate": round(dca_count / len(trades) * 100, 1) if trades else 0,
         "total_trades": len(trades),
         "wins": len(wins),
@@ -4200,6 +4313,17 @@ def backtest_deret_statistik(
         "both_hit_count": both_hit_count,
         "data_days": round(data_days, 1),
         "candles": n,
+        # ═══ NEW: Stability metrics ═══
+        "stability": {
+            "min_weekly_wr": min_weekly_wr,
+            "worst_streak": worst_streak,
+            "consistency_pct": consistency_pct,
+            "profitable_days_pct": profitable_days_pct,
+            "weekly_wr_std": round(float(np.std(weekly_wrs)), 1) if len(weekly_wrs) >= 2 else 0,
+            "daily_wr_std": round(float(np.std(daily_wrs)), 1) if len(daily_wrs) >= 2 else 0,
+        },
+        "weekly_breakdown": weekly_breakdown,
+        "tp_candle_dist": tp_candle_dist,
     }
 
 
