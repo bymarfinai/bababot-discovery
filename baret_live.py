@@ -1099,9 +1099,7 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
                         _log(f"{prefix}  ✅ {symbol} {side} FILLED @ ${entry_price:.4f} → TP=${tp_price:.4f} SL=${sl_price:.4f}{dca_label}")
                         _send_telegram(f"📐 BARET ENTRY{dca_label}\n{symbol} {side} @ ${entry_price:.4f}\nTP: ${tp_price:.4f} SL: ${sl_price:.4f}")
 
-                        _log_trade_to_d1(symbol, cfg.get("timeframe", "4h"), side,
-                            entry_price, None, datetime.now(timezone.utc).isoformat(), None,
-                            cfg.get("sl_pct"), cfg.get("tp_pct"), None, None, None, acct_name)
+                        # Entry logged at exit only (avoid ghost records)
 
                         state["positions"][symbol] = {
                             "side": side, "entry": entry_price,
