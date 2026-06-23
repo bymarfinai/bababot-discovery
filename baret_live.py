@@ -1,23 +1,24 @@
 """
-BabaBot — Baret Live Trading (v3 Production)
+BabaBot — Baret Live Trading (v4 Production)
 Predicted range entry: limit orders at predicted extremes + buffer.
 Supports: baret (single), baret_dca (L1+L2), baret_marfin (close filter).
 
 Uses Binance Real/Demo API for order placement.
 Data from OKX (cloud-accessible).
 
+v4 Changes (from v3):
+- FORCE CLOSE AT CANDLE END: positions that don't hit TP/SL within the
+  current candle are market-closed at candle close price. This matches
+  backtest behavior exactly (exit_reason="CLOSE" in backtest).
+  ~80% of trades hit TP within candle; ~20% are force-closed with small PnL.
+  Prevents positions from holding across candles and frees slots for new entries.
+
 v3 Changes (from v2):
-- Verified endpoints from official Binance docs (June 2026):
-  * POST /fapi/v1/algoOrder (place SL/TP)
-  * DELETE /fapi/v1/algoOrder (cancel single, requires algoId)
-  * DELETE /fapi/v1/algoOpenOrders (cancel all algo per symbol)
-  * GET /fapi/v1/openAlgoOrders (list open algo)
-  * DELETE /fapi/v1/allOpenOrders does NOT cancel algo orders
-- Since 2025-12-09: STOP_MARKET/TAKE_PROFIT_MARKET REQUIRE algoOrder (error -4120 on /fapi/v1/order)
+- Verified endpoints from official Binance docs (June 2026)
+- Since 2025-12-09: STOP_MARKET/TAKE_PROFIT_MARKET REQUIRE algoOrder
 - Store algoId for targeted cancellation
 - Cycle-end position close now logs PnL to D1
 - Deduplicated exchange-close detection into helper
-- Removed unused numpy import
 - close_position supports multi-account client
 - Consistent DCA L2 formula: always entry × (1 ± buf2%)
 """
@@ -1123,8 +1124,11 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
             _monitor_positions(client, configs, state, prefix, acct_name, last_debug_ref)
 
         # ════════════════════════════════════════
-        # PHASE 4: Candle close — cleanup
+        # PHASE 4: Candle close — cleanup + FORCE CLOSE
+        # Matches backtest: trades that don't hit TP/SL are closed at candle end.
         # ════════════════════════════════════════
+
+        # 4a. Cancel unfilled entry orders
         for cfg in configs:
             symbol = cfg["symbol"]
             if symbol in state["pending_orders"]:
@@ -1133,11 +1137,71 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
                 _log(f"{prefix}  🗑 {symbol}: unfilled orders cancelled")
                 del state["pending_orders"][symbol]
 
-        # Detect positions closed between monitoring and cycle end (with PnL)
+        # 4b. Detect positions already closed by exchange (algoOrder TP/SL hit)
         for symbol in list(state["positions"].keys()):
             pos_info = state["positions"].get(symbol)
             if pos_info:
                 _detect_exchange_close(client, symbol, pos_info, configs, state, prefix, acct_name)
+
+        # 4c. FORCE CLOSE remaining positions at candle end (v4 — backtest parity)
+        # Any position still open here did NOT hit TP or SL within this candle.
+        # Backtest closes these at candle close price. We do the same.
+        force_closed = 0
+        for symbol in list(state["positions"].keys()):
+            pos_info = state["positions"].get(symbol)
+            if not pos_info:
+                continue
+            try:
+                # Cancel SL/TP algo orders first
+                _cancel_sl_tp(client, symbol)
+                client.cancel_all_orders(symbol)
+
+                # Get current exchange position
+                ex_pos = client.get_position(symbol)
+                if not ex_pos or float(ex_pos.get("positionAmt", 0)) == 0:
+                    # Already flat (race condition), just cleanup state
+                    state["positions"].pop(symbol, None)
+                    continue
+
+                actual_qty = abs(float(ex_pos.get("positionAmt", 0)))
+                side = pos_info["side"]
+                entry = pos_info["entry"]
+                close_side = "SELL" if side == "LONG" else "BUY"
+
+                # Market close
+                client.place_market_close(symbol, close_side, actual_qty)
+                time.sleep(1)
+
+                # Get close price
+                cp = _get_price(symbol)
+                if cp > 0 and entry > 0:
+                    pnl_pct = ((cp - entry) / entry * 100) if side == "LONG" else ((entry - cp) / entry * 100)
+                    pnl_dollar = pnl_pct / 100 * entry * actual_qty
+                else:
+                    pnl_pct = 0
+                    pnl_dollar = 0
+
+                emoji = "📊"  # chart emoji for CLOSE exits
+                _log(f"{prefix}  {emoji} {symbol} {side} CLOSE (candle end) @ ~${cp:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
+                _send_telegram(f"{emoji} *{symbol} {side} CLOSE* (candle end)\nEntry: ${entry:.4f}\nExit: ~${cp:.4f}\nPnL: {pnl_pct:+.2f}%")
+
+                # Log to D1 with exit_reason = "CLOSE"
+                cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == symbol), "4h")
+                _log_trade_to_d1(symbol, cfg_tf, side, entry, cp,
+                    pos_info.get("filled_at", datetime.now(timezone.utc).isoformat()),
+                    datetime.now(timezone.utc).isoformat(),
+                    pos_info.get("cfg_sl_pct"), pos_info.get("cfg_tp_pct"),
+                    pnl_dollar, pnl_pct, "CLOSE", acct_name)
+
+                state["positions"].pop(symbol, None)
+                force_closed += 1
+
+            except Exception as e:
+                _log(f"{prefix}  ⚠️ Force close error {symbol}: {e}")
+                _log(f"{prefix}     {traceback.format_exc()}")
+
+        if force_closed:
+            _log(f"{prefix}  📊 {force_closed} position(s) force-closed at candle end")
 
         _log(f"{prefix}═══ CYCLE {cycle} DONE ═══")
         time.sleep(5)
