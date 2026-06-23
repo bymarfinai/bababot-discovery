@@ -4206,9 +4206,9 @@ def backtest_deret_statistik(
     from collections import defaultdict
     
     # Per-day stats
-    daily_stats = defaultdict(lambda: {"w": 0, "l": 0, "pnl": 0.0, "trades": 0})
+    daily_stats = defaultdict(lambda: {"w": 0, "l": 0, "pnl": 0.0, "trades": 0, "tp": 0, "sl": 0, "close": 0})
     # Per-week stats
-    weekly_stats = defaultdict(lambda: {"w": 0, "l": 0, "pnl": 0.0, "trades": 0})
+    weekly_stats = defaultdict(lambda: {"w": 0, "l": 0, "pnl": 0.0, "trades": 0, "tp": 0, "sl": 0, "close": 0})
     
     for t in trades:
         ts_sec = t["time"] / 1000
@@ -4223,6 +4223,13 @@ def backtest_deret_statistik(
                 bucket[key]["w"] += 1
             else:
                 bucket[key]["l"] += 1
+            # Track exit reason
+            if t["exit_reason"] == "TP":
+                bucket[key]["tp"] += 1
+            elif t["exit_reason"] == "SL":
+                bucket[key]["sl"] += 1
+            else:
+                bucket[key]["close"] += 1
     
     # Daily WR list (only days with >= 3 trades for meaningful WR)
     daily_wrs = []
@@ -4236,16 +4243,21 @@ def backtest_deret_statistik(
     
     # Weekly WR list (only weeks with >= 10 trades)
     weekly_wrs = []
+    weekly_close_pcts = []
     weekly_breakdown = []
     for wk in sorted(weekly_stats.keys()):
         d = weekly_stats[wk]
         wr = d["w"] / d["trades"] * 100 if d["trades"] > 0 else 0
+        cl_pct = d["close"] / d["trades"] * 100 if d["trades"] > 0 else 0
         weekly_breakdown.append({
             "week": wk, "trades": d["trades"], "wins": d["w"], "losses": d["l"],
             "wr": round(wr, 1), "pnl": round(d["pnl"], 2),
+            "tp": d["tp"], "sl": d["sl"], "close": d["close"],
+            "close_pct": round(cl_pct, 1),
         })
         if d["trades"] >= 10:
             weekly_wrs.append(wr)
+            weekly_close_pcts.append(cl_pct)
     
     # Worst losing streak
     worst_streak = 0
@@ -4321,6 +4333,9 @@ def backtest_deret_statistik(
             "profitable_days_pct": profitable_days_pct,
             "weekly_wr_std": round(float(np.std(weekly_wrs)), 1) if len(weekly_wrs) >= 2 else 0,
             "daily_wr_std": round(float(np.std(daily_wrs)), 1) if len(daily_wrs) >= 2 else 0,
+            "max_weekly_close_pct": round(max(weekly_close_pcts), 1) if weekly_close_pcts else 0,
+            "avg_weekly_close_pct": round(float(np.mean(weekly_close_pcts)), 1) if weekly_close_pcts else 0,
+            "weekly_close_std": round(float(np.std(weekly_close_pcts)), 1) if len(weekly_close_pcts) >= 2 else 0,
         },
         "weekly_breakdown": weekly_breakdown,
         "tp_candle_dist": tp_candle_dist,
