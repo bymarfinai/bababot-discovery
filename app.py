@@ -1795,8 +1795,17 @@ def server_ip():
         return {"ok": False, "error": str(e)}
 
 @app.get("/baret-live/close")
-def baret_live_close(symbol: str = None):
-    """Close a specific position or all positions."""
+def baret_live_close(symbol: str = None, account_id: int = None):
+    """Close positions. Use account_id for multi-account support."""
+    if account_id:
+        from baret_live import _account_bots, close_position as cp, close_all_positions as cap
+        bot = _account_bots.get(int(account_id))
+        if not bot:
+            return {"ok": False, "error": f"Account {account_id} not found or not running"}
+        client = bot.get("client")
+        if symbol:
+            return cp(symbol, client=client)
+        return cap(client=client)
     if symbol:
         return close_position(symbol)
     return close_all_positions()
