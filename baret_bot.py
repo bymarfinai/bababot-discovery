@@ -194,6 +194,7 @@ def _baret_loop(db_path: str, mode: str = "baret", timeframes: list = None):
                     days=1825, position_usd=100.0, leverage=50, fee_pct=0.10,
                     mode=mode, buffer2_pct=cfg.get("buffer2_pct", 1.0),
                     close_filter_pct=cfg.get("close_filter_pct", 0.3),
+                    max_hold=4,
                 )
 
                 wr = r.get("win_rate", 0)
@@ -214,6 +215,8 @@ def _baret_loop(db_path: str, mode: str = "baret", timeframes: list = None):
                     "exit_tp": r.get("exit_reasons", {}).get("TP", 0),
                     "exit_sl": r.get("exit_reasons", {}).get("SL", 0),
                     "exit_close": r.get("exit_reasons", {}).get("CLOSE", 0),
+                    "max_hold": 4,
+                    "stability": r.get("stability", {}),
                 }
                 round_results.append(result_entry)
                 _save_to_d1("baret/save-result", result_entry)
@@ -379,6 +382,7 @@ def _baret_sweep_all(db_path: str, mode: str = "sweep_all", timeframes: list = N
                                         days=1825, position_usd=100.0, leverage=50, fee_pct=0.10,
                                         mode=backtest_mode, buffer2_pct=b2,
                                         close_filter_pct=cf,
+                                        max_hold=4,
                                     )
                                     
                                     wr = r.get("win_rate", 0)
@@ -402,6 +406,8 @@ def _baret_sweep_all(db_path: str, mode: str = "sweep_all", timeframes: list = N
                                         "exit_tp": r.get("exit_reasons", {}).get("TP", 0),
                                         "exit_sl": r.get("exit_reasons", {}).get("SL", 0),
                                         "exit_close": r.get("exit_reasons", {}).get("CLOSE", 0),
+                                        "max_hold": 4,
+                                        "stability": r.get("stability", {}),
                                     }
                                     
                                     _save_to_d1("baret/save-result", result_entry)
