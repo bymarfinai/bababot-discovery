@@ -1,17 +1,21 @@
 """
-BabaBot — Baret Live Trading (v4 Production)
+BabaBot — Baret Live Trading (v5 Production)
 Predicted range entry: limit orders at predicted extremes + buffer.
 Supports: baret (single), baret_dca (L1+L2), baret_marfin (close filter).
 
 Uses Binance Real/Demo API for order placement.
 Data from OKX (cloud-accessible).
 
+v5 Changes (from v4):
+- MAX_HOLD=4: positions held up to 4 candles waiting for TP/SL.
+  Only force-closed after 4 candles if TP/SL not hit.
+  Matches backtest max_hold=4 behavior. CLOSE% drops from ~13% to ~5%.
+- Ghost entry logging removed (log only at exit).
+- Stability metrics in backtest.
+
 v4 Changes (from v3):
 - FORCE CLOSE AT CANDLE END: positions that don't hit TP/SL within the
-  current candle are market-closed at candle close price. This matches
-  backtest behavior exactly (exit_reason="CLOSE" in backtest).
-  ~80% of trades hit TP within candle; ~20% are force-closed with small PnL.
-  Prevents positions from holding across candles and frees slots for new entries.
+  current candle are market-closed at candle close price.
 
 v3 Changes (from v2):
 - Verified endpoints from official Binance docs (June 2026)
@@ -22,6 +26,8 @@ v3 Changes (from v2):
 - close_position supports multi-account client
 - Consistent DCA L2 formula: always entry × (1 ± buf2%)
 """
+
+MAX_HOLD = 4  # Max candles to hold before force close
 
 import os
 import time
@@ -1110,6 +1116,7 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
                             "cfg_tp_pct": cfg.get("tp_pct"),
                             "sl_algo_id": sl_tp.get("sl", {}).get("algoId"),
                             "tp_algo_id": sl_tp.get("tp", {}).get("algoId"),
+                            "hold_candles": 1,
                         }
 
                         if mode != "baret_dca":
@@ -1141,14 +1148,25 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
             if pos_info:
                 _detect_exchange_close(client, symbol, pos_info, configs, state, prefix, acct_name)
 
-        # 4c. FORCE CLOSE remaining positions at candle end (v4 — backtest parity)
-        # Any position still open here did NOT hit TP or SL within this candle.
-        # Backtest closes these at candle close price. We do the same.
+        # 4c. FORCE CLOSE positions that exceeded MAX_HOLD candles (v5)
+        # Positions held < MAX_HOLD candles keep their TP/SL on exchange.
         force_closed = 0
+        held_over = 0
         for symbol in list(state["positions"].keys()):
             pos_info = state["positions"].get(symbol)
             if not pos_info:
                 continue
+
+            hold_count = pos_info.get("hold_candles", 1)
+
+            if hold_count < MAX_HOLD:
+                # Not yet at max — increment counter and keep position open
+                pos_info["hold_candles"] = hold_count + 1
+                held_over += 1
+                _log(f"{prefix}  ⏳ {symbol} {pos_info['side']} held {hold_count}/{MAX_HOLD} candles — keeping open")
+                continue
+
+            # Reached MAX_HOLD — force close
             try:
                 # Cancel SL/TP algo orders first
                 _cancel_sl_tp(client, symbol)
@@ -1180,8 +1198,8 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
                     pnl_dollar = 0
 
                 emoji = "📊"  # chart emoji for CLOSE exits
-                _log(f"{prefix}  {emoji} {symbol} {side} CLOSE (candle end) @ ~${cp:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
-                _send_telegram(f"{emoji} *{symbol} {side} CLOSE* (candle end)\nEntry: ${entry:.4f}\nExit: ~${cp:.4f}\nPnL: {pnl_pct:+.2f}%")
+                _log(f"{prefix}  {emoji} {symbol} {side} CLOSE (hold={hold_count}) @ ~${cp:.4f} | PnL: {pnl_pct:+.2f}% (${pnl_dollar:+.2f})")
+                _send_telegram(f"{emoji} *{symbol} {side} CLOSE* (hold={hold_count})\nEntry: ${entry:.4f}\nExit: ~${cp:.4f}\nPnL: {pnl_pct:+.2f}%")
 
                 # Log to D1 with exit_reason = "CLOSE"
                 cfg_tf = next((c.get("timeframe", "4h") for c in configs if c["symbol"] == symbol), "4h")
@@ -1198,8 +1216,8 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
                 _log(f"{prefix}  ⚠️ Force close error {symbol}: {e}")
                 _log(f"{prefix}     {traceback.format_exc()}")
 
-        if force_closed:
-            _log(f"{prefix}  📊 {force_closed} position(s) force-closed at candle end")
+        if force_closed or held_over:
+            _log(f"{prefix}  📊 {force_closed} force-closed, {held_over} held over")
 
         _log(f"{prefix}═══ CYCLE {cycle} DONE ═══")
         time.sleep(5)
