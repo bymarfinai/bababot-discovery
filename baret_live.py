@@ -596,8 +596,28 @@ def _log_trade_to_d1(symbol, timeframe, side, entry_price, exit_price, entry_tim
         pass
 
 
-# ══════════════════════════════════════════════
-# CANDLE TIMING HELPERS
+def _log_analytics_to_d1(symbol, side, intended_entry, actual_entry, exit_reason,
+                          pnl_pct, pnl_dollar, hold_candles, l2_hit, l2_candle,
+                          candle_hour, fill_latency_ms, concurrent_pairs, acct_name=""):
+    """Log trade analytics for Ultron Phase 1 learning. Non-blocking."""
+    try:
+        slippage = abs(actual_entry - intended_entry) / intended_entry * 100 if intended_entry > 0 else 0
+        req.post(f"{WORKER_URL}/analytics/log-trade", json={
+            "symbol": symbol, "account": acct_name, "side": side,
+            "candle_hour": candle_hour,
+            "intended_entry": round(intended_entry, 6),
+            "actual_entry": round(actual_entry, 6),
+            "slippage_pct": round(slippage, 4),
+            "exit_reason": exit_reason,
+            "pnl_pct": round(pnl_pct, 4), "pnl_dollar": round(pnl_dollar, 4),
+            "hold_candles": hold_candles,
+            "l2_hit": 1 if l2_hit else 0,
+            "l2_candle": l2_candle,
+            "fill_latency_ms": fill_latency_ms,
+            "concurrent_pairs": concurrent_pairs,
+        }, timeout=10)
+    except:
+        pass
 # ══════════════════════════════════════════════
 
 _EPOCH = datetime(2020, 1, 1, tzinfo=timezone.utc)
@@ -649,7 +669,14 @@ def _detect_exchange_close(client, symbol, pos_info, configs, state, prefix, acc
                 pos_info.get("filled_at"), datetime.now(timezone.utc).isoformat(),
                 pos_info.get("cfg_sl_pct"), pos_info.get("cfg_tp_pct"),
                 pnl_dollar, pnl_pct, hit, acct_name)
-        else:
+            # Ultron Phase 1: analytics
+            _log_analytics_to_d1(symbol, side,
+                pos_info.get("intended_entry", entry), entry, hit,
+                pnl_pct, pnl_dollar, pos_info.get("hold_candles", 1),
+                pos_info.get("dca_filled", False), None,
+                datetime.fromisoformat(pos_info.get("filled_at", datetime.now(timezone.utc).isoformat()).replace("Z","")).hour,
+                int(time.time()*1000) - pos_info.get("filled_at_ms", int(time.time()*1000)),
+                ",".join(state.get("positions", {}).keys()), acct_name)
             _log(f"{prefix}  📊 {symbol}: closed (price unavailable, PnL unknown)")
 
         state["positions"].pop(symbol, None)
@@ -723,6 +750,14 @@ def _handle_position_close(client, symbol, pos_info, current_price, configs, sta
         datetime.now(timezone.utc).isoformat(),
         pos_info.get("cfg_sl_pct"), pos_info.get("cfg_tp_pct"),
         pnl_dollar, pnl_pct, hit, acct_name)
+    # Ultron Phase 1: analytics
+    _log_analytics_to_d1(symbol, side,
+        pos_info.get("intended_entry", entry), entry, hit,
+        pnl_pct, pnl_dollar, pos_info.get("hold_candles", 1),
+        pos_info.get("dca_filled", False), None,
+        datetime.fromisoformat(pos_info.get("filled_at", datetime.now(timezone.utc).isoformat()).replace("Z","")).hour,
+        int(time.time()*1000) - pos_info.get("filled_at_ms", int(time.time()*1000)),
+        ",".join(state.get("positions", {}).keys()), acct_name)
 
     state["positions"].pop(symbol, None)
     state.get("pending_orders", {}).pop(symbol, None)
@@ -1112,6 +1147,9 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
                             "tp": tp_price, "sl": sl_price,
                             "qty": abs(amt), "dca_filled": False,
                             "filled_at": datetime.now(timezone.utc).isoformat(),
+                            "filled_at_ms": int(time.time() * 1000),
+                            "intended_entry": pending.get("long_entry") if side == "LONG" else pending.get("short_entry"),
+                            "order_placed_at": pending.get("placed_at"),
                             "cfg_sl_pct": cfg.get("sl_pct"),
                             "cfg_tp_pct": cfg.get("tp_pct"),
                             "sl_algo_id": sl_tp.get("sl", {}).get("algoId"),
@@ -1208,6 +1246,14 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
                     datetime.now(timezone.utc).isoformat(),
                     pos_info.get("cfg_sl_pct"), pos_info.get("cfg_tp_pct"),
                     pnl_dollar, pnl_pct, "CLOSE", acct_name)
+                # Ultron Phase 1: analytics
+                _log_analytics_to_d1(symbol, side,
+                    pos_info.get("intended_entry", entry), entry, "CLOSE",
+                    pnl_pct, pnl_dollar, hold_count,
+                    pos_info.get("dca_filled", False), None,
+                    datetime.fromisoformat(pos_info.get("filled_at", datetime.now(timezone.utc).isoformat()).replace("Z","")).hour,
+                    int(time.time()*1000) - pos_info.get("filled_at_ms", int(time.time()*1000)),
+                    ",".join(state.get("positions", {}).keys()), acct_name)
 
                 state["positions"].pop(symbol, None)
                 force_closed += 1
