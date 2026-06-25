@@ -1332,7 +1332,8 @@ def run_deret_backtest(req: dict, _=Security(verify_token)):
             mode=req.get("mode", "baret"),
             buffer2_pct=req.get("buffer2_pct", 1.0),
             close_filter_pct=req.get("close_filter_pct", 0.3),
-            max_hold=req.get("max_hold", 1),
+            max_hold=req.get("max_hold", 4),
+            sub_candle_tf=req.get("sub_candle_tf", None),
         )
         return {"ok": True, **result}
     except Exception as e:
@@ -1364,7 +1365,7 @@ def run_deret_sweep(req: dict, _=Security(verify_token)):
                             r = backtest_deret_statistik(
                                 db_path=DB_PATH, symbol=symbol, timeframe=tf,
                                 window=window, buffer_pct=buf, tp_pct=tp, sl_pct=sl, days=days,
-                                max_hold=req.get("max_hold", 1),
+                                max_hold=req.get("max_hold", 4),
                             )
                             if r.get("status") != "ok":
                                 continue
@@ -1509,7 +1510,7 @@ def run_deret_statistik(req: dict, _=Security(verify_token)):
             mode=req.get("mode", "baret"),
             buffer2_pct=req.get("buffer2_pct", 1.0),
             close_filter_pct=req.get("close_filter_pct", 0.3),
-            max_hold=req.get("max_hold", 1),
+            max_hold=req.get("max_hold", 4),
         )
         return {"ok": True, **result}
     except Exception as e:
@@ -1530,7 +1531,7 @@ def run_deret_sweep(req: dict, _=Security(verify_token)):
                 r = backtest_deret_statistik(DB_PATH, symbol, tf,
                     window=req.get("window", 5), buffer_pct=req.get("buffer_pct", 0.5),
                     tp_pct=req.get("tp_pct", 1.0), sl_pct=req.get("sl_pct", 1.0),
-                    days=req.get("days", 1825), max_hold=req.get("max_hold", 1))
+                    days=req.get("days", 1825), max_hold=req.get("max_hold", 4))
                 if r.get("status") == "ok":
                     results.append(r)
                     print(f"[Deret] {symbol} {tf}: WR={r['win_rate']}% trades={r['total_trades']} profit=${r['net_profit']}")
