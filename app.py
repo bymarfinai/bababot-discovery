@@ -20,6 +20,7 @@ from live_bot import start_bot, stop_bot, bot_status, get_activity_log
 from dca_bot import start_dca, stop_dca, dca_status, get_dca_log, get_dca_results
 from baret_bot import start_baret, stop_baret, baret_status, get_baret_log
 from baret_live import start_baret_live, stop_baret_live, baret_live_status, get_baret_live_log, close_position, close_all_positions, start_account_bot, stop_account_bot, account_bot_status
+from ultron_engine import ultron_status, get_ultron_log, manual_analyze, clear_pair_skip, clear_hour_skip, clear_buffer_adjustment
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -1827,3 +1828,39 @@ def baret_live_stop_account(account_id: int = 0):
 def baret_live_account_status(account_id: int = None):
     """Get status of account bots."""
     return account_bot_status(account_id)
+
+# ============================================================
+# ULTRON PHASE 2 — Decision Engine Endpoints
+# ============================================================
+
+@app.get("/ultron/status")
+def ultron_status_endpoint():
+    """Get Ultron Phase 2 state: active decisions, config, skips."""
+    return ultron_status()
+
+@app.get("/ultron/log")
+def ultron_log_endpoint(limit: int = 100):
+    """Get Ultron activity log."""
+    return {"ok": True, "log": get_ultron_log(limit)}
+
+@app.post("/ultron/analyze")
+def ultron_analyze_endpoint():
+    """Manually trigger Ultron analysis (from Jarvis or dashboard)."""
+    return manual_analyze()
+
+@app.post("/ultron/clear-skip")
+def ultron_clear_skip(symbol: str = None, hour: int = None):
+    """Clear a skip decision. Called after Jarvis override."""
+    if symbol:
+        clear_pair_skip(symbol)
+        return {"ok": True, "message": f"Pair skip cleared: {symbol}"}
+    if hour is not None:
+        clear_hour_skip(hour)
+        return {"ok": True, "message": f"Hour skip cleared: {hour}"}
+    return {"ok": False, "error": "Provide symbol or hour"}
+
+@app.post("/ultron/clear-buffer")
+def ultron_clear_buffer(symbol: str = ""):
+    """Clear buffer adjustment for a pair."""
+    clear_buffer_adjustment(symbol)
+    return {"ok": True, "message": f"Buffer adjustment cleared: {symbol}"}
