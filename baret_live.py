@@ -38,6 +38,12 @@ import traceback
 import requests as req
 from datetime import datetime, timezone, timedelta
 from collections import deque
+from ultron_engine import (
+    ultron_analyze, should_skip_pair, should_skip_hour,
+    get_buffer_adjustment, get_size_factor, reload_active_decisions,
+    ultron_status as _ultron_status, get_ultron_log as _get_ultron_log,
+    manual_analyze as _ultron_manual_analyze,
+)
 from urllib.parse import urlencode
 
 # ── Config ──
@@ -905,6 +911,12 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
             _log(f"{prefix}  ⚠️ Orphan cleanup {symbol}: {e}")
     _log(f"{prefix}  ✅ {orphan_count} orphan positions cleaned" if orphan_count else f"{prefix}  ✅ No orphan positions")
 
+    # ── Ultron Phase 2: reload active decisions from D1 ──
+    try:
+        reload_active_decisions()
+    except Exception as e:
+        _log(f"{prefix}  ⚠️ Ultron reload failed: {e}")
+
     poll_sec = 10 if interval_min <= 15 else 20 if interval_min <= 60 else 30
     last_debug_ref = [datetime.min.replace(tzinfo=timezone.utc)]
 
@@ -936,12 +948,33 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
         state["last_cycle"] = datetime.now(timezone.utc).isoformat()
         _log(f"{prefix}═══ CYCLE {cycle} ═══")
 
+        # ── Ultron Phase 2: periodic analysis ──
+        if cycle > 1 and cycle % 4 == 0:
+            try:
+                ultron_analyze()
+            except Exception as e:
+                _log(f"{prefix}  ⚠️ Ultron analysis error: {e}")
+
         for cfg in configs:
             if not running_check():
                 break
 
             symbol = cfg["symbol"]
-            buffer_pct = cfg["buffer_pct"]
+
+            # ── Ultron Phase 2: check decisions before trading ──
+            skip, skip_reason = should_skip_pair(symbol)
+            if skip:
+                _log(f"{prefix}  🧠 {symbol}: SKIPPED by Ultron — {skip_reason}")
+                continue
+
+            current_hour = datetime.now(timezone.utc).hour
+            skip_h, skip_h_reason = should_skip_hour(symbol, current_hour)
+            if skip_h:
+                _log(f"{prefix}  🧠 {symbol}: hour {current_hour} SKIPPED by Ultron — {skip_h_reason}")
+                continue
+
+            # Apply buffer adjustment from Ultron
+            buffer_pct = cfg["buffer_pct"] + get_buffer_adjustment(symbol)
             tp_pct = cfg["tp_pct"]
             sl_pct = cfg["sl_pct"]
             window = cfg.get("window", 10)
@@ -1008,7 +1041,13 @@ def _baret_live_loop(mode="baret", position_usd=10.0, min_wr=75.0, max_dd=20.0,
                 # Entry levels
                 long_entry = pred_low * (1 - buffer_pct / 100)
                 short_entry = pred_high * (1 + buffer_pct / 100)
-                qty = _calc_quantity(symbol, current, position_usd, client.leverage)
+                # Position size with Ultron correlation check
+                concurrent = len(state.get("pending_orders", {}))
+                size_factor = get_size_factor(concurrent)
+                adjusted_usd = position_usd * size_factor
+                qty = _calc_quantity(symbol, current, adjusted_usd, client.leverage)
+                if size_factor < 1.0:
+                    _log(f"{prefix}     🧠 Ultron: reduced size to {size_factor}x (${adjusted_usd})")
 
                 _log(f"{prefix}  📐 {symbol}: range ${pred_low:.4f}-${pred_high:.4f}, cur=${current:.4f}")
                 _log(f"{prefix}     LONG@${long_entry:.4f} SHORT@${short_entry:.4f} qty={qty}")
