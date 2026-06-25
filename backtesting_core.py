@@ -3929,7 +3929,8 @@ def backtest_deret_statistik(
     mode: str = "baret",            # "baret" = single entry, "baret_dca" = L1 + L2 DCA, "baret_marfin" = buffer + close filter
     buffer2_pct: float = 1.0,       # L2 DCA distance from predicted extreme (only in baret_dca)
     close_filter_pct: float = 0.3,  # Min gap between predicted_close and predicted_low (only in baret_marfin)
-    max_hold: int = 1,              # Max candles to hold before force close (1=original, 4=recommended)
+    max_hold: int = 4,              # Max candles to hold before force close (4=production default)
+    sub_candle_tf: str = None,      # Sub-candle TF for tick-level TP/SL resolution (e.g. "1m", "5m")
 ) -> dict:
     """
     Backtest Deret Statistik strategy on historical data.
@@ -3946,6 +3947,11 @@ def backtest_deret_statistik(
     
     Exit: TP or SL hit within max_hold candles, else close at last candle close
     
+    Sub-candle resolution (when sub_candle_tf is set):
+      On entry candle, drills down to sub-candles (e.g. 1m inside 15m)
+      to determine chronological order of entry fill, TP hit, and SL hit.
+      Eliminates phantom TP (where TP level was reached before entry filled).
+    
     Stability metrics: per-day/week WR breakdown, worst streak, consistency score
     """
     import sqlite3
@@ -3958,6 +3964,32 @@ def backtest_deret_statistik(
         ORDER BY open_time ASC
     """
     rows = conn.execute(query, (symbol, timeframe)).fetchall()
+    
+    # ═══ LOAD SUB-CANDLE DATA (for tick-level resolution) ═══
+    sub_candle_lookup = {}  # parent_open_time → [sub_candles]
+    if sub_candle_tf:
+        sub_query = """
+            SELECT open, high, low, close, open_time 
+            FROM klines 
+            WHERE symbol = ? AND timeframe = ?
+            ORDER BY open_time ASC
+        """
+        sub_rows = conn.execute(sub_query, (symbol, sub_candle_tf)).fetchall()
+        
+        # Map sub-candle TF to milliseconds
+        tf_ms_map = {"1m": 60000, "3m": 180000, "5m": 300000, "15m": 900000, "1h": 3600000}
+        parent_ms = tf_ms_map.get(timeframe, 3600000)
+        
+        # Group sub-candles by parent candle timestamp
+        from collections import defaultdict
+        sub_groups = defaultdict(list)
+        for sr in sub_rows:
+            parent_ts = (sr[4] // parent_ms) * parent_ms
+            sub_groups[parent_ts].append({
+                "o": sr[0], "h": sr[1], "l": sr[2], "c": sr[3], "ts": sr[4]
+            })
+        sub_candle_lookup = dict(sub_groups)
+    
     conn.close()
     
     if len(rows) < window + 10:
@@ -3989,10 +4021,15 @@ def backtest_deret_statistik(
     fee_per_trade = notional * fee_pct / 100 * 2  # entry + exit
     dca_count = 0
     both_hit_count = 0
+    position_busy_until = 0  # Sequential constraint: skip if position still open
     
     for i in range(window, len(close_ratios)):
         if i + 1 >= n:
             break
+        
+        # Sequential position constraint: skip if position from previous trade still open
+        if i + 1 < position_busy_until:
+            continue
         
         # Predicted range for next candle
         avg_h = sum(high_ratios[i-window:i]) / window
@@ -4078,7 +4115,38 @@ def backtest_deret_statistik(
                 c_h, c_l, c_c, c_o = highs[ci], lows[ci], closes[ci], opens[ci]
                 
                 sl_hit = c_l <= sl_price
-                tp_hit = c_h >= tp_price
+                
+                # Fix phantom TP: on entry candle (k=0), use sub-candle resolution if available
+                # Otherwise fallback to candle direction heuristic
+                if k == 0 and c_c < c_o:
+                    # Check if sub-candle data available for drill-down
+                    parent_ts = times[ci]
+                    subs = sub_candle_lookup.get(parent_ts, [])
+                    if subs:
+                        # Walk 1m candles chronologically: find entry fill, then check TP/SL after
+                        entry_filled_at = None
+                        tp_hit = False
+                        for sc in subs:
+                            if entry_filled_at is None:
+                                # LONG: entry fills when sub-candle low <= entry price
+                                if sc["l"] <= entry:
+                                    entry_filled_at = sc["ts"]
+                            else:
+                                # After entry: check TP and SL
+                                if sc["h"] >= tp_price:
+                                    tp_hit = True
+                                    break
+                                if sc["l"] <= sl_price:
+                                    # SL hit first after entry
+                                    break
+                        # If entry never filled in sub-candles, skip TP
+                        if entry_filled_at is None:
+                            tp_hit = False
+                    else:
+                        # No sub-candle data: fallback to heuristic
+                        tp_hit = False  # bearish entry candle: High likely before entry
+                else:
+                    tp_hit = c_h >= tp_price
                 
                 if sl_hit and tp_hit:
                     both_hit_count += 1
@@ -4131,7 +4199,33 @@ def backtest_deret_statistik(
                 c_h, c_l, c_c, c_o = highs[ci], lows[ci], closes[ci], opens[ci]
                 
                 sl_hit = c_h >= sl_price
-                tp_hit = c_l <= tp_price
+                
+                # Fix phantom TP: on entry candle (k=0), use sub-candle resolution if available
+                if k == 0 and c_c > c_o:
+                    parent_ts = times[ci]
+                    subs = sub_candle_lookup.get(parent_ts, [])
+                    if subs:
+                        entry_filled_at = None
+                        tp_hit = False
+                        for sc in subs:
+                            if entry_filled_at is None:
+                                # SHORT: entry fills when sub-candle high >= entry price
+                                if sc["h"] >= entry:
+                                    entry_filled_at = sc["ts"]
+                            else:
+                                # After entry: check TP and SL
+                                if sc["l"] <= tp_price:
+                                    tp_hit = True
+                                    break
+                                if sc["h"] >= sl_price:
+                                    # SL hit first after entry
+                                    break
+                        if entry_filled_at is None:
+                            tp_hit = False
+                    else:
+                        tp_hit = False  # bullish entry candle: Low likely before entry
+                else:
+                    tp_hit = c_l <= tp_price
                 
                 if sl_hit and tp_hit:
                     both_hit_count += 1
@@ -4172,6 +4266,11 @@ def backtest_deret_statistik(
             "time": times[i+1],
             "exit_candle": exit_candle_idx + 1,  # 1-based: which candle TP/SL/CLOSE hit
         })
+        
+        # Sequential constraint: block new entries until this trade exits
+        # Trade entered at candle i+1, exits at candle i+1+exit_candle_idx
+        # Next trade can enter at the candle AFTER exit
+        position_busy_until = i + 1 + exit_candle_idx + 1
     
     if not trades:
         return {"status": "no_trades", "candles": n}
