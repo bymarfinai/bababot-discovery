@@ -148,37 +148,75 @@ def db_size():
 
 @app.get("/data/cleanup-unused-tf")
 def cleanup_unused_tf():
-    """Delete 3m and 5m klines — free WAL first for disk space"""
+    """Rebuild DB without 3m/5m data — uses /tmp as temp storage"""
     try:
-        import os
-        # Step 1: checkpoint WAL into main DB, then remove WAL/SHM to free ~4MB
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        conn.close()
-        for ext in ["-wal", "-shm"]:
+        import os, shutil
+        
+        # Step 1: Check /tmp has space
+        tmp_stat = os.statvfs("/tmp")
+        tmp_free_mb = round(tmp_stat.f_bavail * tmp_stat.f_frsize / 1024 / 1024)
+        db_size_mb = round(os.path.getsize(DB_PATH) / 1024 / 1024)
+        print(f"[Rebuild] DB={db_size_mb}MB, /tmp free={tmp_free_mb}MB")
+        
+        if tmp_free_mb < db_size_mb:
+            return {"ok": False, "error": f"/tmp only has {tmp_free_mb}MB free, need ~{db_size_mb}MB"}
+        
+        tmp_db = "/tmp/market_data_clean.db"
+        
+        # Step 2: Create new DB, copy schema + data (excluding 3m/5m)
+        print("[Rebuild] Creating clean DB on /tmp...")
+        old_conn = sqlite3.connect(DB_PATH)
+        old_conn.execute("PRAGMA journal_mode=OFF")
+        
+        new_conn = sqlite3.connect(tmp_db)
+        new_conn.execute("PRAGMA journal_mode=OFF")
+        new_conn.execute("PRAGMA synchronous=OFF")
+        
+        # Get schema
+        schema = old_conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='klines'").fetchone()[0]
+        new_conn.execute(schema)
+        
+        # Copy indexes
+        for row in old_conn.execute("SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name='klines' AND sql IS NOT NULL"):
+            try:
+                new_conn.execute(row[0])
+            except:
+                pass
+        
+        # Copy data in batches (excluding 3m/5m)
+        batch = 0
+        cursor = old_conn.execute("SELECT * FROM klines WHERE timeframe NOT IN ('3m','5m')")
+        while True:
+            rows = cursor.fetchmany(10000)
+            if not rows:
+                break
+            placeholders = ",".join(["?" for _ in rows[0]])
+            new_conn.executemany(f"INSERT INTO klines VALUES ({placeholders})", rows)
+            new_conn.commit()
+            batch += 1
+            if batch % 50 == 0:
+                print(f"[Rebuild] Copied {batch * 10000} rows...")
+        
+        new_count = new_conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
+        new_conn.close()
+        old_conn.close()
+        
+        print(f"[Rebuild] Clean DB has {new_count} rows. Swapping...")
+        
+        # Step 3: Remove old DB + WAL/SHM, move new DB
+        for ext in ["", "-wal", "-shm"]:
             p = DB_PATH + ext
             if os.path.exists(p):
                 os.remove(p)
-        # Step 2: reopen with journal in memory, delete in small batches
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("PRAGMA journal_mode=MEMORY")
-        conn.execute("PRAGMA synchronous=OFF")
-        conn.execute("PRAGMA temp_store=MEMORY")
-        before = conn.execute("SELECT COUNT(*) FROM klines WHERE timeframe IN ('3m','5m')").fetchone()[0]
-        batch = 0
-        while True:
-            cur = conn.execute("DELETE FROM klines WHERE rowid IN (SELECT rowid FROM klines WHERE timeframe IN ('3m','5m') LIMIT 500)")
-            conn.commit()
-            batch += 1
-            if cur.rowcount == 0:
-                break
-        total = conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
-        conn.execute("PRAGMA journal_mode=DELETE")
-        conn.execute("PRAGMA synchronous=FULL")
-        conn.close()
-        return {"ok": True, "deleted": before, "remaining": total}
+        
+        shutil.move(tmp_db, DB_PATH)
+        
+        new_size_mb = round(os.path.getsize(DB_PATH) / 1024 / 1024)
+        print(f"[Rebuild] Done! New DB: {new_size_mb}MB, {new_count} rows")
+        return {"ok": True, "new_size_mb": new_size_mb, "rows": new_count}
     except Exception as e:
-        return {"ok": False, "error": str(e), "batch": batch if 'batch' in dir() else 0}
+        import traceback
+        return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
 
 @app.get("/data/vacuum")
 def vacuum_db():
