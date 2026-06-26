@@ -138,10 +138,21 @@ def cleanup_unused_tf():
         conn.execute("DELETE FROM klines WHERE timeframe IN ('3m', '5m')")
         conn.commit()
         after = conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
-        # VACUUM to reclaim disk space (this takes a moment)
-        conn.execute("VACUUM")
         conn.close()
         return {"ok": True, "deleted": before - after, "remaining": after}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.get("/data/vacuum")
+def vacuum_db():
+    """Reclaim disk space after deletes — only run when disk has free space"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("VACUUM")
+        conn.close()
+        import os
+        size_mb = round(os.path.getsize(DB_PATH) / 1024 / 1024, 1)
+        return {"ok": True, "db_size_mb": size_mb}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
