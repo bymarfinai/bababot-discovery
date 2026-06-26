@@ -3775,6 +3775,8 @@ def backtest_deret_statistik(
     close_filter_pct: float = 0.3,  # Min gap between predicted_close and predicted_low (only in baret_marfin)
     max_hold: int = 4,              # Max candles to hold before force close (4=production default)
     sub_candle_tf: str = None,      # Sub-candle TF for tick-level TP/SL resolution (e.g. "1m", "5m")
+    _preloaded_sub_candles: dict = None,  # Pre-loaded sub-candle lookup (skip DB query if provided)
+    _preloaded_rows: list = None,         # Pre-loaded parent klines (skip DB query if provided)
 ) -> dict:
     """
     Backtest Deret Statistik strategy on historical data.
@@ -3800,41 +3802,46 @@ def backtest_deret_statistik(
     """
     import sqlite3
     
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    query = """
-        SELECT open, high, low, close, volume, open_time 
-        FROM klines 
-        WHERE symbol = ? AND timeframe = ?
-        ORDER BY open_time ASC
-    """
-    rows = conn.execute(query, (symbol, timeframe)).fetchall()
-    
-    # ═══ LOAD SUB-CANDLE DATA (for tick-level resolution) ═══
-    sub_candle_lookup = {}  # parent_open_time → [sub_candles]
-    if sub_candle_tf:
-        sub_query = """
-            SELECT open, high, low, close, open_time 
+    # Use preloaded data if available (sweep optimization: load once per pair+TF)
+    if _preloaded_rows is not None:
+        rows = _preloaded_rows
+        sub_candle_lookup = _preloaded_sub_candles or {}
+    else:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        query = """
+            SELECT open, high, low, close, volume, open_time 
             FROM klines 
             WHERE symbol = ? AND timeframe = ?
             ORDER BY open_time ASC
         """
-        sub_rows = conn.execute(sub_query, (symbol, sub_candle_tf)).fetchall()
-        
-        # Map sub-candle TF to milliseconds
-        tf_ms_map = {"1m": 60000, "3m": 180000, "5m": 300000, "15m": 900000, "1h": 3600000}
-        parent_ms = tf_ms_map.get(timeframe, 3600000)
-        
-        # Group sub-candles by parent candle timestamp
-        from collections import defaultdict
-        sub_groups = defaultdict(list)
-        for sr in sub_rows:
-            parent_ts = (sr[4] // parent_ms) * parent_ms
-            sub_groups[parent_ts].append({
-                "o": sr[0], "h": sr[1], "l": sr[2], "c": sr[3], "ts": sr[4]
-            })
-        sub_candle_lookup = dict(sub_groups)
+        rows = conn.execute(query, (symbol, timeframe)).fetchall()
     
-    conn.close()
+        # ═══ LOAD SUB-CANDLE DATA (for tick-level resolution) ═══
+        sub_candle_lookup = {}  # parent_open_time → [sub_candles]
+        if sub_candle_tf:
+            sub_query = """
+                SELECT open, high, low, close, open_time 
+                FROM klines 
+                WHERE symbol = ? AND timeframe = ?
+                ORDER BY open_time ASC
+            """
+            sub_rows = conn.execute(sub_query, (symbol, sub_candle_tf)).fetchall()
+            
+            # Map sub-candle TF to milliseconds
+            tf_ms_map = {"1m": 60000, "3m": 180000, "5m": 300000, "15m": 900000, "1h": 3600000}
+            parent_ms = tf_ms_map.get(timeframe, 3600000)
+            
+            # Group sub-candles by parent candle timestamp
+            from collections import defaultdict
+            sub_groups = defaultdict(list)
+            for sr in sub_rows:
+                parent_ts = (sr[4] // parent_ms) * parent_ms
+                sub_groups[parent_ts].append({
+                    "o": sr[0], "h": sr[1], "l": sr[2], "c": sr[3], "ts": sr[4]
+                })
+            sub_candle_lookup = dict(sub_groups)
+    
+        conn.close()
     
     if len(rows) < window + 10:
         return {"status": "insufficient_data", "rows": len(rows)}
@@ -4448,3 +4455,36 @@ def analyze_deviation_clusters(db_path: str, symbol: str, timeframe: str = "4h",
             },
         },
     }
+
+def preload_deret_data(db_path: str, symbol: str, timeframe: str, sub_candle_tf: str = "1m"):
+    """Pre-load parent klines + sub-candle data for a pair+TF. Call once, reuse across combos."""
+    import sqlite3
+    from collections import defaultdict
+    
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    
+    rows = conn.execute("""
+        SELECT open, high, low, close, volume, open_time 
+        FROM klines WHERE symbol = ? AND timeframe = ?
+        ORDER BY open_time ASC
+    """, (symbol, timeframe)).fetchall()
+    
+    sub_candle_lookup = {}
+    if sub_candle_tf:
+        sub_rows = conn.execute("""
+            SELECT open, high, low, close, open_time 
+            FROM klines WHERE symbol = ? AND timeframe = ?
+            ORDER BY open_time ASC
+        """, (symbol, sub_candle_tf)).fetchall()
+        
+        tf_ms_map = {"1m": 60000, "3m": 180000, "5m": 300000, "15m": 900000, "1h": 3600000}
+        parent_ms = tf_ms_map.get(timeframe, 3600000)
+        
+        sub_groups = defaultdict(list)
+        for sr in sub_rows:
+            parent_ts = (sr[4] // parent_ms) * parent_ms
+            sub_groups[parent_ts].append({"o": sr[0], "h": sr[1], "l": sr[2], "c": sr[3], "ts": sr[4]})
+        sub_candle_lookup = dict(sub_groups)
+    
+    conn.close()
+    return rows, sub_candle_lookup
