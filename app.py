@@ -131,17 +131,27 @@ def db_size():
 
 @app.get("/data/cleanup-unused-tf")
 def cleanup_unused_tf():
-    """Delete 3m and 5m klines — not used by sweep or sub-candle"""
+    """Delete 3m and 5m klines in small batches — works on full disk"""
     try:
         conn = sqlite3.connect(DB_PATH)
-        before = conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
-        conn.execute("DELETE FROM klines WHERE timeframe IN ('3m', '5m')")
-        conn.commit()
-        after = conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
+        conn.execute("PRAGMA journal_mode=OFF")
+        conn.execute("PRAGMA synchronous=OFF")
+        before = conn.execute("SELECT COUNT(*) FROM klines WHERE timeframe IN ('3m','5m')").fetchone()[0]
+        deleted = 0
+        while True:
+            conn.execute("DELETE FROM klines WHERE rowid IN (SELECT rowid FROM klines WHERE timeframe IN ('3m','5m') LIMIT 5000)")
+            conn.commit()
+            remaining = conn.execute("SELECT COUNT(*) FROM klines WHERE timeframe IN ('3m','5m')").fetchone()[0]
+            deleted = before - remaining
+            if remaining == 0:
+                break
+        total = conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
+        conn.execute("PRAGMA journal_mode=DELETE")
+        conn.execute("PRAGMA synchronous=FULL")
         conn.close()
-        return {"ok": True, "deleted": before - after, "remaining": after}
+        return {"ok": True, "deleted": deleted, "remaining": total}
     except Exception as e:
-        return {"ok": False, "error": str(e)}
+        return {"ok": False, "error": str(e), "deleted_so_far": deleted if 'deleted' in dir() else 0}
 
 @app.get("/data/vacuum")
 def vacuum_db():
@@ -1662,6 +1672,34 @@ def _auto_start_p2_cron():
 # ============================================================
 # P4 — LIVE BOT CONTROL (Iron Legion REMOVED — use baret-live)
 # ============================================================
+
+@app.on_event("startup")
+def _cleanup_unused_tf():
+    """One-time cleanup: remove 3m and 5m klines on startup"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        count = conn.execute("SELECT COUNT(*) FROM klines WHERE timeframe IN ('3m','5m')").fetchone()[0]
+        if count > 0:
+            print(f"[Cleanup] Removing {count} unused 3m/5m klines...")
+            conn.execute("PRAGMA journal_mode=OFF")
+            conn.execute("PRAGMA synchronous=OFF")
+            batch = 0
+            while True:
+                conn.execute("DELETE FROM klines WHERE rowid IN (SELECT rowid FROM klines WHERE timeframe IN ('3m','5m') LIMIT 10000)")
+                conn.commit()
+                batch += 1
+                remaining = conn.execute("SELECT COUNT(*) FROM klines WHERE timeframe IN ('3m','5m')").fetchone()[0]
+                if batch % 10 == 0:
+                    print(f"[Cleanup] Batch {batch}, {remaining} rows left...")
+                if remaining == 0:
+                    break
+            conn.execute("PRAGMA journal_mode=DELETE")
+            conn.execute("PRAGMA synchronous=FULL")
+            total = conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
+            print(f"[Cleanup] Done! Deleted {count} rows. {total} remaining.")
+        conn.close()
+    except Exception as e:
+        print(f"[Cleanup] Error: {e}")
 
 @app.on_event("startup")
 def _auto_start_bot():
