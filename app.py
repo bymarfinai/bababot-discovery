@@ -105,6 +105,23 @@ def root():
         "endpoints": ["/backtest", "/backtest/batch", "/backtest/feature-study", "/backtest/marthias-study", "/health", "/data/status", "/strategies", "/fetch-data", "/fetch-status"]
     }
 
+@app.get("/data/list-files")
+def list_volume_files():
+    """List all files on the data volume with sizes"""
+    try:
+        import os
+        data_dir = os.path.dirname(DB_PATH) or "."
+        files = []
+        for f in os.listdir(data_dir):
+            fp = os.path.join(data_dir, f)
+            if os.path.isfile(fp):
+                size_mb = round(os.path.getsize(fp) / 1024 / 1024, 2)
+                files.append({"file": f, "size_mb": size_mb})
+        files.sort(key=lambda x: x["size_mb"], reverse=True)
+        return {"ok": True, "dir": data_dir, "files": files}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
 @app.get("/data/db-size")
 def db_size():
     """Check database table sizes and disk usage"""
@@ -1681,18 +1698,19 @@ def _cleanup_unused_tf():
         count = conn.execute("SELECT COUNT(*) FROM klines WHERE timeframe IN ('3m','5m')").fetchone()[0]
         if count > 0:
             print(f"[Cleanup] Removing {count} unused 3m/5m klines...")
-            conn.execute("PRAGMA journal_mode=OFF")
+            conn.execute("PRAGMA journal_mode=MEMORY")
             conn.execute("PRAGMA synchronous=OFF")
+            conn.execute("PRAGMA temp_store=MEMORY")
             batch = 0
             while True:
-                conn.execute("DELETE FROM klines WHERE rowid IN (SELECT rowid FROM klines WHERE timeframe IN ('3m','5m') LIMIT 10000)")
+                cur = conn.execute("DELETE FROM klines WHERE rowid IN (SELECT rowid FROM klines WHERE timeframe IN ('3m','5m') LIMIT 1000)")
                 conn.commit()
                 batch += 1
-                remaining = conn.execute("SELECT COUNT(*) FROM klines WHERE timeframe IN ('3m','5m')").fetchone()[0]
-                if batch % 10 == 0:
-                    print(f"[Cleanup] Batch {batch}, {remaining} rows left...")
-                if remaining == 0:
+                if cur.rowcount == 0:
                     break
+                if batch % 100 == 0:
+                    remaining = conn.execute("SELECT COUNT(*) FROM klines WHERE timeframe IN ('3m','5m')").fetchone()[0]
+                    print(f"[Cleanup] Batch {batch}, ~{remaining} rows left...")
             conn.execute("PRAGMA journal_mode=DELETE")
             conn.execute("PRAGMA synchronous=FULL")
             total = conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
