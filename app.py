@@ -16,8 +16,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test, DCAConfig, backtest_dca, backtest_deret_statistik, analyze_deviation_clusters
-from live_bot import start_bot, stop_bot, bot_status, get_activity_log
-from dca_bot import start_dca, stop_dca, dca_status, get_dca_log, get_dca_results
+# REMOVED: live_bot.py (Iron Legion) and dca_bot.py — superseded by baret_live.py
 from baret_bot import start_baret, stop_baret, baret_status, get_baret_log
 from baret_live import start_baret_live, stop_baret_live, baret_live_status, get_baret_live_log, close_position, close_all_positions, start_account_bot, stop_account_bot, account_bot_status
 from ultron_engine import ultron_status, get_ultron_log, manual_analyze, clear_pair_skip, clear_hour_skip, clear_buffer_adjustment
@@ -1366,6 +1365,7 @@ def run_deret_sweep(req: dict, _=Security(verify_token)):
                                 db_path=DB_PATH, symbol=symbol, timeframe=tf,
                                 window=window, buffer_pct=buf, tp_pct=tp, sl_pct=sl, days=days,
                                 max_hold=req.get("max_hold", 4),
+                                sub_candle_tf=req.get("sub_candle_tf", "1m"),
                             )
                             if r.get("status") != "ok":
                                 continue
@@ -1458,91 +1458,8 @@ def run_dca_sweep(req: dict, _=Security(verify_token)):
 
 
 # ============================================================
-# DCA MODE CONTROL — V10 spec: /dca/start, /dca/stop, /dca/status
-# DCA ON = Pipeline 1 SL/TP OFF (Railway can't parallel)
+# DCA MODE — REMOVED (superseded by baret_bot sweep_dca mode)
 # ============================================================
-
-@app.get("/dca/start")
-def dca_start_endpoint():
-    """Start DCA Discovery mode — stops Pipeline 1 SL/TP cron automatically"""
-    global _p2_cron_running
-    # Mode switch: stop P1 SL/TP cron
-    if _p2_cron_running:
-        _p2_cron_running = False
-        print("[Mode Switch] Pipeline 1 SL/TP cron STOPPED — DCA mode taking over")
-    return start_dca()
-
-@app.get("/dca/stop")
-def dca_stop_endpoint():
-    return stop_dca()
-
-@app.get("/dca/status")
-def dca_status_endpoint():
-    return dca_status()
-
-@app.get("/dca/log")
-def dca_log_endpoint(limit: int = 100):
-    return {"ok": True, "log": get_dca_log(limit)}
-
-@app.get("/dca/results")
-def dca_results_endpoint(round: int = None):
-    results = get_dca_results(round)
-    return {"ok": True, "round": round, "count": len(results), "results": results[:50]}
-
-
-# ============================================================
-# DERET STATISTIK — Predicted Range Entry (Boss method, 2010)
-# ============================================================
-
-@app.post("/backtest/deret-statistik")
-def run_deret_statistik(req: dict, _=Security(verify_token)):
-    """Single deret statistik backtest"""
-    try:
-        result = backtest_deret_statistik(
-            db_path=DB_PATH,
-            symbol=req.get("symbol", "SOLUSDT").upper(),
-            timeframe=req.get("timeframe", "4h"),
-            window=req.get("window", 5),
-            buffer_pct=req.get("buffer_pct", 0.5),
-            tp_pct=req.get("tp_pct", 1.0),
-            sl_pct=req.get("sl_pct", 1.0),
-            days=req.get("days", 1825),
-            mode=req.get("mode", "baret"),
-            buffer2_pct=req.get("buffer2_pct", 1.0),
-            close_filter_pct=req.get("close_filter_pct", 0.3),
-            max_hold=req.get("max_hold", 4),
-        )
-        return {"ok": True, **result}
-    except Exception as e:
-        import traceback
-        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
-
-@app.post("/backtest/deret-statistik/sweep")
-def run_deret_sweep(req: dict, _=Security(verify_token)):
-    """Sweep deret statistik across all pairs x TFs"""
-    try:
-        symbols = req.get("symbols", ["BTCUSDT","ETHUSDT","SOLUSDT","AVAXUSDT",
-                                       "BNBUSDT","XRPUSDT","DOGEUSDT","LINKUSDT",
-                                       "YFIUSDT","1000PEPEUSDT"])
-        timeframes = req.get("timeframes", ["15m", "1h", "4h"])
-        results = []
-        for symbol in symbols:
-            for tf in timeframes:
-                r = backtest_deret_statistik(DB_PATH, symbol, tf,
-                    window=req.get("window", 5), buffer_pct=req.get("buffer_pct", 0.5),
-                    tp_pct=req.get("tp_pct", 1.0), sl_pct=req.get("sl_pct", 1.0),
-                    days=req.get("days", 1825), max_hold=req.get("max_hold", 4))
-                if r.get("status") == "ok":
-                    results.append(r)
-                    print(f"[Deret] {symbol} {tf}: WR={r['win_rate']}% trades={r['total_trades']} profit=${r['net_profit']}")
-        results.sort(key=lambda x: x.get("win_rate", 0), reverse=True)
-        return {"ok": True, "total_tested": len(results),
-                "total_profitable": len([r for r in results if r.get("net_profit", 0) > 0]),
-                "avg_wr": round(sum(r["win_rate"] for r in results) / len(results), 1) if results else 0,
-                "results": results}
-    except Exception as e:
-        import traceback
-        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
 
 
 # ============================================================
@@ -1692,29 +1609,11 @@ def _auto_start_p2_cron():
         print(f"[P2 Cron] Auto-started (includes sweep processing)")
 
 # ============================================================
-# P4 — LIVE BOT CONTROL
+# P4 — LIVE BOT CONTROL (Iron Legion REMOVED — use baret-live)
 # ============================================================
-
-@app.get("/bot/start")
-def bot_start_endpoint():
-    return start_bot()
-
-@app.get("/bot/stop")
-def bot_stop_endpoint():
-    return stop_bot()
-
-@app.get("/bot/bot-status")
-def bot_status_endpoint():
-    return bot_status()
-
-@app.get("/bot/activity-log")
-def bot_activity_log(limit: int = 100):
-    return {"ok": True, "log": get_activity_log(limit)}
 
 @app.on_event("startup")
 def _auto_start_bot():
-    if os.environ.get("BOT_ENABLED", "false").lower() == "true":
-        result = start_bot()
     if os.environ.get("BARET_LIVE_ENABLED", "false").lower() == "true":
         mode = os.environ.get("BARET_LIVE_MODE", "baret")
         pos_usd = float(os.environ.get("BARET_LIVE_POSITION", "10"))
@@ -1731,8 +1630,6 @@ def baret_start_endpoint(mode: str = "baret", timeframes: str = ""):
     """Start Baret discovery — auto-stops P1 cron + DCA. timeframes: comma-separated e.g. '15m,1h'"""
     global _p2_cron_running
     _p2_cron_running = False
-    try: stop_dca()
-    except: pass
     tfs = [t.strip() for t in timeframes.split(",") if t.strip()] or None
     return start_baret(DB_PATH, mode=mode, timeframes=tfs)
 
