@@ -410,11 +410,15 @@ def _baret_sweep_all(db_path: str, mode: str = "sweep_all", timeframes: list = N
                                         "exit_close": r.get("exit_reasons", {}).get("CLOSE", 0),
                                         "max_hold": 4,
                                         "stability": r.get("stability", {}),
+                                        "sub_candle_tf": "1m",
                                     }
                                     
-                                    _save_to_d1("baret/save-result", result_entry)
+                                    # Only save WR >= 50% to D1 (skip junk)
+                                    if wr >= 50 and tt >= 5:
+                                        _save_to_d1("baret/save-result", result_entry)
                                     
-                                    if wr >= 75 and ppd >= 2 and tt >= 10:
+                                    # Quality gate for best_per_pair tracking
+                                    if wr >= 65 and ppd >= 1 and tt >= 10:
                                         key = f"{symbol}_{tf}"
                                         if key not in best_per_pair or ppd > best_per_pair[key]["profit_per_day"]:
                                             best_per_pair[key] = result_entry
