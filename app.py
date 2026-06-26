@@ -129,6 +129,22 @@ def db_size():
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
+@app.get("/data/cleanup-unused-tf")
+def cleanup_unused_tf():
+    """Delete 3m and 5m klines — not used by sweep or sub-candle"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        before = conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
+        conn.execute("DELETE FROM klines WHERE timeframe IN ('3m', '5m')")
+        conn.commit()
+        after = conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
+        # VACUUM to reclaim disk space (this takes a moment)
+        conn.execute("VACUUM")
+        conn.close()
+        return {"ok": True, "deleted": before - after, "remaining": after}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
 @app.get("/health")
 def health():
     db_ok = Path(DB_PATH).exists()
