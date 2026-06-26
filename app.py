@@ -146,80 +146,9 @@ def db_size():
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
-@app.get("/data/cleanup-unused-tf")
-def cleanup_unused_tf():
-    """Rebuild DB without 3m/5m data — uses /tmp as temp storage"""
-    try:
-        import os, shutil
-        
-        # Step 1: Check /tmp has space
-        tmp_stat = os.statvfs("/tmp")
-        tmp_free_mb = round(tmp_stat.f_bavail * tmp_stat.f_frsize / 1024 / 1024)
-        db_size_mb = round(os.path.getsize(DB_PATH) / 1024 / 1024)
-        print(f"[Rebuild] DB={db_size_mb}MB, /tmp free={tmp_free_mb}MB")
-        
-        if tmp_free_mb < db_size_mb:
-            return {"ok": False, "error": f"/tmp only has {tmp_free_mb}MB free, need ~{db_size_mb}MB"}
-        
-        tmp_db = "/tmp/market_data_clean.db"
-        
-        # Step 2: Open OLD db read-only, create new on /tmp
-        print("[Rebuild] Creating clean DB on /tmp...")
-        old_conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
-        
-        new_conn = sqlite3.connect(tmp_db)
-        new_conn.execute("PRAGMA journal_mode=OFF")
-        new_conn.execute("PRAGMA synchronous=OFF")
-        
-        # Get schema
-        schema = old_conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='klines'").fetchone()[0]
-        new_conn.execute(schema)
-        
-        # Copy indexes
-        for row in old_conn.execute("SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name='klines' AND sql IS NOT NULL"):
-            try:
-                new_conn.execute(row[0])
-            except:
-                pass
-        
-        # Copy data in batches (excluding 3m/5m)
-        batch = 0
-        cursor = old_conn.execute("SELECT * FROM klines WHERE timeframe NOT IN ('3m','5m')")
-        while True:
-            rows = cursor.fetchmany(10000)
-            if not rows:
-                break
-            placeholders = ",".join(["?" for _ in rows[0]])
-            new_conn.executemany(f"INSERT INTO klines VALUES ({placeholders})", rows)
-            new_conn.commit()
-            batch += 1
-            if batch % 50 == 0:
-                print(f"[Rebuild] Copied {batch * 10000} rows...")
-        
-        new_count = new_conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
-        new_conn.close()
-        old_conn.close()
-        
-        print(f"[Rebuild] Clean DB has {new_count} rows. Swapping...")
-        
-        # Step 3: Remove old DB + WAL/SHM, move new DB
-        for ext in ["", "-wal", "-shm"]:
-            p = DB_PATH + ext
-            if os.path.exists(p):
-                os.remove(p)
-        
-        shutil.move(tmp_db, DB_PATH)
-        
-        new_size_mb = round(os.path.getsize(DB_PATH) / 1024 / 1024)
-        print(f"[Rebuild] Done! New DB: {new_size_mb}MB, {new_count} rows")
-        return {"ok": True, "new_size_mb": new_size_mb, "rows": new_count}
-    except Exception as e:
-        import traceback
-        return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
-
 @app.get("/data/vacuum")
 def vacuum_db():
-    """Reclaim disk space after deletes — only run when disk has free space"""
+    """Reclaim disk space after deletes"""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.execute("VACUUM")
