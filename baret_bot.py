@@ -195,6 +195,7 @@ def _baret_loop(db_path: str, mode: str = "baret", timeframes: list = None):
                     mode=mode, buffer2_pct=cfg.get("buffer2_pct", 1.0),
                     close_filter_pct=cfg.get("close_filter_pct", 0.3),
                     max_hold=4,
+                    sub_candle_tf="1m",
                 )
 
                 wr = r.get("win_rate", 0)
@@ -383,6 +384,7 @@ def _baret_sweep_all(db_path: str, mode: str = "sweep_all", timeframes: list = N
                                         mode=backtest_mode, buffer2_pct=b2,
                                         close_filter_pct=cf,
                                         max_hold=4,
+                                        sub_candle_tf="1m",
                                     )
                                     
                                     wr = r.get("win_rate", 0)
