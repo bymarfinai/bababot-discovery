@@ -163,10 +163,9 @@ def cleanup_unused_tf():
         
         tmp_db = "/tmp/market_data_clean.db"
         
-        # Step 2: Create new DB, copy schema + data (excluding 3m/5m)
+        # Step 2: Open OLD db read-only, create new on /tmp
         print("[Rebuild] Creating clean DB on /tmp...")
-        old_conn = sqlite3.connect(DB_PATH)
-        old_conn.execute("PRAGMA journal_mode=OFF")
+        old_conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
         
         new_conn = sqlite3.connect(tmp_db)
         new_conn.execute("PRAGMA journal_mode=OFF")
