@@ -22,7 +22,7 @@ MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY", "")
 MINIMAX_MODEL = os.environ.get("MINIMAX_MODEL", "MiniMax-M2.7")
 MINIMAX_BASE_URL = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.io/anthropic")
 
-BARET_PAIRS = ["SOLUSDT", "AVAXUSDT", "LINKUSDT", "DOGEUSDT", "XRPUSDT", "ETHUSDT", "1000PEPEUSDT", "ADAUSDT", "BNBUSDT", "BTCUSDT", "NEARUSDT", "YFIUSDT", "APTUSDT", "ARBUSDT", "SUIUSDT"]
+BARET_PAIRS = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "DOGEUSDT", "LINKUSDT", "AVAXUSDT", "1000PEPEUSDT", "SOLUSDT", "YFIUSDT"]  # Only pairs with 1m sub-candle data
 BARET_TFS = ["15m", "1h", "4h"]
 
 # ── State ──
