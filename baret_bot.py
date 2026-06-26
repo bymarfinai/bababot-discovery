@@ -14,7 +14,7 @@ import json
 import threading
 from datetime import datetime, timezone
 from collections import deque
-from backtesting_core import backtest_deret_statistik
+from backtesting_core import backtest_deret_statistik, preload_deret_data
 
 # ── Config ──
 WORKER_URL = os.environ.get("WORKER_URL", "https://bababot-pro.bymarfinai.workers.dev")
@@ -356,6 +356,13 @@ def _baret_sweep_all(db_path: str, mode: str = "sweep_all", timeframes: list = N
         for symbol in BARET_PAIRS:
             if not _baret_running:
                 break
+            # Pre-load data ONCE per pair+TF (huge speedup: avoid re-reading 2.6M 1m rows per combo)
+            try:
+                _preloaded_rows, _preloaded_subs = preload_deret_data(db_path, symbol, tf, sub_candle_tf="1m")
+                _log(f"  📦 {symbol} {tf}: loaded {len(_preloaded_rows)} candles + {len(_preloaded_subs)} sub-candle groups")
+            except Exception as e:
+                _log(f"  ❌ {symbol} {tf}: preload failed: {e}")
+                _preloaded_rows, _preloaded_subs = None, None
             for w in windows:
                 for buf in buffers:
                     for tp in tps:
@@ -385,6 +392,8 @@ def _baret_sweep_all(db_path: str, mode: str = "sweep_all", timeframes: list = N
                                         close_filter_pct=cf,
                                         max_hold=4,
                                         sub_candle_tf="1m",
+                                        _preloaded_rows=_preloaded_rows,
+                                        _preloaded_sub_candles=_preloaded_subs,
                                     )
                                     
                                     wr = r.get("win_rate", 0)
