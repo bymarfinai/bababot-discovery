@@ -3002,7 +3002,7 @@ class Backtester:
     def _load_data(self, symbol: str, timeframe: str, days: int, start_date: str = None, end_date: str = None) -> Optional[dict]:
         if not Path(self.db_path).exists():
             return None
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
         try:
             if start_date and end_date:
                 # Date range mode: use explicit start/end dates
@@ -3800,7 +3800,7 @@ def backtest_deret_statistik(
     """
     import sqlite3
     
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     query = """
         SELECT open, high, low, close, volume, open_time 
         FROM klines 
@@ -4299,7 +4299,7 @@ def analyze_deviation_clusters(db_path: str, symbol: str, timeframe: str = "4h",
     """
     import sqlite3, numpy as np
     
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     rows = conn.execute("""
         SELECT open, high, low, close FROM klines 
         WHERE symbol=? AND timeframe=? ORDER BY open_time ASC
