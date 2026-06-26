@@ -105,6 +105,30 @@ def root():
         "endpoints": ["/backtest", "/backtest/batch", "/backtest/feature-study", "/backtest/marthias-study", "/health", "/data/status", "/strategies", "/fetch-data", "/fetch-status"]
     }
 
+@app.get("/data/db-size")
+def db_size():
+    """Check database table sizes and disk usage"""
+    try:
+        import os
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        tables = []
+        for row in c.execute("SELECT name FROM sqlite_master WHERE type='table'"):
+            table = row[0]
+            count = c.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            tables.append({"table": table, "rows": count})
+        tables.sort(key=lambda x: x["rows"], reverse=True)
+        tf_breakdown = []
+        try:
+            for row in c.execute("SELECT timeframe, COUNT(*), COUNT(DISTINCT symbol) FROM klines GROUP BY timeframe ORDER BY COUNT(*) DESC"):
+                tf_breakdown.append({"timeframe": row[0], "rows": row[1], "pairs": row[2]})
+        except: pass
+        db_size_mb = round(os.path.getsize(DB_PATH) / 1024 / 1024, 1)
+        conn.close()
+        return {"ok": True, "db_size_mb": db_size_mb, "tables": tables, "klines_by_tf": tf_breakdown}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
 @app.get("/health")
 def health():
     db_ok = Path(DB_PATH).exists()
