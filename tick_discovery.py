@@ -2504,6 +2504,7 @@ def _save_clustering_to_d1(result):
                 "best_combo": ep.get("best_combo"),
                 "stability": ep.get("stability"),
                 "levels_json": json.dumps(ep["levels"]),
+                "per_hour_json": json.dumps(ep.get("per_hour", {})),
             })
         resp = requests.post(f"{WORKER_URL}/tick/save-clustering", json=payload, timeout=30)
         if resp.ok:
