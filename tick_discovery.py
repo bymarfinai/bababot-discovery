@@ -826,7 +826,8 @@ def _backtest_deret_1m(
 ):
     """
     Full backtest for Deret Entry mode using 1m sub-candle resolution.
-    Direction-aware: only trade in direction where first_extreme gives edge per hour.
+    DIRECTION-AWARE: first pass computes first_extreme per hour,
+    second pass only trades in dominant direction. Skip hours with <5% edge.
     Sequential constraint: 1 position at a time, max_hold=4 candles.
     """
     n = len(rows)
@@ -846,6 +847,61 @@ def _backtest_deret_1m(
     notional = position_usd * leverage
     fee_per_trade = notional * FEE_PCT / 100
 
+    # ══ FIRST PASS: compute first_extreme per hour to determine direction ══
+    hour_stats = defaultdict(lambda: {"high": 0, "low": 0, "total": 0})
+    for i in range(window, len(close_ratios)):
+        if i + 1 >= n:
+            break
+        candle_time = times[i + 1]
+        parent_ts = (candle_time // parent_ms) * parent_ms
+        subs = sub_lookup.get(parent_ts, [])
+        if not subs:
+            continue
+
+        avg_h = sum(high_ratios[i-window:i]) / window
+        avg_l = sum(low_ratios[i-window:i]) / window
+        pred_high = highs[i] * avg_h
+        pred_low  = lows[i] * avg_l
+
+        min_ph, min_pl = None, None
+        for sc_idx, sc in enumerate(subs):
+            if min_ph is None and sc["h"] >= pred_high:
+                min_ph = sc_idx
+            if min_pl is None and sc["l"] <= pred_low:
+                min_pl = sc_idx
+            if min_ph is not None and min_pl is not None:
+                break
+
+        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
+        h = dt.hour
+        hour_stats[h]["total"] += 1
+        if min_ph is not None and min_pl is not None:
+            if min_ph < min_pl:
+                hour_stats[h]["high"] += 1
+            else:
+                hour_stats[h]["low"] += 1
+        elif min_ph is not None:
+            hour_stats[h]["high"] += 1
+        elif min_pl is not None:
+            hour_stats[h]["low"] += 1
+
+    # Direction per hour: need ≥5% edge, ≥20 samples
+    hour_direction = {}
+    for h, s in hour_stats.items():
+        if s["total"] < 20:
+            hour_direction[h] = "SKIP"
+            continue
+        high_pct = s["high"] / s["total"] * 100
+        low_pct = s["low"] / s["total"] * 100
+        edge = abs(high_pct - low_pct)
+        if edge < 5:
+            hour_direction[h] = "SKIP"
+        elif high_pct > low_pct:
+            hour_direction[h] = "SHORT"  # high first → price goes up first → SHORT at top
+        else:
+            hour_direction[h] = "LONG"   # low first → price goes down first → LONG at bottom
+
+    # ══ SECOND PASS: backtest with direction filter ══
     trades = []
     position_busy_until = 0
 
@@ -853,6 +909,15 @@ def _backtest_deret_1m(
         if i + 1 >= n:
             break
         if i + 1 < position_busy_until:
+            continue
+
+        candle_time = times[i + 1]
+        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
+        hour_utc = dt.hour
+
+        # ── DIRECTION FILTER: skip hours without edge ──
+        direction = hour_direction.get(hour_utc, "SKIP")
+        if direction == "SKIP":
             continue
 
         # Predicted range
@@ -869,10 +934,6 @@ def _backtest_deret_1m(
         sl_long     = entry_long * (1 - sl_pct / 100)
         sl_short    = entry_short * (1 + sl_pct / 100)
 
-        candle_time = times[i + 1]
-        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
-        hour_utc = dt.hour
-
         # Walk across max_hold candles using 1m resolution
         trade_result = None
         for k in range(MAX_HOLD):
@@ -885,39 +946,38 @@ def _backtest_deret_1m(
             if not subs:
                 continue
 
-            for sc in subs:
-                # ── Try LONG ──
-                if trade_result is None:
-                    # Check entry fill
-                    if sc["l"] <= entry_long:
-                        # Entry filled — now walk remaining subs for TP/SL
-                        trade_result = _walk_after_entry(
-                            subs, subs.index(sc) if sc in subs else 0,
-                            sub_lookup, times, parent_ms, ci, n,
-                            side="LONG", entry=entry_long,
-                            tp_price=tp_long, sl_price=sl_long,
-                            max_hold=MAX_HOLD, hold_start=k,
-                        )
-                        if trade_result:
-                            trade_result["side"] = "LONG"
-                            trade_result["hour_utc"] = hour_utc
-                            trade_result["candle_time"] = candle_time
-                        break
+            for sc_idx, sc in enumerate(subs):
+                if trade_result is not None:
+                    break
 
-                    # Check SHORT entry fill
-                    if sc["h"] >= entry_short:
-                        trade_result = _walk_after_entry(
-                            subs, subs.index(sc) if sc in subs else 0,
-                            sub_lookup, times, parent_ms, ci, n,
-                            side="SHORT", entry=entry_short,
-                            tp_price=tp_short, sl_price=sl_short,
-                            max_hold=MAX_HOLD, hold_start=k,
-                        )
-                        if trade_result:
-                            trade_result["side"] = "SHORT"
-                            trade_result["hour_utc"] = hour_utc
-                            trade_result["candle_time"] = candle_time
-                        break
+                # ── Only try the direction that has edge ──
+                if direction == "LONG" and sc["l"] <= entry_long:
+                    trade_result = _walk_after_entry(
+                        subs, sc_idx,
+                        sub_lookup, times, parent_ms, ci, n,
+                        side="LONG", entry=entry_long,
+                        tp_price=tp_long, sl_price=sl_long,
+                        max_hold=MAX_HOLD, hold_start=k,
+                    )
+                    if trade_result:
+                        trade_result["side"] = "LONG"
+                        trade_result["hour_utc"] = hour_utc
+                        trade_result["candle_time"] = candle_time
+                    break
+
+                if direction == "SHORT" and sc["h"] >= entry_short:
+                    trade_result = _walk_after_entry(
+                        subs, sc_idx,
+                        sub_lookup, times, parent_ms, ci, n,
+                        side="SHORT", entry=entry_short,
+                        tp_price=tp_short, sl_price=sl_short,
+                        max_hold=MAX_HOLD, hold_start=k,
+                    )
+                    if trade_result:
+                        trade_result["side"] = "SHORT"
+                        trade_result["hour_utc"] = hour_utc
+                        trade_result["candle_time"] = candle_time
+                    break
 
             if trade_result:
                 break
@@ -941,7 +1001,9 @@ def _backtest_deret_1m(
         hold_candles = trade_result.get("hold_candles", 1)
         position_busy_until = i + 1 + hold_candles + 1
 
-    return _compile_backtest_result(trades, symbol, timeframe, "deret", window, buffer_pct, tp_pct, sl_pct)
+    result = _compile_backtest_result(trades, symbol, timeframe, "deret", window, buffer_pct, tp_pct, sl_pct)
+    result["hour_direction"] = {str(h): d for h, d in hour_direction.items()}
+    return result
 
 
 def _walk_after_entry(
@@ -1317,11 +1379,32 @@ def _process_sweep_result(result, symbol, timeframe, mode, window, buffer_pct, t
 def _save_strategy_to_d1(result):
     """Save winning strategy to D1 tick_strategies table."""
     try:
+        # Determine dominant direction from per_hour data
+        per_hour = result.get("per_hour", {})
+        hour_direction = result.get("hour_direction", {})
+        
+        # Find best hours and their directions
+        best_hours = []
+        for h, stats in per_hour.items():
+            if stats.get("trades", 0) >= 5 and stats.get("wr", 0) >= 55:
+                best_hours.append(h)
+        
+        direction = "BOTH"
+        if hour_direction:
+            dirs = [d for d in hour_direction.values() if d != "SKIP"]
+            if dirs:
+                long_count = sum(1 for d in dirs if d == "LONG")
+                short_count = sum(1 for d in dirs if d == "SHORT")
+                if long_count > short_count * 2:
+                    direction = "LONG"
+                elif short_count > long_count * 2:
+                    direction = "SHORT"
+
         payload = {
             "symbol": result["symbol"],
             "timeframe": result["timeframe"],
             "mode": result["mode"],
-            "direction": "BOTH",  # will be refined per-hour in future
+            "direction": direction,
             "entry_level": "pred_low" if result["mode"] == "deret" else "open",
             "exit_tp_level": "tp_long",
             "exit_sl_level": "sl_long",
@@ -1343,6 +1426,7 @@ def _save_strategy_to_d1(result):
             "confidence_score": result["confidence_score"],
             "status": "candidate",
             "per_hour": json.dumps(result.get("per_hour", {})),
+            "hour_direction": json.dumps(result.get("hour_direction", {})),
         }
         resp = requests.post(
             f"{WORKER_URL}/tick/save-strategy",
