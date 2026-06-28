@@ -1816,3 +1816,78 @@ def ultron_clear_buffer(symbol: str = ""):
     """Clear buffer adjustment for a pair."""
     clear_buffer_adjustment(symbol)
     return {"ok": True, "message": f"Buffer adjustment cleared: {symbol}"}
+# ════════════════════════════════════════════════════════════
+# TICK DISCOVERY ENDPOINTS — paste at bottom of app.py
+# ════════════════════════════════════════════════════════════
+# Also add this import at top of app.py:
+#   from tick_discovery import (
+#       start_tick_discovery, stop_tick_discovery,
+#       get_discovery_status, get_discovery_log,
+#       extract_tick_events, analyze_tick_stats,
+#   )
+# ════════════════════════════════════════════════════════════
+
+@app.get("/tick/start")
+def tick_start(
+    pairs: str = None,       # comma-separated, e.g. "BTCUSDT,ETHUSDT"
+    timeframes: str = None,  # comma-separated, e.g. "15m,1h,4h"
+    window: int = 10,
+    buffer_pct: float = 0.8,
+    buffer2_pct: float = 1.0,
+    tp_pct: float = 1.0,
+    sl_pct: float = 0.5,
+    days: int = 1825,
+):
+    pair_list = pairs.split(",") if pairs else None
+    tf_list = timeframes.split(",") if timeframes else None
+    return start_tick_discovery(
+        pairs=pair_list, timeframes=tf_list,
+        window=window, buffer_pct=buffer_pct, buffer2_pct=buffer2_pct,
+        tp_pct=tp_pct, sl_pct=sl_pct, days=days,
+    )
+
+@app.get("/tick/stop")
+def tick_stop():
+    return stop_tick_discovery()
+
+@app.get("/tick/status")
+def tick_status():
+    return get_discovery_status()
+
+@app.get("/tick/log")
+def tick_log(limit: int = 200):
+    return {"ok": True, "log": get_discovery_log(limit)}
+
+@app.get("/tick/analyze")
+def tick_analyze(
+    symbol: str = "BTCUSDT",
+    timeframe: str = "4h",
+    window: int = 10,
+    buffer_pct: float = 0.8,
+    tp_pct: float = 1.0,
+    sl_pct: float = 0.5,
+    group_by: str = "hour_utc",
+    days: int = 1825,
+):
+    return analyze_tick_stats(
+        symbol=symbol, timeframe=timeframe, window=window,
+        buffer_pct=buffer_pct, tp_pct=tp_pct, sl_pct=sl_pct,
+        group_by=group_by, days=days,
+    )
+
+@app.get("/tick/extract")
+def tick_extract(
+    symbol: str = "BTCUSDT",
+    timeframe: str = "4h",
+    window: int = 10,
+    buffer_pct: float = 0.8,
+    tp_pct: float = 1.0,
+    sl_pct: float = 0.5,
+    days: int = 1825,
+    save: bool = True,
+):
+    return extract_tick_events(
+        symbol=symbol, timeframe=timeframe, window=window,
+        buffer_pct=buffer_pct, tp_pct=tp_pct, sl_pct=sl_pct,
+        days=days, save_to_d1=save,
+    )
