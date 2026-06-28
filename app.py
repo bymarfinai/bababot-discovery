@@ -20,6 +20,7 @@ from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_L
 from baret_bot import start_baret, stop_baret, baret_status, get_baret_log
 from baret_live import start_baret_live, stop_baret_live, baret_live_status, get_baret_live_log, close_position, close_all_positions, start_account_bot, stop_account_bot, account_bot_status
 from ultron_engine import ultron_status, get_ultron_log, manual_analyze, clear_pair_skip, clear_hour_skip, clear_buffer_adjustment
+from tick_discovery import start_tick_discovery, stop_tick_discovery, get_discovery_status, get_discovery_log, extract_tick_events, analyze_tick_stats
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
