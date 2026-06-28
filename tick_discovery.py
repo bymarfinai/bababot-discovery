@@ -675,6 +675,7 @@ MAX_HOLD = 4    # max candles to hold before force close
 
 _sweep_status = {
     "running": False,
+    "paused": False,
     "progress": "",
     "current_pair": "",
     "current_tf": "",
@@ -733,6 +734,12 @@ def start_sweep_engine(
             _sweep_status["current_pair"] = pair
 
             for tf in timeframes:
+                if not _sweep_status["running"]:
+                    break
+                # Pause check: wait until resumed
+                while _sweep_status.get("paused") and _sweep_status["running"]:
+                    import time as _time
+                    _time.sleep(5)
                 if not _sweep_status["running"]:
                     break
                 _sweep_status["current_tf"] = tf
@@ -879,7 +886,22 @@ def start_sweep_engine(
 
 def stop_sweep_engine():
     _sweep_status["running"] = False
+    _sweep_status["paused"] = False
     return {"ok": True, "message": "Stop signal sent"}
+
+
+def pause_sweep_engine():
+    if _sweep_status["running"]:
+        _sweep_status["paused"] = True
+        _log("⏸ Sweep PAUSED")
+        return {"ok": True, "message": "Sweep paused"}
+    return {"ok": False, "message": "Sweep not running"}
+
+
+def resume_sweep_engine():
+    _sweep_status["paused"] = False
+    _log("▶ Sweep RESUMED")
+    return {"ok": True, "message": "Sweep resumed"}
 
 
 def get_sweep_status():
@@ -1935,11 +1957,11 @@ Insert into tick_discovery.py BEFORE _load_data() (line ~1907)
 _CL_TP_LEVELS = [0.5, 0.7, 1.0, 1.5, 2.0]
 _CL_SL_LEVELS = [0.5, 0.7, 1.0, 1.5, 2.0]
 _CL_BUFFERS = [0.1, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0]
-_CL_MAX_HOLD = {"15m": 4, "1h": 2, "4h": 1}
+_CL_MAX_HOLD = {"15m": 8, "1h": 4, "4h": 2}  # doubled from 4/2/1
 _CL_TIMING_BUCKETS = {
-    "15m": [(0, 5, "under_5m"), (5, 15, "5m_15m"), (15, 30, "15m_30m"), (30, 60, "30m_60m")],
-    "1h":  [(0, 10, "under_10m"), (10, 30, "10m_30m"), (30, 60, "30m_60m"), (60, 120, "60m_120m")],
-    "4h":  [(0, 15, "under_15m"), (15, 60, "15m_60m"), (60, 120, "60m_120m"), (120, 240, "120m_240m")],
+    "15m": [(0, 5, "under_5m"), (5, 15, "5m_15m"), (15, 30, "15m_30m"), (30, 60, "30m_60m"), (60, 120, "60m_120m")],
+    "1h":  [(0, 15, "under_15m"), (15, 60, "15m_60m"), (60, 120, "60m_120m"), (120, 240, "120m_240m")],
+    "4h":  [(0, 30, "under_30m"), (30, 120, "30m_120m"), (120, 240, "120m_240m"), (240, 480, "240m_480m")],
 }
 
 _CL_LEVEL_NAMES = (
@@ -2217,8 +2239,12 @@ def cluster_levels(
 
             levels_out.append(lvl)
 
-        # Best combo
-        best = _cl_best_combo(ea["raw"], trig)
+        # Best combo (with dynamic targets + dual hold)
+        combo_result = _cl_best_combo(ea["raw"], trig, side=cfg["side"], max_walk_min=max_walk_min)
+        if combo_result:
+            best, top10 = combo_result
+        else:
+            best, top10 = None, []
         # Stability
         stab = _cl_stability(ea["raw"], best["tp_name"], best["sl_name"]) if best else {}
 
@@ -2234,8 +2260,21 @@ def cluster_levels(
             "levels": levels_out,
         }
         if best:
-            ep_out["best_combo"] = {"tp": best["tp_val"], "sl": best["sl_val"],
-                                     "est_wr": best["wr"], "trades": trig}
+            ep_out["best_combo"] = {
+                "tp": best["tp_val"], "sl": best["sl_val"],
+                "tp_name": best["tp_name"], "tp_type": best.get("tp_type", "fixed"),
+                "hold": best.get("hold", "short"), "hold_minutes": best.get("hold_minutes", 0),
+                "est_wr": best["wr"], "trades": trig,
+                "expired_pct": best.get("expired_pct", 0),
+                "recovery_pct": best.get("recovery_pct", 0),
+            }
+        if top10:
+            ep_out["top10_combos"] = [{
+                "tp": c["tp_val"], "sl": c["sl_val"],
+                "tp_name": c["tp_name"], "tp_type": c.get("tp_type", "fixed"),
+                "hold": c.get("hold", "short"), "hold_min": c.get("hold_minutes", 0),
+                "wr": c["wr"], "expired_pct": c.get("expired_pct", 0),
+            } for c in top10]
         if stab:
             ep_out["stability"] = stab
         if per_hour:
@@ -2260,30 +2299,77 @@ def cluster_levels(
     return result
 
 
-def _cl_best_combo(raw, triggered):
-    """Find TP/SL combo with highest WR."""
-    best = None
-    best_wr = 0
-    for tp_v in _CL_TP_LEVELS:
-        tp_n = f"TP_{tp_v}"
+def _cl_best_combo(raw, triggered, side="LONG", max_walk_min=240):
+    """Find TP/SL combo with highest WR — includes dynamic targets + dual hold."""
+    results = []
+    half_hold = max_walk_min // 2  # short hold = half of max
+
+    # ── Fixed TP targets ──
+    tp_targets = [(f"TP_{v}", v, "fixed") for v in _CL_TP_LEVELS]
+
+    # ── Dynamic TP targets ──
+    if side == "LONG":
+        tp_targets.append(("pred_high", 0, "dynamic"))
+        tp_targets.append(("pred_close", 0, "dynamic"))
+    else:
+        tp_targets.append(("pred_low", 0, "dynamic"))
+        tp_targets.append(("pred_close", 0, "dynamic"))
+
+    for tp_n, tp_v, tp_type in tp_targets:
         for sl_v in _CL_SL_LEVELS:
             sl_n = f"SL_{sl_v}"
-            wins = 0
-            total = 0
-            for _, lm, *_ctx in raw:
-                tp_m = lm.get(tp_n)
-                sl_m = lm.get(sl_n)
-                total += 1
-                if tp_m is not None and (sl_m is None or tp_m < sl_m):
-                    wins += 1
-            if total < 30:
-                continue
-            wr = round(wins / total * 100, 1)
-            if wr > best_wr:
-                best_wr = wr
-                best = {"tp_val": tp_v, "sl_val": sl_v,
-                        "tp_name": tp_n, "sl_name": sl_n, "wr": wr}
-    return best
+
+            # Test both hold durations
+            for hold_label, hold_limit in [("short", half_hold), ("long", max_walk_min)]:
+                wins = 0
+                losses = 0
+                expired = 0
+                expired_toward_tp = 0
+
+                for entry in raw:
+                    lm = entry[1]
+                    tp_m = lm.get(tp_n)
+                    sl_m = lm.get(sl_n)
+
+                    # Filter by hold duration
+                    tp_in_range = tp_m is not None and tp_m <= hold_limit
+                    sl_in_range = sl_m is not None and sl_m <= hold_limit
+
+                    if tp_in_range and (not sl_in_range or tp_m < sl_m):
+                        wins += 1
+                    elif sl_in_range and (not tp_in_range or sl_m <= tp_m):
+                        losses += 1
+                    else:
+                        expired += 1
+                        # Was price moving toward TP at expiry?
+                        if tp_m is not None:
+                            expired_toward_tp += 1
+
+                total = wins + losses + expired
+                if total < 30:
+                    continue
+
+                wr = round(wins / total * 100, 1)
+                expired_pct = round(expired / total * 100, 1)
+                recovery_pct = round(expired_toward_tp / expired * 100, 1) if expired > 0 else 0
+
+                results.append({
+                    "tp_val": tp_v, "sl_val": sl_v,
+                    "tp_name": tp_n, "sl_name": sl_n,
+                    "tp_type": tp_type, "hold": hold_label,
+                    "hold_minutes": hold_limit,
+                    "wr": wr, "wins": wins, "losses": losses,
+                    "expired": expired, "expired_pct": expired_pct,
+                    "recovery_pct": recovery_pct,
+                    "total": total,
+                })
+
+    if not results:
+        return None
+
+    # Best = highest WR
+    results.sort(key=lambda x: (x["wr"], -x["expired_pct"]), reverse=True)
+    return results[0], results[:10]  # best + top 10
 
 
 def _cl_stability(raw, tp_name, sl_name):
@@ -2454,7 +2540,13 @@ def _cl_suggest(entry_points):
 
         # Insight
         nm = ep["entry_name"]
-        if nm.startswith("open"):
+        tp_type = bc.get("tp_type", "fixed")
+        tp_name = bc.get("tp_name", "")
+        hold = bc.get("hold", "short")
+
+        if tp_type == "dynamic":
+            ins = f"→ {tp_name}"
+        elif nm.startswith("open"):
             ins = "Baseline (open)"
         elif "buf_0.5" in nm:
             ins = "Sweet spot buffer"
@@ -2464,6 +2556,11 @@ def _cl_suggest(entry_points):
             ins = "Predicted extreme"
         else:
             ins = f"Buffer {nm.split('buf_')[-1]}%"
+
+        if hold == "long":
+            ins += " [hold panjang]"
+        if bc.get("expired_pct", 0) > 30:
+            ins += f" ({bc['expired_pct']}% expired)"
         if wr >= 65 and con >= 70:
             ins += " ★"
         elif wr < 55:
@@ -2471,7 +2568,10 @@ def _cl_suggest(entry_points):
 
         sugg.append({
             "rank": 0, "entry_name": nm, "entry_side": ep["entry_side"],
-            "tp": bc["tp"], "sl": bc["sl"], "est_wr": wr,
+            "tp": bc["tp"], "sl": bc["sl"],
+            "tp_type": tp_type, "tp_target": tp_name if tp_type == "dynamic" else f"TP_{bc['tp']}%",
+            "hold": hold, "hold_min": bc.get("hold_minutes", 0),
+            "est_wr": wr, "expired_pct": bc.get("expired_pct", 0),
             "trades": ep["total_entries"], "consistency": round(con, 1),
             "wf_ratio": wf, "worst_streak": ws, "score": round(score, 1),
             "insight": ins,
