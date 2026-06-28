@@ -20,8 +20,11 @@ from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_L
 from baret_bot import start_baret, stop_baret, baret_status, get_baret_log
 from baret_live import start_baret_live, stop_baret_live, baret_live_status, get_baret_live_log, close_position, close_all_positions, start_account_bot, stop_account_bot, account_bot_status
 from ultron_engine import ultron_status, get_ultron_log, manual_analyze, clear_pair_skip, clear_hour_skip, clear_buffer_adjustment
-from tick_discovery import start_tick_discovery, stop_tick_discovery, get_discovery_status, get_discovery_log, extract_tick_events, analyze_tick_stats
-
+from tick_discovery import (
+    start_tick_discovery, stop_tick_discovery, get_discovery_status, get_discovery_log,
+    extract_tick_events, analyze_tick_stats,
+    start_sweep_engine, stop_sweep_engine, get_sweep_status,
+)
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 security = HTTPBearer(auto_error=False)
@@ -1982,3 +1985,28 @@ def candle_range(symbol: str = "SOLUSDT", timeframe: str = "4h", days: int = 182
         })
     
     return {"symbol": symbol, "timeframe": timeframe, "total_candles": total, "results": results}
+@app.get("/tick/sweep")
+def tick_sweep(
+    pairs: str = None,
+    timeframes: str = None,
+    window: int = 10,
+    days: int = 1825,
+    modes: str = "both",
+    position_usd: float = 100,
+    leverage: int = 50,
+):
+    pair_list = pairs.split(",") if pairs else None
+    tf_list = timeframes.split(",") if timeframes else None
+    return start_sweep_engine(
+        pairs=pair_list, timeframes=tf_list,
+        window=window, days=days, modes=modes,
+        position_usd=position_usd, leverage=leverage,
+    )
+ 
+@app.get("/tick/sweep-stop")
+def tick_sweep_stop():
+    return stop_sweep_engine()
+ 
+@app.get("/tick/sweep-status")
+def tick_sweep_status():
+    return get_sweep_status()
