@@ -59,7 +59,7 @@ class StrategyConfig:
     sl_check_mode: str = "close"      # "wick" = check high/low, "close" = check close only
     
     # Costs
-    fee_pct: float = 0.10         # Binance Futures taker 0.05% x2
+    fee_pct: float = 0.07         # Binance Futures maker 0.02% + taker 0.05%
     slippage_pct: float = 0.01
     
     # Capital
@@ -3414,7 +3414,7 @@ class DCAConfig:
     spacing_mode: str = "atr"  # "atr" | "pct" | "fixed_usd"
 
     # Costs
-    fee_pct: float = 0.10
+    fee_pct: float = 0.07
 
     # Indicator defaults (same as StrategyConfig)
     indicators: dict = field(default_factory=lambda: {
@@ -3769,7 +3769,7 @@ def backtest_deret_statistik(
     days: int = 1825,
     position_usd: float = 100.0,
     leverage: int = 50,
-    fee_pct: float = 0.10,
+    fee_pct: float = 0.07,
     mode: str = "baret",            # "baret" = single entry, "baret_dca" = L1 + L2 DCA, "baret_marfin" = buffer + close filter
     buffer2_pct: float = 1.0,       # L2 DCA distance from predicted extreme (only in baret_dca)
     close_filter_pct: float = 0.3,  # Min gap between predicted_close and predicted_low (only in baret_marfin)
@@ -3869,7 +3869,7 @@ def backtest_deret_statistik(
     
     trades = []
     notional = position_usd * leverage
-    fee_per_trade = notional * fee_pct / 100 * 2  # entry + exit
+    fee_per_trade = notional * fee_pct / 100  # maker 0.02% + taker 0.05% = 0.07% roundtrip
     dca_count = 0
     both_hit_count = 0
     position_busy_until = 0  # Sequential constraint: skip if position still open
