@@ -1895,30 +1895,90 @@ def tick_extract(
 @app.get("/tick/candle-range")
 def candle_range(symbol: str = "SOLUSDT", timeframe: str = "4h", days: int = 1825):
     import sqlite3
+    from collections import defaultdict
     conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+    
     rows = conn.execute("""
-        SELECT open, high, low, close FROM klines 
-        WHERE symbol = ? AND timeframe = ? ORDER BY open_time DESC
+        SELECT open, high, low, close, open_time FROM klines 
+        WHERE symbol = ? AND timeframe = ? ORDER BY open_time ASC
     """, (symbol, timeframe)).fetchall()
+    
+    sub_rows = conn.execute("""
+        SELECT open, high, low, close, open_time FROM klines 
+        WHERE symbol = ? AND timeframe = '1m' ORDER BY open_time ASC
+    """, (symbol,)).fetchall()
     conn.close()
     
-    if not rows: return {"error": "no data"}
+    if not rows or not sub_rows: return {"error": "no data"}
     
-    if days: rows = rows[:int(days/4*365*6)]  # approximate
+    if days and days > 0:
+        ms_limit = days * 86400 * 1000
+        last_time = rows[-1][4]
+        rows = [r for r in rows if r[4] >= last_time - ms_limit]
+    
+    tf_ms = {"15m": 900000, "1h": 3600000, "4h": 14400000}
+    parent_ms = tf_ms.get(timeframe, 14400000)
+    
+    sub_groups = defaultdict(list)
+    for sr in sub_rows:
+        pt = (sr[4] // parent_ms) * parent_ms
+        sub_groups[pt].append(sr)
     
     thresholds = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0]
     results = []
     total = len(rows)
     
     for t in thresholds:
-        long_tp = sum(1 for r in rows if (r[1] - r[0]) / r[0] * 100 >= t)  # high >= open + t%
-        short_tp = sum(1 for r in rows if (r[0] - r[2]) / r[0] * 100 >= t)  # low <= open - t%
-        both = sum(1 for r in rows if (r[1] - r[0]) / r[0] * 100 >= t and (r[0] - r[2]) / r[0] * 100 >= t)
+        long_minutes = []
+        short_minutes = []
+        long_miss = 0
+        short_miss = 0
+        
+        for r in rows:
+            candle_open = r[0]
+            long_target = candle_open * (1 + t / 100)
+            short_target = candle_open * (1 - t / 100)
+            pt = (r[4] // parent_ms) * parent_ms
+            subs = sub_groups.get(pt, [])
+            
+            long_found = False
+            short_found = False
+            for idx, sc in enumerate(subs):
+                if not long_found and sc[1] >= long_target:
+                    long_minutes.append(idx)
+                    long_found = True
+                if not short_found and sc[2] <= short_target:
+                    short_minutes.append(idx)
+                    short_found = True
+                if long_found and short_found:
+                    break
+            
+            if not long_found: long_miss += 1
+            if not short_found: short_miss += 1
+        
+        def calc_stats(minutes):
+            if not minutes: return None
+            s = sorted(minutes)
+            n = len(s)
+            avg = round(sum(s) / n, 1)
+            median = s[n // 2]
+            p25 = s[int(n * 0.25)]
+            p75 = s[int(n * 0.75)]
+            std = round((sum((x - avg) ** 2 for x in s) / n) ** 0.5, 1)
+            consistency = round(sum(1 for x in s if abs(x - avg) <= std) / n * 100, 1)
+            return {
+                "avg_min": avg, "median_min": median,
+                "p25_min": p25, "p75_min": p75,
+                "min_min": s[0], "max_min": s[-1],
+                "std_min": std, "consistency_pct": consistency,
+            }
+        
         results.append({
             "tp_pct": t,
-            "long_hit_pct": round(long_tp / total * 100, 1),
-            "short_hit_pct": round(short_tp / total * 100, 1),
-            "both_hit_pct": round(both / total * 100, 1),
+            "long_hit_pct": round(len(long_minutes) / total * 100, 1),
+            "short_hit_pct": round(len(short_minutes) / total * 100, 1),
+            "long_timing": calc_stats(long_minutes),
+            "short_timing": calc_stats(short_minutes),
         })
     
     return {"symbol": symbol, "timeframe": timeframe, "total_candles": total, "results": results}
