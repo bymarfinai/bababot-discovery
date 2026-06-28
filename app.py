@@ -1892,3 +1892,33 @@ def tick_extract(
         buffer_pct=buffer_pct, tp_pct=tp_pct, sl_pct=sl_pct,
         days=days, save_to_d1=save,
     )
+@app.get("/tick/candle-range")
+def candle_range(symbol: str = "SOLUSDT", timeframe: str = "4h", days: int = 1825):
+    import sqlite3
+    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+    rows = conn.execute("""
+        SELECT open, high, low, close FROM klines 
+        WHERE symbol = ? AND timeframe = ? ORDER BY open_time DESC
+    """, (symbol, timeframe)).fetchall()
+    conn.close()
+    
+    if not rows: return {"error": "no data"}
+    
+    if days: rows = rows[:int(days/4*365*6)]  # approximate
+    
+    thresholds = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0]
+    results = []
+    total = len(rows)
+    
+    for t in thresholds:
+        long_tp = sum(1 for r in rows if (r[1] - r[0]) / r[0] * 100 >= t)  # high >= open + t%
+        short_tp = sum(1 for r in rows if (r[0] - r[2]) / r[0] * 100 >= t)  # low <= open - t%
+        both = sum(1 for r in rows if (r[1] - r[0]) / r[0] * 100 >= t and (r[0] - r[2]) / r[0] * 100 >= t)
+        results.append({
+            "tp_pct": t,
+            "long_hit_pct": round(long_tp / total * 100, 1),
+            "short_hit_pct": round(short_tp / total * 100, 1),
+            "both_hit_pct": round(both / total * 100, 1),
+        })
+    
+    return {"symbol": symbol, "timeframe": timeframe, "total_candles": total, "results": results}
