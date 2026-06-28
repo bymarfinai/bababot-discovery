@@ -877,6 +877,7 @@ def _backtest_deret_1m(
     position_usd=100, leverage=50,
     buffer2_pct=0,          # DCA L2: 0 = disabled
     close_filter_pct=0,     # Close filter: 0 = disabled
+    return_trades=False,     # Return raw trades list for profiling
 ):
     """
     Full backtest for Deret Entry mode using 1m sub-candle resolution.
@@ -1056,6 +1057,7 @@ def _backtest_deret_1m(
                         trade_result["dca"] = actual_fee > fee_per_trade
                         trade_result["_fee"] = actual_fee
                         trade_result["_entry"] = actual_entry
+                        trade_result["entry_fill_minute"] = sc_idx
                     break
 
                 if direction == "SHORT" and sc["h"] >= entry_short:
@@ -1090,6 +1092,7 @@ def _backtest_deret_1m(
                         trade_result["dca"] = actual_fee > fee_per_trade
                         trade_result["_fee"] = actual_fee
                         trade_result["_entry"] = actual_entry
+                        trade_result["entry_fill_minute"] = sc_idx
                     break
 
             if trade_result:
@@ -1111,11 +1114,24 @@ def _backtest_deret_1m(
         trade_result["pnl_pct"] = round(pnl_pct, 4)
         trade_result["pnl_dollar"] = round(pnl_dollar, 2)
         trade_result["win"] = pnl_dollar > 0
+
+        # ── Trade context for profiling ──
+        prev_direction = "bullish" if closes[i] > opens[i] else ("bearish" if closes[i] < opens[i] else "doji")
+        prev_range_pct = round((highs[i] - lows[i]) / opens[i] * 100, 4) if opens[i] > 0 else 0
+        pred_range_pct = round((pred_high - pred_low) / closes[i] * 100, 4) if closes[i] > 0 else 0
+        trade_result["prev_direction"] = prev_direction
+        trade_result["prev_range_pct"] = prev_range_pct
+        trade_result["pred_range_pct"] = pred_range_pct
+        trade_result["day_of_week"] = dt.weekday()
+
         trades.append(trade_result)
 
         # Sequential constraint
         hold_candles = trade_result.get("hold_candles", 1)
         position_busy_until = i + 1 + hold_candles + 1
+
+    if return_trades:
+        return trades
 
     result = _compile_backtest_result(trades, symbol, timeframe, "deret", window, buffer_pct, tp_pct, sl_pct)
     result["hour_direction"] = {str(h): d for h, d in hour_direction.items()}
@@ -1625,6 +1641,267 @@ def _save_strategy_to_d1(result):
             _log(f"  ⚠️ D1 save strategy failed: {resp.status_code}")
     except Exception as ex:
         _log(f"  ⚠️ D1 save strategy error: {str(ex)[:100]}")
+
+
+# ════════════════════════════════════════════════════════════
+# TRADE PROFILING — Win vs Loss analysis
+# ════════════════════════════════════════════════════════════
+
+def profile_winning_combo(
+    symbol, timeframe, window=10,
+    buffer_pct=2.0, tp_pct=1.0, sl_pct=2.0,
+    buffer2_pct=1.5, close_filter_pct=0,
+    days=1825, position_usd=100, leverage=50,
+):
+    """
+    Run a specific combo backtest, then profile winning vs losing trades.
+    Returns detailed analysis of what differentiates wins from losses.
+    """
+    rows, sub_lookup = _load_data(DB_PATH, symbol, timeframe, "1m")
+    if len(rows) < window + 50:
+        return {"error": "insufficient data"}
+
+    if days and days > 0:
+        ms_limit = days * 86400 * 1000
+        last_time = rows[-1][5]
+        rows = [r for r in rows if r[5] >= last_time - ms_limit]
+
+    trades = _backtest_deret_1m(
+        rows, sub_lookup, symbol, timeframe,
+        window=window, buffer_pct=buffer_pct, tp_pct=tp_pct, sl_pct=sl_pct,
+        position_usd=position_usd, leverage=leverage,
+        buffer2_pct=buffer2_pct, close_filter_pct=close_filter_pct,
+        return_trades=True,
+    )
+
+    if not trades:
+        return {"error": "no trades"}
+
+    wins = [t for t in trades if t["win"]]
+    losses = [t for t in trades if not t["win"]]
+    total = len(trades)
+
+    def _dist(trade_list, key):
+        vals = [t[key] for t in trade_list if t.get(key) is not None]
+        if not vals:
+            return {}
+        s = sorted(vals)
+        n = len(s)
+        return {
+            "count": n,
+            "avg": round(sum(s) / n, 2),
+            "median": s[n // 2],
+            "p25": s[int(n * 0.25)],
+            "p75": s[int(n * 0.75)],
+            "min": s[0],
+            "max": s[-1],
+        }
+
+    def _cat_dist(trade_list, key):
+        counts = defaultdict(int)
+        for t in trade_list:
+            v = t.get(key, "unknown")
+            counts[str(v)] += 1
+        total_c = sum(counts.values())
+        return {k: {"count": v, "pct": round(v / total_c * 100, 1)} for k, v in sorted(counts.items())} if total_c > 0 else {}
+
+    # ── Per-factor profiling ──
+    profile = {
+        "symbol": symbol, "timeframe": timeframe,
+        "config": {"buffer_pct": buffer_pct, "tp_pct": tp_pct, "sl_pct": sl_pct,
+                   "buffer2_pct": buffer2_pct, "close_filter_pct": close_filter_pct},
+        "total_trades": total,
+        "wins": len(wins), "losses": len(losses),
+        "win_rate": round(len(wins) / total * 100, 1),
+
+        "by_hour_utc": {},
+        "by_prev_direction": {},
+        "by_day_of_week": {},
+        "by_entry_fill_speed": {},
+        "by_pred_range": {},
+        "by_prev_range": {},
+        "by_exit_reason": {},
+    }
+
+    # Hour UTC breakdown
+    for h in sorted(set(t["hour_utc"] for t in trades)):
+        h_trades = [t for t in trades if t["hour_utc"] == h]
+        h_wins = [t for t in h_trades if t["win"]]
+        h_losses = [t for t in h_trades if not t["win"]]
+        profile["by_hour_utc"][str(h)] = {
+            "trades": len(h_trades),
+            "wins": len(h_wins), "losses": len(h_losses),
+            "wr": round(len(h_wins) / len(h_trades) * 100, 1),
+            "pnl": round(sum(t["pnl_dollar"] for t in h_trades), 2),
+            "win_entry_fill": _dist(h_wins, "entry_fill_minute"),
+            "loss_entry_fill": _dist(h_losses, "entry_fill_minute"),
+            "win_exit_min": _dist(h_wins, "exit_minute"),
+            "loss_exit_min": _dist(h_losses, "exit_minute"),
+        }
+
+    # Previous candle direction
+    for pd in ["bullish", "bearish", "doji"]:
+        pd_trades = [t for t in trades if t.get("prev_direction") == pd]
+        if pd_trades:
+            pd_wins = [t for t in pd_trades if t["win"]]
+            profile["by_prev_direction"][pd] = {
+                "trades": len(pd_trades),
+                "wr": round(len(pd_wins) / len(pd_trades) * 100, 1),
+                "pnl": round(sum(t["pnl_dollar"] for t in pd_trades), 2),
+            }
+
+    # Day of week
+    dow_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    for d in range(7):
+        d_trades = [t for t in trades if t.get("day_of_week") == d]
+        if d_trades:
+            d_wins = [t for t in d_trades if t["win"]]
+            profile["by_day_of_week"][dow_names[d]] = {
+                "trades": len(d_trades),
+                "wr": round(len(d_wins) / len(d_trades) * 100, 1),
+                "pnl": round(sum(t["pnl_dollar"] for t in d_trades), 2),
+            }
+
+    # Entry fill speed: fast (<15min) vs medium (15-60) vs slow (60+)
+    for label, lo, hi in [("fast_0_15", 0, 15), ("medium_15_60", 15, 60), ("slow_60_plus", 60, 9999)]:
+        f_trades = [t for t in trades if lo <= (t.get("entry_fill_minute") or 0) < hi]
+        if f_trades:
+            f_wins = [t for t in f_trades if t["win"]]
+            profile["by_entry_fill_speed"][label] = {
+                "trades": len(f_trades),
+                "wr": round(len(f_wins) / len(f_trades) * 100, 1),
+                "pnl": round(sum(t["pnl_dollar"] for t in f_trades), 2),
+            }
+
+    # Predicted range (narrow vs normal vs wide)
+    pred_ranges = [t.get("pred_range_pct", 0) for t in trades if t.get("pred_range_pct")]
+    if pred_ranges:
+        p33 = sorted(pred_ranges)[len(pred_ranges) // 3]
+        p66 = sorted(pred_ranges)[2 * len(pred_ranges) // 3]
+        for label, lo, hi in [("narrow", 0, p33), ("normal", p33, p66), ("wide", p66, 999)]:
+            r_trades = [t for t in trades if lo <= (t.get("pred_range_pct") or 0) < hi]
+            if r_trades:
+                r_wins = [t for t in r_trades if t["win"]]
+                profile["by_pred_range"][label] = {
+                    "trades": len(r_trades),
+                    "wr": round(len(r_wins) / len(r_trades) * 100, 1),
+                    "pnl": round(sum(t["pnl_dollar"] for t in r_trades), 2),
+                    "range_pct": f"{lo:.2f}-{hi:.2f}",
+                }
+
+    # Previous candle range (low vol vs high vol)
+    prev_ranges = [t.get("prev_range_pct", 0) for t in trades if t.get("prev_range_pct")]
+    if prev_ranges:
+        p33 = sorted(prev_ranges)[len(prev_ranges) // 3]
+        p66 = sorted(prev_ranges)[2 * len(prev_ranges) // 3]
+        for label, lo, hi in [("low_vol", 0, p33), ("mid_vol", p33, p66), ("high_vol", p66, 999)]:
+            r_trades = [t for t in trades if lo <= (t.get("prev_range_pct") or 0) < hi]
+            if r_trades:
+                r_wins = [t for t in r_trades if t["win"]]
+                profile["by_prev_range"][label] = {
+                    "trades": len(r_trades),
+                    "wr": round(len(r_wins) / len(r_trades) * 100, 1),
+                    "pnl": round(sum(t["pnl_dollar"] for t in r_trades), 2),
+                    "range_pct": f"{lo:.2f}-{hi:.2f}",
+                }
+
+    # Exit reason
+    for reason in ["TP", "SL", "CLOSE"]:
+        r_trades = [t for t in trades if t.get("exit_reason") == reason]
+        if r_trades:
+            r_wins = [t for t in r_trades if t["win"]]
+            profile["by_exit_reason"][reason] = {
+                "trades": len(r_trades),
+                "wr": round(len(r_wins) / len(r_trades) * 100, 1),
+                "pnl": round(sum(t["pnl_dollar"] for t in r_trades), 2),
+            }
+
+    # ── Overall comparison: wins vs losses ──
+    profile["win_profile"] = {
+        "entry_fill_minute": _dist(wins, "entry_fill_minute"),
+        "exit_minute": _dist(wins, "exit_minute"),
+        "prev_range_pct": _dist(wins, "prev_range_pct"),
+        "pred_range_pct": _dist(wins, "pred_range_pct"),
+        "prev_direction": _cat_dist(wins, "prev_direction"),
+    }
+    profile["loss_profile"] = {
+        "entry_fill_minute": _dist(losses, "entry_fill_minute"),
+        "exit_minute": _dist(losses, "exit_minute"),
+        "prev_range_pct": _dist(losses, "prev_range_pct"),
+        "pred_range_pct": _dist(losses, "pred_range_pct"),
+        "prev_direction": _cat_dist(losses, "prev_direction"),
+    }
+
+    # ── Suggested filters ──
+    suggestions = []
+    # Check if any hour is significantly worse
+    for h, data in profile["by_hour_utc"].items():
+        if data["wr"] < profile["win_rate"] - 5 and data["trades"] > 50:
+            saved_losses = data["losses"]
+            lost_wins = data["wins"]
+            suggestions.append({
+                "filter": f"skip_hour_{h}",
+                "description": f"Skip hour {h} UTC (WR {data['wr']}% vs overall {profile['win_rate']}%)",
+                "trades_removed": data["trades"],
+                "losses_removed": saved_losses,
+                "wins_removed": lost_wins,
+                "estimated_new_wr": round((len(wins) - lost_wins) / (total - data["trades"]) * 100, 1) if total > data["trades"] else 0,
+            })
+
+    # Check prev_direction
+    for pd, data in profile["by_prev_direction"].items():
+        if data["wr"] < profile["win_rate"] - 3 and data["trades"] > 100:
+            pd_trades = [t for t in trades if t.get("prev_direction") == pd]
+            pd_losses = sum(1 for t in pd_trades if not t["win"])
+            pd_wins = sum(1 for t in pd_trades if t["win"])
+            suggestions.append({
+                "filter": f"skip_prev_{pd}",
+                "description": f"Skip after {pd} candle (WR {data['wr']}%)",
+                "trades_removed": data["trades"],
+                "losses_removed": pd_losses,
+                "wins_removed": pd_wins,
+                "estimated_new_wr": round((len(wins) - pd_wins) / (total - data["trades"]) * 100, 1) if total > data["trades"] else 0,
+            })
+
+    # Check entry fill speed
+    for speed, data in profile["by_entry_fill_speed"].items():
+        if data["wr"] < profile["win_rate"] - 3 and data["trades"] > 50:
+            s_trades = [t for t in trades if speed == "fast_0_15" and (t.get("entry_fill_minute") or 0) < 15
+                        or speed == "medium_15_60" and 15 <= (t.get("entry_fill_minute") or 0) < 60
+                        or speed == "slow_60_plus" and (t.get("entry_fill_minute") or 0) >= 60]
+            s_losses = sum(1 for t in s_trades if not t["win"])
+            s_wins = sum(1 for t in s_trades if t["win"])
+            if s_trades:
+                suggestions.append({
+                    "filter": f"skip_{speed}",
+                    "description": f"Skip {speed} entry fills (WR {data['wr']}%)",
+                    "trades_removed": len(s_trades),
+                    "losses_removed": s_losses,
+                    "wins_removed": s_wins,
+                    "estimated_new_wr": round((len(wins) - s_wins) / (total - len(s_trades)) * 100, 1) if total > len(s_trades) else 0,
+                })
+
+    # Check day of week
+    for dow, data in profile["by_day_of_week"].items():
+        if data["wr"] < profile["win_rate"] - 5 and data["trades"] > 50:
+            d_idx = dow_names.index(dow)
+            d_trades = [t for t in trades if t.get("day_of_week") == d_idx]
+            d_losses = sum(1 for t in d_trades if not t["win"])
+            d_wins = sum(1 for t in d_trades if t["win"])
+            suggestions.append({
+                "filter": f"skip_{dow}",
+                "description": f"Skip {dow} (WR {data['wr']}%)",
+                "trades_removed": data["trades"],
+                "losses_removed": d_losses,
+                "wins_removed": d_wins,
+                "estimated_new_wr": round((len(wins) - d_wins) / (total - data["trades"]) * 100, 1) if total > data["trades"] else 0,
+            })
+
+    # Sort suggestions by net impact (losses removed - wins removed)
+    suggestions.sort(key=lambda x: x["losses_removed"] - x["wins_removed"], reverse=True)
+    profile["suggestions"] = suggestions
+
+    return profile
 
 
 # ════════════════════════════════════════════════════════════
