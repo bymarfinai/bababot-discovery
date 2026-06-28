@@ -1370,6 +1370,13 @@ def _process_sweep_result(result, symbol, timeframe, mode, window, buffer_pct, t
             "win_rate": wr, "ppd": ppd, "trades": result["total_trades"],
             "confidence": result["confidence_score"],
             "pass_stability": result.get("pass_stability", False),
+            "min_weekly_wr": result.get("min_weekly_wr", 0),
+            "worst_streak": result.get("worst_streak", 0),
+            "consistency_pct": result.get("consistency_pct", 0),
+            "walk_forward_ratio": result.get("walk_forward_ratio", 0),
+            "train_wr": result.get("train_wr", 0),
+            "test_wr": result.get("test_wr", 0),
+            "max_drawdown": result.get("max_drawdown", 0),
         })
 
         # Save to D1
