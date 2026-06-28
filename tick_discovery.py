@@ -2039,6 +2039,12 @@ def cluster_levels(
         candle_time = times[next_idx]
         candle_open = opens[next_idx]
 
+        # ── Context for per-hour + per-direction analysis ──
+        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
+        hour_utc = dt.hour
+        prev_dir = "bullish" if closes[i] > opens[i] else ("bearish" if closes[i] < opens[i] else "doji")
+        prev_range = round((highs[i] - lows[i]) / opens[i] * 100, 4) if opens[i] > 0 else 0
+
         # ── Flatten 1m subs across max_hold candles ──
         first_parent_ts = (candle_time // parent_ms) * parent_ms
         first_subs = sub_lookup.get(first_parent_ts, [])
@@ -2138,8 +2144,8 @@ def cluster_levels(
             )
             order_map = {ln: rank for rank, (ln, _) in enumerate(hit_sorted, 1)}
 
-            # Accumulate
-            ea["raw"].append((candle_time, level_min))
+            # Accumulate (include hour + context for per-hour analysis)
+            ea["raw"].append((candle_time, level_min, hour_utc, prev_dir, prev_range))
             for ln in _CL_LEVEL_NAMES:
                 m = level_min.get(ln)
                 if m is not None and ln != "candle_end":
@@ -2199,7 +2205,7 @@ def cluster_levels(
                     sl_n = f"SL_{sl_val}"
                     tp_before = 0
                     total_relevant = 0
-                    for _, lm in ea["raw"]:
+                    for _, lm, *_ctx in ea["raw"]:
                         tp_m = lm.get(ln)
                         sl_m = lm.get(sl_n)
                         if tp_m is not None or sl_m is not None:
@@ -2216,6 +2222,9 @@ def cluster_levels(
         # Stability
         stab = _cl_stability(ea["raw"], best["tp_name"], best["sl_name"]) if best else {}
 
+        # Per-hour breakdown
+        per_hour = _cl_per_hour(ea["raw"], best) if best else {}
+
         ep_out = {
             "entry_name": cfg["name"],
             "entry_description": cfg["desc"],
@@ -2229,6 +2238,8 @@ def cluster_levels(
                                      "est_wr": best["wr"], "trades": trig}
         if stab:
             ep_out["stability"] = stab
+        if per_hour:
+            ep_out["per_hour"] = per_hour
         output_entries.append(ep_out)
 
     # Auto-suggest
@@ -2259,7 +2270,7 @@ def _cl_best_combo(raw, triggered):
             sl_n = f"SL_{sl_v}"
             wins = 0
             total = 0
-            for _, lm in raw:
+            for _, lm, *_ctx in raw:
                 tp_m = lm.get(tp_n)
                 sl_m = lm.get(sl_n)
                 total += 1
@@ -2278,7 +2289,7 @@ def _cl_best_combo(raw, triggered):
 def _cl_stability(raw, tp_name, sl_name):
     """Compute stability metrics for a TP/SL combo."""
     trades = []
-    for ct, lm in raw:
+    for ct, lm, *_ctx in raw:
         tp_m = lm.get(tp_name)
         sl_m = lm.get(sl_name)
         win = tp_m is not None and (sl_m is None or tp_m < sl_m)
@@ -2334,6 +2345,95 @@ def _cl_stability(raw, tp_name, sl_name):
         "train_wr": round(train_wr, 1), "test_wr": round(test_wr, 1),
         "weeks_counted": len(weekly_wrs), "total_trades": total,
     }
+
+
+def _cl_per_hour(raw, best_combo):
+    """Per-hour breakdown: WR, trades, direction dominance, prev_direction stats."""
+    if not raw or not best_combo:
+        return {}
+
+    tp_n = best_combo["tp_name"]
+    sl_n = best_combo["sl_name"]
+
+    hours = defaultdict(lambda: {
+        "wins": 0, "total": 0,
+        "prev_bullish": 0, "prev_bearish": 0,
+        "prev_bull_wins": 0, "prev_bear_wins": 0,
+        "high_vol_wins": 0, "high_vol_total": 0,
+        "low_vol_wins": 0, "low_vol_total": 0,
+    })
+
+    # Compute vol thresholds (p33/p66 of prev_range)
+    all_ranges = [r[4] for r in raw if len(r) > 4 and r[4] > 0]
+    if all_ranges:
+        sr = sorted(all_ranges)
+        vol_lo = sr[len(sr) // 3]
+        vol_hi = sr[2 * len(sr) // 3]
+    else:
+        vol_lo, vol_hi = 1.0, 3.0
+
+    for entry in raw:
+        ct, lm = entry[0], entry[1]
+        h = entry[2] if len(entry) > 2 else 0
+        pd = entry[3] if len(entry) > 3 else "doji"
+        pr = entry[4] if len(entry) > 4 else 0
+
+        tp_m = lm.get(tp_n)
+        sl_m = lm.get(sl_n)
+        win = tp_m is not None and (sl_m is None or tp_m < sl_m)
+
+        hd = hours[h]
+        hd["total"] += 1
+        if win:
+            hd["wins"] += 1
+
+        # By prev direction
+        if pd == "bullish":
+            hd["prev_bullish"] += 1
+            if win:
+                hd["prev_bull_wins"] += 1
+        elif pd == "bearish":
+            hd["prev_bearish"] += 1
+            if win:
+                hd["prev_bear_wins"] += 1
+
+        # By volatility
+        if pr >= vol_hi:
+            hd["high_vol_total"] += 1
+            if win:
+                hd["high_vol_wins"] += 1
+        elif pr <= vol_lo:
+            hd["low_vol_total"] += 1
+            if win:
+                hd["low_vol_wins"] += 1
+
+    result = {}
+    for h in sorted(hours.keys()):
+        hd = hours[h]
+        if hd["total"] < 5:
+            continue
+        entry = {
+            "trades": hd["total"],
+            "wr": round(hd["wins"] / hd["total"] * 100, 1),
+        }
+        if hd["prev_bullish"] >= 3:
+            entry["wr_after_bullish"] = round(hd["prev_bull_wins"] / hd["prev_bullish"] * 100, 1)
+        if hd["prev_bearish"] >= 3:
+            entry["wr_after_bearish"] = round(hd["prev_bear_wins"] / hd["prev_bearish"] * 100, 1)
+        if hd["high_vol_total"] >= 3:
+            entry["wr_high_vol"] = round(hd["high_vol_wins"] / hd["high_vol_total"] * 100, 1)
+        if hd["low_vol_total"] >= 3:
+            entry["wr_low_vol"] = round(hd["low_vol_wins"] / hd["low_vol_total"] * 100, 1)
+
+        # Flag exceptional hours
+        if entry["wr"] >= 75:
+            entry["flag"] = "★ HIGH EDGE"
+        elif entry["wr"] <= 45:
+            entry["flag"] = "❌ SKIP"
+
+        result[str(h)] = entry
+
+    return result
 
 
 def _cl_suggest(entry_points):
