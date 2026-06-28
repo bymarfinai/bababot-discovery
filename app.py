@@ -2028,3 +2028,197 @@ def tick_profile(
         buffer_pct=buffer_pct, tp_pct=tp_pct, sl_pct=sl_pct,
         buffer2_pct=buffer2_pct, close_filter_pct=close_filter_pct, days=days,
     )
+"""
+Paste ini di PALING BAWAH app.py
+Test hipotesis: close_position predict first_extreme
+"""
+
+@app.get("/tick/test-close-position")
+def test_close_position(symbol: str = "DOGEUSDT", timeframe: str = "4h", window: int = 10, days: int = 1825):
+    import sqlite3
+    from collections import defaultdict
+    from datetime import datetime, timezone
+
+    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+
+    rows = conn.execute("""
+        SELECT open, high, low, close, volume, open_time
+        FROM klines WHERE symbol = ? AND timeframe = ?
+        ORDER BY open_time ASC
+    """, (symbol, timeframe)).fetchall()
+
+    sub_rows = conn.execute("""
+        SELECT open, high, low, close, open_time
+        FROM klines WHERE symbol = ? AND timeframe = '1m'
+        ORDER BY open_time ASC
+    """, (symbol,)).fetchall()
+    conn.close()
+
+    if not rows or not sub_rows:
+        return {"error": "no data"}
+
+    # TF → ms
+    tf_ms = {"15m": 900000, "1h": 3600000, "4h": 14400000}
+    parent_ms = tf_ms.get(timeframe, 14400000)
+
+    # Group 1m by parent candle
+    sub_groups = defaultdict(list)
+    for sr in sub_rows:
+        pt = (sr[4] // parent_ms) * parent_ms
+        sub_groups[pt].append({"h": sr[1], "l": sr[2]})
+
+    n = len(rows)
+    opens = [r[0] for r in rows]
+    highs = [r[1] for r in rows]
+    lows = [r[2] for r in rows]
+    closes = [r[3] for r in rows]
+    times = [r[5] for r in rows]
+
+    close_ratios = [closes[i] / closes[i-1] if closes[i-1] != 0 else 1.0 for i in range(1, n)]
+    high_ratios = [highs[i] / highs[i-1] if highs[i-1] != 0 else 1.0 for i in range(1, n)]
+    low_ratios = [lows[i] / lows[i-1] if lows[i-1] != 0 else 1.0 for i in range(1, n)]
+
+    # Limit days
+    if days > 0:
+        ms_limit = days * 86400 * 1000
+        last_time = rows[-1][5]
+        cutoff = last_time - ms_limit
+        start_idx = 0
+        for idx, r in enumerate(rows):
+            if r[5] >= cutoff:
+                start_idx = idx
+                break
+        start_idx = max(start_idx, window)
+    else:
+        start_idx = window
+
+    # Buckets for close_position
+    buckets = {
+        "very_low_0_15": (0, 0.15),
+        "low_15_30": (0.15, 0.30),
+        "mid_low_30_45": (0.30, 0.45),
+        "mid_45_55": (0.45, 0.55),
+        "mid_high_55_70": (0.55, 0.70),
+        "high_70_85": (0.70, 0.85),
+        "very_high_85_100": (0.85, 1.01),
+    }
+
+    results = {b: {"total": 0, "high_first": 0, "low_first": 0, "none": 0} for b in buckets}
+    raw_data = []
+
+    for i in range(start_idx, len(close_ratios)):
+        if i + 1 >= n:
+            break
+
+        avg_h = sum(high_ratios[i-window:i]) / window
+        avg_l = sum(low_ratios[i-window:i]) / window
+        avg_c = sum(close_ratios[i-window:i]) / window
+
+        pred_high = highs[i] * avg_h
+        pred_low = lows[i] * avg_l
+        pred_close = closes[i] * avg_c
+
+        pred_range = pred_high - pred_low
+        if pred_range <= 0:
+            continue
+
+        close_position = (pred_close - pred_low) / pred_range
+
+        # Get 1m data for next candle
+        candle_time = times[i + 1]
+        parent_ts = (candle_time // parent_ms) * parent_ms
+        subs = sub_groups.get(parent_ts, [])
+        if not subs:
+            continue
+
+        # Determine first_extreme from 1m
+        min_ph, min_pl = None, None
+        for sc_idx, sc in enumerate(subs):
+            if min_ph is None and sc["h"] >= pred_high:
+                min_ph = sc_idx
+            if min_pl is None and sc["l"] <= pred_low:
+                min_pl = sc_idx
+            if min_ph is not None and min_pl is not None:
+                break
+
+        if min_ph is not None and min_pl is not None:
+            first_extreme = "HIGH" if min_ph < min_pl else "LOW"
+        elif min_ph is not None:
+            first_extreme = "HIGH"
+        elif min_pl is not None:
+            first_extreme = "LOW"
+        else:
+            first_extreme = "NONE"
+
+        # Bucket
+        for bname, (lo, hi) in buckets.items():
+            if lo <= close_position < hi:
+                results[bname]["total"] += 1
+                if first_extreme == "HIGH":
+                    results[bname]["high_first"] += 1
+                elif first_extreme == "LOW":
+                    results[bname]["low_first"] += 1
+                else:
+                    results[bname]["none"] += 1
+                break
+
+        raw_data.append({"cp": round(close_position, 3), "fe": first_extreme})
+
+    # Format output
+    table = []
+    for bname, (lo, hi) in buckets.items():
+        d = results[bname]
+        if d["total"] == 0:
+            continue
+        high_pct = round(d["high_first"] / d["total"] * 100, 1)
+        low_pct = round(d["low_first"] / d["total"] * 100, 1)
+
+        # Hipotesis: close dekat low → HIGH_FIRST, close dekat high → LOW_FIRST
+        if high_pct > low_pct:
+            predict = "SHORT"
+            confidence = high_pct
+        elif low_pct > high_pct:
+            predict = "LONG"
+            confidence = low_pct
+        else:
+            predict = "SKIP"
+            confidence = 50
+
+        table.append({
+            "bucket": bname,
+            "range": f"{lo:.0%}-{hi:.0%}",
+            "total": d["total"],
+            "high_first": d["high_first"],
+            "high_first_pct": high_pct,
+            "low_first": d["low_first"],
+            "low_first_pct": low_pct,
+            "none": d["none"],
+            "predicted_direction": predict,
+            "confidence": confidence,
+        })
+
+    # Overall correlation
+    total_candles = sum(d["total"] for d in results.values())
+    correct_hipotesis = 0  # close < 0.3 → HIGH, close > 0.7 → LOW
+    total_testable = 0
+    for bname, d in results.items():
+        if "very_low" in bname or "low_15" in bname:
+            correct_hipotesis += d["high_first"]
+            total_testable += d["total"]
+        elif "very_high" in bname or "high_70" in bname:
+            correct_hipotesis += d["low_first"]
+            total_testable += d["total"]
+
+    return {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "total_candles": total_candles,
+        "hipotesis": "close dekat low → HIGH_FIRST (SHORT), close dekat high → LOW_FIRST (LONG)",
+        "table": table,
+        "hipotesis_test": {
+            "testable_candles": total_testable,
+            "correct": correct_hipotesis,
+            "accuracy": round(correct_hipotesis / total_testable * 100, 1) if total_testable > 0 else 0,
+            "description": "close_position < 0.30 → HIGH_FIRST, close_position > 0.70 → LOW_FIRST",
+        }
+    }
