@@ -2,6 +2,7 @@
 tick_discovery.py — Tick-by-Tick Discovery Engine
 Phase 1: Event Extraction (walk 1m sub-candles, record level hits)
 Phase 2: Statistical Analysis (aggregate patterns per pair × TF × hour)
+Phase 3: Sweep Engine (auto-sweep buffer × TP × SL, find profitable combos)
 
 BabaBot v17 — Clean slate, data-driven strategy discovery
 """
@@ -13,6 +14,7 @@ import logging
 import threading
 import time
 import requests
+import math
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -489,7 +491,7 @@ def _compute_group_stats(events: list) -> dict:
 
 
 # ════════════════════════════════════════════════════════════
-# SWEEP — Run extraction across multiple pairs × TFs
+# DISCOVERY SWEEP — Run extraction across multiple pairs × TFs
 # ════════════════════════════════════════════════════════════
 
 _discovery_status = {
@@ -636,6 +638,721 @@ def get_discovery_status():
 def get_discovery_log(limit: int = 200):
     """Get discovery log."""
     return _discovery_log[-limit:]
+
+
+# ════════════════════════════════════════════════════════════
+# PHASE 3 — SWEEP ENGINE
+# Auto-sweep buffer × TP × SL, backtest with 1m resolution,
+# find profitable combos, save winners to D1 tick_strategies
+# ════════════════════════════════════════════════════════════
+
+# Sweep grids
+DERET_GRID = {
+    "buffer": [0.5, 0.8, 1.0, 1.5, 2.0],
+    "tp":     [1.0, 1.5, 2.0, 2.5, 3.0],
+    "sl":     [0.5, 1.0, 1.5, 2.0],
+}
+OPEN_GRID = {
+    "tp": [0.3, 0.5, 0.7, 1.0, 1.5],
+    "sl": [0.3, 0.5, 0.7, 1.0, 1.5],
+}
+
+# Quality thresholds
+MIN_TRADES = 30
+MIN_WR = 55.0
+MIN_PPD = 0.50
+# Stability gate
+MIN_WEEKLY_WR = 40.0
+MAX_WORST_STREAK = 6
+MIN_CONSISTENCY = 60.0
+MIN_WALK_FORWARD = 0.85
+
+# Trade settings
+POSITION_USD = 100
+LEVERAGE = 50
+FEE_PCT = 0.07  # 0.02% maker + 0.05% taker = 0.07% roundtrip
+MAX_HOLD = 4    # max candles to hold before force close
+
+_sweep_status = {
+    "running": False,
+    "progress": "",
+    "current_pair": "",
+    "current_tf": "",
+    "current_mode": "",
+    "completed_combos": 0,
+    "total_combos": 0,
+    "winners": 0,
+    "results_summary": [],
+    "started_at": None,
+    "finished_at": None,
+}
+_sweep_thread = None
+
+
+def start_sweep_engine(
+    pairs: list = None,
+    timeframes: list = None,
+    window: int = 10,
+    days: int = 1825,
+    modes: str = "both",  # "deret", "open", "both"
+    position_usd: float = 100,
+    leverage: int = 50,
+):
+    """Start sweep engine in background thread."""
+    global _sweep_thread
+
+    if _sweep_status["running"]:
+        return {"ok": False, "error": "Sweep already running"}
+    if _discovery_status.get("running"):
+        return {"ok": False, "error": "Discovery running, wait for it to finish"}
+
+    pairs = pairs or PAIRS
+    timeframes = timeframes or TIMEFRAMES
+    do_deret = modes in ("deret", "both")
+    do_open = modes in ("open", "both")
+
+    deret_combos = len(DERET_GRID["buffer"]) * len(DERET_GRID["tp"]) * len(DERET_GRID["sl"])
+    open_combos = len(OPEN_GRID["tp"]) * len(OPEN_GRID["sl"])
+    combos_per_pair_tf = (deret_combos if do_deret else 0) + (open_combos if do_open else 0)
+    total = len(pairs) * len(timeframes) * combos_per_pair_tf
+
+    def _run():
+        _sweep_status["running"] = True
+        _sweep_status["started_at"] = datetime.now().isoformat()
+        _sweep_status["finished_at"] = None
+        _sweep_status["completed_combos"] = 0
+        _sweep_status["total_combos"] = total
+        _sweep_status["winners"] = 0
+        _sweep_status["results_summary"] = []
+
+        _log(f"🚀 Sweep Engine started: {len(pairs)} pairs × {len(timeframes)} TFs × {combos_per_pair_tf} combos = {total} total")
+
+        for pair in pairs:
+            if not _sweep_status["running"]:
+                break
+            _sweep_status["current_pair"] = pair
+
+            for tf in timeframes:
+                if not _sweep_status["running"]:
+                    break
+                _sweep_status["current_tf"] = tf
+                _log(f"📦 Loading {pair} {tf}...")
+
+                rows, sub_lookup = _load_data(DB_PATH, pair, tf, "1m")
+                if len(rows) < window + 50:
+                    _log(f"  ⚠️ {pair} {tf}: insufficient data ({len(rows)} rows), skipping")
+                    _sweep_status["completed_combos"] += combos_per_pair_tf
+                    continue
+
+                # Limit by days
+                if days and days > 0:
+                    ms_limit = days * 86400 * 1000
+                    last_time = rows[-1][5]
+                    rows = [r for r in rows if r[5] >= last_time - ms_limit]
+
+                # ── Sweep A: Deret Entry ──
+                if do_deret:
+                    _sweep_status["current_mode"] = "deret"
+                    for buf in DERET_GRID["buffer"]:
+                        for tp in DERET_GRID["tp"]:
+                            for sl in DERET_GRID["sl"]:
+                                if not _sweep_status["running"]:
+                                    break
+                                _sweep_status["progress"] = f"{pair} {tf} deret buf={buf} tp={tp} sl={sl}"
+
+                                try:
+                                    result = _backtest_deret_1m(
+                                        rows, sub_lookup, pair, tf,
+                                        window=window, buffer_pct=buf, tp_pct=tp, sl_pct=sl,
+                                        position_usd=position_usd, leverage=leverage,
+                                    )
+                                    _process_sweep_result(result, pair, tf, "deret", window, buf, tp, sl)
+                                except Exception as ex:
+                                    _log(f"  ❌ deret {pair} {tf} buf={buf} tp={tp} sl={sl}: {str(ex)[:100]}")
+
+                                _sweep_status["completed_combos"] += 1
+
+                # ── Sweep B: Open Entry ──
+                if do_open:
+                    _sweep_status["current_mode"] = "open"
+                    for tp in OPEN_GRID["tp"]:
+                        for sl in OPEN_GRID["sl"]:
+                            if not _sweep_status["running"]:
+                                break
+                            _sweep_status["progress"] = f"{pair} {tf} open tp={tp} sl={sl}"
+
+                            try:
+                                result = _backtest_open_1m(
+                                    rows, sub_lookup, pair, tf,
+                                    window=window, tp_pct=tp, sl_pct=sl,
+                                    position_usd=position_usd, leverage=leverage,
+                                )
+                                _process_sweep_result(result, pair, tf, "open", window, 0, tp, sl)
+                            except Exception as ex:
+                                _log(f"  ❌ open {pair} {tf} tp={tp} sl={sl}: {str(ex)[:100]}")
+
+                            _sweep_status["completed_combos"] += 1
+
+                _log(f"  ✅ {pair} {tf} done — winners so far: {_sweep_status['winners']}")
+
+        _sweep_status["running"] = False
+        _sweep_status["finished_at"] = datetime.now().isoformat()
+        _sweep_status["progress"] = "DONE"
+        _log(f"🏁 Sweep complete! {_sweep_status['winners']} winners from {_sweep_status['completed_combos']} combos")
+
+    _sweep_thread = threading.Thread(target=_run, daemon=True)
+    _sweep_thread.start()
+
+    return {"ok": True, "message": f"Sweep started: {total} combos", "total": total}
+
+
+def stop_sweep_engine():
+    _sweep_status["running"] = False
+    return {"ok": True, "message": "Stop signal sent"}
+
+
+def get_sweep_status():
+    return dict(_sweep_status)
+
+
+# ────────────────────────────────────────
+# DERET ENTRY BACKTEST (1m resolution)
+# ────────────────────────────────────────
+
+def _backtest_deret_1m(
+    rows, sub_lookup, symbol, timeframe,
+    window=10, buffer_pct=0.8, tp_pct=1.0, sl_pct=0.5,
+    position_usd=100, leverage=50,
+):
+    """
+    Full backtest for Deret Entry mode using 1m sub-candle resolution.
+    Direction-aware: only trade in direction where first_extreme gives edge per hour.
+    Sequential constraint: 1 position at a time, max_hold=4 candles.
+    """
+    n = len(rows)
+    opens  = [r[0] for r in rows]
+    highs  = [r[1] for r in rows]
+    lows   = [r[2] for r in rows]
+    closes = [r[3] for r in rows]
+    times  = [r[5] for r in rows]
+
+    close_ratios = [closes[i] / closes[i-1] if closes[i-1] != 0 else 1.0 for i in range(1, n)]
+    high_ratios  = [highs[i] / highs[i-1] if highs[i-1] != 0 else 1.0 for i in range(1, n)]
+    low_ratios   = [lows[i] / lows[i-1] if lows[i-1] != 0 else 1.0 for i in range(1, n)]
+
+    tf_ms_map = {"1m": 60000, "3m": 180000, "5m": 300000, "15m": 900000, "1h": 3600000, "4h": 14400000}
+    parent_ms = tf_ms_map.get(timeframe, 3600000)
+
+    notional = position_usd * leverage
+    fee_per_trade = notional * FEE_PCT / 100
+
+    trades = []
+    position_busy_until = 0
+
+    for i in range(window, len(close_ratios)):
+        if i + 1 >= n:
+            break
+        if i + 1 < position_busy_until:
+            continue
+
+        # Predicted range
+        avg_h = sum(high_ratios[i-window:i]) / window
+        avg_l = sum(low_ratios[i-window:i]) / window
+
+        pred_high = highs[i] * avg_h
+        pred_low  = lows[i] * avg_l
+
+        entry_long  = pred_low * (1 - buffer_pct / 100)
+        entry_short = pred_high * (1 + buffer_pct / 100)
+        tp_long     = entry_long * (1 + tp_pct / 100)
+        tp_short    = entry_short * (1 - tp_pct / 100)
+        sl_long     = entry_long * (1 - sl_pct / 100)
+        sl_short    = entry_short * (1 + sl_pct / 100)
+
+        candle_time = times[i + 1]
+        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
+        hour_utc = dt.hour
+
+        # Walk across max_hold candles using 1m resolution
+        trade_result = None
+        for k in range(MAX_HOLD):
+            ci = i + 1 + k
+            if ci >= n:
+                break
+
+            parent_ts = (times[ci] // parent_ms) * parent_ms
+            subs = sub_lookup.get(parent_ts, [])
+            if not subs:
+                continue
+
+            for sc in subs:
+                # ── Try LONG ──
+                if trade_result is None:
+                    # Check entry fill
+                    if sc["l"] <= entry_long:
+                        # Entry filled — now walk remaining subs for TP/SL
+                        trade_result = _walk_after_entry(
+                            subs, subs.index(sc) if sc in subs else 0,
+                            sub_lookup, times, parent_ms, ci, n,
+                            side="LONG", entry=entry_long,
+                            tp_price=tp_long, sl_price=sl_long,
+                            max_hold=MAX_HOLD, hold_start=k,
+                        )
+                        if trade_result:
+                            trade_result["side"] = "LONG"
+                            trade_result["hour_utc"] = hour_utc
+                            trade_result["candle_time"] = candle_time
+                        break
+
+                    # Check SHORT entry fill
+                    if sc["h"] >= entry_short:
+                        trade_result = _walk_after_entry(
+                            subs, subs.index(sc) if sc in subs else 0,
+                            sub_lookup, times, parent_ms, ci, n,
+                            side="SHORT", entry=entry_short,
+                            tp_price=tp_short, sl_price=sl_short,
+                            max_hold=MAX_HOLD, hold_start=k,
+                        )
+                        if trade_result:
+                            trade_result["side"] = "SHORT"
+                            trade_result["hour_utc"] = hour_utc
+                            trade_result["candle_time"] = candle_time
+                        break
+
+            if trade_result:
+                break
+
+        if trade_result is None:
+            continue
+
+        # Calculate PnL
+        if trade_result["side"] == "LONG":
+            pnl_pct = (trade_result["exit_price"] - entry_long) / entry_long * 100
+        else:
+            pnl_pct = (entry_short - trade_result["exit_price"]) / entry_short * 100
+
+        pnl_dollar = notional * pnl_pct / 100 - fee_per_trade
+        trade_result["pnl_pct"] = round(pnl_pct, 4)
+        trade_result["pnl_dollar"] = round(pnl_dollar, 2)
+        trade_result["win"] = pnl_dollar > 0
+        trades.append(trade_result)
+
+        # Sequential constraint
+        hold_candles = trade_result.get("hold_candles", 1)
+        position_busy_until = i + 1 + hold_candles + 1
+
+    return _compile_backtest_result(trades, symbol, timeframe, "deret", window, buffer_pct, tp_pct, sl_pct)
+
+
+def _walk_after_entry(
+    current_subs, entry_sc_idx,
+    sub_lookup, times, parent_ms, current_ci, n,
+    side, entry, tp_price, sl_price,
+    max_hold, hold_start,
+):
+    """After entry fills, walk remaining 1m candles to find TP or SL."""
+    # Walk remaining subs in current candle
+    for sc in current_subs[entry_sc_idx + 1:]:
+        if side == "LONG":
+            if sc["h"] >= tp_price:
+                return {"exit_price": tp_price, "exit_reason": "TP", "hold_candles": hold_start + 1}
+            if sc["l"] <= sl_price:
+                return {"exit_price": sl_price, "exit_reason": "SL", "hold_candles": hold_start + 1}
+        else:  # SHORT
+            if sc["l"] <= tp_price:
+                return {"exit_price": tp_price, "exit_reason": "TP", "hold_candles": hold_start + 1}
+            if sc["h"] >= sl_price:
+                return {"exit_price": sl_price, "exit_reason": "SL", "hold_candles": hold_start + 1}
+
+    # Walk subsequent candles
+    for k in range(hold_start + 1, max_hold):
+        ci = current_ci - hold_start + k
+        if ci >= n:
+            break
+        parent_ts = (times[ci] // parent_ms) * parent_ms
+        subs = sub_lookup.get(parent_ts, [])
+        for sc in subs:
+            if side == "LONG":
+                if sc["h"] >= tp_price:
+                    return {"exit_price": tp_price, "exit_reason": "TP", "hold_candles": k + 1}
+                if sc["l"] <= sl_price:
+                    return {"exit_price": sl_price, "exit_reason": "SL", "hold_candles": k + 1}
+            else:
+                if sc["l"] <= tp_price:
+                    return {"exit_price": tp_price, "exit_reason": "TP", "hold_candles": k + 1}
+                if sc["h"] >= sl_price:
+                    return {"exit_price": sl_price, "exit_reason": "SL", "hold_candles": k + 1}
+
+    # Force close at last candle close
+    last_ci = min(current_ci - hold_start + max_hold - 1, n - 1)
+    return {"exit_price": entry, "exit_reason": "CLOSE", "hold_candles": max_hold}
+
+
+# ────────────────────────────────────────
+# OPEN ENTRY BACKTEST (1m resolution)
+# ────────────────────────────────────────
+
+def _backtest_open_1m(
+    rows, sub_lookup, symbol, timeframe,
+    window=10, tp_pct=0.5, sl_pct=0.5,
+    position_usd=100, leverage=50,
+):
+    """
+    Backtest Open Entry mode: entry at candle open, direction from first_extreme stats.
+    Walk 1m to determine TP or SL hit order.
+    """
+    n = len(rows)
+    opens  = [r[0] for r in rows]
+    highs  = [r[1] for r in rows]
+    lows   = [r[2] for r in rows]
+    closes = [r[3] for r in rows]
+    times  = [r[5] for r in rows]
+
+    close_ratios = [closes[i] / closes[i-1] if closes[i-1] != 0 else 1.0 for i in range(1, n)]
+    high_ratios  = [highs[i] / highs[i-1] if highs[i-1] != 0 else 1.0 for i in range(1, n)]
+    low_ratios   = [lows[i] / lows[i-1] if lows[i-1] != 0 else 1.0 for i in range(1, n)]
+
+    tf_ms_map = {"1m": 60000, "3m": 180000, "5m": 300000, "15m": 900000, "1h": 3600000, "4h": 14400000}
+    parent_ms = tf_ms_map.get(timeframe, 3600000)
+
+    notional = position_usd * leverage
+    fee_per_trade = notional * FEE_PCT / 100
+
+    # First pass: compute first_extreme per hour to determine direction
+    hour_stats = defaultdict(lambda: {"high": 0, "low": 0, "total": 0})
+    for i in range(window, len(close_ratios)):
+        if i + 1 >= n:
+            break
+        candle_time = times[i + 1]
+        parent_ts = (candle_time // parent_ms) * parent_ms
+        subs = sub_lookup.get(parent_ts, [])
+        if not subs:
+            continue
+
+        avg_h = sum(high_ratios[i-window:i]) / window
+        avg_l = sum(low_ratios[i-window:i]) / window
+        pred_high = highs[i] * avg_h
+        pred_low  = lows[i] * avg_l
+
+        min_ph, min_pl = None, None
+        for sc_idx, sc in enumerate(subs):
+            if min_ph is None and sc["h"] >= pred_high:
+                min_ph = sc_idx
+            if min_pl is None and sc["l"] <= pred_low:
+                min_pl = sc_idx
+            if min_ph is not None and min_pl is not None:
+                break
+
+        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
+        h = dt.hour
+        hour_stats[h]["total"] += 1
+        if min_ph is not None and min_pl is not None:
+            if min_ph < min_pl:
+                hour_stats[h]["high"] += 1
+            else:
+                hour_stats[h]["low"] += 1
+        elif min_ph is not None:
+            hour_stats[h]["high"] += 1
+        elif min_pl is not None:
+            hour_stats[h]["low"] += 1
+
+    # Determine direction per hour (need ≥5% edge)
+    hour_direction = {}
+    for h, s in hour_stats.items():
+        if s["total"] < 20:
+            hour_direction[h] = "SKIP"
+            continue
+        high_pct = s["high"] / s["total"] * 100
+        low_pct = s["low"] / s["total"] * 100
+        edge = abs(high_pct - low_pct)
+        if edge < 5:
+            hour_direction[h] = "SKIP"
+        elif high_pct > low_pct:
+            hour_direction[h] = "SHORT"  # high first = short opportunity
+        else:
+            hour_direction[h] = "LONG"   # low first = long opportunity
+
+    # Second pass: backtest with direction
+    trades = []
+    for i in range(window, len(close_ratios)):
+        if i + 1 >= n:
+            break
+        candle_time = times[i + 1]
+        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
+        hour_utc = dt.hour
+
+        direction = hour_direction.get(hour_utc, "SKIP")
+        if direction == "SKIP":
+            continue
+
+        candle_open = opens[i + 1]
+        parent_ts = (candle_time // parent_ms) * parent_ms
+        subs = sub_lookup.get(parent_ts, [])
+        if not subs:
+            continue
+
+        if direction == "LONG":
+            tp_price = candle_open * (1 + tp_pct / 100)
+            sl_price = candle_open * (1 - sl_pct / 100)
+        else:  # SHORT
+            tp_price = candle_open * (1 - tp_pct / 100)
+            sl_price = candle_open * (1 + sl_pct / 100)
+
+        # Walk 1m — which hits first?
+        exit_price = None
+        exit_reason = None
+        for sc in subs:
+            if direction == "LONG":
+                if sc["h"] >= tp_price:
+                    exit_price = tp_price; exit_reason = "TP"; break
+                if sc["l"] <= sl_price:
+                    exit_price = sl_price; exit_reason = "SL"; break
+            else:
+                if sc["l"] <= tp_price:
+                    exit_price = tp_price; exit_reason = "TP"; break
+                if sc["h"] >= sl_price:
+                    exit_price = sl_price; exit_reason = "SL"; break
+
+        if exit_reason is None:
+            exit_price = closes[i + 1]
+            exit_reason = "CLOSE"
+
+        if direction == "LONG":
+            pnl_pct = (exit_price - candle_open) / candle_open * 100
+        else:
+            pnl_pct = (candle_open - exit_price) / candle_open * 100
+
+        pnl_dollar = notional * pnl_pct / 100 - fee_per_trade
+
+        trades.append({
+            "side": direction,
+            "hour_utc": hour_utc,
+            "candle_time": candle_time,
+            "exit_price": exit_price,
+            "exit_reason": exit_reason,
+            "pnl_pct": round(pnl_pct, 4),
+            "pnl_dollar": round(pnl_dollar, 2),
+            "win": pnl_dollar > 0,
+            "hold_candles": 1,
+        })
+
+    return _compile_backtest_result(trades, symbol, timeframe, "open", window, 0, tp_pct, sl_pct)
+
+
+# ────────────────────────────────────────
+# BACKTEST RESULT COMPILATION + STABILITY
+# ────────────────────────────────────────
+
+def _compile_backtest_result(trades, symbol, timeframe, mode, window, buffer_pct, tp_pct, sl_pct):
+    """Compile trades into result dict with stability metrics."""
+    total_trades = len(trades)
+    if total_trades == 0:
+        return {
+            "symbol": symbol, "timeframe": timeframe, "mode": mode,
+            "window": window, "buffer_pct": buffer_pct, "tp_pct": tp_pct, "sl_pct": sl_pct,
+            "total_trades": 0, "win_rate": 0, "profit_per_day": 0,
+            "pass_quality": False,
+        }
+
+    wins = sum(1 for t in trades if t["win"])
+    wr = wins / total_trades * 100
+    total_pnl = sum(t["pnl_dollar"] for t in trades)
+
+    # Period in days
+    if len(trades) >= 2:
+        first_ts = trades[0]["candle_time"]
+        last_ts = trades[-1]["candle_time"]
+        period_days = max((last_ts - first_ts) / 86400000, 1)
+    else:
+        period_days = 1
+    ppd = total_pnl / period_days
+
+    # Max drawdown
+    equity = 0
+    peak = 0
+    max_dd = 0
+    for t in trades:
+        equity += t["pnl_dollar"]
+        if equity > peak:
+            peak = equity
+        dd = peak - equity
+        if dd > max_dd:
+            max_dd = dd
+
+    avg_pnl = total_pnl / total_trades
+
+    # ── Stability metrics ──
+    # Weekly WR
+    week_buckets = defaultdict(lambda: {"w": 0, "l": 0})
+    for t in trades:
+        week_key = int(t["candle_time"] // (7 * 86400000))
+        if t["win"]:
+            week_buckets[week_key]["w"] += 1
+        else:
+            week_buckets[week_key]["l"] += 1
+
+    weekly_wrs = []
+    for wk in week_buckets.values():
+        tot = wk["w"] + wk["l"]
+        if tot >= 2:  # need at least 2 trades per week to count
+            weekly_wrs.append(wk["w"] / tot * 100)
+
+    min_weekly_wr = min(weekly_wrs) if weekly_wrs else 0
+    consistency_pct = (sum(1 for w in weekly_wrs if w >= 50) / len(weekly_wrs) * 100) if weekly_wrs else 0
+
+    # Worst loss streak
+    worst_streak = 0
+    current_streak = 0
+    for t in trades:
+        if not t["win"]:
+            current_streak += 1
+            worst_streak = max(worst_streak, current_streak)
+        else:
+            current_streak = 0
+
+    # Walk-forward: train on first 80%, test on last 20%
+    split = int(total_trades * 0.8)
+    if split > 10 and total_trades - split > 5:
+        train_wins = sum(1 for t in trades[:split] if t["win"])
+        test_wins = sum(1 for t in trades[split:] if t["win"])
+        train_wr = train_wins / split * 100
+        test_wr = test_wins / (total_trades - split) * 100
+        wf_ratio = test_wr / train_wr if train_wr > 0 else 0
+    else:
+        train_wr = wr
+        test_wr = wr
+        wf_ratio = 1.0
+
+    # Per-hour breakdown
+    hour_stats = defaultdict(lambda: {"wins": 0, "total": 0, "pnl": 0})
+    for t in trades:
+        h = t["hour_utc"]
+        hour_stats[h]["total"] += 1
+        hour_stats[h]["pnl"] += t["pnl_dollar"]
+        if t["win"]:
+            hour_stats[h]["wins"] += 1
+
+    per_hour = {}
+    for h, s in sorted(hour_stats.items()):
+        per_hour[str(h)] = {
+            "trades": s["total"],
+            "wr": round(s["wins"] / s["total"] * 100, 1) if s["total"] > 0 else 0,
+            "pnl": round(s["pnl"], 2),
+            "direction": trades[0]["side"] if trades else "?",
+        }
+
+    # Quality gate
+    pass_quality = (
+        total_trades >= MIN_TRADES
+        and wr >= MIN_WR
+        and ppd >= MIN_PPD
+    )
+
+    # Stability gate
+    pass_stability = (
+        min_weekly_wr >= MIN_WEEKLY_WR
+        and worst_streak <= MAX_WORST_STREAK
+        and consistency_pct >= MIN_CONSISTENCY
+        and wf_ratio >= MIN_WALK_FORWARD
+    )
+
+    # Confidence score (4 factors, no ATR)
+    confidence = 0
+    # 1. Pattern dominance proxy: WR distance from 50% (35%)
+    confidence += min((wr - 50) / 25 * 35, 35) if wr > 50 else 0
+    # 2. Backtest WR (25%)
+    confidence += min(wr / 80 * 25, 25)
+    # 3. Walk-forward (25%)
+    confidence += min(wf_ratio / 1.0 * 25, 25) if wf_ratio > 0 else 0
+    # 4. Recent consistency (15%)
+    confidence += min(consistency_pct / 80 * 15, 15)
+    confidence = round(min(confidence, 100), 1)
+
+    return {
+        "symbol": symbol, "timeframe": timeframe, "mode": mode,
+        "window": window, "buffer_pct": buffer_pct, "tp_pct": tp_pct, "sl_pct": sl_pct,
+        "total_trades": total_trades, "wins": wins,
+        "win_rate": round(wr, 1),
+        "total_pnl": round(total_pnl, 2),
+        "profit_per_day": round(ppd, 2),
+        "max_drawdown": round(max_dd, 2),
+        "avg_pnl_per_trade": round(avg_pnl, 2),
+        "min_weekly_wr": round(min_weekly_wr, 1),
+        "worst_streak": worst_streak,
+        "consistency_pct": round(consistency_pct, 1),
+        "train_wr": round(train_wr, 1),
+        "test_wr": round(test_wr, 1),
+        "walk_forward_ratio": round(wf_ratio, 2),
+        "confidence_score": confidence,
+        "pass_quality": pass_quality,
+        "pass_stability": pass_stability,
+        "per_hour": per_hour,
+    }
+
+
+def _process_sweep_result(result, symbol, timeframe, mode, window, buffer_pct, tp_pct, sl_pct):
+    """Check if result passes gates, save to D1 if winner."""
+    if not result or result["total_trades"] == 0:
+        return
+
+    wr = result["win_rate"]
+    ppd = result["profit_per_day"]
+    passes = result.get("pass_quality", False)
+
+    if passes:
+        _log(f"  🏆 WINNER: {mode} {symbol} {timeframe} buf={buffer_pct} tp={tp_pct} sl={sl_pct} → WR={wr}% PPD=${ppd} conf={result['confidence_score']}")
+        _sweep_status["winners"] += 1
+        _sweep_status["results_summary"].append({
+            "symbol": symbol, "timeframe": timeframe, "mode": mode,
+            "buffer_pct": buffer_pct, "tp_pct": tp_pct, "sl_pct": sl_pct,
+            "win_rate": wr, "ppd": ppd, "trades": result["total_trades"],
+            "confidence": result["confidence_score"],
+            "pass_stability": result.get("pass_stability", False),
+        })
+
+        # Save to D1
+        _save_strategy_to_d1(result)
+
+
+def _save_strategy_to_d1(result):
+    """Save winning strategy to D1 tick_strategies table."""
+    try:
+        payload = {
+            "symbol": result["symbol"],
+            "timeframe": result["timeframe"],
+            "mode": result["mode"],
+            "direction": "BOTH",  # will be refined per-hour in future
+            "entry_level": "pred_low" if result["mode"] == "deret" else "open",
+            "exit_tp_level": "tp_long",
+            "exit_sl_level": "sl_long",
+            "window": result["window"],
+            "buffer_pct": result["buffer_pct"],
+            "tp_pct": result["tp_pct"],
+            "sl_pct": result["sl_pct"],
+            "win_rate": result["win_rate"],
+            "total_trades": result["total_trades"],
+            "profit_per_day": result["profit_per_day"],
+            "max_drawdown": result["max_drawdown"],
+            "avg_pnl_per_trade": result["avg_pnl_per_trade"],
+            "min_weekly_wr": result["min_weekly_wr"],
+            "worst_streak": result["worst_streak"],
+            "consistency_pct": result["consistency_pct"],
+            "train_wr": result["train_wr"],
+            "test_wr": result["test_wr"],
+            "walk_forward_ratio": result["walk_forward_ratio"],
+            "confidence_score": result["confidence_score"],
+            "status": "candidate",
+            "per_hour": json.dumps(result.get("per_hour", {})),
+        }
+        resp = requests.post(
+            f"{WORKER_URL}/tick/save-strategy",
+            json=payload,
+            timeout=15,
+        )
+        if not resp.ok:
+            _log(f"  ⚠️ D1 save strategy failed: {resp.status_code}")
+    except Exception as ex:
+        _log(f"  ⚠️ D1 save strategy error: {str(ex)[:100]}")
 
 
 # ════════════════════════════════════════════════════════════
