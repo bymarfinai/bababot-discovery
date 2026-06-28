@@ -25,6 +25,7 @@ from tick_discovery import (
         extract_tick_events, analyze_tick_stats,
         start_sweep_engine, stop_sweep_engine, get_sweep_status,
         profile_winning_combo,
+        cluster_levels, _load_data as td_load_data, DB_PATH as TD_DB_PATH,
     )
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -2011,6 +2012,27 @@ def tick_sweep_stop():
 @app.get("/tick/sweep-status")
 def tick_sweep_status():
     return get_sweep_status()
+
+@app.get("/tick/cluster")
+def tick_cluster(
+    symbol: str = "DOGEUSDT",
+    timeframe: str = "4h",
+    window: int = 10,
+    days: int = 1825,
+):
+    """Run clustering analysis for a single pair×tf (standalone, outside sweep)."""
+    rows, sub_lookup = td_load_data(TD_DB_PATH, symbol, timeframe, "1m")
+    if len(rows) < window + 20:
+        return {"error": "insufficient data", "rows": len(rows)}
+    if days and days > 0:
+        ms_limit = days * 86400 * 1000
+        last_time = rows[-1][5]
+        rows = [r for r in rows if r[5] >= last_time - ms_limit]
+    return cluster_levels(
+        rows, sub_lookup, symbol, timeframe,
+        window=window, days=days, save_to_d1=True,
+    )
+
 @app.get("/tick/profile")
 def tick_profile(
     symbol: str = "DOGEUSDT",
