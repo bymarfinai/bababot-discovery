@@ -21,10 +21,11 @@ from baret_bot import start_baret, stop_baret, baret_status, get_baret_log
 from baret_live import start_baret_live, stop_baret_live, baret_live_status, get_baret_live_log, close_position, close_all_positions, start_account_bot, stop_account_bot, account_bot_status
 from ultron_engine import ultron_status, get_ultron_log, manual_analyze, clear_pair_skip, clear_hour_skip, clear_buffer_adjustment
 from tick_discovery import (
-    start_tick_discovery, stop_tick_discovery, get_discovery_status, get_discovery_log,
-    extract_tick_events, analyze_tick_stats,
-    start_sweep_engine, stop_sweep_engine, get_sweep_status,
-)
+        start_tick_discovery, stop_tick_discovery, get_discovery_status, get_discovery_log,
+        extract_tick_events, analyze_tick_stats,
+        start_sweep_engine, stop_sweep_engine, get_sweep_status,
+        profile_winning_combo,
+    )
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 security = HTTPBearer(auto_error=False)
@@ -2010,3 +2011,20 @@ def tick_sweep_stop():
 @app.get("/tick/sweep-status")
 def tick_sweep_status():
     return get_sweep_status()
+@app.get("/tick/profile")
+def tick_profile(
+    symbol: str = "DOGEUSDT",
+    timeframe: str = "4h",
+    window: int = 10,
+    buffer_pct: float = 2.0,
+    tp_pct: float = 1.0,
+    sl_pct: float = 2.0,
+    buffer2_pct: float = 1.5,
+    close_filter_pct: float = 0,
+    days: int = 1825,
+):
+    return profile_winning_combo(
+        symbol=symbol, timeframe=timeframe, window=window,
+        buffer_pct=buffer_pct, tp_pct=tp_pct, sl_pct=sl_pct,
+        buffer2_pct=buffer2_pct, close_filter_pct=close_filter_pct, days=days,
+    )
