@@ -2222,3 +2222,318 @@ def test_close_position(symbol: str = "DOGEUSDT", timeframe: str = "4h", window:
             "description": "close_position < 0.30 → HIGH_FIRST, close_position > 0.70 → LOW_FIRST",
         }
     }
+"""
+Paste di PALING BAWAH app.py (setelah test-close-position endpoint)
+Backtest Open Entry pakai close_position sebagai direction signal
+"""
+
+@app.get("/tick/backtest-close-position")
+def backtest_close_position(
+    symbol: str = "DOGEUSDT",
+    timeframe: str = "4h",
+    window: int = 10,
+    days: int = 1825,
+    tp_pct: float = 0.5,
+    sl_pct: float = 0.5,
+    long_threshold: float = 0.70,
+    short_threshold: float = 0.30,
+    position_usd: float = 100,
+    leverage: int = 50,
+):
+    import sqlite3
+    from collections import defaultdict
+    from datetime import datetime, timezone
+
+    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+
+    rows = conn.execute("""
+        SELECT open, high, low, close, volume, open_time
+        FROM klines WHERE symbol = ? AND timeframe = ?
+        ORDER BY open_time ASC
+    """, (symbol, timeframe)).fetchall()
+
+    sub_rows = conn.execute("""
+        SELECT open, high, low, close, open_time
+        FROM klines WHERE symbol = ? AND timeframe = '1m'
+        ORDER BY open_time ASC
+    """, (symbol,)).fetchall()
+    conn.close()
+
+    if not rows or not sub_rows:
+        return {"error": "no data"}
+
+    tf_ms = {"15m": 900000, "1h": 3600000, "4h": 14400000}
+    parent_ms = tf_ms.get(timeframe, 14400000)
+
+    sub_groups = defaultdict(list)
+    for sr in sub_rows:
+        pt = (sr[4] // parent_ms) * parent_ms
+        sub_groups[pt].append({"o": sr[0], "h": sr[1], "l": sr[2], "c": sr[3]})
+
+    n = len(rows)
+    opens = [r[0] for r in rows]
+    highs = [r[1] for r in rows]
+    lows = [r[2] for r in rows]
+    closes = [r[3] for r in rows]
+    times = [r[5] for r in rows]
+
+    close_ratios = [closes[i] / closes[i-1] if closes[i-1] != 0 else 1.0 for i in range(1, n)]
+    high_ratios = [highs[i] / highs[i-1] if highs[i-1] != 0 else 1.0 for i in range(1, n)]
+    low_ratios = [lows[i] / lows[i-1] if lows[i-1] != 0 else 1.0 for i in range(1, n)]
+
+    notional = position_usd * leverage
+    fee = notional * 0.07 / 100  # 0.07% roundtrip
+
+    trades = []
+
+    for i in range(window, len(close_ratios)):
+        if i + 1 >= n:
+            break
+
+        # Predicted range
+        avg_h = sum(high_ratios[i-window:i]) / window
+        avg_l = sum(low_ratios[i-window:i]) / window
+        avg_c = sum(close_ratios[i-window:i]) / window
+
+        pred_high = highs[i] * avg_h
+        pred_low = lows[i] * avg_l
+        pred_close = closes[i] * avg_c
+
+        pred_range = pred_high - pred_low
+        if pred_range <= 0:
+            continue
+
+        close_position = (pred_close - pred_low) / pred_range
+
+        # Direction from close_position
+        if close_position >= long_threshold:
+            direction = "LONG"
+        elif close_position <= short_threshold:
+            direction = "SHORT"
+        else:
+            continue  # SKIP
+
+        # Entry at open of next candle
+        candle_time = times[i + 1]
+        candle_open = opens[i + 1]
+        parent_ts = (candle_time // parent_ms) * parent_ms
+        subs = sub_groups.get(parent_ts, [])
+        if not subs:
+            continue
+
+        # TP / SL prices
+        if direction == "LONG":
+            tp_price = candle_open * (1 + tp_pct / 100)
+            sl_price = candle_open * (1 - sl_pct / 100)
+        else:
+            tp_price = candle_open * (1 - tp_pct / 100)
+            sl_price = candle_open * (1 + sl_pct / 100)
+
+        # Walk 1m — which hits first?
+        exit_price = None
+        exit_reason = None
+        exit_minute = 0
+        for sc_idx, sc in enumerate(subs):
+            if direction == "LONG":
+                if sc["h"] >= tp_price:
+                    exit_price = tp_price; exit_reason = "TP"; exit_minute = sc_idx; break
+                if sc["l"] <= sl_price:
+                    exit_price = sl_price; exit_reason = "SL"; exit_minute = sc_idx; break
+            else:
+                if sc["l"] <= tp_price:
+                    exit_price = tp_price; exit_reason = "TP"; exit_minute = sc_idx; break
+                if sc["h"] >= sl_price:
+                    exit_price = sl_price; exit_reason = "SL"; exit_minute = sc_idx; break
+
+        if exit_reason is None:
+            exit_price = closes[i + 1]
+            exit_reason = "CLOSE"
+            exit_minute = len(subs)
+
+        if direction == "LONG":
+            pnl_pct = (exit_price - candle_open) / candle_open * 100
+        else:
+            pnl_pct = (candle_open - exit_price) / candle_open * 100
+
+        pnl_dollar = notional * pnl_pct / 100 - fee
+
+        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
+
+        trades.append({
+            "win": pnl_dollar > 0,
+            "pnl": round(pnl_dollar, 2),
+            "side": direction,
+            "exit_reason": exit_reason,
+            "exit_minute": exit_minute,
+            "close_position": round(close_position, 3),
+            "hour_utc": dt.hour,
+            "day_of_week": dt.weekday(),
+        })
+
+    # ── Compile results ──
+    if not trades:
+        return {"error": "no trades"}
+
+    total = len(trades)
+    wins = sum(1 for t in trades if t["win"])
+    wr = round(wins / total * 100, 1)
+    total_pnl = round(sum(t["pnl"] for t in trades), 2)
+
+    first_ts = times[window + 1]
+    last_ts = times[-1]
+    period_days = max((last_ts - first_ts) / 86400000, 1)
+    ppd = round(total_pnl / period_days, 2)
+    trades_per_day = round(total / period_days, 2)
+
+    # Per direction
+    longs = [t for t in trades if t["side"] == "LONG"]
+    shorts = [t for t in trades if t["side"] == "SHORT"]
+
+    # Per hour
+    hour_stats = defaultdict(lambda: {"w": 0, "t": 0, "pnl": 0})
+    for t in trades:
+        h = t["hour_utc"]
+        hour_stats[h]["t"] += 1
+        hour_stats[h]["pnl"] += t["pnl"]
+        if t["win"]:
+            hour_stats[h]["w"] += 1
+
+    per_hour = {}
+    for h, s in sorted(hour_stats.items()):
+        per_hour[str(h)] = {
+            "trades": s["t"],
+            "wr": round(s["w"] / s["t"] * 100, 1) if s["t"] > 0 else 0,
+            "pnl": round(s["pnl"], 2),
+        }
+
+    # Per close_position bucket
+    cp_stats = defaultdict(lambda: {"w": 0, "t": 0, "pnl": 0})
+    for t in trades:
+        cp = t["close_position"]
+        if cp >= 0.85:
+            b = "85-100"
+        elif cp >= 0.70:
+            b = "70-85"
+        elif cp <= 0.15:
+            b = "0-15"
+        elif cp <= 0.30:
+            b = "15-30"
+        else:
+            b = "30-70"
+        cp_stats[b]["t"] += 1
+        cp_stats[b]["pnl"] += t["pnl"]
+        if t["win"]:
+            cp_stats[b]["w"] += 1
+
+    per_bucket = {}
+    for b, s in cp_stats.items():
+        per_bucket[b] = {
+            "trades": s["t"],
+            "wr": round(s["w"] / s["t"] * 100, 1) if s["t"] > 0 else 0,
+            "pnl": round(s["pnl"], 2),
+        }
+
+    # Exit reason
+    tp_trades = [t for t in trades if t["exit_reason"] == "TP"]
+    sl_trades = [t for t in trades if t["exit_reason"] == "SL"]
+    close_trades = [t for t in trades if t["exit_reason"] == "CLOSE"]
+
+    # Timing
+    tp_minutes = [t["exit_minute"] for t in tp_trades]
+    sl_minutes = [t["exit_minute"] for t in sl_trades]
+
+    # Max DD
+    equity = 0
+    peak = 0
+    max_dd = 0
+    for t in trades:
+        equity += t["pnl"]
+        if equity > peak:
+            peak = equity
+        dd = peak - equity
+        if dd > max_dd:
+            max_dd = dd
+
+    # Weekly WR
+    week_wrs = defaultdict(lambda: {"w": 0, "l": 0})
+    for idx, t in enumerate(trades):
+        wk = idx // 42  # ~42 trades per week estimate
+        if t["win"]:
+            week_wrs[wk]["w"] += 1
+        else:
+            week_wrs[wk]["l"] += 1
+
+    weekly_wr_list = []
+    for wk in week_wrs.values():
+        tot = wk["w"] + wk["l"]
+        if tot >= 2:
+            weekly_wr_list.append(round(wk["w"] / tot * 100, 1))
+
+    # Walk-forward
+    split = int(total * 0.8)
+    train_wr = round(sum(1 for t in trades[:split] if t["win"]) / split * 100, 1) if split > 0 else 0
+    test_wr = round(sum(1 for t in trades[split:] if t["win"]) / (total - split) * 100, 1) if total > split else 0
+    wf_ratio = round(test_wr / train_wr, 2) if train_wr > 0 else 0
+
+    # Worst streak
+    worst_streak = 0
+    streak = 0
+    for t in trades:
+        if not t["win"]:
+            streak += 1
+            worst_streak = max(worst_streak, streak)
+        else:
+            streak = 0
+
+    return {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "config": {
+            "tp_pct": tp_pct, "sl_pct": sl_pct,
+            "long_threshold": long_threshold, "short_threshold": short_threshold,
+            "window": window,
+        },
+        "results": {
+            "total_trades": total,
+            "wins": wins,
+            "losses": total - wins,
+            "win_rate": wr,
+            "total_pnl": total_pnl,
+            "profit_per_day": ppd,
+            "trades_per_day": trades_per_day,
+            "max_drawdown": round(max_dd, 2),
+        },
+        "direction_breakdown": {
+            "long": {
+                "trades": len(longs),
+                "wr": round(sum(1 for t in longs if t["win"]) / len(longs) * 100, 1) if longs else 0,
+                "pnl": round(sum(t["pnl"] for t in longs), 2),
+            },
+            "short": {
+                "trades": len(shorts),
+                "wr": round(sum(1 for t in shorts if t["win"]) / len(shorts) * 100, 1) if shorts else 0,
+                "pnl": round(sum(t["pnl"] for t in shorts), 2),
+            },
+        },
+        "per_bucket": per_bucket,
+        "per_hour": per_hour,
+        "exit_reasons": {
+            "TP": len(tp_trades),
+            "SL": len(sl_trades),
+            "CLOSE": len(close_trades),
+        },
+        "timing": {
+            "avg_tp_min": round(sum(tp_minutes) / len(tp_minutes), 1) if tp_minutes else 0,
+            "median_tp_min": sorted(tp_minutes)[len(tp_minutes)//2] if tp_minutes else 0,
+            "avg_sl_min": round(sum(sl_minutes) / len(sl_minutes), 1) if sl_minutes else 0,
+            "median_sl_min": sorted(sl_minutes)[len(sl_minutes)//2] if sl_minutes else 0,
+        },
+        "stability": {
+            "train_wr": train_wr,
+            "test_wr": test_wr,
+            "walk_forward_ratio": wf_ratio,
+            "worst_streak": worst_streak,
+            "p5_weekly_wr": round(sorted(weekly_wr_list)[max(0, int(len(weekly_wr_list)*0.05))], 1) if weekly_wr_list else 0,
+            "consistency_pct": round(sum(1 for w in weekly_wr_list if w >= 50) / len(weekly_wr_list) * 100, 1) if weekly_wr_list else 0,
+        },
+    }
