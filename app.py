@@ -24,6 +24,7 @@ from tick_discovery import (
         start_tick_discovery, stop_tick_discovery, get_discovery_status, get_discovery_log,
         extract_tick_events, analyze_tick_stats,
         start_sweep_engine, stop_sweep_engine, get_sweep_status,
+        pause_sweep_engine, resume_sweep_engine,
         profile_winning_combo,
         cluster_levels, _load_data as td_load_data, DB_PATH as TD_DB_PATH,
     )
@@ -2008,7 +2009,15 @@ def tick_sweep(
 @app.get("/tick/sweep-stop")
 def tick_sweep_stop():
     return stop_sweep_engine()
- 
+
+@app.get("/tick/sweep-pause")
+def tick_sweep_pause():
+    return pause_sweep_engine()
+
+@app.get("/tick/sweep-resume")
+def tick_sweep_resume():
+    return resume_sweep_engine()
+
 @app.get("/tick/sweep-status")
 def tick_sweep_status():
     return get_sweep_status()
