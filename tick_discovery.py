@@ -847,6 +847,25 @@ def start_sweep_engine(
 
                     _log(f"  ✅ Secondary sweep done — total winners: {_sweep_status['winners']}")
 
+                # ── Clustering: auto-run after sweep per pair×tf ──
+                if _sweep_status["running"]:
+                    _log(f"  📊 Running clustering {pair} {tf}...")
+                    try:
+                        cl_result = cluster_levels(
+                            rows, sub_lookup, pair, tf,
+                            window=window, days=days, save_to_d1=True,
+                        )
+                        if cl_result.get("status") == "ok":
+                            top = (cl_result.get("suggestions") or [None])[0]
+                            if top:
+                                _log(f"  📊 Top: {top['entry_name']} {top['entry_side']} "
+                                     f"TP={top['tp']}% SL={top['sl']}% WR={top['est_wr']}% "
+                                     f"consistency={top['consistency']}%")
+                            else:
+                                _log(f"  📊 Clustering done — no combos above threshold")
+                    except Exception as ex:
+                        _log(f"  ❌ Clustering error: {str(ex)[:100]}")
+
         _sweep_status["running"] = False
         _sweep_status["finished_at"] = datetime.now().isoformat()
         _sweep_status["progress"] = "DONE"
@@ -1903,6 +1922,496 @@ def profile_winning_combo(
 
     return profile
 
+
+"""
+cluster_levels() — Level Clustering Engine v2
+Insert into tick_discovery.py BEFORE _load_data() (line ~1907)
+"""
+
+# ════════════════════════════════════════════════════════════
+# CLUSTERING — Level Order & Timing Analysis (1m resolution)
+# ════════════════════════════════════════════════════════════
+
+_CL_TP_LEVELS = [0.5, 0.7, 1.0, 1.5, 2.0]
+_CL_SL_LEVELS = [0.5, 0.7, 1.0, 1.5, 2.0]
+_CL_BUFFERS = [0.1, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0]
+_CL_MAX_HOLD = {"15m": 4, "1h": 2, "4h": 1}
+_CL_TIMING_BUCKETS = {
+    "15m": [(0, 5, "under_5m"), (5, 15, "5m_15m"), (15, 30, "15m_30m"), (30, 60, "30m_60m")],
+    "1h":  [(0, 10, "under_10m"), (10, 30, "10m_30m"), (30, 60, "30m_60m"), (60, 120, "60m_120m")],
+    "4h":  [(0, 15, "under_15m"), (15, 60, "15m_60m"), (60, 120, "60m_120m"), (120, 240, "120m_240m")],
+}
+
+_CL_LEVEL_NAMES = (
+    [f"TP_{tp}" for tp in _CL_TP_LEVELS]
+    + [f"SL_{sl}" for sl in _CL_SL_LEVELS]
+    + ["pred_high", "pred_low", "pred_close", "candle_end"]
+)
+
+
+def _cl_entry_configs():
+    """Build 18 entry point configurations."""
+    cfgs = []
+    # LONG (9)
+    cfgs.append({"name": "open_long", "side": "LONG", "desc": "Open → LONG", "open": True, "buf": 0})
+    cfgs.append({"name": "pred_low", "side": "LONG", "desc": "Predicted low → LONG", "open": False, "buf": 0})
+    for b in _CL_BUFFERS:
+        cfgs.append({"name": f"pred_low_buf_{b}", "side": "LONG",
+                      "desc": f"pred_low - {b}% → LONG", "open": False, "buf": b})
+    # SHORT (9)
+    cfgs.append({"name": "open_short", "side": "SHORT", "desc": "Open → SHORT", "open": True, "buf": 0})
+    cfgs.append({"name": "pred_high", "side": "SHORT", "desc": "Predicted high → SHORT", "open": False, "buf": 0})
+    for b in _CL_BUFFERS:
+        cfgs.append({"name": f"pred_high_buf_{b}", "side": "SHORT",
+                      "desc": f"pred_high + {b}% → SHORT", "open": False, "buf": b})
+    return cfgs
+
+
+def cluster_levels(
+    rows, sub_lookup, symbol, timeframe,
+    window=10, days=1825, save_to_d1=True,
+):
+    """
+    Level Clustering with 1m resolution.
+    Tests 18 entry points × 14 levels. Records hit rates, timing distributions,
+    order distributions, hit_before_sl rates, stability, and auto-suggestions.
+    """
+    n = len(rows)
+    if n < window + 20:
+        return {"status": "insufficient_data", "candles": n}
+
+    opens  = [r[0] for r in rows]
+    highs  = [r[1] for r in rows]
+    lows   = [r[2] for r in rows]
+    closes = [r[3] for r in rows]
+    times  = [r[5] for r in rows]
+
+    close_ratios = [closes[i] / closes[i-1] if closes[i-1] != 0 else 1.0 for i in range(1, n)]
+    high_ratios  = [highs[i] / highs[i-1] if highs[i-1] != 0 else 1.0 for i in range(1, n)]
+    low_ratios   = [lows[i] / lows[i-1] if lows[i-1] != 0 else 1.0 for i in range(1, n)]
+
+    tf_ms = {"1m": 60000, "15m": 900000, "1h": 3600000, "4h": 14400000}
+    parent_ms = tf_ms.get(timeframe, 14400000)
+    max_hold = _CL_MAX_HOLD.get(timeframe, 1)
+    buckets = _CL_TIMING_BUCKETS.get(timeframe, _CL_TIMING_BUCKETS["4h"])
+    max_walk_min = buckets[-1][1]
+
+    entry_cfgs = _cl_entry_configs()
+
+    # ── Accumulators per entry config ──
+    acc = {}
+    for cfg in entry_cfgs:
+        acc[cfg["name"]] = {
+            "cfg": cfg, "checked": 0, "triggered": 0,
+            "level_hits": {ln: [] for ln in _CL_LEVEL_NAMES},   # list of minutes
+            "level_orders": {ln: [] for ln in _CL_LEVEL_NAMES}, # list of order values
+            "raw": [],  # [(candle_time, {level: min_or_None})] for stability
+        }
+
+    # ── Limit by days ──
+    start_idx = window
+    if days and days > 0:
+        ms_limit = days * 86400 * 1000
+        last_time = rows[-1][5]
+        for ri in range(len(rows)):
+            if rows[ri][5] >= last_time - ms_limit:
+                start_idx = max(window, ri)
+                break
+
+    total_candles = 0
+
+    # ═══════════════════════════════════════════
+    # MAIN LOOP
+    # ═══════════════════════════════════════════
+    for i in range(start_idx, len(close_ratios)):
+        if i + 1 >= n:
+            break
+
+        # Deret Statistik predicted range
+        avg_h = sum(high_ratios[i-window:i]) / window
+        avg_l = sum(low_ratios[i-window:i]) / window
+        avg_c = sum(close_ratios[i-window:i]) / window
+        pred_high = highs[i] * avg_h
+        pred_low  = lows[i] * avg_l
+        pred_close = closes[i] * avg_c
+
+        next_idx = i + 1
+        candle_time = times[next_idx]
+        candle_open = opens[next_idx]
+
+        # ── Flatten 1m subs across max_hold candles ──
+        first_parent_ts = (candle_time // parent_ms) * parent_ms
+        first_subs = sub_lookup.get(first_parent_ts, [])
+        if not first_subs:
+            continue
+
+        all_subs = list(first_subs)
+        for k in range(1, max_hold):
+            ci = next_idx + k
+            if ci >= n:
+                break
+            pts = (times[ci] // parent_ms) * parent_ms
+            s = sub_lookup.get(pts, [])
+            all_subs.extend(s)
+
+        total_candles += 1
+
+        # ── Test each entry config ──
+        for cfg in entry_cfgs:
+            ename = cfg["name"]
+            ea = acc[ename]
+            ea["checked"] += 1
+            side = cfg["side"]
+
+            # Compute entry price
+            if cfg["open"]:
+                entry_price = candle_open
+            elif side == "LONG":
+                entry_price = pred_low * (1 - cfg["buf"] / 100) if cfg["buf"] > 0 else pred_low
+            else:
+                entry_price = pred_high * (1 + cfg["buf"] / 100) if cfg["buf"] > 0 else pred_high
+
+            # Find trigger minute (only in first candle's subs)
+            if cfg["open"]:
+                trigger_idx = -1  # open = immediate, walk from 0
+                walk_start = 0
+            else:
+                trigger_idx = -1
+                for sc_i, sc in enumerate(first_subs):
+                    if side == "LONG" and sc["l"] <= entry_price:
+                        trigger_idx = sc_i
+                        break
+                    if side == "SHORT" and sc["h"] >= entry_price:
+                        trigger_idx = sc_i
+                        break
+                if trigger_idx < 0:
+                    continue  # not triggered
+                walk_start = trigger_idx + 1  # start checking from NEXT 1m candle
+
+            ea["triggered"] += 1
+
+            # Build level target prices
+            targets = {}
+            for tp in _CL_TP_LEVELS:
+                if side == "LONG":
+                    targets[f"TP_{tp}"] = (entry_price * (1 + tp / 100), "above")
+                else:
+                    targets[f"TP_{tp}"] = (entry_price * (1 - tp / 100), "below")
+            for sl in _CL_SL_LEVELS:
+                if side == "LONG":
+                    targets[f"SL_{sl}"] = (entry_price * (1 - sl / 100), "below")
+                else:
+                    targets[f"SL_{sl}"] = (entry_price * (1 + sl / 100), "above")
+            targets["pred_high"] = (pred_high, "above")
+            targets["pred_low"] = (pred_low, "below")
+            targets["pred_close"] = (pred_close, "either")
+
+            # Walk 1m subs from walk_start
+            level_min = {ln: None for ln in _CL_LEVEL_NAMES}
+            remaining = set(targets.keys())
+            for sc_i in range(walk_start, len(all_subs)):
+                minute = sc_i - walk_start
+                if minute >= max_walk_min:
+                    break
+                if not remaining:
+                    break
+                sc = all_subs[sc_i]
+                for ln in list(remaining):
+                    price, direction = targets[ln]
+                    hit = False
+                    if direction == "above" and sc["h"] >= price:
+                        hit = True
+                    elif direction == "below" and sc["l"] <= price:
+                        hit = True
+                    elif direction == "either" and sc["l"] <= price <= sc["h"]:
+                        hit = True
+                    if hit:
+                        level_min[ln] = minute
+                        remaining.discard(ln)
+
+            level_min["candle_end"] = min(len(all_subs) - walk_start, max_walk_min)
+
+            # Compute order among hit levels
+            hit_sorted = sorted(
+                [(ln, m) for ln, m in level_min.items() if m is not None and ln != "candle_end"],
+                key=lambda x: x[1]
+            )
+            order_map = {ln: rank for rank, (ln, _) in enumerate(hit_sorted, 1)}
+
+            # Accumulate
+            ea["raw"].append((candle_time, level_min))
+            for ln in _CL_LEVEL_NAMES:
+                m = level_min.get(ln)
+                if m is not None and ln != "candle_end":
+                    ea["level_hits"][ln].append(m)
+                    ea["level_orders"][ln].append(order_map.get(ln, 99))
+
+    _log(f"  📊 Clustering {symbol} {timeframe}: {total_candles} candles × {len(entry_cfgs)} entries")
+
+    # ═══════════════════════════════════════════
+    # AGGREGATE
+    # ═══════════════════════════════════════════
+    output_entries = []
+    for cfg in entry_cfgs:
+        ea = acc[cfg["name"]]
+        trig = ea["triggered"]
+        if trig == 0:
+            continue
+
+        entry_trig_pct = round(trig / ea["checked"] * 100, 1) if ea["checked"] > 0 else 0
+        levels_out = []
+
+        for ln in _CL_LEVEL_NAMES:
+            hits = ea["level_hits"][ln]
+            orders = ea["level_orders"][ln]
+            hit_pct = round(len(hits) / trig * 100, 1) if ln != "candle_end" else 100.0
+
+            lvl = {"level_name": ln, "side": cfg["side"], "hit_pct": hit_pct}
+
+            # Timing distribution
+            if hits:
+                td = {}
+                for lo, hi, bname in buckets:
+                    c = sum(1 for m in hits if lo <= m < hi)
+                    td[bname] = round(c / len(hits) * 100, 1)
+                lvl["timing_distribution"] = td
+
+            # Order distribution
+            if orders:
+                od = {}
+                tot = len(orders)
+                for o in [1, 2, 3, 4]:
+                    od[str(o)] = round(sum(1 for v in orders if v == o) / tot * 100, 1)
+                od["5+"] = round(sum(1 for v in orders if v >= 5) / tot * 100, 1)
+                lvl["order_distribution"] = od
+
+                # Cluster = most frequent order
+                from collections import Counter
+                oc = Counter(min(v, 5) for v in orders)
+                mc = oc.most_common(1)[0]
+                lvl["cluster_order"] = mc[0]
+                lvl["cluster_pct"] = round(mc[1] / tot * 100, 1)
+
+            # hit_before_sl (only for TP levels)
+            if ln.startswith("TP_"):
+                hbs = {}
+                for sl_val in _CL_SL_LEVELS:
+                    sl_n = f"SL_{sl_val}"
+                    tp_before = 0
+                    total_relevant = 0
+                    for _, lm in ea["raw"]:
+                        tp_m = lm.get(ln)
+                        sl_m = lm.get(sl_n)
+                        if tp_m is not None or sl_m is not None:
+                            total_relevant += 1
+                            if tp_m is not None and (sl_m is None or tp_m < sl_m):
+                                tp_before += 1
+                    hbs[f"before_SL_{sl_val}"] = round(tp_before / total_relevant * 100, 1) if total_relevant > 0 else 0
+                lvl["hit_before_sl"] = hbs
+
+            levels_out.append(lvl)
+
+        # Best combo
+        best = _cl_best_combo(ea["raw"], trig)
+        # Stability
+        stab = _cl_stability(ea["raw"], best["tp_name"], best["sl_name"]) if best else {}
+
+        ep_out = {
+            "entry_name": cfg["name"],
+            "entry_description": cfg["desc"],
+            "entry_side": cfg["side"],
+            "entry_triggered_pct": entry_trig_pct,
+            "total_entries": trig,
+            "levels": levels_out,
+        }
+        if best:
+            ep_out["best_combo"] = {"tp": best["tp_val"], "sl": best["sl_val"],
+                                     "est_wr": best["wr"], "trades": trig}
+        if stab:
+            ep_out["stability"] = stab
+        output_entries.append(ep_out)
+
+    # Auto-suggest
+    suggestions = _cl_suggest(output_entries)
+
+    result = {
+        "status": "ok",
+        "symbol": symbol, "timeframe": timeframe, "window": window,
+        "total_candles": total_candles,
+        "timing_buckets": {b[2]: f"{b[0]}-{b[1]}m" for b in buckets},
+        "entry_points": output_entries,
+        "suggestions": suggestions,
+    }
+
+    if save_to_d1:
+        _save_clustering_to_d1(result)
+
+    return result
+
+
+def _cl_best_combo(raw, triggered):
+    """Find TP/SL combo with highest WR."""
+    best = None
+    best_wr = 0
+    for tp_v in _CL_TP_LEVELS:
+        tp_n = f"TP_{tp_v}"
+        for sl_v in _CL_SL_LEVELS:
+            sl_n = f"SL_{sl_v}"
+            wins = 0
+            total = 0
+            for _, lm in raw:
+                tp_m = lm.get(tp_n)
+                sl_m = lm.get(sl_n)
+                total += 1
+                if tp_m is not None and (sl_m is None or tp_m < sl_m):
+                    wins += 1
+            if total < 30:
+                continue
+            wr = round(wins / total * 100, 1)
+            if wr > best_wr:
+                best_wr = wr
+                best = {"tp_val": tp_v, "sl_val": sl_v,
+                        "tp_name": tp_n, "sl_name": sl_n, "wr": wr}
+    return best
+
+
+def _cl_stability(raw, tp_name, sl_name):
+    """Compute stability metrics for a TP/SL combo."""
+    trades = []
+    for ct, lm in raw:
+        tp_m = lm.get(tp_name)
+        sl_m = lm.get(sl_name)
+        win = tp_m is not None and (sl_m is None or tp_m < sl_m)
+        trades.append({"time": ct, "win": win})
+
+    if len(trades) < 10:
+        return {}
+
+    total = len(trades)
+    wins = sum(1 for t in trades if t["win"])
+    wr = round(wins / total * 100, 1)
+
+    # Weekly WR
+    wk_buckets = defaultdict(lambda: {"w": 0, "l": 0})
+    for t in trades:
+        wk = int(t["time"] // (7 * 86400000))
+        wk_buckets[wk]["w" if t["win"] else "l"] += 1
+
+    weekly_wrs = []
+    for wb in wk_buckets.values():
+        tot = wb["w"] + wb["l"]
+        if tot >= 2:
+            weekly_wrs.append(wb["w"] / tot * 100)
+
+    consistency = (sum(1 for w in weekly_wrs if w >= 50) / len(weekly_wrs) * 100) if weekly_wrs else 0
+    p5_wr = round(sorted(weekly_wrs)[max(0, int(len(weekly_wrs) * 0.05))], 1) if weekly_wrs else 0
+
+    # Worst streak
+    worst = 0
+    cur = 0
+    for t in trades:
+        if not t["win"]:
+            cur += 1
+            worst = max(worst, cur)
+        else:
+            cur = 0
+
+    # Walk-forward
+    sp = int(total * 0.8)
+    if sp > 10 and total - sp > 5:
+        train_w = sum(1 for t in trades[:sp] if t["win"])
+        test_w = sum(1 for t in trades[sp:] if t["win"])
+        train_wr = train_w / sp * 100
+        test_wr = test_w / (total - sp) * 100
+        wf = round(test_wr / train_wr, 2) if train_wr > 0 else 0
+    else:
+        train_wr, test_wr, wf = wr, wr, 1.0
+
+    return {
+        "win_rate": wr, "consistency_pct": round(consistency, 1),
+        "p5_weekly_wr": p5_wr, "worst_streak": worst,
+        "walk_forward_ratio": wf,
+        "train_wr": round(train_wr, 1), "test_wr": round(test_wr, 1),
+        "weeks_counted": len(weekly_wrs), "total_trades": total,
+    }
+
+
+def _cl_suggest(entry_points):
+    """Rank all entry+combo by stability-adjusted WR."""
+    sugg = []
+    for ep in entry_points:
+        bc = ep.get("best_combo")
+        st = ep.get("stability", {})
+        if not bc or bc["est_wr"] < 50:
+            continue
+
+        wr = bc["est_wr"]
+        con = st.get("consistency_pct", 0)
+        wf = st.get("walk_forward_ratio", 0)
+        ws = st.get("worst_streak", 99)
+
+        score = wr * 0.40 + con * 0.30 + min(wf * 100, 100) * 0.20 + max(0, 100 - ws * 10) * 0.10
+
+        # Insight
+        nm = ep["entry_name"]
+        if nm.startswith("open"):
+            ins = "Baseline (open)"
+        elif "buf_0.5" in nm:
+            ins = "Sweet spot buffer"
+        elif "buf_2.0" in nm:
+            ins = "Deep entry"
+        elif nm in ("pred_low", "pred_high"):
+            ins = "Predicted extreme"
+        else:
+            ins = f"Buffer {nm.split('buf_')[-1]}%"
+        if wr >= 65 and con >= 70:
+            ins += " ★"
+        elif wr < 55:
+            ins += " ❌"
+
+        sugg.append({
+            "rank": 0, "entry_name": nm, "entry_side": ep["entry_side"],
+            "tp": bc["tp"], "sl": bc["sl"], "est_wr": wr,
+            "trades": ep["total_entries"], "consistency": round(con, 1),
+            "wf_ratio": wf, "worst_streak": ws, "score": round(score, 1),
+            "insight": ins,
+        })
+
+    sugg.sort(key=lambda x: x["score"], reverse=True)
+    for i, s in enumerate(sugg):
+        s["rank"] = i + 1
+    return sugg[:10]
+
+
+def _save_clustering_to_d1(result):
+    """Save clustering results to D1 via Workers."""
+    try:
+        payload = {
+            "symbol": result["symbol"],
+            "timeframe": result["timeframe"],
+            "window": result["window"],
+            "total_candles": result["total_candles"],
+            "timing_buckets": json.dumps(result["timing_buckets"]),
+            "entry_points": [],
+            "suggestions": result.get("suggestions", []),
+        }
+        for ep in result["entry_points"]:
+            payload["entry_points"].append({
+                "entry_name": ep["entry_name"],
+                "entry_side": ep["entry_side"],
+                "entry_triggered_pct": ep["entry_triggered_pct"],
+                "total_entries": ep["total_entries"],
+                "best_combo": ep.get("best_combo"),
+                "stability": ep.get("stability"),
+                "levels_json": json.dumps(ep["levels"]),
+            })
+        resp = requests.post(f"{WORKER_URL}/tick/save-clustering", json=payload, timeout=30)
+        if resp.ok:
+            _log(f"  💾 Clustering saved: {result['symbol']} {result['timeframe']}")
+        else:
+            _log(f"  ⚠️ Clustering save failed: {resp.status_code}")
+    except Exception as ex:
+        _log(f"  ⚠️ Clustering save error: {str(ex)[:100]}")
 
 # ════════════════════════════════════════════════════════════
 # INTERNAL HELPERS
