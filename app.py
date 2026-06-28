@@ -2537,3 +2537,206 @@ def backtest_close_position(
             "consistency_pct": round(sum(1 for w in weekly_wr_list if w >= 50) / len(weekly_wr_list) * 100, 1) if weekly_wr_list else 0,
         },
     }
+"""
+Paste di PALING BAWAH app.py
+Pertanyaan simpel: dari open, naik 0.5% dulu atau turun 0.5% dulu?
+Signal apa yang predict ini?
+"""
+
+@app.get("/tick/first-move")
+def first_move(symbol: str = "DOGEUSDT", timeframe: str = "4h", window: int = 10, move_pct: float = 0.5):
+    import sqlite3
+    from collections import defaultdict
+    from datetime import datetime, timezone
+
+    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+    rows = conn.execute("""
+        SELECT open, high, low, close, volume, open_time
+        FROM klines WHERE symbol = ? AND timeframe = ?
+        ORDER BY open_time ASC
+    """, (symbol, timeframe)).fetchall()
+    sub_rows = conn.execute("""
+        SELECT open, high, low, close, open_time
+        FROM klines WHERE symbol = ? AND timeframe = '1m'
+        ORDER BY open_time ASC
+    """, (symbol,)).fetchall()
+    conn.close()
+
+    tf_ms = {"15m": 900000, "1h": 3600000, "4h": 14400000}
+    parent_ms = tf_ms.get(timeframe, 14400000)
+
+    sub_groups = defaultdict(list)
+    for sr in sub_rows:
+        pt = (sr[4] // parent_ms) * parent_ms
+        sub_groups[pt].append({"h": sr[1], "l": sr[2]})
+
+    n = len(rows)
+    opens = [r[0] for r in rows]
+    highs = [r[1] for r in rows]
+    lows = [r[2] for r in rows]
+    closes = [r[3] for r in rows]
+    times = [r[5] for r in rows]
+
+    close_ratios = [closes[i] / closes[i-1] if closes[i-1] != 0 else 1.0 for i in range(1, n)]
+    high_ratios = [highs[i] / highs[i-1] if highs[i-1] != 0 else 1.0 for i in range(1, n)]
+    low_ratios = [lows[i] / lows[i-1] if lows[i-1] != 0 else 1.0 for i in range(1, n)]
+
+    records = []
+
+    for i in range(window, len(close_ratios)):
+        if i + 1 >= n:
+            break
+
+        candle_time = times[i + 1]
+        candle_open = opens[i + 1]
+        parent_ts = (candle_time // parent_ms) * parent_ms
+        subs = sub_groups.get(parent_ts, [])
+        if not subs:
+            continue
+
+        up_target = candle_open * (1 + move_pct / 100)
+        down_target = candle_open * (1 - move_pct / 100)
+
+        # Walk 1m: which hits first?
+        first_move = None
+        first_minute = None
+        for sc_idx, sc in enumerate(subs):
+            up_hit = sc["h"] >= up_target
+            down_hit = sc["l"] <= down_target
+            if up_hit and down_hit:
+                first_move = "BOTH"
+                first_minute = sc_idx
+                break
+            elif up_hit:
+                first_move = "UP"
+                first_minute = sc_idx
+                break
+            elif down_hit:
+                first_move = "DOWN"
+                first_minute = sc_idx
+                break
+
+        if first_move is None:
+            first_move = "NEITHER"
+            first_minute = len(subs)
+
+        # Context signals
+        prev_dir = "bullish" if closes[i] > opens[i] else ("bearish" if closes[i] < opens[i] else "doji")
+        prev_range = round((highs[i] - lows[i]) / opens[i] * 100, 4) if opens[i] > 0 else 0
+
+        avg_h = sum(high_ratios[i-window:i]) / window
+        avg_l = sum(low_ratios[i-window:i]) / window
+        avg_c = sum(close_ratios[i-window:i]) / window
+        pred_high = highs[i] * avg_h
+        pred_low = lows[i] * avg_l
+        pred_close = closes[i] * avg_c
+        pred_range = pred_high - pred_low
+        close_position = (pred_close - pred_low) / pred_range if pred_range > 0 else 0.5
+
+        # Where did prev candle close within its own range?
+        prev_candle_range = highs[i] - lows[i]
+        prev_close_position = (closes[i] - lows[i]) / prev_candle_range if prev_candle_range > 0 else 0.5
+
+        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
+
+        records.append({
+            "first_move": first_move,
+            "first_minute": first_minute,
+            "prev_dir": prev_dir,
+            "prev_range": prev_range,
+            "close_position": round(close_position, 3),
+            "prev_close_position": round(prev_close_position, 3),
+            "hour": dt.hour,
+            "dow": dt.weekday(),
+        })
+
+    # ── Analysis ──
+    total = len(records)
+    up_count = sum(1 for r in records if r["first_move"] == "UP")
+    down_count = sum(1 for r in records if r["first_move"] == "DOWN")
+    both_count = sum(1 for r in records if r["first_move"] == "BOTH")
+    neither_count = sum(1 for r in records if r["first_move"] == "NEITHER")
+
+    # Helper: for a subset, what % is UP first?
+    def up_pct(subset):
+        if not subset:
+            return 0, 0
+        up = sum(1 for r in subset if r["first_move"] == "UP")
+        down = sum(1 for r in subset if r["first_move"] == "DOWN")
+        t = up + down
+        return round(up / t * 100, 1) if t > 0 else 0, t
+
+    # ── Signal 1: prev_direction ──
+    by_prev_dir = {}
+    for pd in ["bullish", "bearish", "doji"]:
+        subset = [r for r in records if r["prev_dir"] == pd]
+        pct, cnt = up_pct(subset)
+        by_prev_dir[pd] = {"up_first_pct": pct, "down_first_pct": round(100 - pct, 1), "trades": cnt}
+
+    # ── Signal 2: prev_close_position (where prev candle closed in its range) ──
+    by_prev_cp = {}
+    for label, lo, hi in [("bottom_0_20", 0, 0.2), ("low_20_40", 0.2, 0.4), ("mid_40_60", 0.4, 0.6), ("high_60_80", 0.6, 0.8), ("top_80_100", 0.8, 1.01)]:
+        subset = [r for r in records if lo <= r["prev_close_position"] < hi]
+        pct, cnt = up_pct(subset)
+        by_prev_cp[label] = {"up_first_pct": pct, "down_first_pct": round(100 - pct, 1), "trades": cnt}
+
+    # ── Signal 3: close_position (predicted) ──
+    by_cp = {}
+    for label, lo, hi in [("very_low_0_20", 0, 0.2), ("low_20_40", 0.2, 0.4), ("mid_40_60", 0.4, 0.6), ("high_60_80", 0.6, 0.8), ("very_high_80_100", 0.8, 1.01)]:
+        subset = [r for r in records if lo <= r["close_position"] < hi]
+        pct, cnt = up_pct(subset)
+        by_cp[label] = {"up_first_pct": pct, "down_first_pct": round(100 - pct, 1), "trades": cnt}
+
+    # ── Signal 4: hour ──
+    by_hour = {}
+    for h in sorted(set(r["hour"] for r in records)):
+        subset = [r for r in records if r["hour"] == h]
+        pct, cnt = up_pct(subset)
+        by_hour[str(h)] = {"up_first_pct": pct, "down_first_pct": round(100 - pct, 1), "trades": cnt}
+
+    # ── Signal 5: prev_range (vol) ──
+    all_ranges = sorted(r["prev_range"] for r in records)
+    p33 = all_ranges[len(all_ranges) // 3]
+    p66 = all_ranges[2 * len(all_ranges) // 3]
+    by_vol = {}
+    for label, lo, hi in [("low_vol", 0, p33), ("mid_vol", p33, p66), ("high_vol", p66, 999)]:
+        subset = [r for r in records if lo <= r["prev_range"] < hi]
+        pct, cnt = up_pct(subset)
+        by_vol[label] = {"up_first_pct": pct, "down_first_pct": round(100 - pct, 1), "trades": cnt, "range": f"{lo:.2f}-{hi:.2f}%"}
+
+    # ── Signal 6: COMBO prev_dir + prev_close_position ──
+    by_combo = {}
+    for pd in ["bullish", "bearish"]:
+        for cp_label, lo, hi in [("bottom_0_20", 0, 0.2), ("low_20_40", 0.2, 0.4), ("mid_40_60", 0.4, 0.6), ("high_60_80", 0.6, 0.8), ("top_80_100", 0.8, 1.01)]:
+            subset = [r for r in records if r["prev_dir"] == pd and lo <= r["prev_close_position"] < hi]
+            pct, cnt = up_pct(subset)
+            if cnt >= 50:
+                by_combo[f"{pd}_{cp_label}"] = {"up_first_pct": pct, "down_first_pct": round(100 - pct, 1), "trades": cnt}
+
+    # ── Timing ──
+    up_minutes = [r["first_minute"] for r in records if r["first_move"] == "UP"]
+    down_minutes = [r["first_minute"] for r in records if r["first_move"] == "DOWN"]
+
+    return {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "move_pct": move_pct,
+        "total_candles": total,
+        "overall": {
+            "up_first": up_count,
+            "down_first": down_count,
+            "both_same_minute": both_count,
+            "neither": neither_count,
+            "up_first_pct": round(up_count / (up_count + down_count) * 100, 1) if (up_count + down_count) > 0 else 0,
+        },
+        "timing": {
+            "up_median_min": sorted(up_minutes)[len(up_minutes)//2] if up_minutes else 0,
+            "down_median_min": sorted(down_minutes)[len(down_minutes)//2] if down_minutes else 0,
+        },
+        "by_prev_direction": by_prev_dir,
+        "by_prev_close_position": by_prev_cp,
+        "by_predicted_close_position": by_cp,
+        "by_hour": by_hour,
+        "by_prev_vol": by_vol,
+        "by_combo_dir_cp": by_combo,
+    }
