@@ -26,7 +26,7 @@ from tick_discovery import (
         start_sweep_engine, stop_sweep_engine, get_sweep_status,
         pause_sweep_engine, resume_sweep_engine,
         profile_winning_combo,
-        cluster_levels, combo_sweep,
+        cluster_levels, combo_sweep, custom_backtest,
         _load_data as td_load_data, DB_PATH as TD_DB_PATH,
     )
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
@@ -2022,6 +2022,15 @@ def tick_sweep_resume():
 @app.get("/tick/sweep-status")
 def tick_sweep_status():
     return get_sweep_status()
+
+@app.post("/tick/custom-backtest")
+def tick_custom_backtest():
+    body = request.json
+    symbol = body.get("symbol", "BTCUSDT")
+    timeframe = body.get("timeframe", "15m")
+    config = body.get("config", {})
+    result = custom_backtest(symbol, timeframe, config)
+    return result
 
 @app.get("/tick/cluster")
 def tick_cluster(
