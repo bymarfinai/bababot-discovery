@@ -3438,6 +3438,421 @@ def _save_combo_results(symbol, timeframe, results):
     except Exception as ex:
         _log(f"  ⚠️ Combo save error: {str(ex)[:100]}")
 
+
+def custom_backtest(symbol, timeframe, config, window=10, days=1825):
+    """
+    Test a single custom strategy combo. Supports:
+    - Conditional entry (enter AFTER pred_high/pred_low/pred_close is hit)
+    - Dynamic TP (pred_high, pred_low, pred_close)
+    - Fixed TP/SL %
+    - DCA
+    - Range filter
+    - Daily cap simulation
+    
+    config = {
+        "entry": "pred_high" | "pred_low" | "pred_close" | "open" | "pred_low_buf_X",
+        "entry_side": "LONG" | "SHORT",
+        "tp": "0.5" | "pred_high" | "pred_low" | "pred_close",
+        "sl": "0.3",           # always fixed %
+        "dca": "0.5" | null,   # DCA % below/above entry
+        "range_filter": 0,     # min predicted range %
+        "daily_cap": 5.0,
+        "position_size": 500,  # effective position after leverage
+    }
+    """
+    _log(f"  🧪 Custom backtest: {symbol} {timeframe} — {config}")
+
+    rows, sub_lookup = _load_data(symbol, timeframe)
+    if not rows or len(rows) < window + 20:
+        return {"status": "error", "message": "Insufficient data"}
+
+    n = len(rows)
+    opens  = [r[0] for r in rows]
+    highs  = [r[1] for r in rows]
+    lows   = [r[2] for r in rows]
+    closes = [r[3] for r in rows]
+    times  = [r[5] for r in rows]
+
+    close_ratios = [closes[i] / closes[i-1] if closes[i-1] != 0 else 1.0 for i in range(1, n)]
+    high_ratios  = [highs[i] / highs[i-1] if highs[i-1] != 0 else 1.0 for i in range(1, n)]
+    low_ratios   = [lows[i] / lows[i-1] if lows[i-1] != 0 else 1.0 for i in range(1, n)]
+
+    tf_ms = {"1m": 60000, "15m": 900000, "1h": 3600000, "4h": 14400000}
+    parent_ms = tf_ms.get(timeframe, 14400000)
+    max_hold_map = {"15m": 120, "1h": 240, "4h": 480}
+    max_walk = max_hold_map.get(timeframe, 480)
+
+    # Parse config
+    entry_type = config.get("entry", "open")
+    side = config.get("entry_side", "LONG")
+    tp_config = str(config.get("tp", "0.5"))
+    sl_pct = float(config.get("sl", "0.3"))
+    dca_pct = float(config.get("dca", 0)) if config.get("dca") else 0
+    range_filter = float(config.get("range_filter", 0))
+    daily_cap = float(config.get("daily_cap", 5.0))
+    position_size = float(config.get("position_size", 500))
+    fee = 0.07
+
+    # Determine if TP is fixed or dynamic
+    tp_is_dynamic = tp_config in ("pred_high", "pred_low", "pred_close")
+    tp_pct_fixed = 0 if tp_is_dynamic else float(tp_config)
+
+    # Conditional entry: only if this level hits FIRST (before other pred levels)
+    only_first = config.get("only_first", False)
+
+    # Determine if entry is conditional (wait for level first)
+    conditional_entry = entry_type in ("pred_high", "pred_low", "pred_close")
+
+    # Parse buffer entries like "pred_low_buf_2.0"
+    buf_entry = False
+    buf_pct = 0
+    if entry_type.startswith("pred_low_buf_"):
+        buf_entry = True
+        buf_pct = float(entry_type.split("_")[-1])
+        entry_base = "pred_low"
+    elif entry_type.startswith("pred_high_buf_"):
+        buf_entry = True
+        buf_pct = float(entry_type.split("_")[-1])
+        entry_base = "pred_high"
+
+    # Limit by days
+    start_idx = window
+    if days and days > 0:
+        ms_limit = days * 86400 * 1000
+        last_time = rows[-1][5]
+        for ri in range(len(rows)):
+            if rows[ri][5] >= last_time - ms_limit:
+                start_idx = max(window, ri)
+                break
+
+    # ═══ WALK CANDLES ═══
+    trades = []
+    skipped_range = 0
+
+    for i in range(start_idx, len(close_ratios)):
+        if i + 1 >= n:
+            break
+
+        avg_h = sum(high_ratios[i-window:i]) / window
+        avg_l = sum(low_ratios[i-window:i]) / window
+        avg_c = sum(close_ratios[i-window:i]) / window
+        pred_high = highs[i] * avg_h
+        pred_low  = lows[i] * avg_l
+        pred_close = closes[i] * avg_c
+
+        next_idx = i + 1
+        candle_time = times[next_idx]
+        candle_open = opens[next_idx]
+
+        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
+        hour_utc = dt.hour
+        date_str = dt.strftime("%Y-%m-%d")
+
+        # Range filter
+        if range_filter > 0:
+            pred_range = (pred_high - pred_low) / pred_low * 100 if pred_low > 0 else 0
+            if pred_range < range_filter:
+                skipped_range += 1
+                continue
+
+        # Flatten 1m subs (multiple candles for hold)
+        max_hold_candles = {"15m": 8, "1h": 4, "4h": 2}.get(timeframe, 2)
+        first_parent_ts = (candle_time // parent_ms) * parent_ms
+        first_subs = sub_lookup.get(first_parent_ts, [])
+        if not first_subs:
+            continue
+
+        all_subs = list(first_subs)
+        for k in range(1, max_hold_candles):
+            ci = next_idx + k
+            if ci >= n:
+                break
+            pts = (times[ci] // parent_ms) * parent_ms
+            s = sub_lookup.get(pts, [])
+            all_subs.extend(s)
+
+        # ═══ DETERMINE ENTRY PRICE AND TRIGGER ═══
+        entry_price = None
+        walk_start = 0
+
+        if entry_type == "open":
+            entry_price = candle_open
+            walk_start = 0
+
+        elif conditional_entry:
+            # Wait for level to be hit first, then enter at that price
+            level_prices = {"pred_high": pred_high, "pred_low": pred_low, "pred_close": pred_close}
+            target_price = level_prices[entry_type]
+
+            trigger_idx = -1
+            for sc_i, sc in enumerate(first_subs):
+                if entry_type == "pred_high" and sc["h"] >= target_price:
+                    trigger_idx = sc_i
+                    break
+                elif entry_type == "pred_low" and sc["l"] <= target_price:
+                    trigger_idx = sc_i
+                    break
+                elif entry_type == "pred_close":
+                    if sc["l"] <= target_price <= sc["h"]:
+                        trigger_idx = sc_i
+                        break
+
+            if trigger_idx < 0:
+                continue  # level never hit in this candle
+            
+            # only_first: skip if other pred levels hit before this one
+            if only_first:
+                other_levels = {"pred_high": pred_high, "pred_low": pred_low, "pred_close": pred_close}
+                del other_levels[entry_type]  # remove self
+                skip = False
+                for ol_name, ol_price in other_levels.items():
+                    for sc_j in range(trigger_idx):
+                        sc_check = first_subs[sc_j]
+                        if ol_name == "pred_high" and sc_check["h"] >= ol_price:
+                            skip = True; break
+                        elif ol_name == "pred_low" and sc_check["l"] <= ol_price:
+                            skip = True; break
+                        elif ol_name == "pred_close" and sc_check["l"] <= ol_price <= sc_check["h"]:
+                            skip = True; break
+                    if skip:
+                        break
+                if skip:
+                    continue
+            
+            entry_price = target_price
+            walk_start = trigger_idx + 1
+
+        elif buf_entry:
+            # Buffer entry (pred_low_buf_X, pred_high_buf_X)
+            if entry_base == "pred_low":
+                entry_price = pred_low * (1 - buf_pct / 100)
+            else:
+                entry_price = pred_high * (1 + buf_pct / 100)
+
+            trigger_idx = -1
+            for sc_i, sc in enumerate(first_subs):
+                if side == "LONG" and sc["l"] <= entry_price:
+                    trigger_idx = sc_i
+                    break
+                if side == "SHORT" and sc["h"] >= entry_price:
+                    trigger_idx = sc_i
+                    break
+            if trigger_idx < 0:
+                continue
+            walk_start = trigger_idx + 1
+
+        if entry_price is None or entry_price <= 0:
+            continue
+
+        # ═══ COMPUTE TP/SL PRICES ═══
+        if tp_is_dynamic:
+            tp_prices = {"pred_high": pred_high, "pred_low": pred_low, "pred_close": pred_close}
+            tp_price = tp_prices[tp_config]
+            tp_distance = abs(tp_price - entry_price) / entry_price * 100
+        else:
+            tp_distance = tp_pct_fixed
+            if side == "LONG":
+                tp_price = entry_price * (1 + tp_pct_fixed / 100)
+            else:
+                tp_price = entry_price * (1 - tp_pct_fixed / 100)
+
+        if side == "LONG":
+            sl_price = entry_price * (1 - sl_pct / 100)
+        else:
+            sl_price = entry_price * (1 + sl_pct / 100)
+
+        # DCA price
+        dca_price = None
+        if dca_pct > 0:
+            if side == "LONG":
+                dca_price = entry_price * (1 - dca_pct / 100)
+            else:
+                dca_price = entry_price * (1 + dca_pct / 100)
+
+        # ═══ WALK 1M SUBS — DETERMINE OUTCOME ═══
+        result = None
+        dca_triggered = False
+        active_entry = entry_price
+
+        for sc_i in range(walk_start, min(len(all_subs), walk_start + max_walk)):
+            sc = all_subs[sc_i]
+            minute = sc_i - walk_start
+
+            # Check DCA trigger
+            if dca_price and not dca_triggered:
+                if side == "LONG" and sc["l"] <= dca_price:
+                    dca_triggered = True
+                    active_entry = (entry_price + dca_price) / 2
+                    # Recalculate TP from new entry
+                    if not tp_is_dynamic:
+                        tp_price = active_entry * (1 + tp_pct_fixed / 100) if side == "LONG" else active_entry * (1 - tp_pct_fixed / 100)
+                elif side == "SHORT" and sc["h"] >= dca_price:
+                    dca_triggered = True
+                    active_entry = (entry_price + dca_price) / 2
+                    if not tp_is_dynamic:
+                        tp_price = active_entry * (1 - tp_pct_fixed / 100) if side == "SHORT" else active_entry * (1 + tp_pct_fixed / 100)
+
+            # Check TP
+            tp_hit = False
+            if side == "LONG" and sc["h"] >= tp_price:
+                tp_hit = True
+            elif side == "SHORT" and sc["l"] <= tp_price:
+                tp_hit = True
+
+            # Check SL
+            sl_hit = False
+            if side == "LONG" and sc["l"] <= sl_price:
+                sl_hit = True
+            elif side == "SHORT" and sc["h"] >= sl_price:
+                sl_hit = True
+
+            if tp_hit and sl_hit:
+                result = "win"  # same minute = assume TP first (conservative: could be loss)
+                break
+            elif tp_hit:
+                result = "win"
+                break
+            elif sl_hit:
+                result = "loss"
+                break
+
+        if result is None:
+            result = "expired"
+
+        # Compute PnL
+        if result == "win":
+            pnl_pct = tp_distance - fee
+            if dca_triggered:
+                pnl_pct = pnl_pct * 1.0  # simplified: same TP distance
+        elif result == "loss":
+            pnl_pct = -(sl_pct + fee)
+            if dca_triggered:
+                pnl_pct = pnl_pct * 2  # DCA = double position, double loss
+        else:
+            pnl_pct = -fee  # expired = only fee lost
+
+        pnl_dollar = pnl_pct / 100 * position_size
+        if dca_triggered and result == "win":
+            pnl_dollar = pnl_dollar * 2  # DCA = double position, double win
+
+        trades.append({
+            "date": date_str, "hour": hour_utc,
+            "result": result, "pnl_pct": round(pnl_pct, 4),
+            "pnl_dollar": round(pnl_dollar, 4),
+            "tp_distance": round(tp_distance, 4),
+            "dca_triggered": dca_triggered,
+        })
+
+    # ═══ AGGREGATE RESULTS ═══
+    total = len(trades)
+    if total == 0:
+        return {"status": "ok", "message": "No trades triggered", "trades": 0}
+
+    wins = sum(1 for t in trades if t["result"] == "win")
+    losses = sum(1 for t in trades if t["result"] == "loss")
+    expired = sum(1 for t in trades if t["result"] == "expired")
+    wr = round(wins / total * 100, 1)
+
+    # EV
+    avg_win = sum(t["pnl_dollar"] for t in trades if t["result"] == "win") / wins if wins > 0 else 0
+    avg_loss = sum(t["pnl_dollar"] for t in trades if t["result"] == "loss") / losses if losses > 0 else 0
+    ev_dollar = round((wr / 100 * avg_win) + ((1 - wr / 100) * avg_loss), 4)
+    total_pnl = round(sum(t["pnl_dollar"] for t in trades), 2)
+
+    # Daily cap simulation
+    daily_pnl = defaultdict(float)
+    for t in trades:
+        daily_pnl[t["date"]] += t["pnl_dollar"]
+
+    total_days = len(daily_pnl)
+    capped_profit = 0
+    hit_cap_days = 0
+    loss_days = 0
+    max_drawdown = 0
+    running_pnl = 0
+    peak = 0
+
+    for date in sorted(daily_pnl.keys()):
+        day_pnl = daily_pnl[date]
+        capped = min(day_pnl, daily_cap)
+        capped_profit += capped
+        if day_pnl >= daily_cap:
+            hit_cap_days += 1
+        if day_pnl < 0:
+            loss_days += 1
+        running_pnl += capped
+        peak = max(peak, running_pnl)
+        dd = peak - running_pnl
+        max_drawdown = max(max_drawdown, dd)
+
+    avg_daily = round(capped_profit / total_days, 2) if total_days > 0 else 0
+
+    # Per-hour breakdown
+    hour_stats = defaultdict(lambda: {"w": 0, "l": 0, "e": 0})
+    for t in trades:
+        if t["result"] == "win":
+            hour_stats[t["hour"]]["w"] += 1
+        elif t["result"] == "loss":
+            hour_stats[t["hour"]]["l"] += 1
+        else:
+            hour_stats[t["hour"]]["e"] += 1
+
+    best_hours = []
+    worst_hours = []
+    for h, st in sorted(hour_stats.items()):
+        tot = st["w"] + st["l"] + st["e"]
+        if tot >= 10:
+            hr_wr = round(st["w"] / tot * 100, 1)
+            entry = {"hour": h, "wr": hr_wr, "trades": tot}
+            if hr_wr >= 60:
+                best_hours.append(entry)
+            elif hr_wr < 40:
+                worst_hours.append(entry)
+
+    # DCA stats
+    dca_count = sum(1 for t in trades if t["dca_triggered"])
+    dca_pct_actual = round(dca_count / total * 100, 1) if total > 0 else 0
+
+    # TP distance distribution
+    tp_dists = [t["tp_distance"] for t in trades]
+    tp_dist_avg = round(sum(tp_dists) / len(tp_dists), 4) if tp_dists else 0
+
+    # Weekly consistency
+    weekly = defaultdict(float)
+    for t in trades:
+        d = datetime.strptime(t["date"], "%Y-%m-%d")
+        wk = f"{d.year}-W{d.isocalendar()[1]}"
+        weekly[wk] += t["pnl_dollar"]
+    profitable_weeks = sum(1 for v in weekly.values() if v > 0)
+    consistency = round(profitable_weeks / len(weekly) * 100, 1) if weekly else 0
+
+    result = {
+        "status": "ok",
+        "symbol": symbol, "timeframe": timeframe,
+        "config": config,
+        "summary": {
+            "trades": total, "wins": wins, "losses": losses, "expired": expired,
+            "wr": wr,
+            "ev_per_trade_dollar": ev_dollar,
+            "ev_per_trade_pct": round(ev_dollar / position_size * 100, 4),
+            "total_pnl": total_pnl,
+            "total_pnl_capped": round(capped_profit, 2),
+            "avg_daily_capped": avg_daily,
+            "hit_cap_pct": round(hit_cap_days / total_days * 100, 1) if total_days > 0 else 0,
+            "loss_days_pct": round(loss_days / total_days * 100, 1) if total_days > 0 else 0,
+            "max_drawdown": round(max_drawdown, 2),
+            "consistency": consistency,
+            "avg_tp_distance": tp_dist_avg,
+            "dca_trigger_pct": dca_pct_actual,
+            "skipped_range_filter": skipped_range,
+        },
+        "best_hours": sorted(best_hours, key=lambda x: -x["wr"])[:5],
+        "worst_hours": sorted(worst_hours, key=lambda x: x["wr"])[:3],
+    }
+
+    _log(f"  🧪 Result: {total} trades, WR={wr}%, EV=${ev_dollar}/trade, ${avg_daily}/day capped")
+    return result
+
 # INTERNAL HELPERS
 # ════════════════════════════════════════════════════════════
 
