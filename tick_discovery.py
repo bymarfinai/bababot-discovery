@@ -2303,7 +2303,7 @@ def cluster_levels(
             ep_out["per_hour"] = per_hour
 
         # Sequence narrator
-        narrative = _cl_sequence_narrator(ea["raw"], best)
+        narrative = _cl_sequence_narrator(ea["raw"], best, side=cfg["side"])
         if narrative:
             ep_out["sequence"] = narrative
         output_entries.append(ep_out)
@@ -2579,31 +2579,34 @@ def _cl_per_hour(raw, best_combo):
     return result
 
 
-def _cl_sequence_narrator(raw, best_combo):
+def _cl_sequence_narrator(raw, best_combo, side="LONG"):
     """
-    Transpose: from 'per level, what order' to 'per order, what level'.
-    Output: for each order position (1-5), what % of trades had each level.
-    Plus conclusion and opportunity detection.
+    Enhanced sequence narrator — answers:
+    1. DCA scenarios (pred_high, pred_close as DCA points)
+    2. Distance distribution per level (not just avg)
+    3. Actual counts per level per order
+    4. SL = TP mirror detection
+    5. Conditional sequences (after X hits, what's next?)
+    Plus conclusion + opportunity detection.
     """
     if not raw or not best_combo:
         return {}
 
-    # Count: for each order position, how many times each level was hit
-    order_counts = defaultdict(lambda: defaultdict(int))  # {order: {level: count}}
     total_trades = len(raw)
+    fee = 0.07
 
+    # ═══ ORDER SEQUENCE: per order, what level hits ═══
+    order_counts = defaultdict(lambda: defaultdict(int))
     for entry in raw:
         lm = entry[1]
-        # Sort levels by minute (order of hitting)
-        hit_levels = sorted(
+        hit_sorted = sorted(
             [(ln, m) for ln, m in lm.items() if m is not None and ln != "candle_end"],
             key=lambda x: x[1]
         )
-        for pos, (ln, _) in enumerate(hit_levels, 1):
+        for pos, (ln, _) in enumerate(hit_sorted, 1):
             order_key = str(pos) if pos <= 5 else "5+"
             order_counts[order_key][ln] += 1
 
-    # Convert to percentages
     sequence = {}
     for order in ["1", "2", "3", "4", "5+"]:
         counts = order_counts.get(order, {})
@@ -2613,23 +2616,207 @@ def _cl_sequence_narrator(raw, best_combo):
         levels = {}
         for ln, cnt in sorted(counts.items(), key=lambda x: -x[1]):
             pct = round(cnt / total_trades * 100, 1)
-            if pct >= 1:  # only show >= 1%
-                levels[ln] = pct
+            if pct >= 1:
+                levels[ln] = {"pct": pct, "count": cnt}
         sequence[order] = {"levels": levels, "trades_at_pos": total_at_pos}
 
-    # ── Generate conclusion ──
-    tp_name = best_combo.get("tp_name", "")
-    sl_name = best_combo.get("sl_name", "")
+    # ═══ DISTANCE DISTRIBUTION per dynamic level ═══
+    distance_dist = {}
+    for dyn_name in ["pred_high", "pred_low", "pred_close"]:
+        distances = []
+        for entry in raw:
+            if len(entry) < 9:
+                continue
+            ep = entry[5]
+            ph, pl, pc = entry[6], entry[7], entry[8]
+            if ep <= 0:
+                continue
+            if dyn_name == "pred_high":
+                d = abs(ph - ep) / ep * 100
+            elif dyn_name == "pred_low":
+                d = abs(ep - pl) / ep * 100
+            else:
+                d = abs(pc - ep) / ep * 100
+            distances.append(round(d, 4))
+
+        if not distances:
+            continue
+
+        sd = sorted(distances)
+        n = len(sd)
+
+        # Bucket distribution
+        buckets = [
+            (0, 0.1, "0-0.1%"),
+            (0.1, 0.3, "0.1-0.3%"),
+            (0.3, 0.5, "0.3-0.5%"),
+            (0.5, 1.0, "0.5-1.0%"),
+            (1.0, 2.0, "1.0-2.0%"),
+            (2.0, 5.0, "2.0-5.0%"),
+            (5.0, 100, "5.0%+"),
+        ]
+        dist_buckets = {}
+        for lo, hi, label in buckets:
+            cnt = sum(1 for d in distances if lo <= d < hi)
+            if cnt > 0:
+                dist_buckets[label] = {"count": cnt, "pct": round(cnt / n * 100, 1)}
+
+        distance_dist[dyn_name] = {
+            "avg": round(sum(distances) / n, 4),
+            "median": round(sd[n // 2], 4),
+            "p25": round(sd[int(n * 0.25)], 4),
+            "p75": round(sd[int(n * 0.75)], 4),
+            "min": round(sd[0], 4),
+            "max": round(sd[-1], 4),
+            "total_samples": n,
+            "distribution": dist_buckets,
+        }
+
+    # ═══ PREDICTED RANGE distribution ═══
+    ranges = []
+    for entry in raw:
+        if len(entry) < 9:
+            continue
+        ph, pl = entry[6], entry[7]
+        if pl > 0:
+            r = (ph - pl) / pl * 100
+            ranges.append(round(r, 4))
+
+    range_dist = {}
+    if ranges:
+        sr = sorted(ranges)
+        nr = len(sr)
+        range_buckets = {}
+        for lo, hi, label in [(0, 0.5, "<0.5%"), (0.5, 1, "0.5-1%"), (1, 2, "1-2%"), (2, 5, "2-5%"), (5, 100, "5%+")]:
+            cnt = sum(1 for r in ranges if lo <= r < hi)
+            if cnt > 0:
+                range_buckets[label] = {"count": cnt, "pct": round(cnt / nr * 100, 1)}
+        range_dist = {
+            "avg": round(sum(ranges) / nr, 4),
+            "median": round(sr[nr // 2], 4),
+            "distribution": range_buckets,
+        }
+
+    # ═══ DCA SCENARIOS ═══
+    dca_scenarios = []
+
+    # DCA at pred_high (for SHORT: DCA when price goes up more)
+    # DCA at pred_low (for LONG: DCA when price goes down more)
+    for dca_level, dca_side_match in [("pred_high", "SHORT"), ("pred_low", "LONG")]:
+        if side != dca_side_match:
+            # Also check: LONG entry, DCA at pred_high = price went up, bad for LONG
+            # But could be useful if we flip to SHORT at pred_high
+            pass
+
+        dca_trigger_count = sum(1 for e in raw if e[1].get(dca_level) is not None)
+        dca_trigger_pct = round(dca_trigger_count / total_trades * 100, 1)
+
+        if dca_trigger_pct < 10:
+            continue
+
+        # Compute avg distance from entry to DCA level
+        dca_distances = []
+        for entry in raw:
+            if len(entry) < 9 or entry[1].get(dca_level) is None:
+                continue
+            ep = entry[5]
+            ph, pl = entry[6], entry[7]
+            if ep <= 0:
+                continue
+            if dca_level == "pred_high":
+                d = (ph - ep) / ep * 100
+            else:
+                d = (ep - pl) / ep * 100
+            dca_distances.append(round(d, 4))
+
+        avg_dca_dist = round(sum(dca_distances) / len(dca_distances), 4) if dca_distances else 0
+
+        # After DCA triggers, what's the new avg entry and distance to TP?
+        # For LONG with DCA at pred_low: new_entry = (entry + pred_low) / 2
+        # Distance to pred_high from new_entry
+        new_distances_to_target = []
+        for entry in raw:
+            if len(entry) < 9 or entry[1].get(dca_level) is None:
+                continue
+            ep = entry[5]
+            ph, pl, pc = entry[6], entry[7], entry[8]
+            if ep <= 0:
+                continue
+            if dca_level == "pred_low" and side == "LONG":
+                new_entry = (ep + pl) / 2
+                dist_to_ph = (ph - new_entry) / new_entry * 100
+                dist_to_pc = (pc - new_entry) / new_entry * 100
+                new_distances_to_target.append({"to_pred_high": round(dist_to_ph, 4), "to_pred_close": round(dist_to_pc, 4)})
+            elif dca_level == "pred_high" and side == "SHORT":
+                new_entry = (ep + ph) / 2
+                dist_to_pl = (new_entry - pl) / new_entry * 100
+                dist_to_pc = (new_entry - pc) / new_entry * 100
+                new_distances_to_target.append({"to_pred_low": round(dist_to_pl, 4), "to_pred_close": round(dist_to_pc, 4)})
+
+        avg_new_dists = {}
+        if new_distances_to_target:
+            for key in new_distances_to_target[0]:
+                vals = [d[key] for d in new_distances_to_target if key in d]
+                avg_new_dists[key] = round(sum(vals) / len(vals), 4) if vals else 0
+
+        dca_scenarios.append({
+            "dca_level": dca_level,
+            "trigger_pct": dca_trigger_pct,
+            "trigger_count": dca_trigger_count,
+            "avg_distance_to_dca": avg_dca_dist,
+            "after_dca_distances": avg_new_dists,
+            "insight": f"DCA di {dca_level} ({dca_trigger_pct}% trigger, jarak {avg_dca_dist}% dari entry). "
+                       f"Setelah DCA: {', '.join(f'{k}={v}%' for k,v in avg_new_dists.items())}",
+        })
+
+    # ═══ SL = TP MIRROR detection ═══
+    mirrors = []
+    for sl_pct in _CL_SL_LEVELS:
+        sl_key = f"SL_{sl_pct}"
+        # Count SL hits at order 1 (first thing that happens)
+        sl_at_order1 = order_counts.get("1", {}).get(sl_key, 0)
+        sl_at_order1_pct = round(sl_at_order1 / total_trades * 100, 1) if total_trades > 0 else 0
+
+        if sl_at_order1_pct >= 1:
+            flip_side = "SHORT" if side == "LONG" else "LONG"
+            mirrors.append({
+                "sl_level": sl_key,
+                "sl_pct": sl_pct,
+                "hits_at_order1": sl_at_order1,
+                "hits_at_order1_pct": sl_at_order1_pct,
+                "insight": f"SL {sl_pct}% kena {sl_at_order1}× di urutan 1 → flip {flip_side} TP {sl_pct}% = {sl_at_order1} potential wins",
+            })
+
+    # ═══ CONDITIONAL SEQUENCE: after X hits, what's next? ═══
+    conditional = {}
+    for first_level in ["pred_high", "pred_low", "pred_close"]:
+        next_counts = defaultdict(int)
+        total_first = 0
+        for entry in raw:
+            lm = entry[1]
+            hit_sorted = sorted(
+                [(ln, m) for ln, m in lm.items() if m is not None and ln != "candle_end"],
+                key=lambda x: x[1]
+            )
+            if hit_sorted and hit_sorted[0][0] == first_level:
+                total_first += 1
+                if len(hit_sorted) > 1:
+                    next_counts[hit_sorted[1][0]] += 1
+
+        if total_first >= 50:
+            next_levels = {}
+            for ln, cnt in sorted(next_counts.items(), key=lambda x: -x[1])[:5]:
+                next_levels[ln] = {"count": cnt, "pct": round(cnt / total_first * 100, 1)}
+            conditional[first_level] = {
+                "first_hit_count": total_first,
+                "then_what": next_levels,
+            }
+
+    # ═══ CONCLUSION ═══
     tp_val = best_combo.get("tp_val", 0)
     sl_val = best_combo.get("sl_val", 0)
     wr = best_combo.get("wr", 0)
-    tp_type = best_combo.get("tp_type", "fixed")
-
-    fee = 0.07
-    if tp_type == "fixed":
-        ev = round((wr / 100 * (tp_val - fee)) - ((1 - wr / 100) * (sl_val + fee)), 4)
-    else:
-        ev = round((wr / 100 * (tp_val - fee)) - ((1 - wr / 100) * (sl_val + fee)), 4)
+    ev = round((wr / 100 * (tp_val - fee)) - ((1 - wr / 100) * (sl_val + fee)), 4)
 
     conclusion = f"WR {wr}%, TP {tp_val}% vs SL {sl_val}%, EV = {ev}%/trade"
     if ev > 0:
@@ -2637,35 +2824,20 @@ def _cl_sequence_narrator(raw, best_combo):
     else:
         conclusion += f" ❌ RUGI (kehilangan ${round(abs(ev) * total_trades, 1)} total)"
 
-    # ── Detect opportunities ──
+    # ═══ OPPORTUNITIES ═══
     opportunities = []
 
-    # Check if dynamic targets are reachable
     for dyn in ["pred_high", "pred_low", "pred_close"]:
         hits = sum(1 for e in raw if e[1].get(dyn) is not None)
         hit_pct = round(hits / total_trades * 100, 1)
         if hit_pct >= 60:
-            # Find most common order for this dynamic target
-            dyn_orders = []
-            for e in raw:
-                lm = e[1]
-                if lm.get(dyn) is None:
-                    continue
-                hit_sorted = sorted(
-                    [(ln, m) for ln, m in lm.items() if m is not None and ln != "candle_end"],
-                    key=lambda x: x[1]
-                )
-                for pos, (ln, _) in enumerate(hit_sorted, 1):
-                    if ln == dyn:
-                        dyn_orders.append(pos)
-                        break
-            avg_order = round(sum(dyn_orders) / len(dyn_orders), 1) if dyn_orders else 0
+            dist = distance_dist.get(dyn, {})
+            avg_d = dist.get("avg", 0)
             opportunities.append({
-                "target": dyn, "hit_pct": hit_pct, "avg_order": avg_order,
-                "insight": f"{dyn} kena {hit_pct}% trades (avg urutan {avg_order}) → bisa jadi entry/TP point"
+                "target": dyn, "hit_pct": hit_pct, "avg_distance": avg_d,
+                "insight": f"{dyn} kena {hit_pct}% trades (avg {avg_d}% dari entry) → {'worth jadi TP' if avg_d > 0.3 else 'terlalu dekat untuk TP'}",
             })
 
-    # Check if SL too tight or too loose
     for sl_check in _CL_SL_LEVELS:
         sl_key = f"SL_{sl_check}"
         sl_hits = sum(1 for e in raw if e[1].get(sl_key) is not None)
@@ -2673,19 +2845,31 @@ def _cl_sequence_narrator(raw, best_combo):
         if sl_hit_pct > 70:
             opportunities.append({
                 "target": sl_key, "hit_pct": sl_hit_pct,
-                "insight": f"SL {sl_check}% kena di {sl_hit_pct}% trades → terlalu ketat, coba SL lebih longgar"
+                "insight": f"SL {sl_check}% kena di {sl_hit_pct}% trades → terlalu ketat, perbesar SL atau flip direction",
             })
 
-    # Recommend better TP:SL if current EV negative
     if ev <= 0:
-        # Find combo with best EV from sequence data
         opportunities.append({
             "target": "ratio",
-            "insight": f"EV negatif ({ev}%). Coba TP {max(tp_val * 2, 1.0)}% SL {min(sl_val, 1.0)}% untuk ratio lebih baik"
+            "insight": f"EV negatif ({ev}%). Coba naikkan TP atau kecilkan SL untuk ratio lebih baik",
         })
+
+    # Check range
+    if range_dist:
+        avg_range = range_dist.get("avg", 0)
+        if avg_range < 0.5:
+            opportunities.append({
+                "target": "range",
+                "insight": f"Avg range cuma {avg_range}% → pair/TF ini range terlalu kecil. Coba TF lebih besar atau pair lebih volatile",
+            })
 
     return {
         "sequence": sequence,
+        "distance_distribution": distance_dist,
+        "predicted_range": range_dist,
+        "dca_scenarios": dca_scenarios,
+        "sl_tp_mirrors": mirrors,
+        "conditional_sequence": conditional,
         "conclusion": conclusion,
         "ev_per_trade": ev,
         "total_net": round(ev * total_trades, 1),
