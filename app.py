@@ -26,7 +26,8 @@ from tick_discovery import (
         start_sweep_engine, stop_sweep_engine, get_sweep_status,
         pause_sweep_engine, resume_sweep_engine,
         profile_winning_combo,
-        cluster_levels, _load_data as td_load_data, DB_PATH as TD_DB_PATH,
+        cluster_levels, combo_sweep,
+        _load_data as td_load_data, DB_PATH as TD_DB_PATH,
     )
 app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
