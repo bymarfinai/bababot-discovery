@@ -873,6 +873,26 @@ def start_sweep_engine(
                     except Exception as ex:
                         _log(f"  ❌ Clustering error: {str(ex)[:100]}")
 
+                # ── Combo Sweep: test ALL entry×TP×SL×DCA×hold combos ──
+                if _sweep_status["running"]:
+                    _log(f"  🔬 Running combo sweep {pair} {tf}...")
+                    try:
+                        combo_result = combo_sweep(
+                            rows, sub_lookup, pair, tf,
+                            window=window, days=days, save_to_d1=True,
+                        )
+                        if combo_result.get("status") == "ok":
+                            n_profitable = combo_result.get("profitable_combos", 0)
+                            top = combo_result.get("top_50", [None])[0] if combo_result.get("top_50") else None
+                            if top:
+                                _log(f"  🔬 Combo done — {n_profitable} profitable. Best: {top['entry']} {top['side']} "
+                                     f"TP={top['tp_name']} SL={top['sl_pct']}% WR={top['wr']}% EV={top['ev_per_trade']}% "
+                                     f"${top['avg_daily_capped']}/day")
+                            else:
+                                _log(f"  🔬 Combo done — {n_profitable} profitable combos")
+                    except Exception as ex:
+                        _log(f"  ❌ Combo sweep error: {str(ex)[:100]}")
+
         _sweep_status["running"] = False
         _sweep_status["finished_at"] = datetime.now().isoformat()
         _sweep_status["progress"] = "DONE"
@@ -2166,8 +2186,8 @@ def cluster_levels(
             )
             order_map = {ln: rank for rank, (ln, _) in enumerate(hit_sorted, 1)}
 
-            # Accumulate (include hour + context for per-hour analysis)
-            ea["raw"].append((candle_time, level_min, hour_utc, prev_dir, prev_range))
+            # Accumulate (include hour + context + prices for distance calc)
+            ea["raw"].append((candle_time, level_min, hour_utc, prev_dir, prev_range, entry_price, pred_high, pred_low, pred_close))
             for ln in _CL_LEVEL_NAMES:
                 m = level_min.get(ln)
                 if m is not None and ln != "candle_end":
@@ -2267,6 +2287,7 @@ def cluster_levels(
                 "est_wr": best["wr"], "trades": trig,
                 "expired_pct": best.get("expired_pct", 0),
                 "recovery_pct": best.get("recovery_pct", 0),
+                "dist_info": best.get("dist_info", {}),
             }
         if top10:
             ep_out["top10_combos"] = [{
@@ -2274,11 +2295,17 @@ def cluster_levels(
                 "tp_name": c["tp_name"], "tp_type": c.get("tp_type", "fixed"),
                 "hold": c.get("hold", "short"), "hold_min": c.get("hold_minutes", 0),
                 "wr": c["wr"], "expired_pct": c.get("expired_pct", 0),
+                "dist_info": c.get("dist_info", {}),
             } for c in top10]
         if stab:
             ep_out["stability"] = stab
         if per_hour:
             ep_out["per_hour"] = per_hour
+
+        # Sequence narrator
+        narrative = _cl_sequence_narrator(ea["raw"], best)
+        if narrative:
+            ep_out["sequence"] = narrative
         output_entries.append(ep_out)
 
     # Auto-suggest
@@ -2300,9 +2327,9 @@ def cluster_levels(
 
 
 def _cl_best_combo(raw, triggered, side="LONG", max_walk_min=240):
-    """Find TP/SL combo with highest WR — includes dynamic targets + dual hold."""
+    """Find TP/SL combo with highest WR — includes dynamic targets + dual hold + actual distances."""
     results = []
-    half_hold = max_walk_min // 2  # short hold = half of max
+    half_hold = max_walk_min // 2
 
     # ── Fixed TP targets ──
     tp_targets = [(f"TP_{v}", v, "fixed") for v in _CL_TP_LEVELS]
@@ -2319,19 +2346,34 @@ def _cl_best_combo(raw, triggered, side="LONG", max_walk_min=240):
         for sl_v in _CL_SL_LEVELS:
             sl_n = f"SL_{sl_v}"
 
-            # Test both hold durations
             for hold_label, hold_limit in [("short", half_hold), ("long", max_walk_min)]:
                 wins = 0
                 losses = 0
                 expired = 0
                 expired_toward_tp = 0
+                distances = []  # actual TP distance per trade
 
                 for entry in raw:
                     lm = entry[1]
                     tp_m = lm.get(tp_n)
                     sl_m = lm.get(sl_n)
 
-                    # Filter by hold duration
+                    # Compute actual distance for dynamic targets
+                    if tp_type == "dynamic" and len(entry) >= 9:
+                        ep = entry[5]  # entry_price
+                        ph, pl, pc = entry[6], entry[7], entry[8]
+                        if side == "LONG":
+                            if tp_n == "pred_high":
+                                dist = abs(ph - ep) / ep * 100 if ep > 0 else 0
+                            else:  # pred_close
+                                dist = abs(pc - ep) / ep * 100 if ep > 0 else 0
+                        else:
+                            if tp_n == "pred_low":
+                                dist = abs(ep - pl) / ep * 100 if ep > 0 else 0
+                            else:  # pred_close
+                                dist = abs(ep - pc) / ep * 100 if ep > 0 else 0
+                        distances.append(round(dist, 3))
+
                     tp_in_range = tp_m is not None and tp_m <= hold_limit
                     sl_in_range = sl_m is not None and sl_m <= hold_limit
 
@@ -2341,7 +2383,6 @@ def _cl_best_combo(raw, triggered, side="LONG", max_walk_min=240):
                         losses += 1
                     else:
                         expired += 1
-                        # Was price moving toward TP at expiry?
                         if tp_m is not None:
                             expired_toward_tp += 1
 
@@ -2353,8 +2394,23 @@ def _cl_best_combo(raw, triggered, side="LONG", max_walk_min=240):
                 expired_pct = round(expired / total * 100, 1)
                 recovery_pct = round(expired_toward_tp / expired * 100, 1) if expired > 0 else 0
 
+                # Distance stats for dynamic targets
+                avg_dist = round(sum(distances) / len(distances), 3) if distances else tp_v
+                dist_info = {}
+                if distances:
+                    sd = sorted(distances)
+                    dist_info = {
+                        "avg": avg_dist,
+                        "median": round(sd[len(sd)//2], 3),
+                        "p25": round(sd[int(len(sd)*0.25)], 3),
+                        "p75": round(sd[int(len(sd)*0.75)], 3),
+                        "min": round(sd[0], 3),
+                        "max": round(sd[-1], 3),
+                    }
+
                 results.append({
-                    "tp_val": tp_v, "sl_val": sl_v,
+                    "tp_val": avg_dist if tp_type == "dynamic" else tp_v,
+                    "sl_val": sl_v,
                     "tp_name": tp_n, "sl_name": sl_n,
                     "tp_type": tp_type, "hold": hold_label,
                     "hold_minutes": hold_limit,
@@ -2362,6 +2418,7 @@ def _cl_best_combo(raw, triggered, side="LONG", max_walk_min=240):
                     "expired": expired, "expired_pct": expired_pct,
                     "recovery_pct": recovery_pct,
                     "total": total,
+                    "dist_info": dist_info,
                 })
 
     if not results:
@@ -2522,6 +2579,120 @@ def _cl_per_hour(raw, best_combo):
     return result
 
 
+def _cl_sequence_narrator(raw, best_combo):
+    """
+    Transpose: from 'per level, what order' to 'per order, what level'.
+    Output: for each order position (1-5), what % of trades had each level.
+    Plus conclusion and opportunity detection.
+    """
+    if not raw or not best_combo:
+        return {}
+
+    # Count: for each order position, how many times each level was hit
+    order_counts = defaultdict(lambda: defaultdict(int))  # {order: {level: count}}
+    total_trades = len(raw)
+
+    for entry in raw:
+        lm = entry[1]
+        # Sort levels by minute (order of hitting)
+        hit_levels = sorted(
+            [(ln, m) for ln, m in lm.items() if m is not None and ln != "candle_end"],
+            key=lambda x: x[1]
+        )
+        for pos, (ln, _) in enumerate(hit_levels, 1):
+            order_key = str(pos) if pos <= 5 else "5+"
+            order_counts[order_key][ln] += 1
+
+    # Convert to percentages
+    sequence = {}
+    for order in ["1", "2", "3", "4", "5+"]:
+        counts = order_counts.get(order, {})
+        total_at_pos = sum(counts.values())
+        if total_at_pos == 0:
+            continue
+        levels = {}
+        for ln, cnt in sorted(counts.items(), key=lambda x: -x[1]):
+            pct = round(cnt / total_trades * 100, 1)
+            if pct >= 1:  # only show >= 1%
+                levels[ln] = pct
+        sequence[order] = {"levels": levels, "trades_at_pos": total_at_pos}
+
+    # ── Generate conclusion ──
+    tp_name = best_combo.get("tp_name", "")
+    sl_name = best_combo.get("sl_name", "")
+    tp_val = best_combo.get("tp_val", 0)
+    sl_val = best_combo.get("sl_val", 0)
+    wr = best_combo.get("wr", 0)
+    tp_type = best_combo.get("tp_type", "fixed")
+
+    fee = 0.07
+    if tp_type == "fixed":
+        ev = round((wr / 100 * (tp_val - fee)) - ((1 - wr / 100) * (sl_val + fee)), 4)
+    else:
+        ev = round((wr / 100 * (tp_val - fee)) - ((1 - wr / 100) * (sl_val + fee)), 4)
+
+    conclusion = f"WR {wr}%, TP {tp_val}% vs SL {sl_val}%, EV = {ev}%/trade"
+    if ev > 0:
+        conclusion += f" ✅ PROFITABLE (${round(ev * total_trades, 1)} total dari {total_trades} trades)"
+    else:
+        conclusion += f" ❌ RUGI (kehilangan ${round(abs(ev) * total_trades, 1)} total)"
+
+    # ── Detect opportunities ──
+    opportunities = []
+
+    # Check if dynamic targets are reachable
+    for dyn in ["pred_high", "pred_low", "pred_close"]:
+        hits = sum(1 for e in raw if e[1].get(dyn) is not None)
+        hit_pct = round(hits / total_trades * 100, 1)
+        if hit_pct >= 60:
+            # Find most common order for this dynamic target
+            dyn_orders = []
+            for e in raw:
+                lm = e[1]
+                if lm.get(dyn) is None:
+                    continue
+                hit_sorted = sorted(
+                    [(ln, m) for ln, m in lm.items() if m is not None and ln != "candle_end"],
+                    key=lambda x: x[1]
+                )
+                for pos, (ln, _) in enumerate(hit_sorted, 1):
+                    if ln == dyn:
+                        dyn_orders.append(pos)
+                        break
+            avg_order = round(sum(dyn_orders) / len(dyn_orders), 1) if dyn_orders else 0
+            opportunities.append({
+                "target": dyn, "hit_pct": hit_pct, "avg_order": avg_order,
+                "insight": f"{dyn} kena {hit_pct}% trades (avg urutan {avg_order}) → bisa jadi entry/TP point"
+            })
+
+    # Check if SL too tight or too loose
+    for sl_check in _CL_SL_LEVELS:
+        sl_key = f"SL_{sl_check}"
+        sl_hits = sum(1 for e in raw if e[1].get(sl_key) is not None)
+        sl_hit_pct = round(sl_hits / total_trades * 100, 1)
+        if sl_hit_pct > 70:
+            opportunities.append({
+                "target": sl_key, "hit_pct": sl_hit_pct,
+                "insight": f"SL {sl_check}% kena di {sl_hit_pct}% trades → terlalu ketat, coba SL lebih longgar"
+            })
+
+    # Recommend better TP:SL if current EV negative
+    if ev <= 0:
+        # Find combo with best EV from sequence data
+        opportunities.append({
+            "target": "ratio",
+            "insight": f"EV negatif ({ev}%). Coba TP {max(tp_val * 2, 1.0)}% SL {min(sl_val, 1.0)}% untuk ratio lebih baik"
+        })
+
+    return {
+        "sequence": sequence,
+        "conclusion": conclusion,
+        "ev_per_trade": ev,
+        "total_net": round(ev * total_trades, 1),
+        "opportunities": opportunities,
+    }
+
+
 def _cl_suggest(entry_points):
     """Rank all entry+combo by stability-adjusted WR."""
     sugg = []
@@ -2605,6 +2776,7 @@ def _save_clustering_to_d1(result):
                 "stability": ep.get("stability"),
                 "levels_json": json.dumps(ep["levels"]),
                 "per_hour_json": json.dumps(ep.get("per_hour", {})),
+                "sequence_json": json.dumps(ep.get("sequence", {})),
             })
         resp = requests.post(f"{WORKER_URL}/tick/save-clustering", json=payload, timeout=30)
         if resp.ok:
@@ -2615,6 +2787,473 @@ def _save_clustering_to_d1(result):
         _log(f"  ⚠️ Clustering save error: {str(ex)[:100]}")
 
 # ════════════════════════════════════════════════════════════
+
+# COMBO SWEEP ENGINE
+# ════════════════════════════════════════════════════════════
+
+_COMBO_TP_FIXED = [0.5, 0.7, 1.0, 1.5, 2.0]
+_COMBO_SL_FIXED = [0.3, 0.5, 0.7, 1.0, 1.5, 2.0]
+_COMBO_DCA = [0, 0.5, 1.0]  # 0 = no DCA
+_COMBO_FEE = 0.07  # maker+taker
+
+_combo_sweep_status = {
+    "running": False, "paused": False,
+    "progress": "", "completed": 0, "total": 0,
+    "winners": 0, "started_at": None, "finished_at": None,
+}
+
+
+def combo_sweep(
+    rows, sub_lookup, symbol, timeframe,
+    window=10, days=1825, daily_cap=5.0, position_size=100,
+    save_to_d1=True,
+):
+    """
+    Test ALL entry×TP×SL×DCA×hold combos using pre-computed 1m level data.
+    Rank by total_profit (EV × trades), not just WR.
+    Include daily cap simulation.
+    """
+    n = len(rows)
+    if n < window + 20:
+        return {"status": "insufficient_data"}
+
+    opens  = [r[0] for r in rows]
+    highs  = [r[1] for r in rows]
+    lows   = [r[2] for r in rows]
+    closes = [r[3] for r in rows]
+    times  = [r[5] for r in rows]
+
+    close_ratios = [closes[i] / closes[i-1] if closes[i-1] != 0 else 1.0 for i in range(1, n)]
+    high_ratios  = [highs[i] / highs[i-1] if highs[i-1] != 0 else 1.0 for i in range(1, n)]
+    low_ratios   = [lows[i] / lows[i-1] if lows[i-1] != 0 else 1.0 for i in range(1, n)]
+
+    tf_ms = {"1m": 60000, "15m": 900000, "1h": 3600000, "4h": 14400000}
+    parent_ms = tf_ms.get(timeframe, 14400000)
+    max_hold_map = {"15m": 8, "1h": 4, "4h": 2}
+    max_hold = max_hold_map.get(timeframe, 2)
+    half_hold_min = {"15m": 60, "1h": 120, "4h": 240}
+    full_hold_min = {"15m": 120, "1h": 240, "4h": 480}
+
+    entry_cfgs = _cl_entry_configs()  # reuse from clustering
+
+    # ── Limit by days ──
+    start_idx = window
+    if days and days > 0:
+        ms_limit = days * 86400 * 1000
+        last_time = rows[-1][5]
+        for ri in range(len(rows)):
+            if rows[ri][5] >= last_time - ms_limit:
+                start_idx = max(window, ri)
+                break
+
+    _log(f"  🔬 Combo sweep {symbol} {timeframe}: pre-computing level hits...")
+
+    # ═══════════════════════════════════════════
+    # PHASE 1: Pre-compute ALL level hit minutes per candle per entry
+    # ═══════════════════════════════════════════
+    # Structure: trades[entry_name] = [(candle_time, entry_price, pred_h, pred_l, pred_c, {level: min}, hour_utc, date_str)]
+    all_trades = {cfg["name"]: [] for cfg in entry_cfgs}
+
+    for i in range(start_idx, len(close_ratios)):
+        if i + 1 >= n:
+            break
+
+        avg_h = sum(high_ratios[i-window:i]) / window
+        avg_l = sum(low_ratios[i-window:i]) / window
+        avg_c = sum(close_ratios[i-window:i]) / window
+        pred_high = highs[i] * avg_h
+        pred_low  = lows[i] * avg_l
+        pred_close = closes[i] * avg_c
+
+        next_idx = i + 1
+        candle_time = times[next_idx]
+        candle_open = opens[next_idx]
+
+        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
+        hour_utc = dt.hour
+        date_str = dt.strftime("%Y-%m-%d")
+
+        # Flatten 1m subs
+        first_parent_ts = (candle_time // parent_ms) * parent_ms
+        first_subs = sub_lookup.get(first_parent_ts, [])
+        if not first_subs:
+            continue
+
+        all_subs = list(first_subs)
+        for k in range(1, max_hold):
+            ci = next_idx + k
+            if ci >= n:
+                break
+            pts = (times[ci] // parent_ms) * parent_ms
+            s = sub_lookup.get(pts, [])
+            all_subs.extend(s)
+
+        max_walk = full_hold_min.get(timeframe, 480)
+
+        for cfg in entry_cfgs:
+            side = cfg["side"]
+
+            # Compute entry price
+            if cfg["open"]:
+                entry_price = candle_open
+            elif side == "LONG":
+                entry_price = pred_low * (1 - cfg["buf"] / 100) if cfg["buf"] > 0 else pred_low
+            else:
+                entry_price = pred_high * (1 + cfg["buf"] / 100) if cfg["buf"] > 0 else pred_high
+
+            # Find trigger
+            if cfg["open"]:
+                walk_start = 0
+            else:
+                trigger_idx = -1
+                for sc_i, sc in enumerate(first_subs):
+                    if side == "LONG" and sc["l"] <= entry_price:
+                        trigger_idx = sc_i
+                        break
+                    if side == "SHORT" and sc["h"] >= entry_price:
+                        trigger_idx = sc_i
+                        break
+                if trigger_idx < 0:
+                    continue
+                walk_start = trigger_idx + 1
+
+            # Walk and record ALL levels
+            level_min = {}
+
+            # Fixed TP/SL levels
+            for tp in _COMBO_TP_FIXED:
+                if side == "LONG":
+                    level_min[f"TP_{tp}"] = None
+                    tp_price = entry_price * (1 + tp / 100)
+                else:
+                    level_min[f"TP_{tp}"] = None
+                    tp_price = entry_price * (1 - tp / 100)
+                for sc_i in range(walk_start, min(len(all_subs), walk_start + max_walk)):
+                    sc = all_subs[sc_i]
+                    if side == "LONG" and sc["h"] >= tp_price:
+                        level_min[f"TP_{tp}"] = sc_i - walk_start
+                        break
+                    if side == "SHORT" and sc["l"] <= tp_price:
+                        level_min[f"TP_{tp}"] = sc_i - walk_start
+                        break
+
+            for sl in _COMBO_SL_FIXED:
+                if side == "LONG":
+                    sl_price = entry_price * (1 - sl / 100)
+                else:
+                    sl_price = entry_price * (1 + sl / 100)
+                level_min[f"SL_{sl}"] = None
+                for sc_i in range(walk_start, min(len(all_subs), walk_start + max_walk)):
+                    sc = all_subs[sc_i]
+                    if side == "LONG" and sc["l"] <= sl_price:
+                        level_min[f"SL_{sl}"] = sc_i - walk_start
+                        break
+                    if side == "SHORT" and sc["h"] >= sl_price:
+                        level_min[f"SL_{sl}"] = sc_i - walk_start
+                        break
+
+            # Dynamic targets
+            for dyn_name, dyn_price, dyn_dir in [
+                ("pred_high", pred_high, "above"),
+                ("pred_low", pred_low, "below"),
+                ("pred_close", pred_close, "either"),
+            ]:
+                level_min[dyn_name] = None
+                for sc_i in range(walk_start, min(len(all_subs), walk_start + max_walk)):
+                    sc = all_subs[sc_i]
+                    hit = False
+                    if dyn_dir == "above" and sc["h"] >= dyn_price:
+                        hit = True
+                    elif dyn_dir == "below" and sc["l"] <= dyn_price:
+                        hit = True
+                    elif dyn_dir == "either" and sc["l"] <= dyn_price <= sc["h"]:
+                        hit = True
+                    if hit:
+                        level_min[dyn_name] = sc_i - walk_start
+                        break
+
+            # Dynamic TP distances (actual %)
+            dyn_distances = {}
+            if side == "LONG":
+                dyn_distances["pred_high"] = round((pred_high - entry_price) / entry_price * 100, 4) if entry_price > 0 else 0
+                dyn_distances["pred_close"] = round((pred_close - entry_price) / entry_price * 100, 4) if entry_price > 0 else 0
+            else:
+                dyn_distances["pred_low"] = round((entry_price - pred_low) / entry_price * 100, 4) if entry_price > 0 else 0
+                dyn_distances["pred_close"] = round((entry_price - pred_close) / entry_price * 100, 4) if entry_price > 0 else 0
+
+            # DCA entry levels
+            for dca_pct in _COMBO_DCA:
+                if dca_pct > 0:
+                    if side == "LONG":
+                        dca_price = entry_price * (1 - dca_pct / 100)
+                    else:
+                        dca_price = entry_price * (1 + dca_pct / 100)
+                    dca_min = None
+                    for sc_i in range(walk_start, min(len(all_subs), walk_start + max_walk)):
+                        sc = all_subs[sc_i]
+                        if side == "LONG" and sc["l"] <= dca_price:
+                            dca_min = sc_i - walk_start
+                            break
+                        if side == "SHORT" and sc["h"] >= dca_price:
+                            dca_min = sc_i - walk_start
+                            break
+                    level_min[f"DCA_{dca_pct}"] = dca_min
+
+            all_trades[cfg["name"]].append((
+                candle_time, entry_price, pred_high, pred_low, pred_close,
+                level_min, hour_utc, date_str, dyn_distances,
+            ))
+
+    _log(f"  🔬 Phase 1 done. Pre-computed {sum(len(v) for v in all_trades.values())} trade records")
+
+    # ═══════════════════════════════════════════
+    # PHASE 2: Grid search all combos
+    # ═══════════════════════════════════════════
+
+    # Build TP configs: fixed + dynamic
+    tp_configs = []
+    for tp_pct in _COMBO_TP_FIXED:
+        tp_configs.append({"name": f"TP_{tp_pct}", "type": "fixed", "pct": tp_pct})
+    tp_configs.append({"name": "pred_high", "type": "dynamic", "pct": 0})
+    tp_configs.append({"name": "pred_low", "type": "dynamic", "pct": 0})
+    tp_configs.append({"name": "pred_close", "type": "dynamic", "pct": 0})
+
+    sl_configs = [{"name": f"SL_{sl}", "pct": sl} for sl in _COMBO_SL_FIXED]
+    hold_configs = [
+        {"name": "short", "max_min": half_hold_min.get(timeframe, 120)},
+        {"name": "long", "max_min": full_hold_min.get(timeframe, 480)},
+    ]
+
+    results = []
+    total_combos = len(entry_cfgs) * len(tp_configs) * len(sl_configs) * len(_COMBO_DCA) * len(hold_configs)
+    checked = 0
+
+    _log(f"  🔬 Phase 2: testing {total_combos} combos...")
+
+    for cfg in entry_cfgs:
+        trades = all_trades[cfg["name"]]
+        if len(trades) < 30:
+            checked += len(tp_configs) * len(sl_configs) * len(_COMBO_DCA) * len(hold_configs)
+            continue
+
+        side = cfg["side"]
+
+        # Filter valid dynamic TPs for this side
+        valid_tp = []
+        for tp_cfg in tp_configs:
+            if tp_cfg["type"] == "dynamic":
+                if side == "LONG" and tp_cfg["name"] in ("pred_high", "pred_close"):
+                    valid_tp.append(tp_cfg)
+                elif side == "SHORT" and tp_cfg["name"] in ("pred_low", "pred_close"):
+                    valid_tp.append(tp_cfg)
+            else:
+                valid_tp.append(tp_cfg)
+
+        for tp_cfg in valid_tp:
+            tp_name = tp_cfg["name"]
+            tp_type = tp_cfg["type"]
+
+            for sl_cfg in sl_configs:
+                sl_name = sl_cfg["name"]
+                sl_pct = sl_cfg["pct"]
+
+                for dca_pct in _COMBO_DCA:
+
+                    for hold_cfg in hold_configs:
+                        hold_max = hold_cfg["max_min"]
+                        checked += 1
+
+                        # ── Evaluate all trades ──
+                        wins = 0
+                        losses = 0
+                        expired = 0
+                        tp_distances = []
+                        daily_pnl = defaultdict(float)
+                        hour_stats = defaultdict(lambda: {"w": 0, "l": 0})
+
+                        for trade in trades:
+                            ct, ep, ph, pl, pc, lm, hour, date, dyn_dist = trade
+
+                            tp_min = lm.get(tp_name)
+                            sl_min = lm.get(sl_name)
+
+                            # Apply hold limit
+                            tp_in = tp_min is not None and tp_min <= hold_max
+                            sl_in = sl_min is not None and sl_min <= hold_max
+
+                            # DCA adjustment: if DCA triggered, recalculate TP min
+                            # Simplified: DCA gives better avg entry, TP more likely
+                            dca_triggered = False
+                            if dca_pct > 0:
+                                dca_min = lm.get(f"DCA_{dca_pct}")
+                                if dca_min is not None and dca_min <= hold_max:
+                                    dca_triggered = True
+                                    # DCA triggered before TP → avg entry better
+                                    # Check if TP hits AFTER DCA
+                                    if tp_min is not None and tp_min > dca_min:
+                                        tp_in = True  # more likely with better entry
+
+                            # Determine outcome
+                            if tp_in and (not sl_in or tp_min < sl_min):
+                                win = True
+                            elif sl_in and (not tp_in or sl_min <= tp_min):
+                                win = False
+                            else:
+                                win = False  # expired = loss (fee)
+                                expired += 1
+
+                            # Compute profit
+                            if tp_type == "fixed":
+                                tp_dist = tp_cfg["pct"]
+                            else:
+                                tp_dist = dyn_dist.get(tp_name, 0)
+                                if tp_dist <= 0:
+                                    tp_dist = 0.1  # fallback
+
+                            if win:
+                                wins += 1
+                                pnl_pct = tp_dist - _COMBO_FEE
+                            else:
+                                losses += 1
+                                pnl_pct = -(sl_pct + _COMBO_FEE)
+
+                            tp_distances.append(tp_dist)
+                            pnl_dollar = pnl_pct / 100 * position_size
+                            daily_pnl[date] += pnl_dollar
+                            hour_stats[hour]["w" if win else "l"] += 1
+
+                        total = wins + losses
+                        if total < 30:
+                            continue
+
+                        wr = round(wins / total * 100, 1)
+                        avg_tp_dist = round(sum(tp_distances) / len(tp_distances), 3) if tp_distances else 0
+
+                        # EV
+                        if tp_type == "fixed":
+                            ev = round((wr / 100 * (tp_cfg["pct"] - _COMBO_FEE)) - ((1 - wr / 100) * (sl_pct + _COMBO_FEE)), 4)
+                        else:
+                            ev = round((wr / 100 * (avg_tp_dist - _COMBO_FEE)) - ((1 - wr / 100) * (sl_pct + _COMBO_FEE)), 4)
+
+                        if ev <= 0:
+                            continue  # skip EV negative
+
+                        ratio = round((avg_tp_dist if tp_type == "dynamic" else tp_cfg["pct"]) / sl_pct, 2)
+                        total_profit = round(ev * total * position_size / 100, 2)
+
+                        # Daily cap simulation
+                        cap_days = 0
+                        cap_profit = 0
+                        loss_days = 0
+                        for date, pnl in daily_pnl.items():
+                            capped = min(pnl, daily_cap)
+                            cap_profit += capped
+                            if pnl >= daily_cap:
+                                cap_days += 1
+                            if pnl < 0:
+                                loss_days += 1
+
+                        total_days = len(daily_pnl)
+                        avg_daily = round(cap_profit / total_days, 2) if total_days > 0 else 0
+                        hit_cap_pct = round(cap_days / total_days * 100, 1) if total_days > 0 else 0
+
+                        # Consistency
+                        week_buckets = defaultdict(lambda: {"w": 0, "l": 0})
+                        for trade in trades:
+                            wk = int(trade[0] // (7 * 86400000))
+                            # simplified: use overall win/loss
+                        # Use daily_pnl for weekly
+                        weekly_profits = defaultdict(float)
+                        for date, pnl in daily_pnl.items():
+                            # week number
+                            from datetime import datetime as dt2
+                            d = dt2.strptime(date, "%Y-%m-%d")
+                            wk = d.isocalendar()[1] + d.year * 100
+                            weekly_profits[wk] += min(pnl, daily_cap)
+
+                        profitable_weeks = sum(1 for v in weekly_profits.values() if v > 0)
+                        consistency = round(profitable_weeks / len(weekly_profits) * 100, 1) if weekly_profits else 0
+
+                        # Per-hour best
+                        best_hours = []
+                        for h, st in sorted(hour_stats.items()):
+                            tot_h = st["w"] + st["l"]
+                            if tot_h >= 5:
+                                wr_h = round(st["w"] / tot_h * 100, 1)
+                                if wr_h >= 60:
+                                    best_hours.append({"hour": h, "wr": wr_h, "trades": tot_h})
+
+                        results.append({
+                            "entry": cfg["name"], "side": side,
+                            "tp_name": tp_name, "tp_type": tp_type,
+                            "tp_pct": tp_cfg["pct"] if tp_type == "fixed" else avg_tp_dist,
+                            "sl_pct": sl_pct,
+                            "dca": dca_pct,
+                            "hold": hold_cfg["name"],
+                            "wr": wr, "ev_per_trade": ev,
+                            "ratio": ratio,
+                            "trades": total, "expired": expired,
+                            "total_profit": total_profit,
+                            "avg_daily_capped": avg_daily,
+                            "hit_cap_pct": hit_cap_pct,
+                            "loss_days_pct": round(loss_days / total_days * 100, 1) if total_days > 0 else 0,
+                            "consistency": consistency,
+                            "best_hours": best_hours[:5],
+                            "avg_tp_distance": avg_tp_dist if tp_type == "dynamic" else tp_cfg["pct"],
+                        })
+
+        if checked % 500 == 0:
+            _log(f"  🔬 {checked}/{total_combos} combos checked, {len(results)} EV+ found")
+
+    # ═══════════════════════════════════════════
+    # PHASE 3: Rank and output
+    # ═══════════════════════════════════════════
+    results.sort(key=lambda x: x["total_profit"], reverse=True)
+
+    _log(f"  🔬 Combo sweep done: {len(results)} profitable combos from {checked} tested")
+
+    output = {
+        "status": "ok",
+        "symbol": symbol, "timeframe": timeframe,
+        "total_combos_tested": checked,
+        "profitable_combos": len(results),
+        "top_50": results[:50],
+        "top_by_ev": sorted(results, key=lambda x: x["ev_per_trade"], reverse=True)[:20],
+        "top_by_wr": sorted(results, key=lambda x: x["wr"], reverse=True)[:20],
+        "top_by_daily": sorted(results, key=lambda x: x["avg_daily_capped"], reverse=True)[:20],
+        "top_by_consistency": sorted(results, key=lambda x: x["consistency"], reverse=True)[:20],
+    }
+
+    if save_to_d1:
+        _save_combo_results(symbol, timeframe, results[:100])
+
+    return output
+
+
+def _save_combo_results(symbol, timeframe, results):
+    """Save combo sweep results to D1."""
+    try:
+        payload = {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "results": [{
+                "entry": r["entry"], "side": r["side"],
+                "tp_name": r["tp_name"], "tp_type": r["tp_type"],
+                "tp_pct": r["tp_pct"], "sl_pct": r["sl_pct"],
+                "dca": r["dca"], "hold": r["hold"],
+                "wr": r["wr"], "ev": r["ev_per_trade"],
+                "ratio": r["ratio"], "trades": r["trades"],
+                "total_profit": r["total_profit"],
+                "avg_daily": r["avg_daily_capped"],
+                "consistency": r["consistency"],
+            } for r in results],
+        }
+        resp = requests.post(f"{WORKER_URL}/tick/save-combo-results", json=payload, timeout=30)
+        if resp.ok:
+            _log(f"  💾 Combo results saved: {symbol} {timeframe} ({len(results)} strategies)")
+    except Exception as ex:
+        _log(f"  ⚠️ Combo save error: {str(ex)[:100]}")
+
 # INTERNAL HELPERS
 # ════════════════════════════════════════════════════════════
 
