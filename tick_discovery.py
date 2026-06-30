@@ -3462,7 +3462,7 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
     """
     _log(f"  🧪 Custom backtest: {symbol} {timeframe} — {config}")
 
-    rows, sub_lookup = _load_data(symbol, timeframe)
+    rows, sub_lookup = _load_data(DB_PATH, symbol, timeframe)
     if not rows or len(rows) < window + 20:
         return {"status": "error", "message": "Insufficient data"}
 
