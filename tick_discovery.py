@@ -3439,30 +3439,126 @@ def _save_combo_results(symbol, timeframe, results):
         _log(f"  ⚠️ Combo save error: {str(ex)[:100]}")
 
 
+
+# ════════════════════════════════════════════════════════════
+# REGIME DETECTION — Using Deret Statistik Ratios (V19)
+# ════════════════════════════════════════════════════════════
+
+def _detect_regime(high_ratios, low_ratios, i, regime_window=3):
+    """
+    Detect market regime from Deret Statistik ratios.
+    avg_ratio > 1.0 = price trending UP, < 1.0 = trending DOWN.
+    Returns: (regime_str, strength_bps)
+    """
+    if i < regime_window:
+        return "UNKNOWN", 0
+
+    h_slice = high_ratios[i - regime_window:i]
+    l_slice = low_ratios[i - regime_window:i]
+
+    if not h_slice or not l_slice:
+        return "UNKNOWN", 0
+
+    avg_h = sum(h_slice) / len(h_slice)
+    avg_l = sum(l_slice) / len(l_slice)
+
+    h_bull = avg_h > 1.0
+    l_bull = avg_l > 1.0
+
+    h_strength = (avg_h - 1.0) * 10000
+    l_strength = (avg_l - 1.0) * 10000
+    avg_strength = (h_strength + l_strength) / 2
+
+    if h_bull and l_bull:
+        regime = "BULL"
+    elif not h_bull and not l_bull:
+        regime = "BEAR"
+    else:
+        regime = "SIDEWAYS"
+
+    if regime != "SIDEWAYS" and abs(avg_strength) > 30:
+        regime = f"STRONG_{regime}"
+
+    return regime, round(avg_strength, 1)
+
+
+def _get_adaptive_params(regime, strength, side):
+    """
+    Return adaptive overrides based on regime + trade side.
+    Returns dict with entry/tp/sl overrides, or skip=True.
+
+    STRONG_BULL + LONG  -> entry=open, TP=pred_high, SL=pred_close (ride trend)
+    STRONG_BULL + SHORT -> SKIP
+    BULL + LONG         -> TP=pred_close, SL=0.7%
+    BULL + SHORT        -> SKIP
+    SIDEWAYS            -> SL=0.5%, TP=0.5%
+    BEAR + LONG         -> SKIP
+    BEAR + SHORT        -> TP=pred_close, SL=0.7%
+    STRONG_BEAR + SHORT -> entry=open, TP=pred_low, SL=pred_close
+    STRONG_BEAR + LONG  -> SKIP
+    """
+    result = {
+        "entry_override": None,
+        "tp_override": None,
+        "sl_override": None,
+        "sl_use_pred_close": False,
+        "skip": False,
+        "regime": regime,
+        "strength": strength,
+    }
+
+    if regime == "STRONG_BULL":
+        if side == "LONG":
+            result["entry_override"] = "open"
+            result["tp_override"] = "pred_high"
+            result["sl_use_pred_close"] = True
+        else:
+            result["skip"] = True
+
+    elif regime == "BULL":
+        if side == "LONG":
+            result["tp_override"] = "pred_close"
+            result["sl_override"] = 0.7
+        else:
+            result["skip"] = True
+
+    elif regime == "STRONG_BEAR":
+        if side == "SHORT":
+            result["entry_override"] = "open"
+            result["tp_override"] = "pred_low"
+            result["sl_use_pred_close"] = True
+        else:
+            result["skip"] = True
+
+    elif regime == "BEAR":
+        if side == "SHORT":
+            result["tp_override"] = "pred_close"
+            result["sl_override"] = 0.7
+        else:
+            result["skip"] = True
+
+    else:  # SIDEWAYS / UNKNOWN
+        result["sl_override"] = 0.5
+        result["tp_override"] = "0.5"
+
+    return result
+
+
 def custom_backtest(symbol, timeframe, config, window=10, days=1825):
     """
-    Test a single custom strategy combo. Supports:
-    - Conditional entry (enter AFTER pred_high/pred_low/pred_close is hit)
-    - Dynamic TP (pred_high, pred_low, pred_close)
-    - Fixed TP/SL %
-    - DCA
-    - Range filter
-    - Daily cap simulation
-    
-    config = {
-        "entry": "pred_high" | "pred_low" | "pred_close" | "open" | "pred_low_buf_X",
-        "entry_side": "LONG" | "SHORT",
-        "tp": "0.5" | "pred_high" | "pred_low" | "pred_close",
-        "sl": "0.3",           # always fixed %
-        "dca": "0.5" | null,   # DCA % below/above entry
-        "range_filter": 0,     # min predicted range %
-        "daily_cap": 5.0,
-        "position_size": 500,  # effective position after leverage
-    }
+    Custom backtest — V19 with regime detection.
+
+    New config keys:
+      regime_mode:   null | "filter" | "adaptive"
+      regime_window: 3 (default, lookback candles for regime)
+
+    regime_mode=None    -> identical to V18 behavior (backward compatible)
+    regime_mode="filter" -> skip counter-trend trades only
+    regime_mode="adaptive" -> full adaptive entry/TP/SL per regime
     """
     _log(f"  🧪 Custom backtest: {symbol} {timeframe} — {config}")
 
-    rows, sub_lookup = _load_data(DB_PATH, symbol, timeframe)
+    rows, sub_lookup = _load_data(symbol, timeframe)
     if not rows or len(rows) < window + 20:
         return {"status": "error", "message": "Insufficient data"}
 
@@ -3482,38 +3578,42 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
     max_hold_map = {"15m": 120, "1h": 240, "4h": 480}
     max_walk = max_hold_map.get(timeframe, 480)
 
-    # Parse config
-    entry_type = config.get("entry", "open")
-    side = config.get("entry_side", "LONG")
-    tp_config = str(config.get("tp", "0.5"))
-    sl_pct = float(config.get("sl", "0.3"))
+    # Parse config (original values — may be overridden per-candle by regime)
+    entry_type_orig = str(config.get("entry", "open"))
+    side_orig = config.get("entry_side", "LONG")
+    tp_config_orig = str(config.get("tp", "0.5"))
+    sl_pct_orig = float(config.get("sl", "0.3"))
     dca_pct = float(config.get("dca", 0)) if config.get("dca") else 0
     range_filter = float(config.get("range_filter", 0))
     daily_cap = float(config.get("daily_cap", 5.0))
     position_size = float(config.get("position_size", 500))
     fee = 0.07
-
-    # Determine if TP is fixed or dynamic
-    tp_is_dynamic = tp_config in ("pred_high", "pred_low", "pred_close")
-    tp_pct_fixed = 0 if tp_is_dynamic else float(tp_config)
-
-    # Conditional entry: only if this level hits FIRST (before other pred levels)
     only_first = config.get("only_first", False)
 
-    # Determine if entry is conditional (wait for level first)
-    conditional_entry = entry_type in ("pred_high", "pred_low", "pred_close")
+    # [V19] Regime config
+    regime_mode = config.get("regime_mode", None)
+    regime_window = int(config.get("regime_window", 3))
+    regime_stats = defaultdict(lambda: {"trades": 0, "wins": 0, "skipped": 0})
+
+    # Determine if TP is fixed or dynamic (original — may change per candle)
+    tp_is_dynamic_orig = tp_config_orig in ("pred_high", "pred_low", "pred_close")
+    tp_pct_fixed_orig = 0 if tp_is_dynamic_orig else float(tp_config_orig)
+
+    # Conditional entry flags (original)
+    conditional_entry_orig = entry_type_orig in ("pred_high", "pred_low", "pred_close")
 
     # Parse buffer entries like "pred_low_buf_2.0"
-    buf_entry = False
-    buf_pct = 0
-    if entry_type.startswith("pred_low_buf_"):
-        buf_entry = True
-        buf_pct = float(entry_type.split("_")[-1])
-        entry_base = "pred_low"
-    elif entry_type.startswith("pred_high_buf_"):
-        buf_entry = True
-        buf_pct = float(entry_type.split("_")[-1])
-        entry_base = "pred_high"
+    buf_entry_orig = False
+    buf_pct_orig = 0
+    entry_base_orig = ""
+    if entry_type_orig.startswith("pred_low_buf_"):
+        buf_entry_orig = True
+        buf_pct_orig = float(entry_type_orig.split("_")[-1])
+        entry_base_orig = "pred_low"
+    elif entry_type_orig.startswith("pred_high_buf_"):
+        buf_entry_orig = True
+        buf_pct_orig = float(entry_type_orig.split("_")[-1])
+        entry_base_orig = "pred_high"
 
     # Limit by days
     start_idx = window
@@ -3548,6 +3648,60 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
         hour_utc = dt.hour
         date_str = dt.strftime("%Y-%m-%d")
 
+        # ═══ [V19] REGIME DETECTION — per-candle override ═══
+        # Reset to original config each candle
+        entry_type = entry_type_orig
+        side = side_orig
+        tp_config = tp_config_orig
+        sl_pct = sl_pct_orig
+        tp_is_dynamic = tp_is_dynamic_orig
+        tp_pct_fixed = tp_pct_fixed_orig
+        conditional_entry = conditional_entry_orig
+        buf_entry = buf_entry_orig
+        buf_pct = buf_pct_orig
+        entry_base = entry_base_orig
+        adaptive = None
+        regime = "UNKNOWN"
+        strength = 0
+
+        if regime_mode in ("filter", "adaptive"):
+            regime, strength = _detect_regime(high_ratios, low_ratios, i, regime_window)
+            regime_stats[regime]["trades"] += 1
+
+            if regime_mode == "adaptive":
+                adaptive = _get_adaptive_params(regime, strength, side)
+
+                if adaptive["skip"]:
+                    regime_stats[regime]["skipped"] += 1
+                    continue
+
+                # Override entry type
+                if adaptive["entry_override"]:
+                    entry_type = adaptive["entry_override"]
+                    conditional_entry = entry_type in ("pred_high", "pred_low", "pred_close")
+                    buf_entry = False
+                    buf_pct = 0
+                    entry_base = ""
+
+                # Override TP
+                if adaptive["tp_override"]:
+                    tp_config = adaptive["tp_override"]
+                    tp_is_dynamic = tp_config in ("pred_high", "pred_low", "pred_close")
+                    tp_pct_fixed = 0 if tp_is_dynamic else float(tp_config)
+
+                # Override SL
+                if adaptive["sl_override"]:
+                    sl_pct = adaptive["sl_override"]
+
+            elif regime_mode == "filter":
+                # Simple: skip counter-trend only
+                if regime in ("STRONG_BULL", "BULL") and side == "SHORT":
+                    regime_stats[regime]["skipped"] += 1
+                    continue
+                if regime in ("STRONG_BEAR", "BEAR") and side == "LONG":
+                    regime_stats[regime]["skipped"] += 1
+                    continue
+
         # Range filter
         if range_filter > 0:
             pred_range = (pred_high - pred_low) / pred_low * 100 if pred_low > 0 else 0
@@ -3580,7 +3734,6 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
             walk_start = 0
 
         elif conditional_entry:
-            # Wait for level to be hit first, then enter at that price
             level_prices = {"pred_high": pred_high, "pred_low": pred_low, "pred_close": pred_close}
             target_price = level_prices[entry_type]
 
@@ -3599,11 +3752,10 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
 
             if trigger_idx < 0:
                 continue  # level never hit in this candle
-            
-            # only_first: skip if other pred levels hit before this one
+
             if only_first:
                 other_levels = {"pred_high": pred_high, "pred_low": pred_low, "pred_close": pred_close}
-                del other_levels[entry_type]  # remove self
+                del other_levels[entry_type]
                 skip = False
                 for ol_name, ol_price in other_levels.items():
                     for sc_j in range(trigger_idx):
@@ -3618,12 +3770,11 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
                         break
                 if skip:
                     continue
-            
+
             entry_price = target_price
             walk_start = trigger_idx + 1
 
         elif buf_entry:
-            # Buffer entry (pred_low_buf_X, pred_high_buf_X)
             if entry_base == "pred_low":
                 entry_price = pred_low * (1 - buf_pct / 100)
             else:
@@ -3661,6 +3812,15 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
         else:
             sl_price = entry_price * (1 + sl_pct / 100)
 
+        # ═══ [V19] Override SL to pred_close for strong trend ═══
+        if adaptive and adaptive.get("sl_use_pred_close"):
+            if side == "LONG" and pred_close < entry_price:
+                sl_price = pred_close * 0.999  # tiny buffer below
+                sl_pct = abs(entry_price - sl_price) / entry_price * 100
+            elif side == "SHORT" and pred_close > entry_price:
+                sl_price = pred_close * 1.001  # tiny buffer above
+                sl_pct = abs(sl_price - entry_price) / entry_price * 100
+
         # DCA price
         dca_price = None
         if dca_pct > 0:
@@ -3683,7 +3843,6 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
                 if side == "LONG" and sc["l"] <= dca_price:
                     dca_triggered = True
                     active_entry = (entry_price + dca_price) / 2
-                    # Recalculate TP from new entry
                     if not tp_is_dynamic:
                         tp_price = active_entry * (1 + tp_pct_fixed / 100) if side == "LONG" else active_entry * (1 - tp_pct_fixed / 100)
                 elif side == "SHORT" and sc["h"] >= dca_price:
@@ -3707,7 +3866,7 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
                 sl_hit = True
 
             if tp_hit and sl_hit:
-                result = "win"  # same minute = assume TP first (conservative: could be loss)
+                result = "win"  # same minute = assume TP first
                 break
             elif tp_hit:
                 result = "win"
@@ -3723,17 +3882,17 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
         if result == "win":
             pnl_pct = tp_distance - fee
             if dca_triggered:
-                pnl_pct = pnl_pct * 1.0  # simplified: same TP distance
+                pnl_pct = pnl_pct * 1.0  # simplified
         elif result == "loss":
             pnl_pct = -(sl_pct + fee)
             if dca_triggered:
-                pnl_pct = pnl_pct * 2  # DCA = double position, double loss
+                pnl_pct = pnl_pct * 2
         else:
-            pnl_pct = -fee  # expired = only fee lost
+            pnl_pct = -fee
 
         pnl_dollar = pnl_pct / 100 * position_size
         if dca_triggered and result == "win":
-            pnl_dollar = pnl_dollar * 2  # DCA = double position, double win
+            pnl_dollar = pnl_dollar * 2
 
         trades.append({
             "date": date_str, "hour": hour_utc,
@@ -3741,12 +3900,18 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
             "pnl_dollar": round(pnl_dollar, 4),
             "tp_distance": round(tp_distance, 4),
             "dca_triggered": dca_triggered,
+            "regime": regime,
+            "strength": strength,
         })
+
+        # [V19] Track regime wins
+        if regime_mode and result == "win":
+            regime_stats[regime]["wins"] += 1
 
     # ═══ AGGREGATE RESULTS ═══
     total = len(trades)
     if total == 0:
-        return {"status": "ok", "message": "No trades triggered", "trades": 0}
+        return {"status": "ok", "message": "No trades triggered", "trades": 0, "skipped_range_filter": skipped_range}
 
     wins = sum(1 for t in trades if t["result"] == "win")
     losses = sum(1 for t in trades if t["result"] == "loss")
@@ -3788,18 +3953,18 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
     avg_daily = round(capped_profit / total_days, 2) if total_days > 0 else 0
 
     # Per-hour breakdown
-    hour_stats = defaultdict(lambda: {"w": 0, "l": 0, "e": 0})
+    hour_stats_out = defaultdict(lambda: {"w": 0, "l": 0, "e": 0})
     for t in trades:
         if t["result"] == "win":
-            hour_stats[t["hour"]]["w"] += 1
+            hour_stats_out[t["hour"]]["w"] += 1
         elif t["result"] == "loss":
-            hour_stats[t["hour"]]["l"] += 1
+            hour_stats_out[t["hour"]]["l"] += 1
         else:
-            hour_stats[t["hour"]]["e"] += 1
+            hour_stats_out[t["hour"]]["e"] += 1
 
     best_hours = []
     worst_hours = []
-    for h, st in sorted(hour_stats.items()):
+    for h, st in sorted(hour_stats_out.items()):
         tot = st["w"] + st["l"] + st["e"]
         if tot >= 10:
             hr_wr = round(st["w"] / tot * 100, 1)
@@ -3850,8 +4015,29 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
         "worst_hours": sorted(worst_hours, key=lambda x: x["wr"])[:3],
     }
 
-    _log(f"  🧪 Result: {total} trades, WR={wr}%, EV=${ev_dollar}/trade, ${avg_daily}/day capped")
+    # ═══ [V19] Regime breakdown in output ═══
+    if regime_mode:
+        regime_breakdown = {}
+        for rg, st in regime_stats.items():
+            t = st["trades"]
+            w = st["wins"]
+            sk = st["skipped"]
+            traded = t - sk
+            regime_breakdown[rg] = {
+                "candles": t,
+                "skipped": sk,
+                "traded": traded,
+                "wins": w,
+                "wr": round(w / traded * 100, 1) if traded > 0 else 0,
+            }
+        result["regime_mode"] = regime_mode
+        result["regime_window"] = regime_window
+        result["regime_breakdown"] = regime_breakdown
+
+    _log(f"  🧪 Result: {total} trades, WR={wr}%, EV=${ev_dollar}/trade, ${avg_daily}/day capped"
+         + (f" | regime={regime_mode}" if regime_mode else ""))
     return result
+
 
 # INTERNAL HELPERS
 # ════════════════════════════════════════════════════════════
