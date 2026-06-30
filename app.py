@@ -2028,6 +2028,10 @@ def tick_custom_backtest(body: dict = Body(...)):
     symbol = body.get("symbol", "BTCUSDT")
     timeframe = body.get("timeframe", "15m")
     config = body.get("config", {})
+    # V19: merge regime params from top-level body into config
+    for key in ["regime_mode", "regime_window"]:
+        if key in body and key not in config:
+            config[key] = body[key]
     result = custom_backtest(symbol, timeframe, config)
     return result
 
