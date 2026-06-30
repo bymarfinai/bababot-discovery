@@ -3509,7 +3509,7 @@ def _get_adaptive_params(regime, strength, side):
 
     if regime == "STRONG_BULL":
         if side == "LONG":
-            result["entry_override"] = "open"
+            result["entry_override"] = "trendline_low"
             result["tp_override"] = "pred_high"
             result["sl_use_pred_close"] = True
         else:
@@ -3524,7 +3524,7 @@ def _get_adaptive_params(regime, strength, side):
 
     elif regime == "STRONG_BEAR":
         if side == "SHORT":
-            result["entry_override"] = "open"
+            result["entry_override"] = "trendline_high"
             result["tp_override"] = "pred_low"
             result["sl_use_pred_close"] = True
         else:
@@ -3558,7 +3558,7 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
     """
     _log(f"  🧪 Custom backtest: {symbol} {timeframe} — {config}")
 
-    rows, sub_lookup = _load_data(DB_PATH, symbol, timeframe)
+    rows, sub_lookup = _load_data(symbol, timeframe)
     if not rows or len(rows) < window + 20:
         return {"status": "error", "message": "Insufficient data"}
 
@@ -3786,6 +3786,64 @@ def custom_backtest(symbol, timeframe, config, window=10, days=1825):
                     trigger_idx = sc_i
                     break
                 if side == "SHORT" and sc["h"] >= entry_price:
+                    trigger_idx = sc_i
+                    break
+            if trigger_idx < 0:
+                continue
+            walk_start = trigger_idx + 1
+
+        elif entry_type == "trendline_low":
+            # ═══ [V19] Trendline Low Entry ═══
+            # In STRONG_BULL, actual lows rise steeply.
+            # Use recent low slope (regime_window) instead of full window.
+            # Projected low is HIGHER than pred_low = shallower pullback = more triggers.
+            rw = min(regime_window, i)
+            if rw >= 2:
+                recent_low_ratios = low_ratios[i - rw:i]
+                avg_l_recent = sum(recent_low_ratios) / len(recent_low_ratios)
+                trendline_entry = lows[i] * avg_l_recent
+            else:
+                trendline_entry = pred_low  # fallback
+
+            # Safety: trendline should be between pred_low and open
+            # If trendline > open, use open (no pullback expected)
+            if trendline_entry > candle_open:
+                trendline_entry = candle_open * 0.999  # tiny discount from open
+            # If trendline < pred_low, use pred_low (not deeper than prediction)
+            if trendline_entry < pred_low:
+                trendline_entry = pred_low
+
+            entry_price = trendline_entry
+
+            trigger_idx = -1
+            for sc_i, sc in enumerate(first_subs):
+                if sc["l"] <= entry_price:
+                    trigger_idx = sc_i
+                    break
+            if trigger_idx < 0:
+                continue
+            walk_start = trigger_idx + 1
+
+        elif entry_type == "trendline_high":
+            # ═══ [V19] Trendline High Entry (mirror for SHORT in STRONG_BEAR) ═══
+            rw = min(regime_window, i)
+            if rw >= 2:
+                recent_high_ratios = high_ratios[i - rw:i]
+                avg_h_recent = sum(recent_high_ratios) / len(recent_high_ratios)
+                trendline_entry = highs[i] * avg_h_recent
+            else:
+                trendline_entry = pred_high
+
+            if trendline_entry < candle_open:
+                trendline_entry = candle_open * 1.001
+            if trendline_entry > pred_high:
+                trendline_entry = pred_high
+
+            entry_price = trendline_entry
+
+            trigger_idx = -1
+            for sc_i, sc in enumerate(first_subs):
+                if sc["h"] >= entry_price:
                     trigger_idx = sc_i
                     break
             if trigger_idx < 0:
