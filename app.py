@@ -10,7 +10,7 @@ import threading
 import sqlite3
 import time
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, Security
+from fastapi import FastAPI, HTTPException, Security, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -2024,8 +2024,7 @@ def tick_sweep_status():
     return get_sweep_status()
 
 @app.post("/tick/custom-backtest")
-def tick_custom_backtest():
-    body = request.json
+def tick_custom_backtest(body: dict = Body(...)):
     symbol = body.get("symbol", "BTCUSDT")
     timeframe = body.get("timeframe", "15m")
     config = body.get("config", {})
