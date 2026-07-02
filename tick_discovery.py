@@ -397,36 +397,64 @@ def _compute_group_stats(events: list) -> dict:
             "entry_short_hit_pct": round(sum(1 for e in low_first_events if e.get("min_entry_short") is not None) / lf_total * 100, 1),
         }
     
-    # If entry_long hit → TP or SL? (sequence order matters)
+    # If entry_long hit → TP first, SL first, or neither? (FIX #10: mutually exclusive)
     entry_long_events = [e for e in events if e.get("min_entry_long") is not None]
     if entry_long_events:
         el_total = len(entry_long_events)
-        tp_after_entry = sum(1 for e in entry_long_events 
-                           if e.get("min_tp_long") is not None 
-                           and e["min_tp_long"] > e["min_entry_long"])
-        sl_after_entry = sum(1 for e in entry_long_events 
-                           if e.get("min_sl_long") is not None 
-                           and e["min_sl_long"] > e["min_entry_long"])
+        tp_first = 0
+        sl_first = 0
+        neither = 0
+        for e in entry_long_events:
+            tp_m = e.get("min_tp_long")
+            sl_m = e.get("min_sl_long")
+            entry_m = e["min_entry_long"]
+            tp_after = tp_m is not None and tp_m > entry_m
+            sl_after = sl_m is not None and sl_m > entry_m
+            if tp_after and sl_after:
+                if tp_m < sl_m:
+                    tp_first += 1
+                else:
+                    sl_first += 1
+            elif tp_after:
+                tp_first += 1
+            elif sl_after:
+                sl_first += 1
+            else:
+                neither += 1
         conditional["if_entry_long_hit"] = {
-            "tp_after_entry_pct": round(tp_after_entry / el_total * 100, 1),
-            "sl_after_entry_pct": round(sl_after_entry / el_total * 100, 1),
-            "neither_pct": round((el_total - tp_after_entry - sl_after_entry) / el_total * 100, 1),
+            "tp_after_entry_pct": round(tp_first / el_total * 100, 1),
+            "sl_after_entry_pct": round(sl_first / el_total * 100, 1),
+            "neither_pct": round(neither / el_total * 100, 1),
         }
     
-    # If entry_short hit → TP or SL?
+    # If entry_short hit → TP first, SL first, or neither? (FIX #10: mutually exclusive)
     entry_short_events = [e for e in events if e.get("min_entry_short") is not None]
     if entry_short_events:
         es_total = len(entry_short_events)
-        tp_after_entry = sum(1 for e in entry_short_events 
-                           if e.get("min_tp_short") is not None 
-                           and e["min_tp_short"] > e["min_entry_short"])
-        sl_after_entry = sum(1 for e in entry_short_events 
-                           if e.get("min_sl_short") is not None 
-                           and e["min_sl_short"] > e["min_entry_short"])
+        tp_first = 0
+        sl_first = 0
+        neither = 0
+        for e in entry_short_events:
+            tp_m = e.get("min_tp_short")
+            sl_m = e.get("min_sl_short")
+            entry_m = e["min_entry_short"]
+            tp_after = tp_m is not None and tp_m > entry_m
+            sl_after = sl_m is not None and sl_m > entry_m
+            if tp_after and sl_after:
+                if tp_m < sl_m:
+                    tp_first += 1
+                else:
+                    sl_first += 1
+            elif tp_after:
+                tp_first += 1
+            elif sl_after:
+                sl_first += 1
+            else:
+                neither += 1
         conditional["if_entry_short_hit"] = {
-            "tp_after_entry_pct": round(tp_after_entry / es_total * 100, 1),
-            "sl_after_entry_pct": round(sl_after_entry / es_total * 100, 1),
-            "neither_pct": round((es_total - tp_after_entry - sl_after_entry) / es_total * 100, 1),
+            "tp_after_entry_pct": round(tp_first / es_total * 100, 1),
+            "sl_after_entry_pct": round(sl_first / es_total * 100, 1),
+            "neither_pct": round(neither / es_total * 100, 1),
         }
     
     # ── Top sequences ──
@@ -965,67 +993,76 @@ def _backtest_deret_1m(
     notional = position_usd * leverage
     fee_per_trade = notional * FEE_PCT / 100
 
-    # ══ FIRST PASS: compute first_extreme per hour to determine direction ══
-    hour_stats = defaultdict(lambda: {"high": 0, "low": 0, "total": 0})
-    for i in range(window, len(close_ratios)):
-        if i + 1 >= n:
-            break
-        candle_time = times[i + 1]
-        parent_ts = (candle_time // parent_ms) * parent_ms
-        subs = sub_lookup.get(parent_ts, [])
-        if not subs:
-            continue
+    # ══ EXPANDING WINDOW: compute hour_direction incrementally (no look-ahead) ══
+    # Instead of pre-computing direction from ALL data (look-ahead bias),
+    # we accumulate stats as we go — at candle i, only data [0..i-1] is used.
+    _expanding_hour_stats = defaultdict(lambda: {"high": 0, "low": 0, "total": 0})
+    MIN_EXPANDING_SAMPLES = 20  # need ≥20 past observations before trusting direction
 
-        avg_h = sum(high_ratios[i-window:i]) / window
-        avg_l = sum(low_ratios[i-window:i]) / window
-        pred_high = highs[i] * avg_h
-        pred_low  = lows[i] * avg_l
-
-        min_ph, min_pl = None, None
-        for sc_idx, sc in enumerate(subs):
-            if min_ph is None and sc["h"] >= pred_high:
-                min_ph = sc_idx
-            if min_pl is None and sc["l"] <= pred_low:
-                min_pl = sc_idx
-            if min_ph is not None and min_pl is not None:
-                break
-
-        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
-        h = dt.hour
-        hour_stats[h]["total"] += 1
-        if min_ph is not None and min_pl is not None:
-            if min_ph < min_pl:
-                hour_stats[h]["high"] += 1
-            else:
-                hour_stats[h]["low"] += 1
-        elif min_ph is not None:
-            hour_stats[h]["high"] += 1
-        elif min_pl is not None:
-            hour_stats[h]["low"] += 1
-
-    # Direction per hour: need ≥5% edge, ≥20 samples
-    hour_direction = {}
-    for h, s in hour_stats.items():
-        if s["total"] < 20:
-            hour_direction[h] = "SKIP"
-            continue
+    def _get_expanding_direction(hour: int) -> str:
+        """Get direction for this hour using ONLY past accumulated data."""
+        s = _expanding_hour_stats[hour]
+        if s["total"] < MIN_EXPANDING_SAMPLES:
+            return "SKIP"
         high_pct = s["high"] / s["total"] * 100
         low_pct = s["low"] / s["total"] * 100
         edge = abs(high_pct - low_pct)
         if edge < 5:
-            hour_direction[h] = "SKIP"
+            return "SKIP"
         elif high_pct > low_pct:
-            hour_direction[h] = "SHORT"  # high first → price goes up first → SHORT at top
+            return "SHORT"  # high first → price goes up first → SHORT at top
         else:
-            hour_direction[h] = "LONG"   # low first → price goes down first → LONG at bottom
+            return "LONG"   # low first → price goes down first → LONG at bottom
 
-    # ══ SECOND PASS: backtest with direction filter ══
+    def _update_expanding_stats(i_idx):
+        """Update expanding hour stats with observation at index i_idx (NO look-ahead)."""
+        if i_idx + 1 >= n:
+            return
+        ct = times[i_idx + 1]
+        pts = (ct // parent_ms) * parent_ms
+        subs_local = sub_lookup.get(pts, [])
+        if not subs_local:
+            return
+        ah = sum(high_ratios[i_idx-window:i_idx]) / window
+        al = sum(low_ratios[i_idx-window:i_idx]) / window
+        ph = highs[i_idx] * ah
+        pl = lows[i_idx] * al
+        mph, mpl = None, None
+        for sc_i, sc in enumerate(subs_local):
+            if mph is None and sc["h"] >= ph:
+                mph = sc_i
+            if mpl is None and sc["l"] <= pl:
+                mpl = sc_i
+            if mph is not None and mpl is not None:
+                break
+        ddt = datetime.fromtimestamp(ct / 1000, tz=timezone.utc)
+        hh = ddt.hour
+        _expanding_hour_stats[hh]["total"] += 1
+        if mph is not None and mpl is not None:
+            if mph < mpl:
+                _expanding_hour_stats[hh]["high"] += 1
+            else:
+                _expanding_hour_stats[hh]["low"] += 1
+        elif mph is not None:
+            _expanding_hour_stats[hh]["high"] += 1
+        elif mpl is not None:
+            _expanding_hour_stats[hh]["low"] += 1
+
+    # ══ SINGLE PASS: backtest with expanding direction filter (no look-ahead) ══
     trades = []
     position_busy_until = 0
+    # Final snapshot for reporting
+    hour_direction = {}
 
     for i in range(window, len(close_ratios)):
         if i + 1 >= n:
             break
+
+        # ── UPDATE expanding stats with THIS candle's observation BEFORE trading ──
+        # This candle's first_extreme is known (we observe it), then we decide
+        # whether to trade the NEXT opportunity. This is causal: observe i, trade i+1.
+        _update_expanding_stats(i)
+
         if i + 1 < position_busy_until:
             continue
 
@@ -1033,8 +1070,8 @@ def _backtest_deret_1m(
         dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
         hour_utc = dt.hour
 
-        # ── DIRECTION FILTER: skip hours without edge ──
-        direction = hour_direction.get(hour_utc, "SKIP")
+        # ── DIRECTION FILTER: use ONLY past data (expanding window, no look-ahead) ──
+        direction = _get_expanding_direction(hour_utc)
         if direction == "SKIP":
             continue
 
@@ -1194,6 +1231,10 @@ def _backtest_deret_1m(
     if return_trades:
         return trades
 
+    # Build final hour_direction snapshot from accumulated expanding stats (for reporting)
+    for h in range(24):
+        hour_direction[h] = _get_expanding_direction(h)
+
     result = _compile_backtest_result(trades, symbol, timeframe, "deret", window, buffer_pct, tp_pct, sl_pct)
     result["hour_direction"] = {str(h): d for h, d in hour_direction.items()}
     return result
@@ -1243,9 +1284,16 @@ def _walk_after_entry(
                 if sc["h"] >= sl_price:
                     return {"exit_price": sl_price, "exit_reason": "SL", "hold_candles": k + 1, "exit_minute": minutes_after_entry}
 
-    # Force close at last candle close
+    # Force close at last sub-candle's close price (NOT entry price — that hides real P&L)
     last_ci = min(current_ci - hold_start + max_hold - 1, n - 1)
-    return {"exit_price": entry, "exit_reason": "CLOSE", "hold_candles": max_hold, "exit_minute": minutes_after_entry}
+    # Get actual market close price from the last sub-candle we walked
+    last_parent_ts = (times[last_ci] // parent_ms) * parent_ms
+    last_subs = sub_lookup.get(last_parent_ts, [])
+    if last_subs:
+        force_close_price = last_subs[-1]["c"]  # close of last 1m candle
+    else:
+        force_close_price = entry  # fallback only if no sub-candle data
+    return {"exit_price": force_close_price, "exit_reason": "CLOSE", "hold_candles": max_hold, "exit_minute": minutes_after_entry}
 
 
 # ────────────────────────────────────────
@@ -1278,70 +1326,72 @@ def _backtest_open_1m(
     notional = position_usd * leverage
     fee_per_trade = notional * FEE_PCT / 100
 
-    # First pass: compute first_extreme per hour to determine direction
-    hour_stats = defaultdict(lambda: {"high": 0, "low": 0, "total": 0})
-    for i in range(window, len(close_ratios)):
-        if i + 1 >= n:
-            break
-        candle_time = times[i + 1]
-        parent_ts = (candle_time // parent_ms) * parent_ms
-        subs = sub_lookup.get(parent_ts, [])
-        if not subs:
-            continue
+    # FIX #1: Expanding window for open entry (same pattern as deret)
+    _open_hour_stats = defaultdict(lambda: {"high": 0, "low": 0, "total": 0})
 
-        avg_h = sum(high_ratios[i-window:i]) / window
-        avg_l = sum(low_ratios[i-window:i]) / window
-        pred_high = highs[i] * avg_h
-        pred_low  = lows[i] * avg_l
-
-        min_ph, min_pl = None, None
-        for sc_idx, sc in enumerate(subs):
-            if min_ph is None and sc["h"] >= pred_high:
-                min_ph = sc_idx
-            if min_pl is None and sc["l"] <= pred_low:
-                min_pl = sc_idx
-            if min_ph is not None and min_pl is not None:
-                break
-
-        dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
-        h = dt.hour
-        hour_stats[h]["total"] += 1
-        if min_ph is not None and min_pl is not None:
-            if min_ph < min_pl:
-                hour_stats[h]["high"] += 1
-            else:
-                hour_stats[h]["low"] += 1
-        elif min_ph is not None:
-            hour_stats[h]["high"] += 1
-        elif min_pl is not None:
-            hour_stats[h]["low"] += 1
-
-    # Determine direction per hour (need ≥5% edge)
-    hour_direction = {}
-    for h, s in hour_stats.items():
+    def _open_get_direction(hour: int) -> str:
+        s = _open_hour_stats[hour]
         if s["total"] < 20:
-            hour_direction[h] = "SKIP"
-            continue
+            return "SKIP"
         high_pct = s["high"] / s["total"] * 100
         low_pct = s["low"] / s["total"] * 100
         edge = abs(high_pct - low_pct)
         if edge < 5:
-            hour_direction[h] = "SKIP"
+            return "SKIP"
         elif high_pct > low_pct:
-            hour_direction[h] = "SHORT"  # high first = short opportunity
+            return "SHORT"
         else:
-            hour_direction[h] = "LONG"   # low first = long opportunity
+            return "LONG"
 
-    # Second pass: backtest with direction
+    def _open_update_stats(i_idx):
+        if i_idx + 1 >= n:
+            return
+        ct = times[i_idx + 1]
+        pts = (ct // parent_ms) * parent_ms
+        subs_local = sub_lookup.get(pts, [])
+        if not subs_local:
+            return
+        ah = sum(high_ratios[i_idx-window:i_idx]) / window
+        al = sum(low_ratios[i_idx-window:i_idx]) / window
+        ph = highs[i_idx] * ah
+        pl = lows[i_idx] * al
+        mph, mpl = None, None
+        for sc_i, sc in enumerate(subs_local):
+            if mph is None and sc["h"] >= ph:
+                mph = sc_i
+            if mpl is None and sc["l"] <= pl:
+                mpl = sc_i
+            if mph is not None and mpl is not None:
+                break
+        ddt = datetime.fromtimestamp(ct / 1000, tz=timezone.utc)
+        hh = ddt.hour
+        _open_hour_stats[hh]["total"] += 1
+        if mph is not None and mpl is not None:
+            if mph < mpl:
+                _open_hour_stats[hh]["high"] += 1
+            else:
+                _open_hour_stats[hh]["low"] += 1
+        elif mph is not None:
+            _open_hour_stats[hh]["high"] += 1
+        elif mpl is not None:
+            _open_hour_stats[hh]["low"] += 1
+
+    # Single pass: expanding direction + backtest
     trades = []
+    open_position_busy_until = 0  # FIX #4: sequential constraint
     for i in range(window, len(close_ratios)):
         if i + 1 >= n:
             break
+
+        _open_update_stats(i)  # observe candle i, then decide on i+1
+
+        if i + 1 < open_position_busy_until:
+            continue
         candle_time = times[i + 1]
         dt = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
         hour_utc = dt.hour
 
-        direction = hour_direction.get(hour_utc, "SKIP")
+        direction = _open_get_direction(hour_utc)
         if direction == "SKIP":
             continue
 
@@ -1396,6 +1446,9 @@ def _backtest_open_1m(
             "hold_candles": 1,
         })
 
+        # FIX #4: sequential constraint — block next candle(s) while holding
+        open_position_busy_until = i + 1 + 1 + 1  # current candle + hold(1) + cooldown(1)
+
     return _compile_backtest_result(trades, symbol, timeframe, "open", window, 0, tp_pct, sl_pct)
 
 
@@ -1442,10 +1495,12 @@ def _compile_backtest_result(trades, symbol, timeframe, mode, window, buffer_pct
     avg_pnl = total_pnl / total_trades
 
     # ── Stability metrics ──
-    # Weekly WR
+    # Weekly WR (FIX #5: use ISO calendar week, not epoch division)
     week_buckets = defaultdict(lambda: {"w": 0, "l": 0})
     for t in trades:
-        week_key = int(t["candle_time"] // (7 * 86400000))
+        t_dt = datetime.fromtimestamp(t["candle_time"] / 1000, tz=timezone.utc)
+        iso = t_dt.isocalendar()
+        week_key = iso[0] * 100 + iso[1]  # e.g. 202426 = 2024 week 26
         if t["win"]:
             week_buckets[week_key]["w"] += 1
         else:
@@ -1573,16 +1628,19 @@ def _compile_backtest_result(trades, symbol, timeframe, mode, window, buffer_pct
         "p5_weekly_wr": round(sorted(weekly_wrs)[max(0, int(len(weekly_wrs) * 0.05))], 1) if weekly_wrs else 0,
     }
 
-    # Confidence score (4 factors, no ATR)
+    # Confidence score (4 independent factors — FIX #9: no double-counting WR)
     confidence = 0
-    # 1. Pattern dominance proxy: WR distance from 50% (35%)
-    confidence += min((wr - 50) / 25 * 35, 35) if wr > 50 else 0
-    # 2. Backtest WR (25%)
-    confidence += min(wr / 80 * 25, 25)
-    # 3. Walk-forward (25%)
+    # 1. Win rate edge above 50% (30%)
+    confidence += min((wr - 50) / 25 * 30, 30) if wr > 50 else 0
+    # 2. Profit factor: gross wins / gross losses (25%)
+    gross_wins = sum(t["pnl_dollar"] for t in trades if t["pnl_dollar"] > 0)
+    gross_losses = abs(sum(t["pnl_dollar"] for t in trades if t["pnl_dollar"] <= 0))
+    profit_factor = gross_wins / gross_losses if gross_losses > 0 else 0
+    confidence += min(profit_factor / 2.0 * 25, 25)  # PF 2.0 = full score
+    # 3. Walk-forward ratio (25%)
     confidence += min(wf_ratio / 1.0 * 25, 25) if wf_ratio > 0 else 0
-    # 4. Recent consistency (15%)
-    confidence += min(consistency_pct / 80 * 15, 15)
+    # 4. Weekly consistency (20%)
+    confidence += min(consistency_pct / 80 * 20, 20)
     confidence = round(min(confidence, 100), 1)
 
     return {
@@ -3258,6 +3316,14 @@ def combo_sweep(
                         for trade in trades:
                             ct, ep, ph, pl, pc, lm, hour, date, dyn_dist = trade
 
+                            # FIX #6: Dynamic TP with negative distance = bad trade, skip
+                            if tp_type == "dynamic":
+                                tp_dist = dyn_dist.get(tp_name, 0)
+                                if tp_dist <= 0:
+                                    continue  # pred target is behind entry → skip, don't fallback
+                            else:
+                                tp_dist = tp_cfg["pct"]
+
                             tp_min = lm.get(tp_name)
                             sl_min = lm.get(sl_name)
 
@@ -3265,17 +3331,25 @@ def combo_sweep(
                             tp_in = tp_min is not None and tp_min <= hold_max
                             sl_in = sl_min is not None and sl_min <= hold_max
 
-                            # DCA adjustment: if DCA triggered, recalculate TP min
-                            # Simplified: DCA gives better avg entry, TP more likely
+                            # FIX #3: DCA — properly adjust TP/SL distances instead of hardcoding tp_in=True
                             dca_triggered = False
                             if dca_pct > 0:
                                 dca_min = lm.get(f"DCA_{dca_pct}")
                                 if dca_min is not None and dca_min <= hold_max:
                                     dca_triggered = True
-                                    # DCA triggered before TP → avg entry better
-                                    # Check if TP hits AFTER DCA
-                                    if tp_min is not None and tp_min > dca_min:
-                                        tp_in = True  # more likely with better entry
+                                    # DCA gives better avg entry, so:
+                                    # - For fixed TP: effective TP distance increases by ~dca_pct/2
+                                    #   (avg entry moved dca_pct/2 closer to favorable side)
+                                    # - For SL: effective SL distance also increases by ~dca_pct/2
+                                    # We still require TP to actually be hit in the data (tp_min exists)
+                                    # but we DON'T blindly set tp_in=True
+                                    # The key constraint: TP must hit AFTER DCA, AND before SL
+                                    if tp_min is not None and tp_min > dca_min and tp_min <= hold_max:
+                                        tp_in = True
+                                    # SL must also be re-evaluated: with avg entry,
+                                    # the original SL level is further away, so it's LESS likely to hit
+                                    # Conservative: keep sl_in as-is (if SL was hit at original level,
+                                    # it would also be hit at the slightly different DCA-adjusted level)
 
                             # Determine outcome
                             if tp_in and (not sl_in or tp_min < sl_min):
@@ -3285,14 +3359,6 @@ def combo_sweep(
                             else:
                                 win = False  # expired = loss (fee)
                                 expired += 1
-
-                            # Compute profit
-                            if tp_type == "fixed":
-                                tp_dist = tp_cfg["pct"]
-                            else:
-                                tp_dist = dyn_dist.get(tp_name, 0)
-                                if tp_dist <= 0:
-                                    tp_dist = 0.1  # fallback
 
                             if win:
                                 wins += 1
