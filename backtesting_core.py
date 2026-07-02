@@ -59,7 +59,7 @@ class StrategyConfig:
     sl_check_mode: str = "close"      # "wick" = check high/low, "close" = check close only
     
     # Costs
-    fee_pct: float = 0.07         # Binance Futures maker 0.02% + taker 0.05%
+    fee_pct: float = 0.10         # Binance Futures taker 0.05% x2
     slippage_pct: float = 0.01
     
     # Capital
@@ -3414,7 +3414,7 @@ class DCAConfig:
     spacing_mode: str = "atr"  # "atr" | "pct" | "fixed_usd"
 
     # Costs
-    fee_pct: float = 0.07
+    fee_pct: float = 0.10
 
     # Indicator defaults (same as StrategyConfig)
     indicators: dict = field(default_factory=lambda: {
@@ -3769,7 +3769,7 @@ def backtest_deret_statistik(
     days: int = 1825,
     position_usd: float = 100.0,
     leverage: int = 50,
-    fee_pct: float = 0.07,
+    fee_pct: float = 0.10,
     mode: str = "baret",            # "baret" = single entry, "baret_dca" = L1 + L2 DCA, "baret_marfin" = buffer + close filter
     buffer2_pct: float = 1.0,       # L2 DCA distance from predicted extreme (only in baret_dca)
     close_filter_pct: float = 0.3,  # Min gap between predicted_close and predicted_low (only in baret_marfin)
@@ -3869,7 +3869,7 @@ def backtest_deret_statistik(
     
     trades = []
     notional = position_usd * leverage
-    fee_per_trade = notional * fee_pct / 100  # maker 0.02% + taker 0.05% = 0.07% roundtrip
+    fee_per_trade = notional * fee_pct / 100 * 2  # entry + exit
     dca_count = 0
     both_hit_count = 0
     position_busy_until = 0  # Sequential constraint: skip if position still open
@@ -3920,10 +3920,32 @@ def backtest_deret_statistik(
         elif short_hit and not long_hit:
             trade_side = "SHORT"
         elif long_hit and short_hit:
-            # Both hit — heuristic: open proximity
-            dist_low  = ao - al
-            dist_high = ah - ao
-            trade_side = "LONG" if dist_low < dist_high else "SHORT"
+            # Both hit — use 1m data for exact fill order (matches live: first limit fill wins)
+            parent_ts_bh = times[i + 1]
+            subs_bh = sub_candle_lookup.get(parent_ts_bh, [])
+            if subs_bh:
+                long_fill_min, short_fill_min = None, None
+                for sc_i, sc in enumerate(subs_bh):
+                    if long_fill_min is None and sc["l"] <= long_entry:
+                        long_fill_min = sc_i
+                    if short_fill_min is None and sc["h"] >= short_entry:
+                        short_fill_min = sc_i
+                    if long_fill_min is not None and short_fill_min is not None:
+                        break
+                if long_fill_min is not None and short_fill_min is not None:
+                    trade_side = "LONG" if long_fill_min <= short_fill_min else "SHORT"
+                elif long_fill_min is not None:
+                    trade_side = "LONG"
+                elif short_fill_min is not None:
+                    trade_side = "SHORT"
+                else:
+                    continue  # neither actually filled in 1m data
+            else:
+                # OHLC fallback: open proximity heuristic
+                dist_low  = ao - al
+                dist_high = ah - ao
+                trade_side = "LONG" if dist_low < dist_high else "SHORT"
+            both_hit_count += 1
         else:
             continue  # No trade
         
@@ -3941,12 +3963,37 @@ def backtest_deret_statistik(
         # Execute trade — with optional DCA (baret_dca mode)
         dca_triggered = False
         if trade_side == "LONG":
-            # Check if L2 DCA also hit (on first candle only)
+            # Check if L2 DCA also hit — with 1m resolution if available
             if mode == "baret_dca" and long_l2 and al <= long_l2:
-                entry = (long_entry + long_l2) / 2  # avg entry from L1 + L2
-                dca_triggered = True
-                dca_count += 1
-                trade_fee = fee_per_trade * 2  # double position
+                # Check chronological order with 1m data
+                parent_ts_entry = times[i + 1]
+                subs_entry = sub_candle_lookup.get(parent_ts_entry, [])
+                if subs_entry:
+                    # Walk 1m: find L1 fill, then check if L2 fills after
+                    l1_filled_idx = None
+                    l2_filled_idx = None
+                    for sc_i, sc in enumerate(subs_entry):
+                        if l1_filled_idx is None and sc["l"] <= long_entry:
+                            l1_filled_idx = sc_i
+                        if l1_filled_idx is not None and l2_filled_idx is None and sc["l"] <= long_l2:
+                            l2_filled_idx = sc_i
+                            break
+                    if l1_filled_idx is not None and l2_filled_idx is not None:
+                        entry = (long_entry + long_l2) / 2
+                        dca_triggered = True
+                        dca_count += 1
+                        trade_fee = fee_per_trade * 2
+                    elif l1_filled_idx is not None:
+                        entry = long_entry
+                        trade_fee = fee_per_trade
+                    else:
+                        continue  # neither filled in 1m data
+                else:
+                    # OHLC fallback: both hit in same candle
+                    entry = (long_entry + long_l2) / 2
+                    dca_triggered = True
+                    dca_count += 1
+                    trade_fee = fee_per_trade * 2
             else:
                 entry = long_entry
                 trade_fee = fee_per_trade
@@ -3954,10 +4001,11 @@ def backtest_deret_statistik(
             tp_price = entry * (1 + tp_pct / 100)
             sl_price = entry * (1 - sl_pct / 100)
             
-            # Check TP/SL across max_hold candles
+            # Check TP/SL across max_hold candles — FULL 1m resolution on ALL candles
             exit_price = None
             exit_reason = None
             exit_candle_idx = 0
+            entry_filled = False  # Track if entry actually filled (for k=0 phantom TP check)
             
             for k in range(max_hold):
                 ci = i + 1 + k
@@ -3965,59 +4013,68 @@ def backtest_deret_statistik(
                     break
                 c_h, c_l, c_c, c_o = highs[ci], lows[ci], closes[ci], opens[ci]
                 
-                sl_hit = c_l <= sl_price
+                parent_ts = times[ci]
+                subs = sub_candle_lookup.get(parent_ts, [])
                 
-                # Fix phantom TP: on entry candle (k=0), use sub-candle resolution if available
-                # Otherwise fallback to candle direction heuristic
-                if k == 0 and c_c < c_o:
-                    # Check if sub-candle data available for drill-down
-                    parent_ts = times[ci]
-                    subs = sub_candle_lookup.get(parent_ts, [])
-                    if subs:
-                        # Walk 1m candles chronologically: find entry fill, then check TP/SL after
-                        entry_filled_at = None
-                        tp_hit = False
-                        for sc in subs:
-                            if entry_filled_at is None:
-                                # LONG: entry fills when sub-candle low <= entry price
-                                if sc["l"] <= entry:
-                                    entry_filled_at = sc["ts"]
-                            else:
-                                # After entry: check TP and SL
-                                if sc["h"] >= tp_price:
-                                    tp_hit = True
-                                    break
-                                if sc["l"] <= sl_price:
-                                    # SL hit first after entry
-                                    break
-                        # If entry never filled in sub-candles, skip TP
-                        if entry_filled_at is None:
-                            tp_hit = False
-                    else:
-                        # No sub-candle data: fallback to heuristic
-                        tp_hit = False  # bearish entry candle: High likely before entry
+                if subs:
+                    # ══ FULL 1m WALK (best accuracy) ══
+                    for sc in subs:
+                        if k == 0 and not entry_filled:
+                            # Entry candle: must find entry fill FIRST
+                            if sc["l"] <= entry:
+                                entry_filled = True
+                            continue  # don't check TP/SL until entry fills
+                        
+                        # After entry filled (or k>0 where entry already confirmed)
+                        if sc["h"] >= tp_price:
+                            exit_price = tp_price; exit_reason = "TP"
+                            break
+                        if sc["l"] <= sl_price:
+                            exit_price = sl_price; exit_reason = "SL"
+                            break
+                    
+                    if exit_reason:
+                        exit_candle_idx = k
+                        break
+                    
+                    # k=0: if entry never filled in sub-candles, skip this trade entirely
+                    if k == 0 and not entry_filled:
+                        break
                 else:
-                    tp_hit = c_h >= tp_price
-                
-                if sl_hit and tp_hit:
-                    both_hit_count += 1
-                    if (c_o - c_l) < (c_h - c_o):
-                        exit_price = sl_price; exit_reason = "SL"
+                    # ══ OHLC FALLBACK (no sub-candle data) ══
+                    if k == 0:
+                        entry_filled = c_l <= entry
+                        if not entry_filled:
+                            break
+                        # Heuristic: bearish candle = High before Low = phantom TP risk
+                        if c_c < c_o:
+                            tp_hit = False
+                        else:
+                            tp_hit = c_h >= tp_price
                     else:
+                        tp_hit = c_h >= tp_price
+                    
+                    sl_hit = c_l <= sl_price
+                    
+                    if sl_hit and tp_hit:
+                        both_hit_count += 1
+                        if (c_o - c_l) < (c_h - c_o):
+                            exit_price = sl_price; exit_reason = "SL"
+                        else:
+                            exit_price = tp_price; exit_reason = "TP"
+                        exit_candle_idx = k; break
+                    elif tp_hit:
                         exit_price = tp_price; exit_reason = "TP"
-                    exit_candle_idx = k
-                    break
-                elif tp_hit:
-                    exit_price = tp_price; exit_reason = "TP"
-                    exit_candle_idx = k
-                    break
-                elif sl_hit:
-                    exit_price = sl_price; exit_reason = "SL"
-                    exit_candle_idx = k
-                    break
+                        exit_candle_idx = k; break
+                    elif sl_hit:
+                        exit_price = sl_price; exit_reason = "SL"
+                        exit_candle_idx = k; break
+            
+            # Entry never filled → skip trade
+            if not entry_filled:
+                continue
             
             if exit_reason is None:
-                # Close at last hold candle
                 last_ci = min(i + max_hold, n - 1)
                 exit_price = closes[last_ci]
                 exit_reason = "CLOSE"
@@ -4027,10 +4084,32 @@ def backtest_deret_statistik(
             
         else:  # SHORT
             if mode == "baret_dca" and short_l2 and ah >= short_l2:
-                entry = (short_entry + short_l2) / 2
-                dca_triggered = True
-                dca_count += 1
-                trade_fee = fee_per_trade * 2
+                parent_ts_entry = times[i + 1]
+                subs_entry = sub_candle_lookup.get(parent_ts_entry, [])
+                if subs_entry:
+                    l1_filled_idx = None
+                    l2_filled_idx = None
+                    for sc_i, sc in enumerate(subs_entry):
+                        if l1_filled_idx is None and sc["h"] >= short_entry:
+                            l1_filled_idx = sc_i
+                        if l1_filled_idx is not None and l2_filled_idx is None and sc["h"] >= short_l2:
+                            l2_filled_idx = sc_i
+                            break
+                    if l1_filled_idx is not None and l2_filled_idx is not None:
+                        entry = (short_entry + short_l2) / 2
+                        dca_triggered = True
+                        dca_count += 1
+                        trade_fee = fee_per_trade * 2
+                    elif l1_filled_idx is not None:
+                        entry = short_entry
+                        trade_fee = fee_per_trade
+                    else:
+                        continue
+                else:
+                    entry = (short_entry + short_l2) / 2
+                    dca_triggered = True
+                    dca_count += 1
+                    trade_fee = fee_per_trade * 2
             else:
                 entry = short_entry
                 trade_fee = fee_per_trade
@@ -4038,10 +4117,11 @@ def backtest_deret_statistik(
             tp_price = entry * (1 - tp_pct / 100)
             sl_price = entry * (1 + sl_pct / 100)
             
-            # Check TP/SL across max_hold candles
+            # Check TP/SL across max_hold candles — FULL 1m resolution on ALL candles
             exit_price = None
             exit_reason = None
             exit_candle_idx = 0
+            entry_filled = False
             
             for k in range(max_hold):
                 ci = i + 1 + k
@@ -4049,51 +4129,63 @@ def backtest_deret_statistik(
                     break
                 c_h, c_l, c_c, c_o = highs[ci], lows[ci], closes[ci], opens[ci]
                 
-                sl_hit = c_h >= sl_price
+                parent_ts = times[ci]
+                subs = sub_candle_lookup.get(parent_ts, [])
                 
-                # Fix phantom TP: on entry candle (k=0), use sub-candle resolution if available
-                if k == 0 and c_c > c_o:
-                    parent_ts = times[ci]
-                    subs = sub_candle_lookup.get(parent_ts, [])
-                    if subs:
-                        entry_filled_at = None
-                        tp_hit = False
-                        for sc in subs:
-                            if entry_filled_at is None:
-                                # SHORT: entry fills when sub-candle high >= entry price
-                                if sc["h"] >= entry:
-                                    entry_filled_at = sc["ts"]
-                            else:
-                                # After entry: check TP and SL
-                                if sc["l"] <= tp_price:
-                                    tp_hit = True
-                                    break
-                                if sc["h"] >= sl_price:
-                                    # SL hit first after entry
-                                    break
-                        if entry_filled_at is None:
-                            tp_hit = False
-                    else:
-                        tp_hit = False  # bullish entry candle: Low likely before entry
+                if subs:
+                    # ══ FULL 1m WALK (best accuracy) ══
+                    for sc in subs:
+                        if k == 0 and not entry_filled:
+                            # Entry candle: must find entry fill FIRST
+                            if sc["h"] >= entry:
+                                entry_filled = True
+                            continue
+                        
+                        # After entry filled (or k>0)
+                        if sc["l"] <= tp_price:
+                            exit_price = tp_price; exit_reason = "TP"
+                            break
+                        if sc["h"] >= sl_price:
+                            exit_price = sl_price; exit_reason = "SL"
+                            break
+                    
+                    if exit_reason:
+                        exit_candle_idx = k
+                        break
+                    
+                    if k == 0 and not entry_filled:
+                        break
                 else:
-                    tp_hit = c_l <= tp_price
-                
-                if sl_hit and tp_hit:
-                    both_hit_count += 1
-                    if (c_h - c_o) < (c_o - c_l):
-                        exit_price = sl_price; exit_reason = "SL"
+                    # ══ OHLC FALLBACK ══
+                    if k == 0:
+                        entry_filled = c_h >= entry
+                        if not entry_filled:
+                            break
+                        if c_c > c_o:
+                            tp_hit = False  # bullish candle = Low before entry for SHORT
+                        else:
+                            tp_hit = c_l <= tp_price
                     else:
+                        tp_hit = c_l <= tp_price
+                    
+                    sl_hit = c_h >= sl_price
+                    
+                    if sl_hit and tp_hit:
+                        both_hit_count += 1
+                        if (c_h - c_o) < (c_o - c_l):
+                            exit_price = sl_price; exit_reason = "SL"
+                        else:
+                            exit_price = tp_price; exit_reason = "TP"
+                        exit_candle_idx = k; break
+                    elif tp_hit:
                         exit_price = tp_price; exit_reason = "TP"
-                    exit_candle_idx = k
-                    break
-                elif tp_hit:
-                    exit_price = tp_price; exit_reason = "TP"
-                    exit_candle_idx = k
-                    break
-                elif sl_hit:
-                    exit_price = sl_price; exit_reason = "SL"
-                    exit_candle_idx = k
-                    break
+                        exit_candle_idx = k; break
+                    elif sl_hit:
+                        exit_price = sl_price; exit_reason = "SL"
+                        exit_candle_idx = k; break
+            
+            if not entry_filled:
+                continue
             
             if exit_reason is None:
                 last_ci = min(i + max_hold, n - 1)
