@@ -3115,6 +3115,9 @@ def combo_sweep(
         hour_utc = dt.hour
         date_str = dt.strftime("%Y-%m-%d")
 
+        # Volatility proxy: prev candle range % (for vol_filter)
+        prev_range_pct = (highs[i] - lows[i]) / opens[i] * 100 if opens[i] > 0 else 0
+
         # Flatten 1m subs
         first_parent_ts = (candle_time // parent_ms) * parent_ms
         first_subs = sub_lookup.get(first_parent_ts, [])
@@ -3243,7 +3246,7 @@ def combo_sweep(
 
             all_trades[cfg["name"]].append((
                 candle_time, entry_price, pred_high, pred_low, pred_close,
-                level_min, hour_utc, date_str, dyn_distances,
+                level_min, hour_utc, date_str, dyn_distances, prev_range_pct,
             ))
 
     _log(f"  🔬 Phase 1 done. Pre-computed {sum(len(v) for v in all_trades.values())} trade records")
@@ -3267,18 +3270,25 @@ def combo_sweep(
     ]
 
     results = []
-    total_combos = len(entry_cfgs) * len(tp_configs) * len(sl_configs) * len(_COMBO_DCA) * len(hold_configs)
+    # Filter variants: (name, vol_mode) — vol median computed per entry cfg
+    # "all" = no filter, "low" = below-median prev range, "high" = above-median
+    _FILTER_VARIANTS = [("all", None), ("lowvol", "low"), ("highvol", "high")]
+    total_combos = len(entry_cfgs) * len(tp_configs) * len(sl_configs) * len(_COMBO_DCA) * len(hold_configs) * len(_FILTER_VARIANTS)
     checked = 0
 
-    _log(f"  🔬 Phase 2: testing {total_combos} combos...")
+    _log(f"  🔬 Phase 2: testing {total_combos} combos (incl. vol filters)...")
 
     for cfg in entry_cfgs:
         trades = all_trades[cfg["name"]]
         if len(trades) < 30:
-            checked += len(tp_configs) * len(sl_configs) * len(_COMBO_DCA) * len(hold_configs)
+            checked += len(tp_configs) * len(sl_configs) * len(_COMBO_DCA) * len(hold_configs) * len(_FILTER_VARIANTS)
             continue
 
         side = cfg["side"]
+
+        # Volatility median for this entry's trades (split point for low/high vol)
+        _vols = sorted(t[9] for t in trades)
+        vol_median = _vols[len(_vols) // 2] if _vols else 0
 
         # Filter valid dynamic TPs for this side
         valid_tp = []
@@ -3302,6 +3312,7 @@ def combo_sweep(
                 for dca_pct in _COMBO_DCA:
 
                     for hold_cfg in hold_configs:
+                      for filt_name, vol_mode in _FILTER_VARIANTS:
                         hold_max = hold_cfg["max_min"]
                         checked += 1
 
@@ -3314,7 +3325,13 @@ def combo_sweep(
                         hour_stats = defaultdict(lambda: {"w": 0, "l": 0})
 
                         for trade in trades:
-                            ct, ep, ph, pl, pc, lm, hour, date, dyn_dist = trade
+                            ct, ep, ph, pl, pc, lm, hour, date, dyn_dist, prev_rng = trade
+
+                            # ── VOL FILTER: only trade in matching volatility regime ──
+                            if vol_mode == "low" and prev_rng > vol_median:
+                                continue
+                            if vol_mode == "high" and prev_rng <= vol_median:
+                                continue
 
                             # FIX #6: Dynamic TP with negative distance = bad trade, skip
                             if tp_type == "dynamic":
@@ -3440,6 +3457,7 @@ def combo_sweep(
                             "sl_pct": sl_pct,
                             "dca": dca_pct,
                             "hold": hold_cfg["name"],
+                            "filter": filt_name,  # all | lowvol | highvol
                             "wr": wr, "ev_per_trade": ev,
                             "ratio": ratio,
                             "trades": total, "expired": expired,
