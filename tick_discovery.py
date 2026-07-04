@@ -1695,8 +1695,64 @@ def _process_sweep_result(result, symbol, timeframe, mode, window, buffer_pct, t
         }
         _sweep_status["results_summary"].append(summary_entry)
 
-        # Save to D1
+        # Save to D1: both tables so dashboard picks it up
         _save_strategy_to_d1(result)
+        _save_primary_to_combo_results(result)
+
+
+def _save_primary_to_combo_results(result):
+    """Save primary sweep winner to combo_results table.
+    Bridges the gap: log winners (accurate 1m engine) → dashboard recommendation table.
+    """
+    try:
+        symbol = result["symbol"]
+        timeframe = result["timeframe"]
+        mode = result["mode"]  # deret | deret_dca | deret_filter
+
+        # Determine entry_name for D1 schema
+        buf = result.get("buffer_pct", 0)
+        if buf == 0:
+            entry_name = "open_long" if result.get("direction","LONG") == "LONG" else "open_short"
+        else:
+            entry_name = f"pred_low_buf_{buf}" if result.get("direction","LONG") == "LONG" else f"pred_high_buf_{buf}"
+
+        # DCA marker
+        dca_val = 0
+        if mode == "deret_dca":
+            dca_val = result.get("dca_buffer", 1.0)
+
+        combo_payload = {
+            "entry": entry_name,
+            "side": result.get("direction", "LONG"),
+            "tp_name": f"TP_{result['tp_pct']}",
+            "tp_type": "fixed",
+            "tp_pct": result["tp_pct"],
+            "sl_pct": result["sl_pct"],
+            "dca": dca_val,
+            "hold": "long",
+            "filter": "all",  # primary sweep — no vol filter applied
+            "wr": result["win_rate"],
+            "ev_per_trade": result.get("avg_pnl_per_trade", 0),
+            "ratio": result["tp_pct"] / result["sl_pct"] if result["sl_pct"] > 0 else 0,
+            "trades": result["total_trades"],
+            "total_profit": result["profit_per_day"] * 1825,  # 5 years
+            "avg_daily": result["profit_per_day"],
+            "consistency": result.get("consistency_pct", 0),
+        }
+
+        payload = {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "results": [combo_payload],
+        }
+
+        resp = requests.post(
+            f"{WORKER_URL}/tick/save-combo-results",
+            json=payload,
+            timeout=15,
+        )
+    except Exception as ex:
+        _log(f"  ⚠️ combo bridge save error: {str(ex)[:100]}")
 
 
 def _save_strategy_to_d1(result):
