@@ -3493,7 +3493,16 @@ def combo_sweep(
     }
 
     if save_to_d1:
-        _save_combo_results(symbol, timeframe, results[:100])
+        # Save top-N per filter variant so lowvol/highvol don't get eliminated
+        # by 'all' variants that have larger trade counts → higher total_profit
+        by_filter = defaultdict(list)
+        for r in results:
+            by_filter[r.get("filter", "all")].append(r)
+        to_save = []
+        for filt_name, items in by_filter.items():
+            # Already sorted by total_profit above
+            to_save.extend(items[:60])  # top 60 per variant = 180 total max
+        _save_combo_results(symbol, timeframe, to_save)
 
     return output
 
@@ -3509,6 +3518,7 @@ def _save_combo_results(symbol, timeframe, results):
                 "tp_name": r["tp_name"], "tp_type": r["tp_type"],
                 "tp_pct": r["tp_pct"], "sl_pct": r["sl_pct"],
                 "dca": r["dca"], "hold": r["hold"],
+                "filter": r.get("filter", "all"),
                 "wr": r["wr"], "ev": r["ev_per_trade"],
                 "ratio": r["ratio"], "trades": r["trades"],
                 "total_profit": r["total_profit"],
