@@ -1,11 +1,10 @@
 """
-mode3_api.py v1.1 — Uses optimized v1.1 engine
-===============================================
+mode3_api.py v1.2 — Direct import + dynamic feature detection
 
-Changes vs v1.0:
-- Import from mode3_drc_v1_1 (falls back to mode3_drc if v1_1 not available)
-- Batch job builds PairContext ONCE per pair, sweeps TP options in inner loop
-  (3x speedup for multi-TP sweeps + full KDTree benefit for large data)
+Fix vs v1.1:
+- Import langsung dari mode3_drc (no v1_1 suffix confusion)
+- Dynamic detection: cek apakah v1.1 features (KDTree, context caching) tersedia
+- Version label yang akurat: '1.1-kdtree' / '1.1-brute' / '1.0-brute'
 """
 
 from __future__ import annotations
@@ -14,21 +13,34 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-# Prefer optimized v1.1; fall back to v1.0 if not deployed yet
+# Import core engine (v1.0 or v1.1 — same filename)
+from mode3_drc import (
+    DRCConfig, backtest, load_klines, compute_btc_returns,
+)
+
+# Detect v1.1 features dynamically
 try:
-    from mode3_drc_v1_1 import (
-        DRCConfig, backtest, backtest_with_context, build_pair_context,
-        load_klines, compute_btc_returns, _KDTREE_AVAILABLE,
-    )
-    _ENGINE_VERSION = "1.1-kdtree" if _KDTREE_AVAILABLE else "1.1-brute"
+    from mode3_drc import build_pair_context, backtest_with_context
+    _V11_FEATURES = True
 except ImportError:
-    from mode3_drc import (
-        DRCConfig, backtest, load_klines, compute_btc_returns,
-    )
     build_pair_context = None
     backtest_with_context = None
-    _ENGINE_VERSION = "1.0-brute"
+    _V11_FEATURES = False
+
+# Detect KDTree availability
+try:
+    from mode3_drc import _KDTREE_AVAILABLE
+except ImportError:
     _KDTREE_AVAILABLE = False
+
+# Compose version label
+if _V11_FEATURES and _KDTREE_AVAILABLE:
+    _ENGINE_VERSION = "1.1-kdtree"
+elif _V11_FEATURES:
+    _ENGINE_VERSION = "1.1-brute"
+else:
+    _ENGINE_VERSION = "1.0-brute"
+
 
 DB_PATH = os.environ.get("DB_PATH", "market_data.db")
 
@@ -118,6 +130,7 @@ def health():
         "ok": True,
         "mode": "Mode 3 DRC",
         "engine_version": _ENGINE_VERSION,
+        "v11_features_loaded": _V11_FEATURES,
         "kdtree_available": _KDTREE_AVAILABLE,
         "presets_available": list(PRESETS.keys()),
         "tp_options_default": [0.003, 0.004, 0.005],
@@ -149,6 +162,7 @@ def backtest_sync(req: Mode3BacktestRequest):
     r = backtest(data, cfg, tp_pct=req.tp_pct, btc_returns=btc_r)
     r["runtime_sec"] = round(time.time() - t0, 1)
     r["preset"] = req.preset
+    r["engine_version"] = _ENGINE_VERSION
     if not req.include_trades:
         r.pop("trades_list", None)
     return r
@@ -181,9 +195,8 @@ def _run_batch_job(job_id, req: Mode3BacktestBatchRequest):
 
             # ── OPTIMIZATION v1.1: Build heavy context ONCE per pair ──
             ctx = None
-            if build_pair_context is not None:
+            if _V11_FEATURES:
                 _update_job(job_id, current_task=f"{symbol} building context (features + KDTree)")
-                t_ctx = time.time()
                 try:
                     ctx = build_pair_context(
                         data, cfg,
@@ -211,6 +224,7 @@ def _run_batch_job(job_id, req: Mode3BacktestBatchRequest):
                     )
                 r["runtime_sec"] = round(time.time() - t0, 1)
                 r["preset"] = req.preset
+                r["engine_version"] = _ENGINE_VERSION
                 if not req.include_trades:
                     r.pop("trades_list", None)
                 results.append(r)
@@ -267,7 +281,10 @@ def backtest_async(req: Mode3BacktestBatchRequest):
         "ok": True, "job_id": job_id,
         "engine": _ENGINE_VERSION,
         "estimated_backtests": len(req.pairs) * len(req.tp_options),
-        "estimated_runtime_min": round(len(req.pairs) * 2 + len(req.pairs) * (len(req.tp_options)-1) * 0.3, 1),
+        "estimated_runtime_min": round(
+            len(req.pairs) * (2 if _KDTREE_AVAILABLE else 15) +
+            len(req.pairs) * (len(req.tp_options)-1) * (0.3 if _V11_FEATURES else 15), 1
+        ),
         "poll_url": f"/mode3/job/{job_id}",
     }
 
