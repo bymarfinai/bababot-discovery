@@ -29,8 +29,25 @@ from tick_discovery import (
         cluster_levels, combo_sweep, custom_backtest,
         _load_data as td_load_data, DB_PATH as TD_DB_PATH,
     )
-app = FastAPI(title="BabaBot Backtesting API", version="1.2.0")
+
+# ── Mode 3 DRC integration (added 4 Juli 2026) ─────────────────
+try:
+    from mode3_api import router as mode3_router
+    _MODE3_AVAILABLE = True
+    print("[INIT] Mode 3 DRC module loaded successfully")
+except Exception as _e:
+    print(f"[WARN] mode3_api not available: {_e}")
+    _MODE3_AVAILABLE = False
+# ────────────────────────────────────────────────────────────────
+
+app = FastAPI(title="BabaBot Backtesting API", version="1.3.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# ── Mount Mode 3 router (added 4 Juli 2026) ────────────────────
+if _MODE3_AVAILABLE:
+    app.include_router(mode3_router)
+    print("[INIT] Mode 3 DRC endpoints mounted at /mode3/*")
+# ────────────────────────────────────────────────────────────────
 security = HTTPBearer(auto_error=False)
 
 API_TOKEN = os.environ.get("BACKTEST_API_TOKEN", "")
@@ -106,11 +123,26 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
 
 @app.get("/")
 def root():
+    endpoints = [
+        "/backtest", "/backtest/batch", "/backtest/feature-study",
+        "/backtest/marthias-study", "/health", "/data/status",
+        "/strategies", "/fetch-data", "/fetch-status",
+    ]
+    # Mode 3 DRC endpoints (added 4 Juli 2026)
+    if _MODE3_AVAILABLE:
+        endpoints += [
+            "/mode3/health",
+            "/mode3/backtest",
+            "/mode3/backtest-async",
+            "/mode3/job/{job_id}",
+            "/mode3/jobs",
+        ]
     return {
         "service": "BabaBot Backtesting API",
-        "version": "1.2.0",
+        "version": "1.3.0",
         "status": "running",
-        "endpoints": ["/backtest", "/backtest/batch", "/backtest/feature-study", "/backtest/marthias-study", "/health", "/data/status", "/strategies", "/fetch-data", "/fetch-status"]
+        "mode3_available": _MODE3_AVAILABLE,
+        "endpoints": endpoints,
     }
 
 @app.get("/data/list-files")
