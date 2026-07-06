@@ -54,8 +54,19 @@ from .backtest import (
     infer_entry_mode,
     run_regime_backtest,
 )
+from .sweep import (
+    SweepGrid,
+    SweepConfig,
+    SweepRunResult,
+    SweepSummary,
+    expand_grid,
+    apply_params,
+    compute_score,
+    evaluate_config,
+    run_sweep,
+)
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     # regime
@@ -79,4 +90,8 @@ __all__ = [
     "CircuitBreakerState",
     "open_position", "manage_position", "close_position",
     "check_circuit_breakers", "infer_entry_mode", "run_regime_backtest",
+    # sweep
+    "SweepGrid", "SweepConfig", "SweepRunResult", "SweepSummary",
+    "expand_grid", "apply_params", "compute_score",
+    "evaluate_config", "run_sweep",
 ]
