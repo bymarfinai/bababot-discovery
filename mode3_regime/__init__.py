@@ -38,8 +38,24 @@ from .classifier import (
     get_prior_regime,
     resolve_entry_bias,
 )
+from .backtest import (
+    EntryMode,
+    ExitReason,
+    BacktestConfig,
+    Position,
+    TradeRecord,
+    BacktestStats,
+    BacktestResult,
+    CircuitBreakerState,
+    open_position,
+    manage_position,
+    close_position,
+    check_circuit_breakers,
+    infer_entry_mode,
+    run_regime_backtest,
+)
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     # regime
@@ -57,4 +73,10 @@ __all__ = [
     "signal_volume_trend", "signal_test_count", "signal_range_width",
     "signal_duration", "signal_mtf_momentum",
     "analyze_sideways", "get_prior_regime", "resolve_entry_bias",
+    # backtest
+    "EntryMode", "ExitReason", "BacktestConfig",
+    "Position", "TradeRecord", "BacktestStats", "BacktestResult",
+    "CircuitBreakerState",
+    "open_position", "manage_position", "close_position",
+    "check_circuit_breakers", "infer_entry_mode", "run_regime_backtest",
 ]
