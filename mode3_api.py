@@ -42,7 +42,16 @@ from mode3_regime import (
 # CONFIG
 # ═════════════════════════════════════════════════════════════
 
-DB_PATH = Path(__file__).parent / "market_data.db"
+DB_PATH = Path("/app/data/market_data.db")
+if not DB_PATH.exists():
+    # Fallback locations
+    for _candidate in [
+        Path(__file__).parent / "data" / "market_data.db",
+        Path(__file__).parent / "market_data.db",
+    ]:
+        if _candidate.exists():
+            DB_PATH = _candidate
+            break
 
 router = APIRouter(prefix="/mode3/regime", tags=["mode3_regime"])
 
