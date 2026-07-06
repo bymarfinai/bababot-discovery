@@ -1,17 +1,17 @@
 """
-strategy_sideways.py — Sideways Tektok Strategy v0.1
+strategy_sideways.py — Sideways Tektok Strategy v0.2
 ======================================================
-Standalone strategy khusus untuk regime ACCUMULATION / DISTRIBUTION / MID_RANGE.
-Tektok VAH-VAL: semua touch dieksekusi, full size (baseline).
-
-Layer 2+ (confidence scoring untuk adjust size) akan ditambah di Round 2
-berdasarkan hasil Round 1.
+v0.2 changes:
+- Add skip_regime_filter flag (match Pine v0.2 behavior: no regime filter)
+- Add skip_range_width_filter flag (match Pine: no range width check)
+- Relaxed candle condition to match Pine close > open behavior more closely
 """
 
 from __future__ import annotations
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import Optional
 
 from .regime import Regime, RegimeState
 from .microevent import MicroEvent
@@ -30,9 +30,13 @@ class SidewaysMode(Enum):
     FAKE_BREAKOUT = "fake_breakout"    # SHORT counter dari wick above VAH
 
 
+def _default_allowed_regimes():
+    return (Regime.ACCUMULATION, Regime.DISTRIBUTION, Regime.UNKNOWN)
+
+
 @dataclass
 class SidewaysConfig:
-    # Range detection (harus lebih strict dari default regime detector)
+    # Range detection
     range_max_width_pct: float = 0.03      # width < 3% qualify as tight range
 
     # Touch tolerance
@@ -45,11 +49,11 @@ class SidewaysConfig:
     cooldown_bars: int = 10
 
     # Regime filter — hanya trade kalau salah satu dari ini
-    allowed_regimes: tuple = (
-        Regime.ACCUMULATION,
-        Regime.DISTRIBUTION,
-        Regime.UNKNOWN,  # UNKNOWN sering = ambiguous sideways, tetap trade
-    )
+    allowed_regimes: tuple = field(default_factory=_default_allowed_regimes)
+
+    # v0.2: Pine-compat toggles
+    skip_regime_filter: bool = False        # Bypass regime check (match Pine v0.2)
+    skip_range_width_filter: bool = False   # Bypass range width check (match Pine v0.2)
 
 
 @dataclass
@@ -62,7 +66,7 @@ class SidewaysSignal:
     vah: float
     poc: float
     regime: str
-    confidence: float = 1.0  # Baseline v0.1: semua 1.0. Round 2+ akan variable.
+    confidence: float = 1.0
     reason: str = ""
 
 
@@ -75,7 +79,7 @@ def generate_sideways_signals(
     cfg: SidewaysConfig,
 ) -> list[SidewaysSignal]:
     """
-    Generate signals sideways tektok baseline.
+    Generate signals sideways tektok.
     Baseline: semua touch VAL/VAH yang qualify dieksekusi, confidence = 1.0.
     """
     n = len(closes)
@@ -93,13 +97,15 @@ def generate_sideways_signals(
     for i in range(50, n):
         rs = regime_states[i]
 
-        # Filter 1: harus di regime yang di-allow
-        if rs.regime not in cfg.allowed_regimes:
-            continue
+        # Filter 1: regime filter (skippable via cfg)
+        if not cfg.skip_regime_filter:
+            if rs.regime not in cfg.allowed_regimes:
+                continue
 
-        # Filter 2: range width harus qualify
-        if rs.range_width_pct <= 0 or rs.range_width_pct >= cfg.range_max_width_pct:
-            continue
+        # Filter 2: range width filter (skippable via cfg)
+        if not cfg.skip_range_width_filter:
+            if rs.range_width_pct <= 0 or rs.range_width_pct >= cfg.range_max_width_pct:
+                continue
 
         vah = rs.vah
         val = rs.val
@@ -123,9 +129,10 @@ def generate_sideways_signals(
         wick_below_val = l < val * (1 - cfg.touch_tolerance) and c > val
         wick_above_vah = h > vah * (1 + cfg.touch_tolerance) and c < vah
 
-        # Candle direction
-        bullish_candle = c > closes[i - 1] and c > (h + l) / 2
-        bearish_candle = c < closes[i - 1] and c < (h + l) / 2
+        # Candle direction (v0.2: simplified to match Pine `close > open` semantics)
+        # Pine: close > open. Approx: close > previous close (up-tick)
+        bullish_candle = c > closes[i - 1]
+        bearish_candle = c < closes[i - 1]
 
         # ─── ENTRY: LONG BOUNCE VAL ───
         if touch_val and bullish_candle and vol_ok and c > val and cooldown_long_ok:
