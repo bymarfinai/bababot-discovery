@@ -12,6 +12,14 @@ from .microevent import (
 )
 from .entry_rules import EntrySide, EntryMode, EntryConfig, EntrySignal, generate_entry_signals
 from .backtest import BacktestConfig, TradeRecord, BacktestStats, BacktestResult, run_backtest, ExitReason, TPScheme
+from .strategy_sideways import (
+    SideEnum, SidewaysMode, SidewaysConfig, SidewaysSignal,
+    generate_sideways_signals,
+)
+from .backtest_sideways import (
+    SidewaysBTConfig, SidewaysTradeRecord, SidewaysBTStats, SidewaysBTResult,
+    run_sideways_backtest, ExitReasonSW,
+)
 
 __version__ = "0.6.0"
 
