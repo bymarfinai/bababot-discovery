@@ -25,8 +25,21 @@ from .state_machine import (
     transition_state,
     run_state_machine,
 )
+from .classifier import (
+    SidewaysBias,
+    ClassifierConfig,
+    SidewaysAnalysis,
+    signal_volume_trend,
+    signal_test_count,
+    signal_range_width,
+    signal_duration,
+    signal_mtf_momentum,
+    analyze_sideways,
+    get_prior_regime,
+    resolve_entry_bias,
+)
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     # regime
@@ -39,4 +52,9 @@ __all__ = [
     "StateMachineConfig", "MachineState",
     "classify_break", "determine_context",
     "detect_level_touch", "transition_state", "run_state_machine",
+    # classifier
+    "SidewaysBias", "ClassifierConfig", "SidewaysAnalysis",
+    "signal_volume_trend", "signal_test_count", "signal_range_width",
+    "signal_duration", "signal_mtf_momentum",
+    "analyze_sideways", "get_prior_regime", "resolve_entry_bias",
 ]
