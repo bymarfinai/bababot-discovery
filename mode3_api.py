@@ -20,6 +20,7 @@ from mode3_regime import (
     detect_micro_events, compute_bias_series,
     EntrySide, EntryMode, EntryConfig, generate_entry_signals,
     BacktestConfig, run_backtest, TPScheme,
+    SidewaysConfig, SidewaysBTConfig, run_sideways_backtest,
 )
 
 
@@ -84,7 +85,97 @@ class BacktestReq(BaseModel):
     tp3_ratio: Optional[float] = None
 
 
-@router.get("/health")
+class SidewaysBTReq(BaseModel):
+    symbol: str = "BTCUSDT"
+    timeframe: str = "1h"
+    days: int = Field(1825, ge=30, le=3650)
+
+    # Strategy params
+    range_max_width_pct: Optional[float] = None
+    touch_tolerance: Optional[float] = None
+    volume_multiplier: Optional[float] = None
+    cooldown_bars: Optional[int] = None
+
+    # Backtest params
+    sl_pct_from_level: Optional[float] = None
+    tp1_ratio: Optional[float] = None
+    tp2_ratio: Optional[float] = None
+    tp3_ratio: Optional[float] = None
+    max_hold_candles: Optional[int] = None
+
+
+@router.post("/sideways_backtest")
+async def sideways_backtest(req: SidewaysBTReq):
+    """Backtest Sideways Tektok strategy standalone."""
+    try:
+        _, _, highs, lows, closes, volumes = _load_klines(req.symbol, req.timeframe, req.days)
+    except HTTPException as e:
+        return {"ok": False, "error": e.detail}
+
+    n = len(closes)
+    if n < 200:
+        return {"ok": False, "error": f"insufficient candles: {n}"}
+
+    strat_cfg = SidewaysConfig()
+    for f in ["range_max_width_pct", "touch_tolerance", "volume_multiplier", "cooldown_bars"]:
+        v = getattr(req, f, None)
+        if v is not None:
+            setattr(strat_cfg, f, v)
+
+    bt_cfg = SidewaysBTConfig()
+    for f in ["sl_pct_from_level", "tp1_ratio", "tp2_ratio", "tp3_ratio", "max_hold_candles"]:
+        v = getattr(req, f, None)
+        if v is not None:
+            setattr(bt_cfg, f, v)
+
+    try:
+        result = run_sideways_backtest(highs, lows, closes, volumes, bt_cfg, strategy_cfg=strat_cfg, warmup=min(100, n // 3))
+    except Exception as e:
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
+
+    if result.error:
+        return {"ok": False, "error": result.error}
+
+    s = result.stats
+    return {
+        "ok": True,
+        "strategy": "sideways_tektok_v0.1",
+        "symbol": req.symbol,
+        "timeframe": req.timeframe,
+        "days": req.days,
+        "runtime_sec": round(s.runtime_sec, 2),
+        "total_candles": s.total_candles,
+        "stats": {
+            "total_trades": s.total_trades,
+            "wins": s.wins,
+            "losses": s.losses,
+            "win_rate": round(s.win_rate, 4),
+            "trades_per_day": round(s.trades_per_day, 3),
+            "total_pnl_net": round(s.total_pnl_net, 2),
+            "avg_win": round(s.avg_win, 2),
+            "avg_loss": round(s.avg_loss, 2),
+            "max_drawdown_pct": round(s.max_drawdown_pct, 4),
+            "tp1_hit_rate": round(s.tp1_hit_rate, 4),
+            "tp2_hit_rate": round(s.tp2_hit_rate, 4),
+            "tp3_hit_rate": round(s.tp3_hit_rate, 4),
+            "exit_by_reason": s.exit_by_reason,
+            "by_regime": s.by_regime,
+            "by_mode": s.by_mode,
+        },
+        "sample_trades": [
+            {
+                "entry_idx": t.entry_idx, "exit_idx": t.exit_idx,
+                "side": t.side, "mode": t.mode, "reason": t.reason, "regime": t.regime,
+                "entry_price": round(t.entry_price, 2), "exit_price": round(t.exit_price, 2),
+                "sl": round(t.sl_price, 2), "tp1": round(t.tp1_price, 2), "tp3": round(t.tp3_price, 2),
+                "tp1_hit": t.tp1_hit, "tp2_hit": t.tp2_hit, "tp3_hit": t.tp3_hit,
+                "pnl_net": round(t.pnl_net, 2),
+                "exit_reason": t.exit_reason,
+            }
+            for t in result.trades[:20]
+        ],
+    }
 async def health():
     return {
         "ok": True,
