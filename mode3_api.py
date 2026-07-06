@@ -1,14 +1,14 @@
 """
-mode3_api.py v1.2 — Direct import + dynamic feature detection
+mode3_api.py v1.2 — Memory management fix
 
 Fix vs v1.1:
-- Import langsung dari mode3_drc (no v1_1 suffix confusion)
-- Dynamic detection: cek apakah v1.1 features (KDTree, context caching) tersedia
-- Version label yang akurat: '1.1-kdtree' / '1.1-brute' / '1.0-brute'
+- Explicit `del ctx; del data; gc.collect()` after each pair processing
+- Prevents memory buildup across multiple batch jobs
+- KDTree (~40MB) + features (~30MB) + labels + data now released properly
 """
 
 from __future__ import annotations
-import os, time, uuid, json, threading, traceback
+import os, time, uuid, json, threading, traceback, gc
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -234,6 +234,12 @@ def _run_batch_job(job_id, req: Mode3BacktestBatchRequest):
                     progress=round(done/total*100, 1),
                     results=results,
                 )
+
+            # ── v1.2 MEMORY FIX: release pair context after all TPs done ──
+            # KDTree (~40MB) + features (~30MB) + labels + data — release explicit
+            del ctx
+            del data
+            gc.collect()
 
         candidates = [
             {
