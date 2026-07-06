@@ -1,8 +1,10 @@
 """
-backtest_sideways.py — Backtest Engine untuk Sideways Tektok Strategy
-======================================================================
-Standalone backtest hanya untuk sideways strategy.
-SL/TP config disesuaikan untuk range trading (tight SL, TP at levels).
+backtest_sideways.py — Backtest Engine untuk Sideways Tektok Strategy v0.3
+==========================================================================
+v0.3 changes:
+- Position size scales by signal confidence (1.0 = full $10, 0.5 = $5, 0.25 = $2.5)
+- Stats breakdown by confidence tier (full/half/quarter)
+- Skip signals with confidence == 0.0 (score < 0)
 """
 
 from __future__ import annotations
@@ -38,16 +40,14 @@ class SidewaysBTConfig:
     slippage_pct: float = 0.001
     candle_hours: float = 1.0
 
-    # SL/TP untuk sideways: tight SL, TP at levels (POC, mid, VAH/VAL)
-    sl_pct_from_level: float = 0.005      # 0.5% below VAL / above VAH
-    tp1_ratio: float = 0.5                 # 50% close at POC
-    tp2_ratio: float = 0.3                 # 30% close at mid
-    tp3_ratio: float = 0.2                 # 20% close at opposite level
+    sl_pct_from_level: float = 0.005
+    tp1_ratio: float = 0.5
+    tp2_ratio: float = 0.3
+    tp3_ratio: float = 0.2
     move_sl_to_be_after_tp1: bool = True
 
-    max_hold_candles: int = 12             # Max hold 12 candle di range trading
+    max_hold_candles: int = 12
 
-    # Circuit breakers
     max_consec_losses: int = 5
     max_drawdown_pct: float = 0.10
     cooldown_after_breaker: int = 48
@@ -62,6 +62,8 @@ class SidewaysTradeRecord:
     reason: str
     regime: str
     confidence: float
+    score: int
+    position_usd: float
     entry_price: float
     exit_price: float
     sl_price: float
@@ -97,6 +99,10 @@ class SidewaysBTStats:
     exit_by_reason: dict = field(default_factory=dict)
     by_regime: dict = field(default_factory=dict)
     by_mode: dict = field(default_factory=dict)
+
+    # v0.3: breakdown by confidence tier
+    by_confidence_tier: dict = field(default_factory=dict)
+
     runtime_sec: float = 0.0
     total_candles: int = 0
 
@@ -106,6 +112,17 @@ class SidewaysBTResult:
     stats: SidewaysBTStats
     trades: list[SidewaysTradeRecord]
     error: Optional[str] = None
+
+
+def _tier_label(conf: float) -> str:
+    if conf >= 0.99:
+        return "full"
+    elif conf >= 0.49:
+        return "half"
+    elif conf >= 0.24:
+        return "quarter"
+    else:
+        return "skip"
 
 
 def run_sideways_backtest(
@@ -130,10 +147,10 @@ def run_sideways_backtest(
             error=f"insufficient candles: {n}",
         )
 
-    print(f"[SW BT] Classifying regime for {n} candles...")
+    print(f"[SW BT v0.3] Classifying regime for {n} candles...")
     regime_states = classify_regime_series(highs, lows, closes, volumes, regime_cfg, warmup=warmup)
 
-    print(f"[SW BT] Generating sideways signals...")
+    print(f"[SW BT] Generating sideways signals with confidence scoring...")
     signals = generate_sideways_signals(highs, lows, closes, volumes, regime_states, strategy_cfg)
     print(f"[SW BT] {len(signals)} signals generated")
 
@@ -150,14 +167,14 @@ def run_sideways_backtest(
     next_sig = next(sig_iter, None)
 
     for i in range(n):
-        # Manage active position
         if active_pos is not None:
             h, l, c = highs[i], lows[i], closes[i]
             side = active_pos['side']
             entry = active_pos['entry_price']
             sl = active_pos['sl']
             tp1, tp2, tp3 = active_pos['tp1'], active_pos['tp2'], active_pos['tp3']
-            notional = cfg.position_usd * cfg.leverage
+            # Use scaled notional based on confidence
+            notional = active_pos['position_usd'] * cfg.leverage
 
             exit_reason = None
             exit_price = 0.0
@@ -173,7 +190,6 @@ def run_sideways_backtest(
                 exit_price = sl
                 close_pos = True
             else:
-                # TP1
                 if not active_pos['tp1_hit']:
                     tp1_reached = (side == 'long' and h >= tp1) or (side == 'short' and l <= tp1)
                     if tp1_reached:
@@ -189,7 +205,6 @@ def run_sideways_backtest(
                             active_pos['sl'] = entry
                             active_pos['moved_to_be'] = True
 
-                # TP2
                 if active_pos['tp1_hit'] and not active_pos['tp2_hit']:
                     tp2_reached = (side == 'long' and h >= tp2) or (side == 'short' and l <= tp2)
                     if tp2_reached:
@@ -202,7 +217,6 @@ def run_sideways_backtest(
                         active_pos['realized_pnl'] += partial_pnl - partial_fee - partial_slip
                         active_pos['remaining_ratio'] -= cfg.tp2_ratio
 
-                # TP3 (final)
                 if active_pos['tp2_hit'] and not active_pos['tp3_hit']:
                     tp3_reached = (side == 'long' and h >= tp3) or (side == 'short' and l <= tp3)
                     if tp3_reached:
@@ -211,7 +225,6 @@ def run_sideways_backtest(
                         exit_price = tp3
                         close_pos = True
 
-                # Max hold
                 if not close_pos and (i - active_pos['entry_idx']) >= cfg.max_hold_candles:
                     exit_reason = ExitReasonSW.MAX_HOLD
                     exit_price = c
@@ -241,6 +254,8 @@ def run_sideways_backtest(
                     reason=active_pos['reason'],
                     regime=active_pos['regime'],
                     confidence=active_pos['confidence'],
+                    score=active_pos['score'],
+                    position_usd=active_pos['position_usd'],
                     entry_price=entry,
                     exit_price=exit_price,
                     sl_price=active_pos['orig_sl'],
@@ -286,6 +301,10 @@ def run_sideways_backtest(
             sig = next_sig
             next_sig = next(sig_iter, None)
 
+            # v0.3: skip if confidence == 0
+            if sig.confidence <= 0.0:
+                continue
+
             entry_price = closes[i]
             if sig.side == SideEnum.LONG:
                 entry_price = entry_price * (1 + cfg.slippage_pct)
@@ -294,10 +313,8 @@ def run_sideways_backtest(
 
             side_str = 'long' if sig.side == SideEnum.LONG else 'short'
 
-            # SL: 0.5% below VAL (LONG) or above VAH (SHORT)
             if side_str == 'long':
                 sl = sig.val * (1 - cfg.sl_pct_from_level)
-                # TP tiers: POC → mid(POC,VAH) → VAH
                 tp1 = sig.poc
                 tp2 = (sig.poc + sig.vah) / 2
                 tp3 = sig.vah
@@ -307,11 +324,13 @@ def run_sideways_backtest(
                 tp2 = (sig.poc + sig.val) / 2
                 tp3 = sig.val
 
-            # Safety check
             if side_str == 'long' and (tp1 <= entry_price or sl >= entry_price):
                 continue
             if side_str == 'short' and (tp1 >= entry_price or sl <= entry_price):
                 continue
+
+            # v0.3: scale position_usd by confidence
+            scaled_position = cfg.position_usd * sig.confidence
 
             active_pos = {
                 'side': side_str,
@@ -319,6 +338,8 @@ def run_sideways_backtest(
                 'reason': sig.reason,
                 'regime': sig.regime,
                 'confidence': sig.confidence,
+                'score': sig.score,
+                'position_usd': scaled_position,
                 'entry_idx': i,
                 'entry_price': entry_price,
                 'sl': sl,
@@ -335,7 +356,7 @@ def run_sideways_backtest(
         side = active_pos['side']
         entry = active_pos['entry_price']
         exit_price = closes[-1]
-        notional = cfg.position_usd * cfg.leverage
+        notional = active_pos['position_usd'] * cfg.leverage
         remaining = active_pos['remaining_ratio']
         if remaining > 0:
             gross_pct = (exit_price - entry) / entry if side == 'long' else (entry - exit_price) / entry
@@ -349,6 +370,7 @@ def run_sideways_backtest(
             entry_idx=active_pos['entry_idx'], exit_idx=n - 1,
             side=side, mode=active_pos['mode'], reason=active_pos['reason'],
             regime=active_pos['regime'], confidence=active_pos['confidence'],
+            score=active_pos['score'], position_usd=active_pos['position_usd'],
             entry_price=entry, exit_price=exit_price,
             sl_price=active_pos['orig_sl'],
             tp1_price=active_pos['tp1'], tp2_price=active_pos['tp2'], tp3_price=active_pos['tp3'],
@@ -365,12 +387,18 @@ def run_sideways_backtest(
 
     wins_pnl, losses_pnl = [], []
     tp1_hits, tp2_hits, tp3_hits = 0, 0, 0
+    tier_data = {"full": {"trades": 0, "wins": 0, "pnl": 0.0},
+                 "half": {"trades": 0, "wins": 0, "pnl": 0.0},
+                 "quarter": {"trades": 0, "wins": 0, "pnl": 0.0}}
+
     for t in trades:
         stats.total_pnl_net += t.pnl_net
-        if t.pnl_net > 0.01:
+        is_win = t.pnl_net > 0.01
+        is_loss = t.pnl_net < -0.01
+        if is_win:
             stats.wins += 1
             wins_pnl.append(t.pnl_net)
-        elif t.pnl_net < -0.01:
+        elif is_loss:
             stats.losses += 1
             losses_pnl.append(t.pnl_net)
         else:
@@ -384,6 +412,23 @@ def run_sideways_backtest(
             tp2_hits += 1
         if t.tp3_hit:
             tp3_hits += 1
+
+        tier = _tier_label(t.confidence)
+        if tier in tier_data:
+            tier_data[tier]["trades"] += 1
+            tier_data[tier]["pnl"] += t.pnl_net
+            if is_win:
+                tier_data[tier]["wins"] += 1
+
+    # Post-process tier stats
+    for tier, td in tier_data.items():
+        wr = td["wins"] / td["trades"] if td["trades"] > 0 else 0.0
+        stats.by_confidence_tier[tier] = {
+            "trades": td["trades"],
+            "wins": td["wins"],
+            "win_rate": round(wr, 4),
+            "pnl_net": round(td["pnl"], 2),
+        }
 
     if stats.wins + stats.losses > 0:
         stats.win_rate = stats.wins / (stats.wins + stats.losses)
