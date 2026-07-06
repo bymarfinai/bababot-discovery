@@ -11,7 +11,7 @@ from .microevent import (
     detect_micro_events, compute_bias_series,
 )
 from .entry_rules import EntrySide, EntryMode, EntryConfig, EntrySignal, generate_entry_signals
-from .backtest import BacktestConfig, TradeRecord, BacktestStats, BacktestResult, run_backtest, ExitReason
+from .backtest import BacktestConfig, TradeRecord, BacktestStats, BacktestResult, run_backtest, ExitReason, TPScheme
 
 __version__ = "0.6.0"
 
