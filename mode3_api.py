@@ -19,7 +19,7 @@ from mode3_regime import (
     MicroEvent, Bias, MicroEventConfig, BiasConfig,
     detect_micro_events, compute_bias_series,
     EntrySide, EntryMode, EntryConfig, generate_entry_signals,
-    BacktestConfig, run_backtest,
+    BacktestConfig, run_backtest, TPScheme,
 )
 
 
@@ -73,6 +73,15 @@ class BacktestReq(BaseModel):
     leverage: Optional[float] = None
     sl_atr_mult: Optional[float] = None
     max_hold_candles: Optional[int] = None
+
+    # TP scheme
+    tp_scheme: Optional[str] = None  # "levels" or "percentage"
+    tp1_pct: Optional[float] = None
+    tp2_pct: Optional[float] = None
+    tp3_pct: Optional[float] = None
+    tp1_ratio: Optional[float] = None
+    tp2_ratio: Optional[float] = None
+    tp3_ratio: Optional[float] = None
 
 
 @router.get("/health")
@@ -176,10 +185,19 @@ async def backtest(req: BacktestReq):
         return {"ok": False, "error": f"insufficient candles: {n}"}
 
     cfg = BacktestConfig()
-    for field_name in ["position_usd", "leverage", "sl_atr_mult", "max_hold_candles"]:
+    for field_name in ["position_usd", "leverage", "sl_atr_mult", "max_hold_candles",
+                        "tp1_pct", "tp2_pct", "tp3_pct",
+                        "tp1_ratio", "tp2_ratio", "tp3_ratio"]:
         val = getattr(req, field_name, None)
         if val is not None:
             setattr(cfg, field_name, val)
+
+    # TP scheme
+    if req.tp_scheme is not None:
+        if req.tp_scheme.lower() == "percentage":
+            cfg.tp_scheme = TPScheme.PERCENTAGE
+        else:
+            cfg.tp_scheme = TPScheme.LEVELS
 
     try:
         result = run_backtest(highs, lows, closes, volumes, cfg, warmup=min(100, n // 3))
@@ -211,6 +229,9 @@ async def backtest(req: BacktestReq):
             "exit_by_reason": s.exit_by_reason,
             "by_regime": s.by_regime,
             "by_mode": s.by_mode,
+            "tp1_hit_rate": round(s.tp1_hit_rate, 4),
+            "tp2_hit_rate": round(s.tp2_hit_rate, 4),
+            "tp3_hit_rate": round(s.tp3_hit_rate, 4),
         },
         "sample_trades": [
             {
