@@ -47,6 +47,15 @@ try:
 except Exception as _e:
     print(f"[WARN] mode3_eval_predictor not available: {_e}")
     _MODE3_EVAL_AVAILABLE = False
+
+# ── Mode 3 Regime engine (added 6 Juli 2026) ──────────────────
+try:
+    from mode3_regime_api import router as mode3_regime_router
+    _MODE3_REGIME_AVAILABLE = True
+    print("[INIT] Mode 3 Regime engine module loaded successfully")
+except Exception as _e:
+    print(f"[WARN] mode3_regime_api not available: {_e}")
+    _MODE3_REGIME_AVAILABLE = False
 # ────────────────────────────────────────────────────────────────
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.3.0")
@@ -61,6 +70,11 @@ if _MODE3_AVAILABLE:
 if _MODE3_EVAL_AVAILABLE:
     app.include_router(mode3_eval_router)
     print("[INIT] Mode 3 Eval Predictor mounted at /mode3/eval-predictor")
+
+# ── Mount Mode 3 Regime router (added 6 Juli 2026) ─────────────
+if _MODE3_REGIME_AVAILABLE:
+    app.include_router(mode3_regime_router)
+    print("[INIT] Mode 3 Regime engine mounted at /mode3/regime/*")
 # ────────────────────────────────────────────────────────────────
 security = HTTPBearer(auto_error=False)
 
@@ -157,12 +171,23 @@ def root():
             "/mode3/eval-predictor",
             "/mode3/eval-predictor/health",
         ]
+    # Mode 3 Regime endpoints (added 6 Juli 2026)
+    if _MODE3_REGIME_AVAILABLE:
+        endpoints += [
+            "/mode3/regime/health",
+            "/mode3/regime/analyze",
+            "/mode3/regime/backtest",
+            "/mode3/regime/sweep",
+            "/mode3/regime/job/{job_id}",
+            "/mode3/regime/jobs",
+        ]
     return {
         "service": "BabaBot Backtesting API",
-        "version": "1.4.0",
+        "version": "1.5.0",
         "status": "running",
         "mode3_available": _MODE3_AVAILABLE,
         "mode3_eval_available": _MODE3_EVAL_AVAILABLE,
+        "mode3_regime_available": _MODE3_REGIME_AVAILABLE,
         "endpoints": endpoints,
     }
 
