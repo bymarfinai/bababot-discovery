@@ -1,97 +1,27 @@
-"""mode3_regime — Anchored VAH/VAL regime engine dengan 3-way confirmation state machine."""
+"""mode3_regime v0.6 — 3-layer regime + adaptive entry rules"""
 
-from .regime import (
-    Regime,
-    RegimeConfig,
-    ValueArea,
-    RegimeState,
-    compute_value_area,
-    detect_range,
-    detect_trend,
-    classify_regime_at,
-    classify_regime_series,
-    compute_atr,
-    is_dead_market,
+from .indicators import (
+    ema, sma, atr, rolling_vwap, rolling_high_low,
+    consecutive_count, slope_pct, rolling_volume_distribution,
 )
-from .state_machine import (
-    SMState,
-    BreakType,
-    BotContext,
-    StateMachineConfig,
-    MachineState,
-    classify_break,
-    determine_context,
-    detect_level_touch,
-    transition_state,
-    run_state_machine,
+from .regime import Regime, RegimeConfig, RegimeState, classify_regime_series
+from .transition import Transition, TransitionConfig, TransitionState, classify_transitions
+from .microevent import (
+    MicroEvent, Bias, MicroEventConfig, BiasConfig,
+    detect_micro_events, compute_bias_series,
 )
-from .classifier import (
-    SidewaysBias,
-    ClassifierConfig,
-    SidewaysAnalysis,
-    signal_volume_trend,
-    signal_test_count,
-    signal_range_width,
-    signal_duration,
-    signal_mtf_momentum,
-    analyze_sideways,
-    get_prior_regime,
-    resolve_entry_bias,
-)
-from .backtest import (
-    EntryMode,
-    ExitReason,
-    BacktestConfig,
-    Position,
-    TradeRecord,
-    BacktestStats,
-    BacktestResult,
-    CircuitBreakerState,
-    open_position,
-    manage_position,
-    close_position,
-    check_circuit_breakers,
-    infer_entry_mode,
-    run_regime_backtest,
-)
-from .sweep import (
-    SweepGrid,
-    SweepConfig,
-    SweepRunResult,
-    SweepSummary,
-    expand_grid,
-    apply_params,
-    compute_score,
-    evaluate_config,
-    run_sweep,
-)
+from .entry_rules import EntrySide, EntryMode, EntryConfig, EntrySignal, generate_entry_signals
+from .backtest import BacktestConfig, TradeRecord, BacktestStats, BacktestResult, run_backtest, ExitReason
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 __all__ = [
-    # regime
-    "Regime", "RegimeConfig", "ValueArea", "RegimeState",
-    "compute_value_area", "detect_range", "detect_trend",
-    "classify_regime_at", "classify_regime_series",
-    "compute_atr", "is_dead_market",
-    # state_machine
-    "SMState", "BreakType", "BotContext",
-    "StateMachineConfig", "MachineState",
-    "classify_break", "determine_context",
-    "detect_level_touch", "transition_state", "run_state_machine",
-    # classifier
-    "SidewaysBias", "ClassifierConfig", "SidewaysAnalysis",
-    "signal_volume_trend", "signal_test_count", "signal_range_width",
-    "signal_duration", "signal_mtf_momentum",
-    "analyze_sideways", "get_prior_regime", "resolve_entry_bias",
-    # backtest
-    "EntryMode", "ExitReason", "BacktestConfig",
-    "Position", "TradeRecord", "BacktestStats", "BacktestResult",
-    "CircuitBreakerState",
-    "open_position", "manage_position", "close_position",
-    "check_circuit_breakers", "infer_entry_mode", "run_regime_backtest",
-    # sweep
-    "SweepGrid", "SweepConfig", "SweepRunResult", "SweepSummary",
-    "expand_grid", "apply_params", "compute_score",
-    "evaluate_config", "run_sweep",
+    "ema", "sma", "atr", "rolling_vwap", "rolling_high_low",
+    "consecutive_count", "slope_pct", "rolling_volume_distribution",
+    "Regime", "RegimeConfig", "RegimeState", "classify_regime_series",
+    "Transition", "TransitionConfig", "TransitionState", "classify_transitions",
+    "MicroEvent", "Bias", "MicroEventConfig", "BiasConfig",
+    "detect_micro_events", "compute_bias_series",
+    "EntrySide", "EntryMode", "EntryConfig", "EntrySignal", "generate_entry_signals",
+    "BacktestConfig", "TradeRecord", "BacktestStats", "BacktestResult", "run_backtest", "ExitReason",
 ]
