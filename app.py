@@ -38,6 +38,15 @@ try:
 except Exception as _e:
     print(f"[WARN] mode3_api not available: {_e}")
     _MODE3_AVAILABLE = False
+
+# ── Mode 3 Eval Predictor (added 5 Juli 2026) ──────────────────
+try:
+    from mode3_eval_predictor import router as mode3_eval_router
+    _MODE3_EVAL_AVAILABLE = True
+    print("[INIT] Mode 3 Eval Predictor module loaded successfully")
+except Exception as _e:
+    print(f"[WARN] mode3_eval_predictor not available: {_e}")
+    _MODE3_EVAL_AVAILABLE = False
 # ────────────────────────────────────────────────────────────────
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.3.0")
@@ -47,6 +56,11 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 if _MODE3_AVAILABLE:
     app.include_router(mode3_router)
     print("[INIT] Mode 3 DRC endpoints mounted at /mode3/*")
+
+# ── Mount Mode 3 Eval Predictor router (added 5 Juli 2026) ─────
+if _MODE3_EVAL_AVAILABLE:
+    app.include_router(mode3_eval_router)
+    print("[INIT] Mode 3 Eval Predictor mounted at /mode3/eval-predictor")
 # ────────────────────────────────────────────────────────────────
 security = HTTPBearer(auto_error=False)
 
@@ -137,11 +151,18 @@ def root():
             "/mode3/job/{job_id}",
             "/mode3/jobs",
         ]
+    # Mode 3 Eval Predictor endpoints (added 5 Juli 2026)
+    if _MODE3_EVAL_AVAILABLE:
+        endpoints += [
+            "/mode3/eval-predictor",
+            "/mode3/eval-predictor/health",
+        ]
     return {
         "service": "BabaBot Backtesting API",
-        "version": "1.3.0",
+        "version": "1.4.0",
         "status": "running",
         "mode3_available": _MODE3_AVAILABLE,
+        "mode3_eval_available": _MODE3_EVAL_AVAILABLE,
         "endpoints": endpoints,
     }
 
