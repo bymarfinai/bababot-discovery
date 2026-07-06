@@ -1,357 +1,491 @@
 """
-mode3_api.py v1.2 — Memory management fix
+mode3_regime_api.py — FastAPI endpoints untuk Mode 3 Regime engine
+==================================================================
 
-Fix vs v1.1:
-- Explicit `del ctx; del data; gc.collect()` after each pair processing
-- Prevents memory buildup across multiple batch jobs
-- KDTree (~40MB) + features (~30MB) + labels + data now released properly
+Wraps mode3_regime module ke HTTP endpoints:
+- GET  /mode3/regime/health         — check module loaded
+- POST /mode3/regime/analyze        — analyze regime state at latest candle
+- POST /mode3/regime/backtest       — sync backtest 1 pair (returns full stats)
+- POST /mode3/regime/backtest-async — async backtest (returns job_id)
+- POST /mode3/regime/sweep          — async parameter sweep
+- GET  /mode3/regime/job/{job_id}   — poll job status
+- GET  /mode3/regime/jobs           — list all jobs
+
+Author: BabaBot team
+Version: 1.0.0
 """
 
 from __future__ import annotations
-import os, time, uuid, json, threading, traceback, gc
+import sqlite3
+import time
+import uuid
+import threading
+import traceback
+import gc
 from typing import Optional
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pathlib import Path
 
-# Import core engine (v1.0 or v1.1 — same filename)
-from mode3_drc import (
-    DRCConfig, backtest, load_klines, compute_btc_returns,
+import numpy as np
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+
+from mode3_regime import (
+    RegimeConfig, StateMachineConfig, ClassifierConfig,
+    BacktestConfig, SweepGrid, SweepConfig,
+    run_regime_backtest, run_sweep,
+    classify_regime_series, run_state_machine,
+    SMState, Regime,
 )
 
-# Detect v1.1 features dynamically
-try:
-    from mode3_drc import build_pair_context, backtest_with_context
-    _V11_FEATURES = True
-except ImportError:
-    build_pair_context = None
-    backtest_with_context = None
-    _V11_FEATURES = False
 
-# Detect KDTree availability
-try:
-    from mode3_drc import _KDTREE_AVAILABLE
-except ImportError:
-    _KDTREE_AVAILABLE = False
+# ═════════════════════════════════════════════════════════════
+# CONFIG
+# ═════════════════════════════════════════════════════════════
 
-# Compose version label
-if _V11_FEATURES and _KDTREE_AVAILABLE:
-    _ENGINE_VERSION = "1.1-kdtree"
-elif _V11_FEATURES:
-    _ENGINE_VERSION = "1.1-brute"
-else:
-    _ENGINE_VERSION = "1.0-brute"
+DB_PATH = Path(__file__).parent / "market_data.db"
 
-
-DB_PATH = os.environ.get("DB_PATH", "market_data.db")
+router = APIRouter(prefix="/mode3/regime", tags=["mode3_regime"])
 
 _JOBS: dict[str, dict] = {}
 _JOBS_LOCK = threading.Lock()
-_MAX_JOBS_KEPT = 100
-
-router = APIRouter(prefix="/mode3", tags=["mode3"])
 
 
-PRESETS = {
-    "strict": dict(
-        knn_min_confidence=0.70, ensemble_min_confidence=0.60,
-        ensemble_min_agree=4, joint_confidence_min=0.75, joint_gap_min=0.50,
-    ),
-    "medium": dict(
-        knn_min_confidence=0.60, ensemble_min_confidence=0.55,
-        ensemble_min_agree=3, joint_confidence_min=0.65, joint_gap_min=0.30,
-    ),
-    "loose": dict(
-        knn_min_confidence=0.55, ensemble_min_confidence=0.52,
-        ensemble_min_agree=2, joint_confidence_min=0.60, joint_gap_min=0.20,
-    ),
-}
+# ═════════════════════════════════════════════════════════════
+# HELPERS
+# ═════════════════════════════════════════════════════════════
+
+def _load_klines(symbol: str, timeframe: str, days: int) -> tuple[np.ndarray, ...]:
+    """Load klines dari SQLite db. Returns (open_times, opens, highs, lows, closes, volumes)."""
+    if not DB_PATH.exists():
+        raise HTTPException(500, f"DB not found at {DB_PATH}")
+
+    cutoff_ms = int((time.time() - days * 86400) * 1000)
+
+    conn = sqlite3.connect(str(DB_PATH))
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT open_time, open, high, low, close, volume "
+            "FROM klines WHERE symbol = ? AND timeframe = ? AND open_time >= ? "
+            "ORDER BY open_time ASC",
+            (symbol, timeframe, cutoff_ms),
+        )
+        rows = cursor.fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        raise HTTPException(
+            404,
+            f"No data for {symbol} {timeframe} in last {days} days",
+        )
+
+    arr = np.array(rows, dtype=float)
+    return (
+        arr[:, 0].astype(np.int64),  # open_time
+        arr[:, 1],  # open
+        arr[:, 2],  # high
+        arr[:, 3],  # low
+        arr[:, 4],  # close
+        arr[:, 5],  # volume
+    )
 
 
-class Mode3BacktestRequest(BaseModel):
+def _apply_config_overrides(bt_cfg: BacktestConfig, req: dict) -> BacktestConfig:
+    """Apply optional overrides dari request body ke BacktestConfig."""
+    import copy
+    cfg = copy.copy(bt_cfg)
+    for field_name in [
+        "position_usd", "leverage", "fee_pct", "slippage_pct",
+        "max_hold_candles", "sl_atr_multiplier",
+        "tp1_ratio", "tp2_ratio", "tp3_ratio",
+        "trailing_atr_multiplier",
+        "max_consecutive_losses", "max_drawdown_pct",
+    ]:
+        val = req.get(field_name)
+        if val is not None:
+            setattr(cfg, field_name, val)
+    return cfg
+
+
+# ═════════════════════════════════════════════════════════════
+# REQUEST MODELS
+# ═════════════════════════════════════════════════════════════
+
+class AnalyzeRequest(BaseModel):
     symbol: str = "BTCUSDT"
-    timeframe: str = "15m"
-    days: int = 1825
-    tp_pct: float = 0.004
-    preset: str = "strict"
-    sl_atr_mult: float = 1.2
-    include_trades: bool = False
+    timeframe: str = "1h"
+    days: int = Field(30, ge=1, le=365)
 
 
-class Mode3BacktestBatchRequest(BaseModel):
-    pairs: list[str]
-    timeframe: str = "15m"
-    days: int = 1825
-    tp_options: list[float] = [0.003, 0.004, 0.005]
-    preset: str = "strict"
-    sl_atr_mult: float = 1.2
-    include_trades: bool = False
+class BacktestRequest(BaseModel):
+    symbol: str = "BTCUSDT"
+    timeframe: str = "1h"
+    days: int = Field(1825, ge=30, le=3650)
+
+    # Optional overrides
+    position_usd: Optional[float] = None
+    leverage: Optional[float] = None
+    fee_pct: Optional[float] = None
+    slippage_pct: Optional[float] = None
+    max_hold_candles: Optional[int] = None
+    sl_atr_multiplier: Optional[float] = None
+    tp1_ratio: Optional[float] = None
+    tp2_ratio: Optional[float] = None
+    tp3_ratio: Optional[float] = None
+    trailing_atr_multiplier: Optional[float] = None
+    max_consecutive_losses: Optional[int] = None
+    max_drawdown_pct: Optional[float] = None
 
 
-def _new_job(kind, params):
-    job_id = str(uuid.uuid4())[:8]
-    with _JOBS_LOCK:
-        _JOBS[job_id] = {
-            "job_id": job_id, "kind": kind, "params": params,
-            "status": "pending", "progress": 0.0, "current_task": "",
-            "started_at": None, "finished_at": None,
-            "results": [], "error": None, "created_at": time.time(),
-        }
-        if len(_JOBS) > _MAX_JOBS_KEPT:
-            oldest = sorted(_JOBS.keys(), key=lambda k: _JOBS[k]["created_at"])
-            for k in oldest[:len(_JOBS) - _MAX_JOBS_KEPT]:
-                del _JOBS[k]
-    return job_id
+class SweepRequest(BaseModel):
+    symbol: str = "BTCUSDT"
+    timeframe: str = "1h"
+    days: int = Field(1825, ge=30, le=3650)
+
+    # Sweep grid (empty = pakai default)
+    range_max_width_pct: list[float] = Field(default_factory=list)
+    va_percentage: list[float] = Field(default_factory=list)
+    reclaim_buffer_pct: list[float] = Field(default_factory=list)
+    reclaim_volume_multiplier: list[float] = Field(default_factory=list)
+    sl_atr_multiplier: list[float] = Field(default_factory=list)
+    tp1_ratio: list[float] = Field(default_factory=list)
+    max_hold_candles: list[int] = Field(default_factory=list)
+    trailing_atr_multiplier: list[float] = Field(default_factory=list)
+
+    # Sweep config
+    train_split: float = Field(0.7, ge=0.5, le=0.9)
+    top_n: int = Field(10, ge=1, le=50)
+    target_trades_per_day: float = Field(2.5, ge=0.1, le=20.0)
+    min_trades_train: int = Field(20, ge=1)
 
 
-def _update_job(job_id, **kwargs):
-    with _JOBS_LOCK:
-        if job_id in _JOBS:
-            _JOBS[job_id].update(kwargs)
-
-
-def _get_job(job_id):
-    with _JOBS_LOCK:
-        return _JOBS.get(job_id, {}).copy() if job_id in _JOBS else None
-
+# ═════════════════════════════════════════════════════════════
+# ENDPOINTS
+# ═════════════════════════════════════════════════════════════
 
 @router.get("/health")
-def health():
-    import sqlite3
-    try:
-        conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
-        cur = conn.cursor()
-        pairs = cur.execute(
-            "SELECT symbol, COUNT(*) as n FROM klines WHERE timeframe='15m' GROUP BY symbol ORDER BY n DESC"
-        ).fetchall()
-        conn.close()
-    except Exception as e:
-        return {"ok": False, "error": str(e), "db_path": DB_PATH}
+async def health():
+    """Check kalau module loaded."""
     return {
         "ok": True,
-        "mode": "Mode 3 DRC",
-        "engine_version": _ENGINE_VERSION,
-        "v11_features_loaded": _V11_FEATURES,
-        "kdtree_available": _KDTREE_AVAILABLE,
-        "presets_available": list(PRESETS.keys()),
-        "tp_options_default": [0.003, 0.004, 0.005],
-        "db_path": DB_PATH,
-        "pairs_15m": [{"symbol": p[0], "candles": p[1]} for p in pairs],
-        "active_jobs": len([j for j in _JOBS.values() if j["status"] == "running"]),
-        "total_jobs_kept": len(_JOBS),
+        "module": "mode3_regime",
+        "version": "0.5.0",
+        "engine_features": [
+            "anchored_vah_val",
+            "5_line_value_area",
+            "state_machine_3way_confirmation",
+            "continuation_vs_reversal_classifier",
+            "3_mode_entry",
+            "3_tier_partial_tp",
+            "circuit_breakers",
+            "walk_forward_sweep",
+        ],
+        "db_exists": DB_PATH.exists(),
+    }
+
+
+@router.post("/analyze")
+async def analyze(req: AnalyzeRequest):
+    """Analyze current regime state at latest candle."""
+    try:
+        open_times, opens, highs, lows, closes, volumes = _load_klines(
+            req.symbol, req.timeframe, req.days,
+        )
+    except HTTPException as e:
+        return {"ok": False, "error": e.detail}
+
+    n = len(closes)
+    if n < 100:
+        return {"ok": False, "error": f"insufficient candles: {n}"}
+
+    regime_cfg = RegimeConfig()
+    sm_cfg = StateMachineConfig()
+
+    warmup = min(100, n // 3)
+    regime_states = classify_regime_series(highs, lows, closes, volumes, regime_cfg, warmup=warmup)
+    ms_list = run_state_machine(highs, lows, closes, volumes, regime_states, sm_cfg, warmup=warmup)
+
+    # Latest state
+    latest_regime = regime_states[-1]
+    latest_ms = ms_list[-1]
+
+    va = latest_regime.current_va
+    va_dict = None
+    if va is not None:
+        va_dict = {
+            "vah": round(va.vah, 2),
+            "val": round(va.val, 2),
+            "poc": round(va.poc, 2),
+            "vwap": round(va.vwap, 2),
+            "vwap_upper": round(va.vwap_upper, 2),
+            "vwap_lower": round(va.vwap_lower, 2),
+            "is_anchored": va.is_anchored,
+        }
+
+    # Regime distribution across full history
+    regime_counts: dict[str, int] = {}
+    for s in regime_states:
+        regime_counts[s.regime.value] = regime_counts.get(s.regime.value, 0) + 1
+
+    # Recent entry signals (last 100 candle)
+    recent_signals = []
+    for i in range(max(0, n - 100), n):
+        ms = ms_list[i]
+        if ms.sm_state in (SMState.ENTER_LONG, SMState.ENTER_SHORT):
+            recent_signals.append({
+                "idx": i,
+                "candle_idx_from_end": n - 1 - i,
+                "side": "long" if ms.sm_state == SMState.ENTER_LONG else "short",
+                "reason": ms.reason,
+                "context": ms.bot_context.value,
+                "price": round(float(closes[i]), 2),
+            })
+
+    return {
+        "ok": True,
+        "symbol": req.symbol,
+        "timeframe": req.timeframe,
+        "total_candles": n,
+        "current_price": round(float(closes[-1]), 2),
+        "current_regime": latest_regime.regime.value,
+        "regime_confidence": round(latest_regime.confidence, 3),
+        "prior_regime": latest_regime.prior_regime.value,
+        "current_state": latest_ms.sm_state.value,
+        "bot_context": latest_ms.bot_context.value,
+        "value_area": va_dict,
+        "regime_distribution": regime_counts,
+        "recent_signals_count": len(recent_signals),
+        "recent_signals": recent_signals[-10:],  # Last 10 only
     }
 
 
 @router.post("/backtest")
-def backtest_sync(req: Mode3BacktestRequest):
-    if req.preset not in PRESETS:
-        raise HTTPException(400, f"Invalid preset. Use: {list(PRESETS.keys())}")
+async def backtest_sync(req: BacktestRequest):
+    """Full backtest sync — returns stats + trades summary."""
     try:
-        data = load_klines(DB_PATH, req.symbol, req.timeframe, days=req.days)
-    except Exception as e:
-        raise HTTPException(404, f"No data: {e}")
+        open_times, opens, highs, lows, closes, volumes = _load_klines(
+            req.symbol, req.timeframe, req.days,
+        )
+    except HTTPException as e:
+        return {"ok": False, "error": e.detail}
 
-    btc_r = None
-    if req.symbol != "BTCUSDT":
-        btc_r = compute_btc_returns(DB_PATH, req.timeframe)
+    n = len(closes)
+    if n < 200:
+        return {"ok": False, "error": f"insufficient candles: {n}"}
 
-    cfg = DRCConfig(
-        symbol=req.symbol, timeframe=req.timeframe, days=req.days,
-        sl_atr_mult=req.sl_atr_mult, **PRESETS[req.preset],
-    )
-    t0 = time.time()
-    r = backtest(data, cfg, tp_pct=req.tp_pct, btc_returns=btc_r)
-    r["runtime_sec"] = round(time.time() - t0, 1)
-    r["preset"] = req.preset
-    r["engine_version"] = _ENGINE_VERSION
-    if not req.include_trades:
-        r.pop("trades_list", None)
-    return r
+    bt_cfg = _apply_config_overrides(BacktestConfig(), req.dict(exclude_none=True))
 
-
-def _run_batch_job(job_id, req: Mode3BacktestBatchRequest):
     try:
-        _update_job(job_id, status="running", started_at=time.time())
-        btc_r = compute_btc_returns(DB_PATH, req.timeframe)
-        total = len(req.pairs) * len(req.tp_options)
-        done = 0
-        results = []
-
-        for symbol in req.pairs:
-            try:
-                data = load_klines(DB_PATH, symbol, req.timeframe, days=req.days)
-            except Exception as e:
-                results.append({
-                    "symbol": symbol, "error": f"load_failed: {e}",
-                    "timeframe": req.timeframe, "preset": req.preset,
-                })
-                done += len(req.tp_options)
-                _update_job(job_id, progress=round(done/total*100, 1))
-                continue
-
-            cfg = DRCConfig(
-                symbol=symbol, timeframe=req.timeframe, days=req.days,
-                sl_atr_mult=req.sl_atr_mult, **PRESETS[req.preset],
-            )
-
-            # ── OPTIMIZATION v1.1: Build heavy context ONCE per pair ──
-            ctx = None
-            if _V11_FEATURES:
-                _update_job(job_id, current_task=f"{symbol} building context (features + KDTree)")
-                try:
-                    ctx = build_pair_context(
-                        data, cfg,
-                        btc_returns=btc_r if symbol != "BTCUSDT" else None,
-                    )
-                except Exception as e:
-                    results.append({"symbol": symbol, "error": f"context_failed: {e}"})
-                    done += len(req.tp_options)
-                    _update_job(job_id, progress=round(done/total*100, 1))
-                    continue
-
-            # Sweep TP options (reuse context)
-            for tp in req.tp_options:
-                _update_job(
-                    job_id,
-                    current_task=f"{symbol} TF={req.timeframe} TP={tp*100:.2f}%",
-                )
-                t0 = time.time()
-                if ctx is not None and backtest_with_context is not None:
-                    r = backtest_with_context(ctx, cfg, tp_pct=tp)
-                else:
-                    r = backtest(
-                        data, cfg, tp_pct=tp,
-                        btc_returns=btc_r if symbol != "BTCUSDT" else None,
-                    )
-                r["runtime_sec"] = round(time.time() - t0, 1)
-                r["preset"] = req.preset
-                r["engine_version"] = _ENGINE_VERSION
-                if not req.include_trades:
-                    r.pop("trades_list", None)
-                results.append(r)
-                done += 1
-                _update_job(
-                    job_id,
-                    progress=round(done/total*100, 1),
-                    results=results,
-                )
-
-            # ── v1.2 MEMORY FIX: release pair context after all TPs done ──
-            # KDTree (~40MB) + features (~30MB) + labels + data — release explicit
-            del ctx
-            del data
-            gc.collect()
-
-        candidates = [
-            {
-                "symbol": r.get("symbol"), "timeframe": r.get("timeframe"),
-                "tp_pct": r.get("tp_pct"), "wr": r.get("wr"),
-                "trades": r.get("trades"),
-                "profit_per_day": r.get("profit_per_day"),
-                "preset": req.preset,
-            }
-            for r in results
-            if r.get("wr", 0) >= 75 and r.get("trades", 0) >= 30
-            and r.get("profit_per_day", 0) > 0
-        ]
-
-        _update_job(
-            job_id, status="done", progress=100.0,
-            finished_at=time.time(), results=results,
-            summary={
-                "engine_version": _ENGINE_VERSION,
-                "total_backtests": len(results),
-                "candidates_count": len(candidates),
-                "candidates": candidates,
-            },
+        result = run_regime_backtest(
+            highs, lows, closes, volumes,
+            cfg=bt_cfg,
+            warmup=min(100, n // 3),
         )
     except Exception as e:
-        _update_job(
-            job_id, status="error",
-            error=f"{type(e).__name__}: {e}\n{traceback.format_exc()}",
-            finished_at=time.time(),
-        )
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
 
+    if result.error:
+        return {"ok": False, "error": result.error}
 
-@router.post("/backtest-async")
-def backtest_async(req: Mode3BacktestBatchRequest):
-    if req.preset not in PRESETS:
-        raise HTTPException(400, f"Invalid preset. Use: {list(PRESETS.keys())}")
-    if not req.pairs:
-        raise HTTPException(400, "pairs list cannot be empty")
-    job_id = _new_job("batch", req.dict())
-    threading.Thread(
-        target=_run_batch_job, args=(job_id, req),
-        daemon=True, name=f"mode3-job-{job_id}",
-    ).start()
+    s = result.stats
+
     return {
-        "ok": True, "job_id": job_id,
-        "engine": _ENGINE_VERSION,
-        "estimated_backtests": len(req.pairs) * len(req.tp_options),
-        "estimated_runtime_min": round(
-            len(req.pairs) * (2 if _KDTREE_AVAILABLE else 15) +
-            len(req.pairs) * (len(req.tp_options)-1) * (0.3 if _V11_FEATURES else 15), 1
-        ),
-        "poll_url": f"/mode3/job/{job_id}",
+        "ok": True,
+        "symbol": req.symbol,
+        "timeframe": req.timeframe,
+        "days": req.days,
+        "runtime_sec": round(s.runtime_sec, 2),
+        "total_candles": s.total_candles,
+        "stats": {
+            "total_trades": s.total_trades,
+            "wins": s.wins,
+            "losses": s.losses,
+            "breakeven": s.breakeven,
+            "win_rate": round(s.win_rate, 4),
+            "trades_per_day": round(s.trades_per_day, 3),
+            "total_pnl_net": round(s.total_pnl_net, 2),
+            "total_pnl_gross": round(s.total_pnl_gross, 2),
+            "total_fees": round(s.total_fees, 2),
+            "avg_win_usd": round(s.avg_win_usd, 2),
+            "avg_loss_usd": round(s.avg_loss_usd, 2),
+            "max_drawdown_usd": round(s.max_drawdown_usd, 2),
+            "max_drawdown_pct": round(s.max_drawdown_pct, 4),
+            "range_trades": s.range_trades,
+            "retest_trades": s.retest_trades,
+            "trend_trades": s.trend_trades,
+            "range_wr": round(s.range_wr, 4),
+            "retest_wr": round(s.retest_wr, 4),
+            "trend_wr": round(s.trend_wr, 4),
+            "exit_by_reason": s.exit_by_reason,
+        },
+        "config_used": {
+            "position_usd": bt_cfg.position_usd,
+            "leverage": bt_cfg.leverage,
+            "fee_pct": bt_cfg.fee_pct,
+            "slippage_pct": bt_cfg.slippage_pct,
+            "sl_atr_multiplier": bt_cfg.sl_atr_multiplier,
+            "tp_ratios": [bt_cfg.tp1_ratio, bt_cfg.tp2_ratio, bt_cfg.tp3_ratio],
+            "max_hold_candles": bt_cfg.max_hold_candles,
+        },
+    }
+
+
+# ─── Async sweep job ─────────────────────────────────────────
+
+def _run_sweep_job(job_id: str, req: SweepRequest):
+    """Background thread untuk sweep job."""
+    try:
+        _update_job(job_id, {"status": "loading_data", "progress": 0})
+
+        open_times, opens, highs, lows, closes, volumes = _load_klines(
+            req.symbol, req.timeframe, req.days,
+        )
+
+        _update_job(job_id, {"status": "running", "progress": 5})
+
+        # Build grid dari request
+        grid = SweepGrid(
+            range_max_width_pct=req.range_max_width_pct,
+            va_percentage=req.va_percentage,
+            reclaim_buffer_pct=req.reclaim_buffer_pct,
+            reclaim_volume_multiplier=req.reclaim_volume_multiplier,
+            sl_atr_multiplier=req.sl_atr_multiplier,
+            tp1_ratio=req.tp1_ratio,
+            max_hold_candles=req.max_hold_candles,
+            trailing_atr_multiplier=req.trailing_atr_multiplier,
+        )
+
+        sweep_cfg = SweepConfig(
+            train_split=req.train_split,
+            top_n=req.top_n,
+            target_trades_per_day=req.target_trades_per_day,
+            min_trades_train=req.min_trades_train,
+        )
+
+        def progress_cb(current, total, result):
+            pct = int(5 + 90 * current / total)
+            _update_job(job_id, {"progress": pct, "current": current, "total": total})
+
+        summary = run_sweep(
+            highs, lows, closes, volumes,
+            grid=grid, sweep_cfg=sweep_cfg,
+            progress_callback=progress_cb,
+        )
+
+        # Serialize top configs
+        top_serialized = []
+        for r in summary.top_configs:
+            top_serialized.append({
+                "config_id": r.config_id,
+                "params": r.params,
+                "train": {
+                    "trades": r.train_trades,
+                    "wr": round(r.train_wr, 4),
+                    "pnl": round(r.train_pnl, 2),
+                    "trades_per_day": round(r.train_trades_per_day, 3),
+                    "max_dd_pct": round(r.train_max_dd, 4),
+                },
+                "test": {
+                    "trades": r.test_trades,
+                    "wr": round(r.test_wr, 4),
+                    "pnl": round(r.test_pnl, 2),
+                    "trades_per_day": round(r.test_trades_per_day, 3),
+                    "max_dd_pct": round(r.test_max_dd, 4),
+                },
+                "train_score": round(r.train_score, 4),
+                "test_score": round(r.test_score, 4),
+                "overfitting_ratio": round(r.overfitting_ratio, 3),
+            })
+
+        _update_job(job_id, {
+            "status": "done",
+            "progress": 100,
+            "runtime_sec": round(summary.runtime_sec, 2),
+            "total_configs": summary.total_configs,
+            "completed_configs": summary.completed_configs,
+            "skipped_configs": summary.skipped_configs,
+            "top_configs": top_serialized,
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        _update_job(job_id, {"status": "error", "error": str(e)})
+    finally:
+        # Memory cleanup
+        try:
+            del highs
+            del lows
+            del closes
+            del volumes
+        except NameError:
+            pass
+        gc.collect()
+
+
+def _update_job(job_id: str, updates: dict):
+    with _JOBS_LOCK:
+        if job_id in _JOBS:
+            _JOBS[job_id].update(updates)
+            _JOBS[job_id]["updated_at"] = time.time()
+
+
+@router.post("/sweep")
+async def sweep_async(req: SweepRequest):
+    """Start async parameter sweep. Returns job_id, poll via /job/{job_id}."""
+    job_id = uuid.uuid4().hex[:8]
+
+    with _JOBS_LOCK:
+        _JOBS[job_id] = {
+            "job_id": job_id,
+            "kind": "sweep",
+            "status": "queued",
+            "progress": 0,
+            "symbol": req.symbol,
+            "timeframe": req.timeframe,
+            "days": req.days,
+            "started_at": time.time(),
+            "updated_at": time.time(),
+        }
+
+    # Spawn thread
+    thread = threading.Thread(
+        target=_run_sweep_job,
+        args=(job_id, req),
+        daemon=True,
+    )
+    thread.start()
+
+    return {
+        "ok": True,
+        "job_id": job_id,
+        "poll_url": f"/mode3/regime/job/{job_id}",
+        "message": "Sweep started, poll job status for results.",
     }
 
 
 @router.get("/job/{job_id}")
-def get_job(job_id: str, include_results: bool = False, include_trades: bool = False):
-    job = _get_job(job_id)
-    if not job:
-        raise HTTPException(404, f"Job {job_id} not found")
-    out = {
-        "job_id": job["job_id"], "kind": job["kind"],
-        "status": job["status"], "progress": job["progress"],
-        "current_task": job["current_task"],
-        "started_at": job["started_at"], "finished_at": job["finished_at"],
-        "error": job.get("error"),
-        "runtime_sec": (
-            (job["finished_at"] - job["started_at"])
-            if job["started_at"] and job["finished_at"] else None
-        ),
-    }
-    if job.get("summary"): out["summary"] = job["summary"]
-    if include_results:
-        results = job.get("results", [])
-        if not include_trades:
-            results = [
-                {k: v for k, v in r.items() if k != "trades_list"}
-                for r in results
-            ]
-        out["results"] = results
-    return out
+async def job_status(job_id: str):
+    with _JOBS_LOCK:
+        if job_id not in _JOBS:
+            return {"ok": False, "error": "job not found"}
+        return {"ok": True, **_JOBS[job_id]}
 
 
 @router.get("/jobs")
-def list_jobs(status: Optional[str] = None, limit: int = 20):
+async def list_jobs():
     with _JOBS_LOCK:
         jobs = list(_JOBS.values())
-    jobs.sort(key=lambda j: j["created_at"], reverse=True)
-    if status:
-        jobs = [j for j in jobs if j["status"] == status]
-    return {
-        "engine_version": _ENGINE_VERSION,
-        "total": len(jobs),
-        "jobs": [
-            {
-                "job_id": j["job_id"], "kind": j["kind"],
-                "status": j["status"], "progress": j["progress"],
-                "current_task": j["current_task"],
-                "created_at": j["created_at"],
-                "started_at": j["started_at"], "finished_at": j["finished_at"],
-                "n_pairs": len(j["params"].get("pairs", [])) if j["kind"] == "batch" else 1,
-            }
-            for j in jobs[:limit]
-        ],
-    }
+    jobs.sort(key=lambda j: j.get("started_at", 0), reverse=True)
+    return {"ok": True, "count": len(jobs), "jobs": jobs[:20]}
 
 
 @router.delete("/job/{job_id}")
-def delete_job(job_id: str):
+async def delete_job(job_id: str):
     with _JOBS_LOCK:
         if job_id in _JOBS:
-            _JOBS[job_id]["status"] = "cancelled"
             del _JOBS[job_id]
-            return {"ok": True, "job_id": job_id, "deleted": True}
-    raise HTTPException(404, "Not found")
+            gc.collect()
+            return {"ok": True, "deleted": job_id}
+    return {"ok": False, "error": "job not found"}
