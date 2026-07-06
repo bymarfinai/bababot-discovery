@@ -24,9 +24,12 @@ from pathlib import Path
 # CONFIG
 # ============================================================
 
-PAIRS = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "YFIUSDT"]
-TIMEFRAMES = ["1m", "15m", "1h"]
-DEFAULT_DAYS = 90
+PAIRS = [
+    "BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT",
+    "LINKUSDT", "AVAXUSDT", "ADAUSDT",
+]
+TIMEFRAMES = ["1m", "15m", "1h", "4h"]
+DEFAULT_DAYS = 1825
 DB_PATH = Path(__file__).parent / "market_data.db"
 BASE_URL = "https://data.binance.vision/data/futures/um/daily/klines"
 
