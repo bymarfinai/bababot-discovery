@@ -1,5 +1,5 @@
 """
-orchestrator_endpoint.py — v1.4.1 with vah_break_margin param fix
+orchestrator_endpoint.py — v1.5 with HH/LL detection mode
 """
 from fastapi import APIRouter
 import os
@@ -124,7 +124,6 @@ def orchestrator_backtest(
     bull_min_pullback: float = 0.015,
     bear_min_rally: float = 0.015,
     post_transition_wait: int = 24,
-    # v1.4 core toggles
     use_rolling_va: bool = True,
     va_window: int = 50,
     va_recompute_every: int = 20,
@@ -132,15 +131,19 @@ def orchestrator_backtest(
     tp1_partial_ratio: float = 0.5,
     use_sl_buffer: bool = True,
     sl_buffer_pct: float = 0.001,
-    # State transition
+    # v1.5 detection modes
+    hh_detection_mode: str = "vah_break",  # vah_break | swing_high | combined
+    ll_detection_mode: str = "val_break",  # val_break | swing_low | combined
+    swing_lookback: int = 20,
+    swing_buffer: int = 3,
     vah_break_candles: int = 1,
     val_break_candles: int = 1,
-    vah_break_margin: float = 0.0,  # ← v1.4.1 FIX: now properly exposed
+    vah_break_margin: float = 0.0,
     enable_state_timeout: bool = True,
     state_timeout_candles: int = 100,
     include_trades: int = 50,
 ):
-    """v1.4.1 orchestrator — vah_break_margin properly wired."""
+    """v1.5 orchestrator — HH/LL detection modes for state transition."""
     try:
         from mode3_regime.mtf_container import classify_mtf
         from mode3_regime.strategy_sideways import SidewaysConfig
@@ -186,9 +189,13 @@ def orchestrator_backtest(
             tp1_partial_ratio=tp1_partial_ratio,
             use_sl_buffer=use_sl_buffer,
             sl_buffer_pct=sl_buffer_pct,
+            hh_detection_mode=hh_detection_mode,
+            ll_detection_mode=ll_detection_mode,
+            swing_lookback=swing_lookback,
+            swing_buffer=swing_buffer,
             vah_break_candles=vah_break_candles,
             val_break_candles=val_break_candles,
-            vah_break_margin=vah_break_margin,  # ← v1.4.1 FIX
+            vah_break_margin=vah_break_margin,
             enable_state_timeout=enable_state_timeout,
             state_timeout_candles=state_timeout_candles,
         )
