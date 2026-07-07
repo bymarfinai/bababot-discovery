@@ -1,23 +1,8 @@
 """
-backtest_sideways.py — v0.7.1: EMA reject uses CURRENT profit (not max)
+backtest_sideways.py — v0.8: pass-through bias_arr_1h to strategy
 ==================================================================
-v0.7.1 change (fix trade 1 regression from v0.7):
-- OLD (v0.7): EMA reject gate uses max_profit_pct (peak reached anytime)
-- NEW (v0.7.1): EMA reject gate uses CURRENT profit at close time
-- Rationale: If price rejected EMA long AFTER profit already gone,
-  it's not a real reject — just noise. True EMA reject = position is
-  CURRENTLY profitable when reject candle closes.
-
-Trade 1 regression case:
-  Candle 20 (10 Jun 19:00 WIB) LONG: H=61948>=EMA=61601, C=61531<EMA
-    Under v0.7: max_profit was 1.34% at candle 4 → gate OK → EXIT prematur
-    Under v0.7.1: current profit = (61531-61428)/61428 = 0.17% < 0.3% → SKIP reject
-    Candle 21: C=62112>EMA=61645 → broken through, keep position
-    Candle 23: TP1 hits at high 62840 → captures +$2.97 win
-
-v0.7 preserved: SL close-confirm, EMA dynamic exit, max_profit tracking
-v0.6 preserved: EMA20 dynamic exit
-v0.5 preserved: ATR-based SL option
+v0.8 change: add bias_arr_1h param, forward to generate_sideways_signals
+Everything else preserved from v0.7.1.
 """
 
 from __future__ import annotations
@@ -104,6 +89,7 @@ class SidewaysTradeRecord:
     hold_candles: int
     ema_slope_pct: float = 0.0
     max_profit_pct: float = 0.0
+    bias_4h: int = 0
 
 
 @dataclass
@@ -194,6 +180,7 @@ def _close_position_now(active_pos, cfg, exit_price, exit_reason, i):
         hold_candles=i - active_pos['entry_idx'],
         ema_slope_pct=active_pos.get('ema_slope_pct', 0.0),
         max_profit_pct=active_pos.get('max_profit_pct', 0.0),
+        bias_4h=active_pos.get('bias_4h', 0),
     )
 
 
@@ -208,6 +195,7 @@ def run_sideways_backtest(
     warmup: int = 100,
     mtf_classifications: Optional[list] = None,
     opens: Optional[np.ndarray] = None,
+    bias_arr_1h: Optional[np.ndarray] = None,   # v0.8
 ) -> SidewaysBTResult:
     t0 = time.time()
 
@@ -221,16 +209,17 @@ def run_sideways_backtest(
             error=f"insufficient candles: {n}",
         )
 
-    print(f"[SW BT v0.7.1] Classifying regime for {n} candles...")
+    print(f"[SW BT v0.8] Classifying regime for {n} candles...")
     regime_states = classify_regime_series(highs, lows, closes, volumes, regime_cfg, warmup=warmup)
 
-    print(f"[SW BT v0.7.1] Generating signals (MTF: {strategy_cfg.use_mtf_filter}, EMA slope filter: {strategy_cfg.use_ema_slope_filter})...")
+    print(f"[SW BT v0.8] Generating signals (MTF: {strategy_cfg.use_mtf_filter}, 4h bias: {strategy_cfg.use_4h_bias_filter})...")
     signals = generate_sideways_signals(
         highs, lows, closes, volumes, regime_states, strategy_cfg,
         mtf_classifications=mtf_classifications,
         opens=opens,
+        bias_arr_1h=bias_arr_1h,
     )
-    print(f"[SW BT v0.7.1] {len(signals)} signals generated")
+    print(f"[SW BT v0.8] {len(signals)} signals generated")
 
     atr_arr = None
     if cfg.use_atr_sl:
@@ -239,10 +228,6 @@ def run_sideways_backtest(
     ema_arr = None
     if cfg.use_ema_dynamic_exit:
         ema_arr = compute_ema(closes, cfg.ema_exit_period)
-        print(f"[SW BT v0.7.1] EMA{cfg.ema_exit_period} dynamic exit — CURRENT profit gate: {cfg.ema_exit_min_profit_pct*100:.2f}%")
-
-    if cfg.use_close_confirm_sl:
-        print(f"[SW BT v0.7.1] SL close-confirmation ENABLED")
 
     trades: list[SidewaysTradeRecord] = []
     equity = cfg.position_usd * 10
@@ -265,7 +250,6 @@ def run_sideways_backtest(
             tp1, tp2, tp3 = active_pos['tp1'], active_pos['tp2'], active_pos['tp3']
             notional = active_pos['position_usd'] * cfg.leverage
 
-            # Track max unrealized profit (for observability + record)
             if side == 'long':
                 cur_profit_wick = (h - entry) / entry
             else:
@@ -277,7 +261,6 @@ def run_sideways_backtest(
             exit_reason = None
             exit_price = 0.0
 
-            # PRIORITY 1: SL check
             if cfg.use_close_confirm_sl:
                 sl_hit = (side == 'long' and c <= sl) or (side == 'short' and c >= sl)
             else:
@@ -291,7 +274,6 @@ def run_sideways_backtest(
                 exit_price = sl if not cfg.use_close_confirm_sl else c
                 close_pos = True
 
-            # PRIORITY 2: TP progression
             if not close_pos:
                 if not active_pos['tp1_hit']:
                     tp1_reached = (side == 'long' and h >= tp1) or (side == 'short' and l <= tp1)
@@ -322,11 +304,9 @@ def run_sideways_backtest(
                         exit_price = tp3
                         close_pos = True
 
-            # PRIORITY 3: EMA20 dynamic exit — v0.7.1: gate on CURRENT profit
             if not close_pos and cfg.use_ema_dynamic_exit and ema_arr is not None and i < len(ema_arr):
                 cur_ema = float(ema_arr[i])
                 if cur_ema > 0 and not active_pos.get('ema_broken_through', False):
-                    # v0.7.1 FIX: use current close profit, not historical max
                     if side == 'long':
                         cur_profit_at_close = (c - entry) / entry
                     else:
@@ -340,7 +320,7 @@ def run_sideways_backtest(
                             exit_reason = ExitReasonSW.EMA_REJECT
                             exit_price = c
                             close_pos = True
-                    else:  # short
+                    else:
                         if c <= cur_ema:
                             active_pos['ema_broken_through'] = True
                         elif l <= cur_ema and c > cur_ema and min_profit_ok:
@@ -348,7 +328,6 @@ def run_sideways_backtest(
                             exit_price = c
                             close_pos = True
 
-            # PRIORITY 4: max_hold
             if not close_pos and (i - active_pos['entry_idx']) >= cfg.max_hold_candles:
                 exit_reason = ExitReasonSW.MAX_HOLD
                 exit_price = c
@@ -443,6 +422,7 @@ def run_sideways_backtest(
                 'score': sig.score,
                 'mtf_confidence': sig.mtf_confidence,
                 'ema_slope_pct': sig.ema_slope_pct,
+                'bias_4h': getattr(sig, 'bias_4h', 0),
                 'position_usd': scaled_position,
                 'entry_idx': i,
                 'entry_price': entry_price,
