@@ -1,5 +1,5 @@
 """
-mtf_analyze_endpoint.py — v0.9: expose ema_reject_same_dir_cooldown
+mtf_analyze_endpoint.py — v0.9 + auto-mount orchestrator v1.0
 """
 from fastapi import APIRouter
 import os
@@ -81,7 +81,6 @@ def mtf_sideways_backtest(
     bias_4h_ema_period: int = 50,
     bias_margin_pct: float = 0.005,
     bias_filter_mode: str = "mean_revert",
-    # v0.9 NEW
     ema_reject_same_dir_cooldown: int = 0,
     include_trades: int = 20,
     use_pine_candle: bool = True,
@@ -237,6 +236,19 @@ def mtf_sideways_backtest(
     except Exception as e:
         import traceback
         return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+
+
+# ══════════════════════════════════════════════════════════════
+# v1.0 Auto-mount orchestrator sub-endpoints
+# Copies orchestrator routes into this router so app.py needs no edit
+# ══════════════════════════════════════════════════════════════
+try:
+    from orchestrator_endpoint import router as _orch_router
+    for _route in _orch_router.routes:
+        router.routes.append(_route)
+    print(f"[INIT] Orchestrator v1.0 sub-mounted via mtf_router ({len(_orch_router.routes)} routes)")
+except Exception as _e:
+    print(f"[WARN] orchestrator sub-mount failed: {_e}")
 
 
 __all__ = ["router"]
