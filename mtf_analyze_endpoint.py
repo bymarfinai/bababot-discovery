@@ -1,5 +1,5 @@
 """
-mtf_analyze_endpoint.py — v0.7: 3 fixes from user review
+mtf_analyze_endpoint.py — v0.8: 4h EMA50 bias filter
 """
 from fastapi import APIRouter
 import os
@@ -70,16 +70,11 @@ def mtf_analyze(
             return {
                 "idx": c.idx, "timestamp_ms": c.timestamp_ms, "close": round(c.close, 2),
                 "range_4h": [round(c.range_4h_low, 2), round(c.range_4h_high, 2)],
-                "range_1d": [round(c.range_1d_low, 2), round(c.range_1d_high, 2)],
-                "range_1w": [round(c.range_1w_low, 2), round(c.range_1w_high, 2)],
-                "pos_4h": round(c.pos_in_4h, 3), "pos_1d": round(c.pos_in_1d, 3), "pos_1w": round(c.pos_in_1w, 3),
-                "inside_4h": c.inside_4h, "inside_1d": c.inside_1d, "inside_1w": c.inside_1w,
                 "confidence": c.inside_confidence,
             }
 
         return {
             "ok": True, "symbol": symbol, "days": days,
-            "n_candles_per_layer": n_candles_per_layer,
             "total_1h_loaded": len(closes_1h), "total_4h_loaded": len(closes_4h),
             "classified": stats.total_1h_candles,
             "stats": {
@@ -94,6 +89,44 @@ def mtf_analyze(
     except Exception as e:
         import traceback
         return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+
+
+def _compute_4h_bias_arr(ts_1h, ts_4h, closes_4h, ema_period=50, margin_pct=0.005):
+    """Compute bias_arr_1h: -1=strong bear, 0=neutral, +1=strong bull for each 1h index."""
+    import numpy as np
+    from mode3_regime.indicators import ema as compute_ema
+
+    ema50_4h = compute_ema(closes_4h, ema_period)
+    bias_arr = np.zeros(len(ts_1h), dtype=np.int8)
+
+    ms_4h = 4 * 3600 * 1000
+    j = 0
+    for i in range(len(ts_1h)):
+        t1 = ts_1h[i]
+        # Advance j to latest 4h that has CLOSED by time t1
+        # (4h j closes at ts_4h[j] + ms_4h)
+        while j + 1 < len(ts_4h) and ts_4h[j + 1] <= t1:
+            j += 1
+        # Require 4h j to be closed (ts_4h[j] + ms_4h <= t1)
+        if ts_4h[j] + ms_4h > t1:
+            # 4h hasn't closed yet; use j-1 if available
+            if j == 0:
+                continue
+            j_use = j - 1
+        else:
+            j_use = j
+        if j_use < ema_period:
+            continue
+        close_4h = float(closes_4h[j_use])
+        ema_val = float(ema50_4h[j_use])
+        if ema_val <= 0:
+            continue
+        pct_diff = (close_4h - ema_val) / ema_val
+        if pct_diff > margin_pct:
+            bias_arr[i] = 1
+        elif pct_diff < -margin_pct:
+            bias_arr[i] = -1
+    return bias_arr
 
 
 @router.get("/mtf/sideways_backtest")
@@ -123,14 +156,16 @@ def mtf_sideways_backtest(
     ema_slope_lookback: int = 10,
     long_min_slope_pct: float = -1.0,
     short_max_slope_pct: float = 1.0,
-    # v0.7 NEW params
     ema_exit_min_profit_pct: float = 0.003,
     use_close_confirm_sl: bool = False,
-    # display
+    # v0.8 NEW
+    use_4h_bias_filter: bool = False,
+    bias_4h_ema_period: int = 50,
+    bias_margin_pct: float = 0.005,
     include_trades: int = 20,
     use_pine_candle: bool = True,
 ):
-    """v0.7 — EMA min-profit gate + SL close-confirm."""
+    """v0.8 — 4h EMA50 bias filter (skip counter-trend)."""
     try:
         import sqlite3
         import numpy as np
@@ -160,7 +195,8 @@ def mtf_sideways_backtest(
             last_time = rows_1h[-1][5]
             cutoff = last_time - ms_limit
             rows_1h = [r for r in rows_1h if r[5] >= cutoff]
-            cutoff_4h = cutoff - (10 * 86400 * 1000)
+            # v0.8: need more 4h history for EMA50 warmup
+            cutoff_4h = cutoff - (30 * 86400 * 1000)
             rows_4h = [r for r in rows_4h if r[5] >= cutoff_4h]
 
         opens_1h = np.array([r[0] for r in rows_1h], dtype=np.float64)
@@ -182,6 +218,16 @@ def mtf_sideways_backtest(
             n_candles_per_layer=n_candles_per_layer,
         )
 
+        # v0.8: compute 4h EMA50 bias if enabled
+        bias_arr_1h = None
+        bias_stats = None
+        if use_4h_bias_filter:
+            bias_arr_1h = _compute_4h_bias_arr(ts_1h, ts_4h, closes_4h,
+                                                ema_period=bias_4h_ema_period,
+                                                margin_pct=bias_margin_pct)
+            unique, counts = np.unique(bias_arr_1h, return_counts=True)
+            bias_stats = {int(u): int(c) for u, c in zip(unique, counts)}
+
         strategy_cfg = SidewaysConfig(
             range_max_width_pct=range_max_width_pct,
             touch_tolerance=touch_tolerance,
@@ -197,6 +243,8 @@ def mtf_sideways_backtest(
             ema_slope_lookback=ema_slope_lookback,
             long_min_slope_pct=long_min_slope_pct,
             short_max_slope_pct=short_max_slope_pct,
+            use_4h_bias_filter=use_4h_bias_filter,
+            bias_margin_pct=bias_margin_pct,
         )
         bt_cfg = SidewaysBTConfig(
             sl_pct_from_level=sl_pct_from_level,
@@ -219,6 +267,7 @@ def mtf_sideways_backtest(
             strategy_cfg=strategy_cfg, warmup=100,
             mtf_classifications=mtf_classifications if use_mtf_filter else None,
             opens=opens_arg,
+            bias_arr_1h=bias_arr_1h,
         )
         if result.error:
             return {"ok": False, "error": result.error}
@@ -234,14 +283,14 @@ def mtf_sideways_backtest(
                 tp1_dist_pct = (t.entry_price - t.tp1_price) / t.entry_price * 100
             sample_trades.append({
                 "entry_idx": t.entry_idx, "side": t.side, "mode": t.mode,
-                "mtf_conf": t.mtf_confidence, "ema_slope_pct": round(t.ema_slope_pct, 3),
+                "mtf_conf": t.mtf_confidence,
+                "bias_4h": t.bias_4h,
                 "confidence": round(t.confidence, 2),
-                "position_usd": round(t.position_usd, 2),
                 "entry_price": round(t.entry_price, 2), "exit_price": round(t.exit_price, 2),
                 "sl_price": round(t.sl_price, 2),
                 "sl_dist_pct": round(sl_dist_pct, 3),
                 "tp1_dist_pct": round(tp1_dist_pct, 3),
-                "max_profit_pct": round(t.max_profit_pct * 100, 3),  # v0.7 NEW
+                "max_profit_pct": round(t.max_profit_pct * 100, 3),
                 "tp1_hit": t.tp1_hit, "tp2_hit": t.tp2_hit, "tp3_hit": t.tp3_hit,
                 "exit_reason": t.exit_reason, "pnl_net": round(t.pnl_net, 2),
                 "hold": t.hold_candles,
@@ -249,23 +298,21 @@ def mtf_sideways_backtest(
 
         return {
             "ok": True,
-            "strategy": "sideways_tektok_v0.7",
+            "strategy": "sideways_tektok_v0.8",
             "symbol": symbol, "days": days,
             "config": {
-                "n_candles_per_layer": n_candles_per_layer,
-                "min_mtf_confidence": min_mtf_confidence,
                 "use_mtf_filter": use_mtf_filter,
-                "use_pine_candle": use_pine_candle,
+                "min_mtf_confidence": min_mtf_confidence,
                 "use_atr_sl": use_atr_sl, "sl_atr_mult": sl_atr_mult,
                 "use_ema_dynamic_exit": use_ema_dynamic_exit,
-                "ema_exit_period": ema_exit_period,
                 "ema_exit_min_profit_pct": ema_exit_min_profit_pct,
                 "use_close_confirm_sl": use_close_confirm_sl,
-                "use_ema_slope_filter": use_ema_slope_filter,
-                "short_max_slope_pct": short_max_slope_pct,
-                "long_min_slope_pct": long_min_slope_pct,
+                "use_4h_bias_filter": use_4h_bias_filter,
+                "bias_4h_ema_period": bias_4h_ema_period,
+                "bias_margin_pct": bias_margin_pct,
                 "max_hold_candles": max_hold_candles,
             },
+            "bias_distribution": bias_stats,
             "stats": {
                 "total_trades": s.total_trades, "wins": s.wins, "losses": s.losses,
                 "win_rate": round(s.win_rate, 4),
