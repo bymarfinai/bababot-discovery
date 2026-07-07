@@ -1,15 +1,21 @@
 """
-state_orchestrator.py — v1.2 3-State Trading Bot
+state_orchestrator.py — v1.3 3-State Trading Bot
 ======================================================
-v1.2 changes:
-1. Fix A: state_timeout — force back to SIDEWAYS if BULL/BEAR stuck >N candles (default 100, toggleable)
-2. Fix B: broader_transition_triggers — HH/LL breach + slope confirmation, not just EMA reject exit (toggleable)
-3. Fix C: trend_slope_gate — require EMA20 slope confirmation before BULL/BEAR entry (toggleable)
-4. NO DIRECT BULL↔BEAR switch — always route through SIDEWAYS wait state (user design intent)
-   - BULL LL breach → close position → SIDEWAYS (watch for next transition trigger)
-   - BEAR HH breach → close position → SIDEWAYS (watch for next transition trigger)
+v1.3 DESIGN (per user intent):
 
-All 3 fixes toggleable via config for isolation testing.
+State transition logic uses VAH/VAL levels from SIDEWAYS signals as anchors:
+- In SIDEWAYS: track latest VAH/VAL from generated signal
+- If close > VAH for vah_break_candles → BULL mode (HH confirmed structurally)
+- If close < VAL for val_break_candles → BEAR mode (LL confirmed structurally)
+- BULL/BEAR exit ALWAYS to SIDEWAYS via trailing stop
+- No direct BULL↔BEAR switch
+- VAH/VAL re-established when new SIDEWAYS signal fires
+
+Default toggles (data-optimized):
+- Fix A (state_timeout): ON — safety net
+- Fix B (broader_triggers HH/LL structure): OFF — over-detects false trends
+- Fix C (slope_gate): OFF — blocks too aggressively
+- vah_break_candles: 1 (tunable, 1-3)
 """
 
 from __future__ import annotations
@@ -55,24 +61,21 @@ class OrchestratorConfig:
     bull_cfg: BullConfig = field(default_factory=BullConfig)
     bear_cfg: BearConfig = field(default_factory=BearConfig)
     trending_max_hold: int = 200
-    post_transition_wait: int = 8
+    post_transition_wait: int = 24
 
-    # v1.2 Fix A: state timeout
+    # v1.3 CORE: VAH/VAL break detection
+    vah_break_candles: int = 1        # N candle close above VAH to trigger BULL
+    val_break_candles: int = 1        # N candle close below VAL to trigger BEAR
+    vah_break_margin: float = 0.0     # additional margin (e.g. 0.003 = 0.3%)
+
+    # Toggles (v1.3 default: Fix A ON, B&C OFF)
     enable_state_timeout: bool = True
-    state_timeout_candles: int = 100    # after N candles no entry → back to SIDEWAYS
-
-    # v1.2 Fix B: broader transition triggers
-    enable_broader_triggers: bool = True
-    trigger_lookback: int = 20          # window for HH/LL structure detection
-    trigger_slope_candles: int = 3      # candles for slope confirmation
-
-    # v1.2 Fix C: trend slope gate
-    enable_slope_gate: bool = True
-    slope_min_pct: float = 0.001        # min 0.1% slope per candle for trend confirmation
+    state_timeout_candles: int = 100
+    enable_broader_triggers: bool = False   # v1.2 fix — off by default (over-detects)
+    trigger_lookback: int = 20
+    enable_slope_gate: bool = False         # v1.2 fix — off by default (blocks too much)
+    slope_min_pct: float = 0.001
     slope_lookback: int = 10
-
-    # Watch window after safeguard exit
-    watch_window_candles: int = 20
 
     # Double confirm
     double_confirm_lookback: int = 20
@@ -106,7 +109,6 @@ class TradeRecord:
 
 
 def _ema_slope_pct(ema_arr, i, lookback):
-    """Compute EMA slope over N candles as % change per candle."""
     if i < lookback or i >= len(ema_arr):
         return 0.0
     e0 = float(ema_arr[i - lookback])
@@ -117,11 +119,9 @@ def _ema_slope_pct(ema_arr, i, lookback):
 
 
 def _detect_hh_structure(highs, i, lookback):
-    """Detect if recent lookback window has higher-highs structure."""
     if i < lookback:
         return False
     recent = highs[i - lookback:i + 1]
-    # Check if last third avg > first third avg by at least 1%
     third = len(recent) // 3
     if third < 2:
         return False
@@ -133,7 +133,6 @@ def _detect_hh_structure(highs, i, lookback):
 
 
 def _detect_ll_structure(lows, i, lookback):
-    """Detect if recent lookback window has lower-lows structure."""
     if i < lookback:
         return False
     recent = lows[i - lookback:i + 1]
@@ -178,60 +177,70 @@ def run_state_machine_backtest(
 
     recent_short_reject_highs: list[tuple[int, float]] = []
     recent_long_bounce_lows: list[tuple[int, float]] = []
-    watch_for_breach: Optional[dict] = None
 
     ema_reject_long_cd_until = -1
     ema_reject_short_cd_until = -1
 
-    # Track latest HH/LL anchors for BULL/BEAR re-entry after safeguard exit
-    latest_bull_hh_anchor: Optional[float] = None
-    latest_bear_ll_anchor: Optional[float] = None
+    # v1.3 CORE: VAH/VAL tracking for state transitions
+    current_vah: Optional[float] = None
+    current_val: Optional[float] = None
+    current_poc: Optional[float] = None
+    vah_break_streak: int = 0
+    val_break_streak: int = 0
 
     i = warmup
     while i < n - 1:
         c = float(closes[i])
         cur_ema = float(ema20[i])
 
-        # ─── Watch for breach EVERY candle ───
-        if watch_for_breach is not None:
-            if i > watch_for_breach["expires_at"]:
-                watch_for_breach = None
-            else:
-                if watch_for_breach["side"] == "short" and c > watch_for_breach["anchor"]:
-                    # SHORT was rejected + break entry high → BULL
-                    # v1.2 Fix C: check slope gate
-                    slope_ok = True
-                    if cfg.enable_slope_gate:
-                        slope = _ema_slope_pct(ema20, i, cfg.slope_lookback)
-                        slope_ok = slope >= cfg.slope_min_pct
-                    if slope_ok:
-                        state_transitions.append({
-                            "idx": i, "from": state.value, "to": "bull",
-                            "reason": f"HH breach + slope_ok: close {c:.2f} > {watch_for_breach['anchor']:.2f}",
-                        })
-                        state = State.BULL
-                        state_entered_at = i
-                        latest_bull_hh_anchor = watch_for_breach["anchor"]
-                        watch_for_breach = None
-                elif watch_for_breach["side"] == "long" and c < watch_for_breach["anchor"]:
-                    slope_ok = True
-                    if cfg.enable_slope_gate:
-                        slope = _ema_slope_pct(ema20, i, cfg.slope_lookback)
-                        slope_ok = slope <= -cfg.slope_min_pct
-                    if slope_ok:
-                        state_transitions.append({
-                            "idx": i, "from": state.value, "to": "bear",
-                            "reason": f"LL breach + slope_ok: close {c:.2f} < {watch_for_breach['anchor']:.2f}",
-                        })
-                        state = State.BEAR
-                        state_entered_at = i
-                        latest_bear_ll_anchor = watch_for_breach["anchor"]
-                        watch_for_breach = None
+        # ═══════════════ VAH/VAL BREAK CHECK (v1.3 CORE) ═══════════════
+        # Only check when in SIDEWAYS state and have valid levels
+        if state == State.SIDEWAYS and current_vah is not None and current_val is not None:
+            vah_threshold = current_vah * (1 + cfg.vah_break_margin)
+            val_threshold = current_val * (1 - cfg.vah_break_margin)
 
-        # ─── v1.2 Fix B: Broader trigger check (from SIDEWAYS) ───
-        # If in SIDEWAYS and not currently trading, check for HH/LL structure trigger
-        if state == State.SIDEWAYS and cfg.enable_broader_triggers and watch_for_breach is None:
-            # HH structure → possible BULL
+            if c > vah_threshold:
+                vah_break_streak += 1
+                val_break_streak = 0
+            elif c < val_threshold:
+                val_break_streak += 1
+                vah_break_streak = 0
+            else:
+                vah_break_streak = 0
+                val_break_streak = 0
+
+            # VAH break confirmed → switch BULL
+            if vah_break_streak >= cfg.vah_break_candles:
+                state_transitions.append({
+                    "idx": i, "from": "sideways", "to": "bull",
+                    "reason": f"VAH break ({vah_break_streak}c close > {current_vah:.0f})",
+                })
+                state = State.BULL
+                state_entered_at = i
+                current_vah = None
+                current_val = None
+                current_poc = None
+                vah_break_streak = 0
+                val_break_streak = 0
+                continue
+
+            # VAL break confirmed → switch BEAR
+            if val_break_streak >= cfg.val_break_candles:
+                state_transitions.append({
+                    "idx": i, "from": "sideways", "to": "bear",
+                    "reason": f"VAL break ({val_break_streak}c close < {current_val:.0f})",
+                })
+                state = State.BEAR
+                state_entered_at = i
+                current_vah = None
+                current_val = None
+                current_poc = None
+                vah_break_streak = 0
+                val_break_streak = 0
+                continue
+
+        # ─── Legacy broader triggers (v1.2 Fix B, off by default) ───
+        if state == State.SIDEWAYS and cfg.enable_broader_triggers:
             if _detect_hh_structure(highs, i, cfg.trigger_lookback):
                 slope_ok = True
                 if cfg.enable_slope_gate:
@@ -240,12 +249,10 @@ def run_state_machine_backtest(
                 if slope_ok:
                     state_transitions.append({
                         "idx": i, "from": "sideways", "to": "bull",
-                        "reason": f"HH structure detected + slope confirmed",
+                        "reason": "HH structure + slope",
                     })
                     state = State.BULL
                     state_entered_at = i
-                    latest_bull_hh_anchor = float(np.max(highs[i - cfg.trigger_lookback:i + 1]))
-            # LL structure → possible BEAR
             elif _detect_ll_structure(lows, i, cfg.trigger_lookback):
                 slope_ok = True
                 if cfg.enable_slope_gate:
@@ -254,18 +261,17 @@ def run_state_machine_backtest(
                 if slope_ok:
                     state_transitions.append({
                         "idx": i, "from": "sideways", "to": "bear",
-                        "reason": f"LL structure detected + slope confirmed",
+                        "reason": "LL structure + slope",
                     })
                     state = State.BEAR
                     state_entered_at = i
-                    latest_bear_ll_anchor = float(np.min(lows[i - cfg.trigger_lookback:i + 1]))
 
-        # ─── v1.2 Fix A: State timeout ───
+        # ─── State timeout (Fix A, ON by default) ───
         if cfg.enable_state_timeout and state != State.SIDEWAYS:
             if i - state_entered_at > cfg.state_timeout_candles:
                 state_transitions.append({
                     "idx": i, "from": state.value, "to": "sideways",
-                    "reason": f"Timeout {cfg.state_timeout_candles} candles no entry",
+                    "reason": f"Timeout {cfg.state_timeout_candles}c no entry",
                 })
                 state = State.SIDEWAYS
                 state_entered_at = i
@@ -276,6 +282,13 @@ def run_state_machine_backtest(
             if sig is None:
                 i += 1
                 continue
+
+            # v1.3: update VAH/VAL from new signal (recompute each SIDEWAYS entry)
+            current_vah = sig.vah
+            current_val = sig.val
+            current_poc = sig.poc
+            vah_break_streak = 0
+            val_break_streak = 0
 
             if sig.side == SideEnum.LONG and i < ema_reject_long_cd_until:
                 i += 1
@@ -302,10 +315,7 @@ def run_state_machine_backtest(
                         sl_pct = cfg.double_sl_pct
                         break
                 recent_short_reject_highs.append((i, float(highs[i])))
-                recent_short_reject_highs = [
-                    (idx, hi) for idx, hi in recent_short_reject_highs
-                    if i - idx <= cfg.double_confirm_lookback
-                ]
+                recent_short_reject_highs = [(idx, hi) for idx, hi in recent_short_reject_highs if i - idx <= cfg.double_confirm_lookback]
             else:
                 for prev_idx, prev_low in recent_long_bounce_lows:
                     if i - prev_idx > cfg.double_confirm_lookback:
@@ -317,10 +327,7 @@ def run_state_machine_backtest(
                         sl_pct = cfg.double_sl_pct
                         break
                 recent_long_bounce_lows.append((i, float(lows[i])))
-                recent_long_bounce_lows = [
-                    (idx, lo) for idx, lo in recent_long_bounce_lows
-                    if i - idx <= cfg.double_confirm_lookback
-                ]
+                recent_long_bounce_lows = [(idx, lo) for idx, lo in recent_long_bounce_lows if i - idx <= cfg.double_confirm_lookback]
 
             entry_price = c * (1 + cfg.slippage_pct if side_str == "long" else 1 - cfg.slippage_pct)
             position_usd = cfg.position_usd * size_mult
@@ -364,8 +371,7 @@ def run_state_machine_backtest(
                 cc = float(closes[j])
                 cur_ema_j = float(ema20[j])
 
-                sl_hit = (side_str == "long" and cc <= sl_level) or \
-                         (side_str == "short" and cc >= sl_level)
+                sl_hit = (side_str == "long" and cc <= sl_level) or (side_str == "short" and cc >= sl_level)
                 if sl_hit:
                     exit_reason = "sl_breakeven" if moved_to_be else "sl"
                     exit_price = cc
@@ -440,13 +446,7 @@ def run_state_machine_backtest(
                     ema_reject_long_cd_until = exit_idx + cfg.sw_ema_reject_cooldown
                 else:
                     ema_reject_short_cd_until = exit_idx + cfg.sw_ema_reject_cooldown
-
-                watch_for_breach = {
-                    "side": side_str,
-                    "anchor": entry_high_anchor if side_str == "short" else entry_low_anchor,
-                    "expires_at": exit_idx + cfg.watch_window_candles,
-                }
-                trades[-1].state_transition = f"watch_{side_str}_breach"
+                trades[-1].state_transition = f"cooldown_{side_str}"
 
             i = exit_idx + 1
             continue
@@ -480,23 +480,11 @@ def run_state_machine_backtest(
                 state_transition=trade.state_signal,
             ))
 
-            # v1.2 KEY CHANGE: ALWAYS route through SIDEWAYS (no direct BULL→BEAR)
-            if trade.state_signal == "switch_bear":
-                state_transitions.append({
-                    "idx": trade.exit_idx, "from": "bull", "to": "sideways",
-                    "reason": "LL breach during BULL trade → SIDEWAYS wait (v1.2)",
-                })
-                # Set up watch for further LL confirmation → BEAR
-                watch_for_breach = {
-                    "side": "long",  # anchor is BULL entry low, watch for LL break
-                    "anchor": trade.entry_low,
-                    "expires_at": trade.exit_idx + cfg.watch_window_candles,
-                }
-            else:
-                state_transitions.append({
-                    "idx": trade.exit_idx, "from": "bull", "to": "sideways",
-                    "reason": "Trailing stop, no LL breach",
-                })
+            # v1.3: ALWAYS back to SIDEWAYS (VAH/VAL will re-establish on next signal)
+            state_transitions.append({
+                "idx": trade.exit_idx, "from": "bull", "to": "sideways",
+                "reason": f"BULL trade exit ({trade.exit_reason}) → SIDEWAYS wait",
+            })
             state = State.SIDEWAYS
             state_entered_at = trade.exit_idx
 
@@ -532,22 +520,10 @@ def run_state_machine_backtest(
                 state_transition=trade.state_signal,
             ))
 
-            # v1.2 KEY CHANGE: ALWAYS route through SIDEWAYS (no direct BEAR→BULL)
-            if trade.state_signal == "switch_bull":
-                state_transitions.append({
-                    "idx": trade.exit_idx, "from": "bear", "to": "sideways",
-                    "reason": "HH breach during BEAR trade → SIDEWAYS wait (v1.2)",
-                })
-                watch_for_breach = {
-                    "side": "short",
-                    "anchor": trade.entry_high,
-                    "expires_at": trade.exit_idx + cfg.watch_window_candles,
-                }
-            else:
-                state_transitions.append({
-                    "idx": trade.exit_idx, "from": "bear", "to": "sideways",
-                    "reason": "Trailing stop, no HH breach",
-                })
+            state_transitions.append({
+                "idx": trade.exit_idx, "from": "bear", "to": "sideways",
+                "reason": f"BEAR trade exit ({trade.exit_reason}) → SIDEWAYS wait",
+            })
             state = State.SIDEWAYS
             state_entered_at = trade.exit_idx
 
@@ -580,8 +556,10 @@ def run_state_machine_backtest(
 
     return {
         "ok": True,
-        "orchestrator": "v1.2",
-        "features_active": {
+        "orchestrator": "v1.3",
+        "config": {
+            "vah_break_candles": cfg.vah_break_candles,
+            "val_break_candles": cfg.val_break_candles,
             "state_timeout": cfg.enable_state_timeout,
             "broader_triggers": cfg.enable_broader_triggers,
             "slope_gate": cfg.enable_slope_gate,
