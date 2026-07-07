@@ -1,5 +1,5 @@
 """
-bear_tool.py — v1.4 with proper SL + TP1 at VAL (mirror of bull_tool)
+bear_tool.py — v1.6: multi-candle rally + EMA20 reject (mirror bull)
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ class BearConfig:
     min_rally_pct: float = 0.015
     require_close_confirm: bool = True
     lookback_recent_low: int = 20
+    trough_min_distance: int = 2  # v1.6: trough must be N candles before current
 
 
 @dataclass
@@ -55,27 +56,56 @@ class BearTradeRecord:
 
 
 def detect_bear_entry_signal(highs, lows, closes, opens, ema20, i, cfg):
-    if i < cfg.lookback_recent_low or i >= len(closes):
+    """
+    v1.6: multi-candle rally from trough + EMA20 rally reject
+    - Trough must be at least trough_min_distance candles BEFORE current
+    - Rally = (highest_since_trough - trough_low) / trough_low
+    - Current candle: touch EMA20 from below + close below (reject)
+    """
+    min_lookback = cfg.lookback_recent_low + cfg.trough_min_distance
+    if i < min_lookback or i >= len(closes):
         return None
+
     cur_ema = float(ema20[i])
     if cur_ema <= 0:
         return None
-    h_i, l_i, c_i, o_i = float(highs[i]), float(lows[i]), float(closes[i]), float(opens[i])
-    recent_low = float(np.min(lows[i - cfg.lookback_recent_low:i]))
+
+    trough_end = i - cfg.trough_min_distance
+    trough_start = i - cfg.lookback_recent_low
+    if trough_end <= trough_start:
+        return None
+
+    trough_window = lows[trough_start:trough_end]
+    recent_low = float(np.min(trough_window))
+    trough_offset = int(np.argmin(trough_window))
+    trough_idx = trough_start + trough_offset
+
     if recent_low >= cur_ema:
         return None
-    rally_pct = (h_i - recent_low) / recent_low
+
+    if trough_idx + 1 > i:
+        return None
+    highest_since_trough = float(np.max(highs[trough_idx + 1:i + 1]))
+    rally_pct = (highest_since_trough - recent_low) / recent_low
     if rally_pct < cfg.min_rally_pct:
         return None
+
+    h_i = float(highs[i])
+    l_i = float(lows[i])
+    c_i = float(closes[i])
+    o_i = float(opens[i])
+
     if h_i < cur_ema:
         return None
     if cfg.require_close_confirm and c_i >= cur_ema:
         return None
     if c_i >= o_i:
         return None
+
     return BearSignal(
-        idx=i, entry_price=c_i, ema20_at_entry=cur_ema, recent_low=recent_low,
-        reason=f"rally_reject_ema20 rally={rally_pct*100:.2f}%",
+        idx=i, entry_price=c_i, ema20_at_entry=cur_ema,
+        recent_low=recent_low,
+        reason=f"trough_at_{i-trough_idx}c_ago rally={rally_pct*100:.2f}%",
     )
 
 
@@ -87,16 +117,14 @@ def run_bear_trade(
     slippage_pct: float = 0.001,
     position_usd: float = 10.0,
     leverage: float = 50.0,
-    sl_buffer_pct: float = 0.001,        # SL = wick high × (1 + buffer)
-    tp1_target: Optional[float] = None,  # e.g., VAL from orchestrator
+    sl_buffer_pct: float = 0.001,
+    tp1_target: Optional[float] = None,
     tp1_partial_ratio: float = 0.5,
     use_trailing_after_tp1: bool = True,
 ) -> BearTradeRecord:
     entry_price = signal.entry_price * (1 - slippage_pct)
     notional = position_usd * leverage
     n = len(closes)
-
-    # v1.4: SL above wick high with buffer
     sl_level = entry_high_anchor * (1 + sl_buffer_pct)
 
     exit_idx = entry_idx
@@ -113,14 +141,12 @@ def run_bear_trade(
         l = float(lows[i])
         cur_ema = float(ema20[i])
 
-        # Priority 1: SL (close-based)
         if c >= sl_level:
             exit_reason = BearExitReason.SL_BE if moved_to_be else BearExitReason.SL
             exit_price = c
             exit_idx = i
             break
 
-        # Priority 2: TP1 (partial)
         if not tp1_hit and tp1_target is not None:
             if l <= tp1_target:
                 tp1_hit = True
@@ -131,7 +157,6 @@ def run_bear_trade(
                 sl_level = entry_price
                 moved_to_be = True
 
-        # Priority 3: Trailing (after TP1)
         if tp1_hit and use_trailing_after_tp1:
             if cur_ema > 0 and c > cur_ema:
                 exit_reason = BearExitReason.TRAILING_STOP
@@ -211,9 +236,10 @@ def run_bear_backtest(
     wr = wins / max(wins + losses, 1)
     tp1_hits = sum(1 for t in trades if t.tp1_hit)
     return {
-        "ok": True, "tool": "bear_v1.4",
+        "ok": True, "tool": "bear_v1.6",
         "config": {
             "ema_period": cfg.ema_period, "min_rally_pct": cfg.min_rally_pct,
+            "trough_min_distance": cfg.trough_min_distance,
             "sl_buffer_pct": sl_buffer_pct, "tp1_target_pct": tp1_target_pct,
         },
         "stats": {
