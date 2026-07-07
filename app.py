@@ -56,6 +56,15 @@ try:
 except Exception as _e:
     print(f"[WARN] mode3_regime_api not available: {_e}")
     _MODE3_REGIME_AVAILABLE = False
+
+# ── MTF Container Analysis (added 6 Juli 2026) ─────────────────
+try:
+    from mtf_analyze_endpoint import router as mtf_router
+    _MTF_AVAILABLE = True
+    print("[INIT] MTF Analyze module loaded successfully")
+except Exception as _e:
+    print(f"[WARN] mtf_analyze_endpoint not available: {_e}")
+    _MTF_AVAILABLE = False
 # ────────────────────────────────────────────────────────────────
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.3.0")
@@ -75,6 +84,11 @@ if _MODE3_EVAL_AVAILABLE:
 if _MODE3_REGIME_AVAILABLE:
     app.include_router(mode3_regime_router)
     print("[INIT] Mode 3 Regime engine mounted at /mode3/regime/*")
+
+# ── Mount MTF router (added 6 Juli 2026) ───────────────────────
+if _MTF_AVAILABLE:
+    app.include_router(mtf_router)
+    print("[INIT] MTF Analyze mounted at /mtf/*")
 # ────────────────────────────────────────────────────────────────
 security = HTTPBearer(auto_error=False)
 
