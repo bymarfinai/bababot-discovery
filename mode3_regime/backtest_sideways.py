@@ -1,10 +1,11 @@
 """
-backtest_sideways.py — Backtest Engine untuk Sideways Tektok Strategy v0.3
-==========================================================================
-v0.3 changes:
-- Position size scales by signal confidence (1.0 = full $10, 0.5 = $5, 0.25 = $2.5)
-- Stats breakdown by confidence tier (full/half/quarter)
-- Skip signals with confidence == 0.0 (score < 0)
+backtest_sideways.py — v0.4: MTF-integrated backtest
+=====================================================
+v0.4 changes:
+- Accept mtf_classifications parameter (from mtf_container.classify_mtf)
+- Pass to generate_sideways_signals for MTF filter/sizing
+- Position size still scales by sig.confidence (which now = MTF-derived)
+- Stats add by_mtf_tier breakdown (3/3, 2/3, 1/3, 0/3)
 """
 
 from __future__ import annotations
@@ -63,6 +64,7 @@ class SidewaysTradeRecord:
     regime: str
     confidence: float
     score: int
+    mtf_confidence: int
     position_usd: float
     entry_price: float
     exit_price: float
@@ -99,9 +101,8 @@ class SidewaysBTStats:
     exit_by_reason: dict = field(default_factory=dict)
     by_regime: dict = field(default_factory=dict)
     by_mode: dict = field(default_factory=dict)
-
-    # v0.3: breakdown by confidence tier
     by_confidence_tier: dict = field(default_factory=dict)
+    by_mtf_tier: dict = field(default_factory=dict)  # v0.4: breakdown by MTF confidence
 
     runtime_sec: float = 0.0
     total_candles: int = 0
@@ -125,6 +126,19 @@ def _tier_label(conf: float) -> str:
         return "skip"
 
 
+def _mtf_tier_label(mtf_conf: int) -> str:
+    if mtf_conf == 3:
+        return "3_of_3"
+    elif mtf_conf == 2:
+        return "2_of_3"
+    elif mtf_conf == 1:
+        return "1_of_3"
+    elif mtf_conf == 0:
+        return "0_of_3"
+    else:
+        return "no_mtf"
+
+
 def run_sideways_backtest(
     highs: np.ndarray,
     lows: np.ndarray,
@@ -134,6 +148,7 @@ def run_sideways_backtest(
     regime_cfg: Optional[RegimeConfig] = None,
     strategy_cfg: Optional[SidewaysConfig] = None,
     warmup: int = 100,
+    mtf_classifications: Optional[list] = None,  # v0.4
 ) -> SidewaysBTResult:
     t0 = time.time()
 
@@ -147,12 +162,15 @@ def run_sideways_backtest(
             error=f"insufficient candles: {n}",
         )
 
-    print(f"[SW BT v0.3] Classifying regime for {n} candles...")
+    print(f"[SW BT v0.4] Classifying regime for {n} candles...")
     regime_states = classify_regime_series(highs, lows, closes, volumes, regime_cfg, warmup=warmup)
 
-    print(f"[SW BT] Generating sideways signals with confidence scoring...")
-    signals = generate_sideways_signals(highs, lows, closes, volumes, regime_states, strategy_cfg)
-    print(f"[SW BT] {len(signals)} signals generated")
+    print(f"[SW BT v0.4] Generating signals (MTF filter: {strategy_cfg.use_mtf_filter}, MTF data: {mtf_classifications is not None})...")
+    signals = generate_sideways_signals(
+        highs, lows, closes, volumes, regime_states, strategy_cfg,
+        mtf_classifications=mtf_classifications,
+    )
+    print(f"[SW BT v0.4] {len(signals)} signals generated")
 
     trades: list[SidewaysTradeRecord] = []
     equity = cfg.position_usd * 10
@@ -173,7 +191,6 @@ def run_sideways_backtest(
             entry = active_pos['entry_price']
             sl = active_pos['sl']
             tp1, tp2, tp3 = active_pos['tp1'], active_pos['tp2'], active_pos['tp3']
-            # Use scaled notional based on confidence
             notional = active_pos['position_usd'] * cfg.leverage
 
             exit_reason = None
@@ -255,6 +272,7 @@ def run_sideways_backtest(
                     regime=active_pos['regime'],
                     confidence=active_pos['confidence'],
                     score=active_pos['score'],
+                    mtf_confidence=active_pos['mtf_confidence'],
                     position_usd=active_pos['position_usd'],
                     entry_price=entry,
                     exit_price=exit_price,
@@ -301,7 +319,6 @@ def run_sideways_backtest(
             sig = next_sig
             next_sig = next(sig_iter, None)
 
-            # v0.3: skip if confidence == 0
             if sig.confidence <= 0.0:
                 continue
 
@@ -329,7 +346,6 @@ def run_sideways_backtest(
             if side_str == 'short' and (tp1 >= entry_price or sl <= entry_price):
                 continue
 
-            # v0.3: scale position_usd by confidence
             scaled_position = cfg.position_usd * sig.confidence
 
             active_pos = {
@@ -339,6 +355,7 @@ def run_sideways_backtest(
                 'regime': sig.regime,
                 'confidence': sig.confidence,
                 'score': sig.score,
+                'mtf_confidence': sig.mtf_confidence,
                 'position_usd': scaled_position,
                 'entry_idx': i,
                 'entry_price': entry_price,
@@ -370,7 +387,8 @@ def run_sideways_backtest(
             entry_idx=active_pos['entry_idx'], exit_idx=n - 1,
             side=side, mode=active_pos['mode'], reason=active_pos['reason'],
             regime=active_pos['regime'], confidence=active_pos['confidence'],
-            score=active_pos['score'], position_usd=active_pos['position_usd'],
+            score=active_pos['score'], mtf_confidence=active_pos['mtf_confidence'],
+            position_usd=active_pos['position_usd'],
             entry_price=entry, exit_price=exit_price,
             sl_price=active_pos['orig_sl'],
             tp1_price=active_pos['tp1'], tp2_price=active_pos['tp2'], tp3_price=active_pos['tp3'],
@@ -390,6 +408,10 @@ def run_sideways_backtest(
     tier_data = {"full": {"trades": 0, "wins": 0, "pnl": 0.0},
                  "half": {"trades": 0, "wins": 0, "pnl": 0.0},
                  "quarter": {"trades": 0, "wins": 0, "pnl": 0.0}}
+    mtf_tier_data = {"3_of_3": {"trades": 0, "wins": 0, "pnl": 0.0},
+                     "2_of_3": {"trades": 0, "wins": 0, "pnl": 0.0},
+                     "1_of_3": {"trades": 0, "wins": 0, "pnl": 0.0},
+                     "no_mtf": {"trades": 0, "wins": 0, "pnl": 0.0}}
 
     for t in trades:
         stats.total_pnl_net += t.pnl_net
@@ -420,14 +442,25 @@ def run_sideways_backtest(
             if is_win:
                 tier_data[tier]["wins"] += 1
 
-    # Post-process tier stats
+        mtier = _mtf_tier_label(t.mtf_confidence)
+        if mtier in mtf_tier_data:
+            mtf_tier_data[mtier]["trades"] += 1
+            mtf_tier_data[mtier]["pnl"] += t.pnl_net
+            if is_win:
+                mtf_tier_data[mtier]["wins"] += 1
+
     for tier, td in tier_data.items():
         wr = td["wins"] / td["trades"] if td["trades"] > 0 else 0.0
         stats.by_confidence_tier[tier] = {
-            "trades": td["trades"],
-            "wins": td["wins"],
-            "win_rate": round(wr, 4),
-            "pnl_net": round(td["pnl"], 2),
+            "trades": td["trades"], "wins": td["wins"],
+            "win_rate": round(wr, 4), "pnl_net": round(td["pnl"], 2),
+        }
+
+    for mtier, td in mtf_tier_data.items():
+        wr = td["wins"] / td["trades"] if td["trades"] > 0 else 0.0
+        stats.by_mtf_tier[mtier] = {
+            "trades": td["trades"], "wins": td["wins"],
+            "win_rate": round(wr, 4), "pnl_net": round(td["pnl"], 2),
         }
 
     if stats.wins + stats.losses > 0:
