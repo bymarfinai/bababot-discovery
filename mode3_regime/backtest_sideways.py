@@ -1,16 +1,25 @@
 """
-backtest_sideways.py — v0.6: EMA20 dynamic exit (close-confirm)
+backtest_sideways.py — v0.7: 3 fixes from user review
 ==================================================================
-v0.6 changes:
-- Add use_ema_dynamic_exit option
-- When enabled, tracks EMA20 close-confirm reject:
-  * LONG entered BELOW EMA20: if close crosses ABOVE = "broken through"
-    (keep position), else if HIGH touched EMA but close BELOW = "rejected"
-    → exit remaining at close
-  * SHORT entered ABOVE EMA20: mirror logic
-- New exit reason: EMA_REJECT
-- Compatible with existing SL/TP/max_hold logic
+v0.7 changes (based on trader manual review of Jun 9 - Jul 3 trades):
 
+FIX A: EMA reject min-profit gate
+- Old: EMA_REJECT fires immediately if touch+close-above (candle 0)
+- New: only fires AFTER position reached min profit (default 0.3%)
+- Rationale: Trade 11 Jun should exit at candle 5 (0.96% profit locked),
+  NOT candle 0 (immediate rejection = -0.08% loss)
+
+FIX B: SL close-confirmation option
+- Old: SL fires on wick (low <= sl for LONG)
+- New (optional): SL fires only when close < SL (candle close breaks SL)
+- Rationale: Trade 30 Jun had wick low 57750 to SL, but close 58734
+  (way above SL) → recovery. Wick-based SL cut valid trade.
+
+FIX C: EMA break tracking for exit context (foundation for flip logic)
+- Track ema_break_direction after position exits with EMA break
+- Store on stats for post-analysis (flip logic implementation TBD)
+
+v0.6 preserved: EMA20 dynamic exit + slope filter
 v0.5 preserved: ATR-based SL option
 v0.4.1 preserved: Pine candle direction
 """
@@ -39,8 +48,7 @@ class ExitReasonSW(Enum):
     MAX_HOLD = "max_hold"
     CIRCUIT_BREAKER = "circuit_breaker"
     END = "end_of_data"
-    EMA_REJECT = "ema_reject"        # v0.6
-    EMA_BREAK_THEN_REJECT = "ema_break_then_reject"
+    EMA_REJECT = "ema_reject"
 
 
 @dataclass
@@ -72,6 +80,12 @@ class SidewaysBTConfig:
     use_ema_dynamic_exit: bool = False
     ema_exit_period: int = 20
 
+    # v0.7 FIX A: only trigger EMA reject after position reached min profit
+    ema_exit_min_profit_pct: float = 0.003   # 0.3% default
+
+    # v0.7 FIX B: SL close-confirmation
+    use_close_confirm_sl: bool = False
+
 
 @dataclass
 class SidewaysTradeRecord:
@@ -98,6 +112,7 @@ class SidewaysTradeRecord:
     pnl_net: float
     hold_candles: int
     ema_slope_pct: float = 0.0
+    max_profit_pct: float = 0.0   # v0.7 NEW: max unrealized profit before exit
 
 
 @dataclass
@@ -151,7 +166,6 @@ def _mtf_tier_label(mtf_conf: int) -> str:
 
 
 def _close_position_now(active_pos, cfg, exit_price, exit_reason, i):
-    """Helper: build trade record when closing position."""
     side = active_pos['side']
     entry = active_pos['entry_price']
     notional = active_pos['position_usd'] * cfg.leverage
@@ -191,6 +205,7 @@ def _close_position_now(active_pos, cfg, exit_price, exit_reason, i):
         pnl_net=final_pnl,
         hold_candles=i - active_pos['entry_idx'],
         ema_slope_pct=active_pos.get('ema_slope_pct', 0.0),
+        max_profit_pct=active_pos.get('max_profit_pct', 0.0),
     )
 
 
@@ -218,26 +233,28 @@ def run_sideways_backtest(
             error=f"insufficient candles: {n}",
         )
 
-    print(f"[SW BT v0.6] Classifying regime for {n} candles...")
+    print(f"[SW BT v0.7] Classifying regime for {n} candles...")
     regime_states = classify_regime_series(highs, lows, closes, volumes, regime_cfg, warmup=warmup)
 
-    print(f"[SW BT v0.6] Generating signals (MTF: {strategy_cfg.use_mtf_filter}, EMA slope filter: {strategy_cfg.use_ema_slope_filter})...")
+    print(f"[SW BT v0.7] Generating signals (MTF: {strategy_cfg.use_mtf_filter}, EMA slope filter: {strategy_cfg.use_ema_slope_filter})...")
     signals = generate_sideways_signals(
         highs, lows, closes, volumes, regime_states, strategy_cfg,
         mtf_classifications=mtf_classifications,
         opens=opens,
     )
-    print(f"[SW BT v0.6] {len(signals)} signals generated")
+    print(f"[SW BT v0.7] {len(signals)} signals generated")
 
     atr_arr = None
     if cfg.use_atr_sl:
         atr_arr = compute_atr(highs, lows, closes, cfg.atr_period)
 
-    # v0.6: precompute EMA20 for dynamic exit
     ema_arr = None
     if cfg.use_ema_dynamic_exit:
         ema_arr = compute_ema(closes, cfg.ema_exit_period)
-        print(f"[SW BT v0.6] EMA{cfg.ema_exit_period} dynamic exit enabled")
+        print(f"[SW BT v0.7] EMA{cfg.ema_exit_period} dynamic exit — min profit gate: {cfg.ema_exit_min_profit_pct*100:.2f}%")
+
+    if cfg.use_close_confirm_sl:
+        print(f"[SW BT v0.7] SL close-confirmation ENABLED (v0.7 FIX B)")
 
     trades: list[SidewaysTradeRecord] = []
     equity = cfg.position_usd * 10
@@ -260,18 +277,32 @@ def run_sideways_backtest(
             tp1, tp2, tp3 = active_pos['tp1'], active_pos['tp2'], active_pos['tp3']
             notional = active_pos['position_usd'] * cfg.leverage
 
+            # v0.7: Track max unrealized profit
+            if side == 'long':
+                cur_profit_wick = (h - entry) / entry
+            else:
+                cur_profit_wick = (entry - l) / entry
+            if cur_profit_wick > active_pos.get('max_profit_pct', 0.0):
+                active_pos['max_profit_pct'] = cur_profit_wick
+
             close_pos = False
             exit_reason = None
             exit_price = 0.0
 
-            # PRIORITY 1: SL check
-            sl_hit = (side == 'long' and l <= sl) or (side == 'short' and h >= sl)
+            # PRIORITY 1: SL check (v0.7 FIX B: close-confirm optional)
+            if cfg.use_close_confirm_sl:
+                # SL only if candle CLOSE breaches SL (survives wick fake-outs)
+                sl_hit = (side == 'long' and c <= sl) or (side == 'short' and c >= sl)
+            else:
+                # Original: SL on wick (low/high) - can be false triggered by wicks
+                sl_hit = (side == 'long' and l <= sl) or (side == 'short' and h >= sl)
+
             if sl_hit:
                 if active_pos['moved_to_be']:
                     exit_reason = ExitReasonSW.SL_BE
                 else:
                     exit_reason = ExitReasonSW.SL
-                exit_price = sl
+                exit_price = sl if not cfg.use_close_confirm_sl else c
                 close_pos = True
 
             # PRIORITY 2: TP progression
@@ -305,23 +336,24 @@ def run_sideways_backtest(
                         exit_price = tp3
                         close_pos = True
 
-            # PRIORITY 3 (v0.6 NEW): EMA20 dynamic exit — close-confirm
+            # PRIORITY 3: EMA20 dynamic exit (v0.7 FIX A: min profit gate)
             if not close_pos and cfg.use_ema_dynamic_exit and ema_arr is not None and i < len(ema_arr):
                 cur_ema = float(ema_arr[i])
                 if cur_ema > 0 and not active_pos.get('ema_broken_through', False):
+                    # v0.7 FIX A: only allow EMA reject exit if position reached min profit
+                    min_profit_ok = active_pos['max_profit_pct'] >= cfg.ema_exit_min_profit_pct
+
                     if side == 'long':
-                        # LONG: check if close broke above EMA (jebol) or was rejected
                         if c >= cur_ema:
                             active_pos['ema_broken_through'] = True
-                        elif h >= cur_ema and c < cur_ema:
-                            # Touched EMA but closed below = rejected → exit
+                        elif h >= cur_ema and c < cur_ema and min_profit_ok:
                             exit_reason = ExitReasonSW.EMA_REJECT
                             exit_price = c
                             close_pos = True
                     else:  # short
                         if c <= cur_ema:
                             active_pos['ema_broken_through'] = True
-                        elif l <= cur_ema and c > cur_ema:
+                        elif l <= cur_ema and c > cur_ema and min_profit_ok:
                             exit_reason = ExitReasonSW.EMA_REJECT
                             exit_price = c
                             close_pos = True
@@ -379,7 +411,6 @@ def run_sideways_backtest(
 
             side_str = 'long' if sig.side == SideEnum.LONG else 'short'
 
-            # SL calc — ATR or level
             if cfg.use_atr_sl and atr_arr is not None:
                 cur_atr = float(atr_arr[i]) if i < len(atr_arr) else 0.0
                 if cur_atr <= 0:
@@ -403,12 +434,10 @@ def run_sideways_backtest(
             if side_str == 'short' and (tp1 >= entry_price or sl <= entry_price):
                 continue
 
-            # v0.6: check if entry starts on "correct" side of EMA for dynamic exit
             ema_broken_through_initial = False
             if cfg.use_ema_dynamic_exit and ema_arr is not None and i < len(ema_arr):
                 cur_ema = float(ema_arr[i])
                 if side_str == 'long' and entry_price >= cur_ema:
-                    # LONG entered ABOVE EMA — already "broken through", don't apply reject
                     ema_broken_through_initial = True
                 elif side_str == 'short' and entry_price <= cur_ema:
                     ema_broken_through_initial = True
@@ -435,6 +464,7 @@ def run_sideways_backtest(
                 'remaining_ratio': 1.0,
                 'moved_to_be': False,
                 'ema_broken_through': ema_broken_through_initial,
+                'max_profit_pct': 0.0,   # v0.7 NEW
             }
 
     if active_pos is not None:
