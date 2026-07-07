@@ -1,5 +1,5 @@
 """
-orchestrator_endpoint.py — v1.0 endpoints for BULL, BEAR, state machine
+orchestrator_endpoint.py — v1.1 endpoints with post_transition_wait tunable
 """
 from fastapi import APIRouter
 import os
@@ -57,18 +57,16 @@ def bull_backtest(
     symbol: str = "BTCUSDT",
     days: int = 30,
     ema_period: int = 20,
-    min_pullback_pct: float = 0.005,
+    min_pullback_pct: float = 0.015,
     lookback_recent_high: int = 20,
     max_hold: int = 200,
     include_trades: int = 30,
 ):
     try:
         from mode3_regime.bull_tool import BullConfig, run_bull_backtest
-
         d1, _ = _load_candles(symbol, days)
         if d1 is None:
             return {"ok": False, "error": f"no data for {symbol}"}
-
         cfg = BullConfig(
             ema_period=ema_period,
             min_pullback_pct=min_pullback_pct,
@@ -91,18 +89,16 @@ def bear_backtest(
     symbol: str = "BTCUSDT",
     days: int = 30,
     ema_period: int = 20,
-    min_rally_pct: float = 0.005,
+    min_rally_pct: float = 0.015,
     lookback_recent_low: int = 20,
     max_hold: int = 200,
     include_trades: int = 30,
 ):
     try:
         from mode3_regime.bear_tool import BearConfig, run_bear_backtest
-
         d1, _ = _load_candles(symbol, days)
         if d1 is None:
             return {"ok": False, "error": f"no data for {symbol}"}
-
         cfg = BearConfig(
             ema_period=ema_period,
             min_rally_pct=min_rally_pct,
@@ -129,13 +125,14 @@ def orchestrator_backtest(
     sw_max_hold: int = 48,
     sw_ema_reject_cooldown: int = 48,
     trending_max_hold: int = 200,
-    bull_min_pullback: float = 0.005,
-    bear_min_rally: float = 0.005,
+    bull_min_pullback: float = 0.015,      # v1.1: 1.5% default (was 0.5%)
+    bear_min_rally: float = 0.015,
+    post_transition_wait: int = 8,         # v1.1 NEW: wait N candles after switch
     double_confirm_tolerance: float = 0.003,
     double_size_multiplier: float = 1.5,
     include_trades: int = 50,
 ):
-    """v1.0 orchestrator — 3-state SIDEWAYS/BULL/BEAR routing."""
+    """v1.1 orchestrator — with post_transition_wait tunable."""
     try:
         from mode3_regime.mtf_container import classify_mtf
         from mode3_regime.strategy_sideways import SidewaysConfig
@@ -147,7 +144,6 @@ def orchestrator_backtest(
         if d1 is None:
             return {"ok": False, "error": f"no data for {symbol}"}
 
-        # MTF classify (needed by SIDEWAYS state)
         mtf_cls = None
         if use_mtf_filter:
             mtf_cls, _ = classify_mtf(
@@ -176,6 +172,7 @@ def orchestrator_backtest(
             sw_max_hold=sw_max_hold,
             sw_ema_reject_cooldown=sw_ema_reject_cooldown,
             trending_max_hold=trending_max_hold,
+            post_transition_wait=post_transition_wait,
             double_confirm_tolerance=double_confirm_tolerance,
             double_size_multiplier=double_size_multiplier,
         )
