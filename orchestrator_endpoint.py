@@ -1,5 +1,5 @@
 """
-orchestrator_endpoint.py — v1.4 with 4 toggles + SL/TP tunable
+orchestrator_endpoint.py — v1.4.1 with vah_break_margin param fix
 """
 from fastapi import APIRouter
 import os
@@ -135,11 +135,12 @@ def orchestrator_backtest(
     # State transition
     vah_break_candles: int = 1,
     val_break_candles: int = 1,
+    vah_break_margin: float = 0.0,  # ← v1.4.1 FIX: now properly exposed
     enable_state_timeout: bool = True,
     state_timeout_candles: int = 100,
     include_trades: int = 50,
 ):
-    """v1.4 orchestrator — rolling VAH/VAL + TP at levels + proper SL."""
+    """v1.4.1 orchestrator — vah_break_margin properly wired."""
     try:
         from mode3_regime.mtf_container import classify_mtf
         from mode3_regime.strategy_sideways import SidewaysConfig
@@ -187,6 +188,7 @@ def orchestrator_backtest(
             sl_buffer_pct=sl_buffer_pct,
             vah_break_candles=vah_break_candles,
             val_break_candles=val_break_candles,
+            vah_break_margin=vah_break_margin,  # ← v1.4.1 FIX
             enable_state_timeout=enable_state_timeout,
             state_timeout_candles=state_timeout_candles,
         )
