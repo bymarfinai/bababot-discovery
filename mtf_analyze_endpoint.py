@@ -1,7 +1,5 @@
 """
-mtf_analyze_endpoint.py — Standalone FastAPI router for MTF container.
-Contains both /mtf/analyze (validation) and /mtf/sideways_backtest (v0.4 MTF-filtered).
-Mounted in app.py via include_router.
+mtf_analyze_endpoint.py — v0.4.1: pass opens to backtest for Pine-match candle direction
 """
 from fastapi import APIRouter
 import os
@@ -17,7 +15,6 @@ def mtf_analyze(
     days: int = 30,
     n_candles_per_layer: int = 1,
 ):
-    """Validate MTF container concept."""
     try:
         import sqlite3
         import numpy as np
@@ -133,10 +130,9 @@ def mtf_sideways_backtest(
     tp3_ratio: float = 0.2,
     max_hold_candles: int = 12,
     include_trades: int = 20,
+    use_pine_candle: bool = True,  # v0.4.1: True = close > open (Pine match), False = c > prev_close
 ):
-    """
-    Run sideways tektok backtest with MTF Container filter.
-    """
+    """v0.4.1 — with Pine-compatible candle direction check."""
     try:
         import sqlite3
         import numpy as np
@@ -205,11 +201,15 @@ def mtf_sideways_backtest(
             max_hold_candles=max_hold_candles,
         )
 
+        # v0.4.1: pass opens for Pine-match candle direction
+        opens_arg = opens_1h if use_pine_candle else None
+
         result = run_sideways_backtest(
             highs_1h, lows_1h, closes_1h, volumes_1h,
             cfg=bt_cfg, regime_cfg=RegimeConfig(),
             strategy_cfg=strategy_cfg, warmup=100,
             mtf_classifications=mtf_classifications if use_mtf_filter else None,
+            opens=opens_arg,
         )
         if result.error:
             return {"ok": False, "error": result.error}
@@ -230,12 +230,13 @@ def mtf_sideways_backtest(
 
         return {
             "ok": True,
-            "strategy": "sideways_tektok_v0.4_mtf",
+            "strategy": "sideways_tektok_v0.4.1_mtf_pine",
             "symbol": symbol, "days": days,
             "config": {
                 "n_candles_per_layer": n_candles_per_layer,
                 "min_mtf_confidence": min_mtf_confidence,
                 "use_mtf_filter": use_mtf_filter,
+                "use_pine_candle": use_pine_candle,
                 "range_max_width_pct": range_max_width_pct,
             },
             "mtf_context": {
