@@ -1,8 +1,10 @@
 """
-backtest_sideways.py — v0.8: pass-through bias_arr_1h to strategy
+backtest_sideways.py — v0.9: post-EMA-reject same-direction cooldown
 ==================================================================
-v0.8 change: add bias_arr_1h param, forward to generate_sideways_signals
-Everything else preserved from v0.7.1.
+v0.9 change: implement flip logic
+- After EMA_REJECT exit, block same-direction NEW signals for N candles
+- Rationale: market direction likely changed after EMA reject
+- Config: ema_reject_same_dir_cooldown (default 0 = disabled)
 """
 
 from __future__ import annotations
@@ -62,6 +64,9 @@ class SidewaysBTConfig:
     ema_exit_min_profit_pct: float = 0.003
     use_close_confirm_sl: bool = False
 
+    # v0.9: flip logic — cooldown same direction after EMA_REJECT
+    ema_reject_same_dir_cooldown: int = 0   # 0 = disabled
+
 
 @dataclass
 class SidewaysTradeRecord:
@@ -115,6 +120,7 @@ class SidewaysBTStats:
     by_mtf_tier: dict = field(default_factory=dict)
     runtime_sec: float = 0.0
     total_candles: int = 0
+    ema_reject_flips_avoided: int = 0   # v0.9
 
 
 @dataclass
@@ -185,61 +191,44 @@ def _close_position_now(active_pos, cfg, exit_price, exit_reason, i):
 
 
 def run_sideways_backtest(
-    highs: np.ndarray,
-    lows: np.ndarray,
-    closes: np.ndarray,
-    volumes: np.ndarray,
-    cfg: SidewaysBTConfig,
-    regime_cfg: Optional[RegimeConfig] = None,
-    strategy_cfg: Optional[SidewaysConfig] = None,
-    warmup: int = 100,
-    mtf_classifications: Optional[list] = None,
-    opens: Optional[np.ndarray] = None,
-    bias_arr_1h: Optional[np.ndarray] = None,   # v0.8
-) -> SidewaysBTResult:
+    highs, lows, closes, volumes, cfg,
+    regime_cfg=None, strategy_cfg=None, warmup=100,
+    mtf_classifications=None, opens=None, bias_arr_1h=None,
+):
     t0 = time.time()
-
     regime_cfg = regime_cfg or RegimeConfig()
     strategy_cfg = strategy_cfg or SidewaysConfig()
 
     n = len(closes)
     if n < warmup + 50:
-        return SidewaysBTResult(
-            stats=SidewaysBTStats(), trades=[],
-            error=f"insufficient candles: {n}",
-        )
+        return SidewaysBTResult(stats=SidewaysBTStats(), trades=[], error=f"insufficient: {n}")
 
-    print(f"[SW BT v0.8] Classifying regime for {n} candles...")
+    print(f"[SW BT v0.9] Classifying regime for {n} candles...")
     regime_states = classify_regime_series(highs, lows, closes, volumes, regime_cfg, warmup=warmup)
-
-    print(f"[SW BT v0.8] Generating signals (MTF: {strategy_cfg.use_mtf_filter}, 4h bias: {strategy_cfg.use_4h_bias_filter})...")
     signals = generate_sideways_signals(
         highs, lows, closes, volumes, regime_states, strategy_cfg,
-        mtf_classifications=mtf_classifications,
-        opens=opens,
-        bias_arr_1h=bias_arr_1h,
+        mtf_classifications=mtf_classifications, opens=opens, bias_arr_1h=bias_arr_1h,
     )
-    print(f"[SW BT v0.8] {len(signals)} signals generated")
+    print(f"[SW BT v0.9] {len(signals)} signals generated. EMA reject flip cooldown: {cfg.ema_reject_same_dir_cooldown}")
 
-    atr_arr = None
-    if cfg.use_atr_sl:
-        atr_arr = compute_atr(highs, lows, closes, cfg.atr_period)
+    atr_arr = compute_atr(highs, lows, closes, cfg.atr_period) if cfg.use_atr_sl else None
+    ema_arr = compute_ema(closes, cfg.ema_exit_period) if cfg.use_ema_dynamic_exit else None
 
-    ema_arr = None
-    if cfg.use_ema_dynamic_exit:
-        ema_arr = compute_ema(closes, cfg.ema_exit_period)
-
-    trades: list[SidewaysTradeRecord] = []
+    trades = []
     equity = cfg.position_usd * 10
     starting_equity = equity
     peak_equity = equity
     max_dd = 0.0
     consec_losses = 0
     breaker_until = -1
-
     active_pos = None
     sig_iter = iter(signals)
     next_sig = next(sig_iter, None)
+
+    # v0.9: post-EMA-reject cooldown state
+    ema_reject_long_cooldown_until = -1
+    ema_reject_short_cooldown_until = -1
+    ema_reject_flips_avoided = 0
 
     for i in range(n):
         if active_pos is not None:
@@ -267,10 +256,7 @@ def run_sideways_backtest(
                 sl_hit = (side == 'long' and l <= sl) or (side == 'short' and h >= sl)
 
             if sl_hit:
-                if active_pos['moved_to_be']:
-                    exit_reason = ExitReasonSW.SL_BE
-                else:
-                    exit_reason = ExitReasonSW.SL
+                exit_reason = ExitReasonSW.SL_BE if active_pos['moved_to_be'] else ExitReasonSW.SL
                 exit_price = sl if not cfg.use_close_confirm_sl else c
                 close_pos = True
 
@@ -280,8 +266,8 @@ def run_sideways_backtest(
                     if tp1_reached:
                         active_pos['tp1_hit'] = True
                         gross_pct = (tp1 - entry) / entry if side == 'long' else (entry - tp1) / entry
-                        partial_notional = notional * cfg.tp1_ratio
-                        active_pos['realized_pnl'] += gross_pct * partial_notional - cfg.fee_pct * partial_notional - cfg.slippage_pct * partial_notional
+                        pn = notional * cfg.tp1_ratio
+                        active_pos['realized_pnl'] += gross_pct * pn - cfg.fee_pct * pn - cfg.slippage_pct * pn
                         active_pos['remaining_ratio'] -= cfg.tp1_ratio
                         if cfg.move_sl_to_be_after_tp1:
                             active_pos['sl'] = entry
@@ -292,8 +278,8 @@ def run_sideways_backtest(
                     if tp2_reached:
                         active_pos['tp2_hit'] = True
                         gross_pct = (tp2 - entry) / entry if side == 'long' else (entry - tp2) / entry
-                        partial_notional = notional * cfg.tp2_ratio
-                        active_pos['realized_pnl'] += gross_pct * partial_notional - cfg.fee_pct * partial_notional - cfg.slippage_pct * partial_notional
+                        pn = notional * cfg.tp2_ratio
+                        active_pos['realized_pnl'] += gross_pct * pn - cfg.fee_pct * pn - cfg.slippage_pct * pn
                         active_pos['remaining_ratio'] -= cfg.tp2_ratio
 
                 if active_pos['tp2_hit'] and not active_pos['tp3_hit']:
@@ -338,16 +324,19 @@ def run_sideways_backtest(
                 trades.append(trade)
                 equity += trade.pnl_net
 
-                if equity > peak_equity:
-                    peak_equity = equity
-                dd = peak_equity - equity
-                if dd > max_dd:
-                    max_dd = dd
+                # v0.9: Set cooldown after EMA_REJECT exit for same direction
+                if cfg.ema_reject_same_dir_cooldown > 0 and exit_reason == ExitReasonSW.EMA_REJECT:
+                    if side == 'long':
+                        ema_reject_long_cooldown_until = i + cfg.ema_reject_same_dir_cooldown
+                    else:
+                        ema_reject_short_cooldown_until = i + cfg.ema_reject_same_dir_cooldown
 
-                if trade.pnl_net < 0:
-                    consec_losses += 1
-                elif trade.pnl_net > 0:
-                    consec_losses = 0
+                if equity > peak_equity: peak_equity = equity
+                dd = peak_equity - equity
+                if dd > max_dd: max_dd = dd
+
+                if trade.pnl_net < 0: consec_losses += 1
+                elif trade.pnl_net > 0: consec_losses = 0
 
                 if consec_losses >= cfg.max_consec_losses:
                     breaker_until = i + cfg.cooldown_after_breaker
@@ -372,6 +361,14 @@ def run_sideways_backtest(
             if sig.confidence <= 0.0:
                 continue
 
+            # v0.9: check EMA reject cooldown
+            if sig.side == SideEnum.LONG and i < ema_reject_long_cooldown_until:
+                ema_reject_flips_avoided += 1
+                continue
+            if sig.side == SideEnum.SHORT and i < ema_reject_short_cooldown_until:
+                ema_reject_flips_avoided += 1
+                continue
+
             entry_price = closes[i]
             if sig.side == SideEnum.LONG:
                 entry_price = entry_price * (1 + cfg.slippage_pct)
@@ -390,13 +387,9 @@ def run_sideways_backtest(
                 sl = sig.val * (1 - cfg.sl_pct_from_level) if side_str == 'long' else sig.vah * (1 + cfg.sl_pct_from_level)
 
             if side_str == 'long':
-                tp1 = sig.poc
-                tp2 = (sig.poc + sig.vah) / 2
-                tp3 = sig.vah
+                tp1 = sig.poc; tp2 = (sig.poc + sig.vah) / 2; tp3 = sig.vah
             else:
-                tp1 = sig.poc
-                tp2 = (sig.poc + sig.val) / 2
-                tp3 = sig.val
+                tp1 = sig.poc; tp2 = (sig.poc + sig.val) / 2; tp3 = sig.val
 
             if side_str == 'long' and (tp1 <= entry_price or sl >= entry_price):
                 continue
@@ -414,26 +407,18 @@ def run_sideways_backtest(
             scaled_position = cfg.position_usd * sig.confidence
 
             active_pos = {
-                'side': side_str,
-                'mode': sig.mode.value,
-                'reason': sig.reason,
-                'regime': sig.regime,
-                'confidence': sig.confidence,
-                'score': sig.score,
-                'mtf_confidence': sig.mtf_confidence,
+                'side': side_str, 'mode': sig.mode.value, 'reason': sig.reason,
+                'regime': sig.regime, 'confidence': sig.confidence,
+                'score': sig.score, 'mtf_confidence': sig.mtf_confidence,
                 'ema_slope_pct': sig.ema_slope_pct,
                 'bias_4h': getattr(sig, 'bias_4h', 0),
                 'position_usd': scaled_position,
-                'entry_idx': i,
-                'entry_price': entry_price,
-                'sl': sl,
-                'orig_sl': sl,
+                'entry_idx': i, 'entry_price': entry_price,
+                'sl': sl, 'orig_sl': sl,
                 'tp1': tp1, 'tp2': tp2, 'tp3': tp3,
                 'tp1_hit': False, 'tp2_hit': False, 'tp3_hit': False,
-                'realized_pnl': 0.0,
-                'remaining_ratio': 1.0,
-                'moved_to_be': False,
-                'ema_broken_through': ema_broken_through_initial,
+                'realized_pnl': 0.0, 'remaining_ratio': 1.0,
+                'moved_to_be': False, 'ema_broken_through': ema_broken_through_initial,
                 'max_profit_pct': 0.0,
             }
 
@@ -446,6 +431,7 @@ def run_sideways_backtest(
     stats.total_trades = len(trades)
     stats.total_candles = n
     stats.runtime_sec = time.time() - t0
+    stats.ema_reject_flips_avoided = ema_reject_flips_avoided
 
     wins_pnl, losses_pnl = [], []
     tp1_hits, tp2_hits, tp3_hits = 0, 0, 0
@@ -461,14 +447,9 @@ def run_sideways_backtest(
         stats.total_pnl_net += t.pnl_net
         is_win = t.pnl_net > 0.01
         is_loss = t.pnl_net < -0.01
-        if is_win:
-            stats.wins += 1
-            wins_pnl.append(t.pnl_net)
-        elif is_loss:
-            stats.losses += 1
-            losses_pnl.append(t.pnl_net)
-        else:
-            stats.breakeven += 1
+        if is_win: stats.wins += 1; wins_pnl.append(t.pnl_net)
+        elif is_loss: stats.losses += 1; losses_pnl.append(t.pnl_net)
+        else: stats.breakeven += 1
         stats.exit_by_reason[t.exit_reason] = stats.exit_by_reason.get(t.exit_reason, 0) + 1
         stats.by_regime[t.regime] = stats.by_regime.get(t.regime, 0) + 1
         stats.by_mode[t.mode] = stats.by_mode.get(t.mode, 0) + 1
@@ -497,10 +478,8 @@ def run_sideways_backtest(
 
     if stats.wins + stats.losses > 0:
         stats.win_rate = stats.wins / (stats.wins + stats.losses)
-    if wins_pnl:
-        stats.avg_win = float(np.mean(wins_pnl))
-    if losses_pnl:
-        stats.avg_loss = float(np.mean(losses_pnl))
+    if wins_pnl: stats.avg_win = float(np.mean(wins_pnl))
+    if losses_pnl: stats.avg_loss = float(np.mean(losses_pnl))
 
     if stats.total_trades > 0:
         stats.tp1_hit_rate = tp1_hits / stats.total_trades
