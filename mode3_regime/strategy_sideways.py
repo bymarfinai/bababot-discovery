@@ -1,16 +1,18 @@
 """
-strategy_sideways.py — Sideways Tektok Strategy v0.4
+strategy_sideways.py — Sideways Tektok Strategy v0.4.1
 ======================================================
-v0.4 changes (MTF Container Integration):
-- Accept optional mtf_classifications parameter (from mtf_container.classify_mtf)
+v0.4.1 fix: candle direction check now match Pine v0.2 semantics
+- OLD (v0.4): bullish_candle = c > closes[i-1]  (uptick from previous close)
+- NEW (v0.4.1): bullish_candle = c > opens[i]   (Pine's `close > open`)
+
+This aligns Python trade count with Pine visual. Previous mismatch:
+- Pine: candle green (close > open) — captures pullback recovery patterns
+- Python: uptick required — skipped many valid bounces
+
+v0.4 changes preserved (MTF Container Integration):
+- Accept optional mtf_classifications parameter
 - PRIMARY filter: skip signals where mtf.inside_confidence < min_mtf_confidence
-- PRIMARY sizing: position size = f(mtf.inside_confidence)
-  * 3/3 (inside all 3 containers) -> full size (1.0)
-  * 2/3 -> half size (0.5)
-  * 1/3 -> skip (unless enable_low_conf_quarter=True, then quarter)
-  * 0/3 -> skip (definitive break)
-- v0.3 5-signal scoring DISABLED by default (isolate MTF effect)
-- Backward compat: works without mtf_classifications
+- Sizing: 3/3 full, 2/3 half, 1/3 skip (or quarter opt-in), 0/3 skip
 """
 
 from __future__ import annotations
@@ -88,7 +90,6 @@ class SidewaysSignal:
 
 
 def _mtf_conf_to_size(mtf_conf: int, cfg: SidewaysConfig) -> float:
-    """Map MTF confidence 0-3 to position size multiplier 0.0-1.0."""
     if mtf_conf >= 3:
         return 1.0
     elif mtf_conf == 2:
@@ -107,10 +108,12 @@ def generate_sideways_signals(
     regime_states: list[RegimeState],
     cfg: SidewaysConfig,
     mtf_classifications: Optional[list] = None,
+    opens: Optional[np.ndarray] = None,  # v0.4.1: NEW, for Pine-match candle check
 ) -> list[SidewaysSignal]:
     """
     Generate signals sideways tektok.
-    v0.4: MTF filter/sizing PRIMARY when mtf_classifications provided.
+    v0.4.1: bullish_candle = c > opens[i] (Pine `close > open`).
+    Fallback to c > closes[i-1] if opens not provided (backward compat).
     """
     n = len(closes)
     signals: list[SidewaysSignal] = []
@@ -156,10 +159,15 @@ def generate_sideways_signals(
         wick_below_val = l < val * (1 - cfg.touch_tolerance) and c > val
         wick_above_vah = h > vah * (1 + cfg.touch_tolerance) and c < vah
 
-        bullish_candle = c > closes[i - 1]
-        bearish_candle = c < closes[i - 1]
+        # v0.4.1: Pine-compat candle check
+        if opens is not None and i < len(opens):
+            bullish_candle = c > opens[i]
+            bearish_candle = c < opens[i]
+        else:
+            # Fallback (backward compat)
+            bullish_candle = c > closes[i - 1]
+            bearish_candle = c < closes[i - 1]
 
-        # v0.4: MTF confidence at this candle
         mtf_conf = -1
         if cfg.use_mtf_filter and mtf_classifications is not None and i < len(mtf_classifications):
             mtf_cls = mtf_classifications[i]
@@ -167,7 +175,7 @@ def generate_sideways_signals(
             if mtf_conf >= 0 and mtf_conf < cfg.min_mtf_confidence:
                 continue
             if mtf_conf < 0:
-                continue  # warmup
+                continue
 
         def build_signal(side: SideEnum, mode: SidewaysMode, reason: str):
             if cfg.use_mtf_filter and mtf_conf >= 0:
