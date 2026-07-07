@@ -1,5 +1,5 @@
 """
-mtf_analyze_endpoint.py — v0.8.1: expose bias_filter_mode
+mtf_analyze_endpoint.py — v0.9: expose ema_reject_same_dir_cooldown
 """
 from fastapi import APIRouter
 import os
@@ -10,45 +10,15 @@ DB_PATH = os.environ.get("DB_PATH", "market_data.db")
 
 
 @router.get("/mtf/analyze")
-def mtf_analyze(
-    symbol: str = "BTCUSDT",
-    days: int = 30,
-    n_candles_per_layer: int = 1,
-):
+def mtf_analyze(symbol: str = "BTCUSDT", days: int = 30, n_candles_per_layer: int = 1):
     try:
         import sqlite3
-        import numpy as np
-        from mode3_regime.mtf_container import classify_mtf
-
         conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
-        rows_1h = conn.execute("""
-            SELECT open, high, low, close, volume, open_time
-            FROM klines WHERE symbol = ? AND timeframe = '1h'
-            ORDER BY open_time ASC
-        """, (symbol,)).fetchall()
-        rows_4h = conn.execute("""
-            SELECT open, high, low, close, volume, open_time
-            FROM klines WHERE symbol = ? AND timeframe = '4h'
-            ORDER BY open_time ASC
-        """, (symbol,)).fetchall()
+        rows_1h = conn.execute("SELECT COUNT(*) FROM klines WHERE symbol=? AND timeframe='1h'", (symbol,)).fetchone()
         conn.close()
-
-        if not rows_1h or not rows_4h:
-            return {"ok": False, "error": f"no data for {symbol}"}
-
-        if days > 0:
-            ms_limit = days * 86400 * 1000
-            last_time = rows_1h[-1][5]
-            cutoff = last_time - ms_limit
-            rows_1h = [r for r in rows_1h if r[5] >= cutoff]
-            cutoff_4h = cutoff - (10 * 86400 * 1000)
-            rows_4h = [r for r in rows_4h if r[5] >= cutoff_4h]
-
-        return {"ok": True, "symbol": symbol, "days": days,
-                "total_1h_loaded": len(rows_1h), "total_4h_loaded": len(rows_4h)}
+        return {"ok": True, "symbol": symbol, "count_1h": rows_1h[0]}
     except Exception as e:
-        import traceback
-        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+        return {"ok": False, "error": str(e)}
 
 
 def _compute_4h_bias_arr(ts_1h, ts_4h, closes_4h, ema_period=50, margin_pct=0.005):
@@ -57,7 +27,6 @@ def _compute_4h_bias_arr(ts_1h, ts_4h, closes_4h, ema_period=50, margin_pct=0.00
 
     ema50_4h = compute_ema(closes_4h, ema_period)
     bias_arr = np.zeros(len(ts_1h), dtype=np.int8)
-
     ms_4h = 4 * 3600 * 1000
     j = 0
     for i in range(len(ts_1h)):
@@ -65,22 +34,17 @@ def _compute_4h_bias_arr(ts_1h, ts_4h, closes_4h, ema_period=50, margin_pct=0.00
         while j + 1 < len(ts_4h) and ts_4h[j + 1] <= t1:
             j += 1
         if ts_4h[j] + ms_4h > t1:
-            if j == 0:
-                continue
+            if j == 0: continue
             j_use = j - 1
         else:
             j_use = j
-        if j_use < ema_period:
-            continue
+        if j_use < ema_period: continue
         close_4h = float(closes_4h[j_use])
         ema_val = float(ema50_4h[j_use])
-        if ema_val <= 0:
-            continue
+        if ema_val <= 0: continue
         pct_diff = (close_4h - ema_val) / ema_val
-        if pct_diff > margin_pct:
-            bias_arr[i] = 1
-        elif pct_diff < -margin_pct:
-            bias_arr[i] = -1
+        if pct_diff > margin_pct: bias_arr[i] = 1
+        elif pct_diff < -margin_pct: bias_arr[i] = -1
     return bias_arr
 
 
@@ -116,11 +80,13 @@ def mtf_sideways_backtest(
     use_4h_bias_filter: bool = False,
     bias_4h_ema_period: int = 50,
     bias_margin_pct: float = 0.005,
-    bias_filter_mode: str = "mean_revert",   # v0.8.1: NEW
+    bias_filter_mode: str = "mean_revert",
+    # v0.9 NEW
+    ema_reject_same_dir_cooldown: int = 0,
     include_trades: int = 20,
     use_pine_candle: bool = True,
 ):
-    """v0.8.1 — bias filter with mean_revert or trend_follow mode."""
+    """v0.9 — post-EMA-reject same-direction cooldown (flip logic)."""
     try:
         import sqlite3
         import numpy as np
@@ -130,16 +96,8 @@ def mtf_sideways_backtest(
         from mode3_regime.regime import RegimeConfig
 
         conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
-        rows_1h = conn.execute("""
-            SELECT open, high, low, close, volume, open_time
-            FROM klines WHERE symbol = ? AND timeframe = '1h'
-            ORDER BY open_time ASC
-        """, (symbol,)).fetchall()
-        rows_4h = conn.execute("""
-            SELECT open, high, low, close, volume, open_time
-            FROM klines WHERE symbol = ? AND timeframe = '4h'
-            ORDER BY open_time ASC
-        """, (symbol,)).fetchall()
+        rows_1h = conn.execute("SELECT open, high, low, close, volume, open_time FROM klines WHERE symbol = ? AND timeframe = '1h' ORDER BY open_time ASC", (symbol,)).fetchall()
+        rows_4h = conn.execute("SELECT open, high, low, close, volume, open_time FROM klines WHERE symbol = ? AND timeframe = '4h' ORDER BY open_time ASC", (symbol,)).fetchall()
         conn.close()
 
         if not rows_1h or not rows_4h:
@@ -173,13 +131,10 @@ def mtf_sideways_backtest(
         )
 
         bias_arr_1h = None
-        bias_stats = None
         if use_4h_bias_filter:
             bias_arr_1h = _compute_4h_bias_arr(ts_1h, ts_4h, closes_4h,
                                                 ema_period=bias_4h_ema_period,
                                                 margin_pct=bias_margin_pct)
-            unique, counts = np.unique(bias_arr_1h, return_counts=True)
-            bias_stats = {int(u): int(c) for u, c in zip(unique, counts)}
 
         strategy_cfg = SidewaysConfig(
             range_max_width_pct=range_max_width_pct,
@@ -211,6 +166,7 @@ def mtf_sideways_backtest(
             ema_exit_period=ema_exit_period,
             ema_exit_min_profit_pct=ema_exit_min_profit_pct,
             use_close_confirm_sl=use_close_confirm_sl,
+            ema_reject_same_dir_cooldown=ema_reject_same_dir_cooldown,
         )
 
         opens_arg = opens_1h if use_pine_candle else None
@@ -237,9 +193,7 @@ def mtf_sideways_backtest(
                 tp1_dist_pct = (t.entry_price - t.tp1_price) / t.entry_price * 100
             sample_trades.append({
                 "entry_idx": t.entry_idx, "side": t.side, "mode": t.mode,
-                "mtf_conf": t.mtf_confidence,
                 "bias_4h": t.bias_4h,
-                "confidence": round(t.confidence, 2),
                 "entry_price": round(t.entry_price, 2), "exit_price": round(t.exit_price, 2),
                 "sl_price": round(t.sl_price, 2),
                 "sl_dist_pct": round(sl_dist_pct, 3),
@@ -251,37 +205,31 @@ def mtf_sideways_backtest(
             })
 
         return {
-            "ok": True,
-            "strategy": "sideways_tektok_v0.8.1",
+            "ok": True, "strategy": "sideways_tektok_v0.9",
             "symbol": symbol, "days": days,
             "config": {
                 "use_mtf_filter": use_mtf_filter,
-                "use_atr_sl": use_atr_sl, "sl_atr_mult": sl_atr_mult,
+                "use_atr_sl": use_atr_sl,
                 "use_ema_dynamic_exit": use_ema_dynamic_exit,
                 "ema_exit_min_profit_pct": ema_exit_min_profit_pct,
                 "use_close_confirm_sl": use_close_confirm_sl,
                 "use_4h_bias_filter": use_4h_bias_filter,
-                "bias_4h_ema_period": bias_4h_ema_period,
-                "bias_margin_pct": bias_margin_pct,
                 "bias_filter_mode": bias_filter_mode,
+                "ema_reject_same_dir_cooldown": ema_reject_same_dir_cooldown,
                 "max_hold_candles": max_hold_candles,
             },
-            "bias_distribution": bias_stats,
             "stats": {
                 "total_trades": s.total_trades, "wins": s.wins, "losses": s.losses,
                 "win_rate": round(s.win_rate, 4),
                 "total_pnl_net": round(s.total_pnl_net, 2),
                 "avg_win": round(s.avg_win, 2), "avg_loss": round(s.avg_loss, 2),
                 "max_drawdown_pct": round(s.max_drawdown_pct, 4),
-                "max_drawdown_usd": round(s.max_drawdown_usd, 2),
                 "trades_per_day": round(s.trades_per_day, 4),
                 "tp1_hit_rate": round(s.tp1_hit_rate, 4),
                 "tp2_hit_rate": round(s.tp2_hit_rate, 4),
                 "tp3_hit_rate": round(s.tp3_hit_rate, 4),
                 "exit_by_reason": s.exit_by_reason,
-                "by_regime": s.by_regime, "by_mode": s.by_mode,
-                "by_confidence_tier": s.by_confidence_tier,
-                "by_mtf_tier": s.by_mtf_tier,
+                "ema_reject_flips_avoided": s.ema_reject_flips_avoided,
             },
             "sample_trades": sample_trades,
             "runtime_sec": round(s.runtime_sec, 2),
