@@ -1,22 +1,13 @@
 """
-state_orchestrator.py — v1.4 with rolling VAH/VAL + TP at levels
+state_orchestrator.py — v1.5 with structural HH/LL detection modes
 ======================================================
-v1.4 major changes:
-1. VAH/VAL computed via ROLLING WINDOW (not just from signals)
-   - Recompute every N candles from last window_size candles
-   - Always fresh, no stale data
-2. BULL trade TP1 = current tracked VAH (level of resistance)
-3. BEAR trade TP1 = current tracked VAL (level of support)
-4. Proper SL with buffer (bull_tool/bear_tool v1.4)
-5. All exits → back SIDEWAYS (fully decoupled)
-6. State switch: VAH break → BULL, VAL break → BEAR
-   (during SIDEWAYS mode only)
+v1.5 change: HH/LL detection modes for state transition
+- vah_break (default): close > VAH + margin (existing)
+- swing_high (B): close > previous swing high in lookback window
+- combined (C): VAH break AND swing_high both required
+Mirror for LL: val_break | swing_low | combined
 
-Toggleable features (test each in isolation):
-- use_rolling_va (default True): rolling VAH/VAL compute
-- use_va_tp (default True): TP1 at VAH/VAL for BULL/BEAR
-- use_sl_buffer (default True): SL with buffer from wick
-- enable_state_timeout (default True): safety timeout
+All other logic (rolling VA, TP at VAH/VAL, SL buffer, timeout) preserved.
 """
 
 from __future__ import annotations
@@ -43,7 +34,6 @@ class State(Enum):
 
 @dataclass
 class OrchestratorConfig:
-    # SIDEWAYS
     sideways_cfg: SidewaysConfig = field(default_factory=SidewaysConfig)
     sw_max_hold: int = 48
     sw_sl_pct_from_level: float = 0.005
@@ -54,24 +44,27 @@ class OrchestratorConfig:
     sw_ema_exit_min_profit_pct: float = 0.003
     sw_ema_reject_cooldown: int = 48
 
-    # BULL/BEAR
     bull_cfg: BullConfig = field(default_factory=BullConfig)
     bear_cfg: BearConfig = field(default_factory=BearConfig)
     trending_max_hold: int = 200
     post_transition_wait: int = 24
 
-    # v1.4 toggles
     use_rolling_va: bool = True
-    va_window: int = 50                # rolling window candles
-    va_recompute_every: int = 20       # recompute frequency
+    va_window: int = 50
+    va_recompute_every: int = 20
 
-    use_va_tp: bool = True              # BULL TP1 = VAH, BEAR TP1 = VAL
+    use_va_tp: bool = True
     tp1_partial_ratio: float = 0.5
 
     use_sl_buffer: bool = True
-    sl_buffer_pct: float = 0.001       # tunable: 0.1%, 0.2%, 0.3%
+    sl_buffer_pct: float = 0.001
 
-    # State transition
+    # v1.5: HH/LL detection mode
+    hh_detection_mode: str = "vah_break"   # vah_break | swing_high | combined
+    ll_detection_mode: str = "val_break"   # val_break | swing_low | combined
+    swing_lookback: int = 20               # candles for swing detection
+    swing_buffer: int = 3                  # exclude last N candles
+
     vah_break_candles: int = 1
     val_break_candles: int = 1
     vah_break_margin: float = 0.0
@@ -79,13 +72,11 @@ class OrchestratorConfig:
     enable_state_timeout: bool = True
     state_timeout_candles: int = 100
 
-    # Double confirm
     double_confirm_lookback: int = 20
     double_confirm_tolerance: float = 0.003
     double_size_multiplier: float = 1.5
     double_sl_pct: float = 0.003
 
-    # Common
     position_usd: float = 10.0
     leverage: float = 50.0
     fee_pct: float = 0.0004
@@ -112,13 +103,6 @@ class TradeRecord:
 
 
 def compute_va_from_window(highs, lows, closes, volumes, i, window=50):
-    """
-    Simple value area computation from rolling window.
-    POC = volume-weighted typical price
-    VAH = 85th percentile of high
-    VAL = 15th percentile of low
-    Returns (vah, val, poc) or (None, None, None).
-    """
     if i < window:
         return None, None, None
     seg_h = highs[i - window:i]
@@ -127,16 +111,66 @@ def compute_va_from_window(highs, lows, closes, volumes, i, window=50):
     seg_v = volumes[i - window:i]
     if len(seg_h) < window:
         return None, None, None
-
     total_vol = float(np.sum(seg_v))
     if total_vol <= 0:
         return None, None, None
-
     typical = (seg_h + seg_l + seg_c) / 3.0
     poc = float(np.sum(typical * seg_v) / total_vol)
     vah = float(np.percentile(seg_h, 85))
     val = float(np.percentile(seg_l, 15))
     return vah, val, poc
+
+
+def _detect_hh(highs, closes, i, current_vah, cfg):
+    """
+    Multi-mode HH detection.
+    Returns (is_hh, description)
+    """
+    c = float(closes[i])
+    prev_peak = None
+    if i >= cfg.swing_lookback + cfg.swing_buffer:
+        start = i - cfg.swing_lookback
+        end = i - cfg.swing_buffer
+        if end > start:
+            prev_peak = float(np.max(highs[start:end]))
+    swing_hh = (prev_peak is not None) and (c > prev_peak)
+
+    vah_break = False
+    if current_vah is not None:
+        vah_break = c > current_vah * (1 + cfg.vah_break_margin)
+
+    if cfg.hh_detection_mode == "swing_high":
+        desc = f"swing_HH > {prev_peak:.0f}" if swing_hh else "no swing"
+        return swing_hh, desc
+    elif cfg.hh_detection_mode == "combined":
+        return (vah_break and swing_hh), f"VAH+swing"
+    else:
+        desc = f"VAH_break > {current_vah:.0f}" if vah_break else "no VAH"
+        return vah_break, desc
+
+
+def _detect_ll(lows, closes, i, current_val, cfg):
+    c = float(closes[i])
+    prev_trough = None
+    if i >= cfg.swing_lookback + cfg.swing_buffer:
+        start = i - cfg.swing_lookback
+        end = i - cfg.swing_buffer
+        if end > start:
+            prev_trough = float(np.min(lows[start:end]))
+    swing_ll = (prev_trough is not None) and (c < prev_trough)
+
+    val_break = False
+    if current_val is not None:
+        val_break = c < current_val * (1 - cfg.vah_break_margin)
+
+    if cfg.ll_detection_mode == "swing_low":
+        desc = f"swing_LL < {prev_trough:.0f}" if swing_ll else "no swing"
+        return swing_ll, desc
+    elif cfg.ll_detection_mode == "combined":
+        return (val_break and swing_ll), f"VAL+swing"
+    else:
+        desc = f"VAL_break < {current_val:.0f}" if val_break else "no VAL"
+        return val_break, desc
 
 
 def run_state_machine_backtest(
@@ -174,7 +208,6 @@ def run_state_machine_backtest(
     ema_reject_long_cd_until = -1
     ema_reject_short_cd_until = -1
 
-    # v1.4: rolling VAH/VAL tracking
     current_vah: Optional[float] = None
     current_val: Optional[float] = None
     current_poc: Optional[float] = None
@@ -187,7 +220,7 @@ def run_state_machine_backtest(
         c = float(closes[i])
         cur_ema = float(ema20[i])
 
-        # ═══════════════ v1.4: Rolling VAH/VAL recompute ═══════════════
+        # Rolling VA recompute
         if cfg.use_rolling_va and state == State.SIDEWAYS:
             if i - va_last_computed_at >= cfg.va_recompute_every:
                 vah, val, poc = compute_va_from_window(
@@ -201,15 +234,15 @@ def run_state_machine_backtest(
                     vah_break_streak = 0
                     val_break_streak = 0
 
-        # ═══════════════ VAH/VAL Break check ═══════════════
-        if state == State.SIDEWAYS and current_vah is not None and current_val is not None:
-            vah_th = current_vah * (1 + cfg.vah_break_margin)
-            val_th = current_val * (1 - cfg.vah_break_margin)
+        # v1.5: HH/LL detection with mode
+        if state == State.SIDEWAYS:
+            is_hh, hh_desc = _detect_hh(highs, closes, i, current_vah, cfg)
+            is_ll, ll_desc = _detect_ll(lows, closes, i, current_val, cfg)
 
-            if c > vah_th:
+            if is_hh:
                 vah_break_streak += 1
                 val_break_streak = 0
-            elif c < val_th:
+            elif is_ll:
                 val_break_streak += 1
                 vah_break_streak = 0
             else:
@@ -219,7 +252,7 @@ def run_state_machine_backtest(
             if vah_break_streak >= cfg.vah_break_candles:
                 state_transitions.append({
                     "idx": i, "from": "sideways", "to": "bull",
-                    "reason": f"VAH break ({vah_break_streak}c > {current_vah:.0f})",
+                    "reason": f"HH[{cfg.hh_detection_mode}] {hh_desc}",
                 })
                 state = State.BULL
                 state_entered_at = i
@@ -230,7 +263,7 @@ def run_state_machine_backtest(
             if val_break_streak >= cfg.val_break_candles:
                 state_transitions.append({
                     "idx": i, "from": "sideways", "to": "bear",
-                    "reason": f"VAL break ({val_break_streak}c < {current_val:.0f})",
+                    "reason": f"LL[{cfg.ll_detection_mode}] {ll_desc}",
                 })
                 state = State.BEAR
                 state_entered_at = i
@@ -238,7 +271,7 @@ def run_state_machine_backtest(
                 val_break_streak = 0
                 continue
 
-        # ═══════════════ State timeout ═══════════════
+        # State timeout
         if cfg.enable_state_timeout and state != State.SIDEWAYS:
             if i - state_entered_at > cfg.state_timeout_candles:
                 state_transitions.append({
@@ -248,14 +281,13 @@ def run_state_machine_backtest(
                 state = State.SIDEWAYS
                 state_entered_at = i
 
-        # ═══════════════ STATE: SIDEWAYS ═══════════════
+        # ═══ SIDEWAYS ═══
         if state == State.SIDEWAYS:
             sig = sw_signal_by_idx.get(i)
             if sig is None:
                 i += 1
                 continue
 
-            # Also update VAH/VAL from signal (freshest)
             current_vah = sig.vah
             current_val = sig.val
             current_poc = sig.poc
@@ -272,7 +304,6 @@ def run_state_machine_backtest(
 
             side_str = "long" if sig.side == SideEnum.LONG else "short"
 
-            # Double confirm
             is_double = False
             size_mult = 1.0
             sl_pct = cfg.sw_sl_pct_from_level
@@ -424,7 +455,7 @@ def run_state_machine_backtest(
             i = exit_idx + 1
             continue
 
-        # ═══════════════ STATE: BULL ═══════════════
+        # ═══ BULL ═══
         elif state == State.BULL:
             if i - state_entered_at < cfg.post_transition_wait:
                 i += 1
@@ -435,7 +466,6 @@ def run_state_machine_backtest(
                 i += 1
                 continue
 
-            # v1.4: TP1 at current VAH (if enabled and available)
             tp1_target = None
             if cfg.use_va_tp and current_vah is not None:
                 if current_vah > sig.entry_price:
@@ -465,19 +495,18 @@ def run_state_machine_backtest(
                 tp1_target=tp1_target,
             ))
 
-            # v1.4: ALL exits back to SIDEWAYS
             state_transitions.append({
                 "idx": trade.exit_idx, "from": "bull", "to": "sideways",
                 "reason": f"BULL exit ({trade.exit_reason})",
             })
             state = State.SIDEWAYS
             state_entered_at = trade.exit_idx
-            va_last_computed_at = -999  # force recompute VA on next SIDEWAYS
+            va_last_computed_at = -999
 
             i = trade.exit_idx + 1
             continue
 
-        # ═══════════════ STATE: BEAR ═══════════════
+        # ═══ BEAR ═══
         elif state == State.BEAR:
             if i - state_entered_at < cfg.post_transition_wait:
                 i += 1
@@ -554,14 +583,9 @@ def run_state_machine_backtest(
 
     return {
         "ok": True,
-        "orchestrator": "v1.4",
-        "features_active": {
-            "use_rolling_va": cfg.use_rolling_va,
-            "use_va_tp": cfg.use_va_tp,
-            "use_sl_buffer": cfg.use_sl_buffer,
-            "sl_buffer_pct": cfg.sl_buffer_pct,
-            "enable_state_timeout": cfg.enable_state_timeout,
-        },
+        "orchestrator": "v1.5",
+        "hh_detection_mode": cfg.hh_detection_mode,
+        "ll_detection_mode": cfg.ll_detection_mode,
         "stats": {
             "total_trades": total,
             "wins": wins,
