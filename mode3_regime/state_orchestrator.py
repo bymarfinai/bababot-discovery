@@ -1,25 +1,13 @@
 """
-state_orchestrator.py — v1.0 3-State Trading Bot
+state_orchestrator.py — v1.1 3-State Trading Bot with tuning fixes
 ======================================================
-State machine routing: SIDEWAYS ↔ BULL ↔ BEAR
+v1.1 fixes:
+1. BULL/BEAR entry stricter — require post-transition wait + larger pullback
+2. EMA reject cooldown PRESERVED across state transitions
+3. SIDEWAYS signal detection uses full watch loop (fix Bug #3)
+4. Watch_for_breach handled inline correctly
 
-Full transition matrix (10 rows):
-  SIDEWAYS → SIDEWAYS: normal trade, no breach
-  SIDEWAYS → SIDEWAYS+Double: 2× same signal in 20 candles at 0.3% tolerance
-  SIDEWAYS → BULL: SHORT exit via EMA reject + break entry high
-  SIDEWAYS → BEAR: LONG exit via EMA reject + break entry low
-  BULL → SIDEWAYS: trailing stop, no LL breach
-  BULL → BEAR: LL breach (candle close < latest LONG entry low) force exit
-  BULL → BULL: still in position, no LL
-  BEAR → SIDEWAYS: trailing stop, no HH breach
-  BEAR → BULL: HH breach force exit
-  BEAR → BEAR: still in position, no HH
-  SIDEWAYS+Double → BULL/BEAR: candle #3 break entry high/low
-
-Double confirm rules:
-- 2× same-side signal in 20 candles at 0.3% level tolerance
-- Trade #2: size 1.5×, SL 0.3% (tighter vs 0.5%)
-- Reset counter on breakout or 20-candle timeout
+Full transition matrix same as v1.0 (see state_machine_v1_3_complete.html).
 """
 
 from __future__ import annotations
@@ -50,7 +38,6 @@ class State(Enum):
 
 @dataclass
 class OrchestratorConfig:
-    # SIDEWAYS-specific (from v0.9)
     sideways_cfg: SidewaysConfig = field(default_factory=SidewaysConfig)
     sw_max_hold: int = 48
     sw_sl_pct_from_level: float = 0.005
@@ -61,18 +48,18 @@ class OrchestratorConfig:
     sw_ema_exit_min_profit_pct: float = 0.003
     sw_ema_reject_cooldown: int = 48
 
-    # BULL/BEAR shared
     bull_cfg: BullConfig = field(default_factory=BullConfig)
     bear_cfg: BearConfig = field(default_factory=BearConfig)
     trending_max_hold: int = 200
 
-    # Double confirm rules
-    double_confirm_lookback: int = 20      # window candles
-    double_confirm_tolerance: float = 0.003  # 0.3% level tolerance
-    double_size_multiplier: float = 1.5
-    double_sl_pct: float = 0.003            # tighter SL
+    # v1.1: post-state-transition wait before allowing trending entry
+    post_transition_wait: int = 8   # 8 candles after switch to BULL/BEAR before entering
 
-    # Common
+    double_confirm_lookback: int = 20
+    double_confirm_tolerance: float = 0.003
+    double_size_multiplier: float = 1.5
+    double_sl_pct: float = 0.003
+
     position_usd: float = 10.0
     leverage: float = 50.0
     fee_pct: float = 0.0004
@@ -81,31 +68,20 @@ class OrchestratorConfig:
 
 @dataclass
 class TradeRecord:
-    state: str                              # SIDEWAYS / BULL / BEAR
-    side: str                               # long / short
+    state: str
+    side: str
     entry_idx: int
     exit_idx: int
     entry_price: float
     exit_price: float
-    entry_high: float                       # for HH breach tracking
-    entry_low: float                        # for LL breach tracking
+    entry_high: float
+    entry_low: float
     exit_reason: str
     pnl_net: float
     hold_candles: int
-    is_double: bool = False                 # was this trade a double-confirm boosted?
+    is_double: bool = False
     size_multiplier: float = 1.0
-    state_transition: str = ""              # what state we went to after
-
-
-def _pnl_from(entry_price, exit_price, side, notional, fee_pct, slippage_pct):
-    if side == "long":
-        gross_pct = (exit_price - entry_price) / entry_price
-    else:
-        gross_pct = (entry_price - exit_price) / entry_price
-    gross = gross_pct * notional
-    fee = fee_pct * notional * 2
-    slip = slippage_pct * notional
-    return gross - fee - slip
+    state_transition: str = ""
 
 
 def run_state_machine_backtest(
@@ -118,20 +94,14 @@ def run_state_machine_backtest(
     mtf_classifications=None,
     warmup: int = 100,
 ) -> dict:
-    """
-    Run 3-state orchestrator backtest.
-    State starts at SIDEWAYS. Transitions per rules.
-    """
     n = len(closes)
     if n < warmup + 50:
         return {"ok": False, "error": f"insufficient candles: {n}"}
 
-    # Precompute
     ema20 = compute_ema(closes, cfg.sw_ema_period)
     regime_cfg = RegimeConfig()
     regime_states = classify_regime_series(highs, lows, closes, volumes, regime_cfg, warmup=warmup)
 
-    # Precompute SIDEWAYS signals list (used in SIDEWAYS state)
     sw_signals = generate_sideways_signals(
         highs, lows, closes, volumes, regime_states, cfg.sideways_cfg,
         mtf_classifications=mtf_classifications, opens=opens,
@@ -140,22 +110,14 @@ def run_state_machine_backtest(
 
     trades: list[TradeRecord] = []
     state = State.SIDEWAYS
-    state_transitions: list[dict] = []  # audit trail
+    state_transitions: list[dict] = []
+    state_entered_at: int = warmup   # track when we entered current state
 
-    # Anchor points for HH/LL tracking
-    last_short_entry_high: Optional[float] = None
-    last_long_entry_low: Optional[float] = None
-    last_short_entry_idx: Optional[int] = None
-    last_long_entry_idx: Optional[int] = None
+    recent_short_reject_highs: list[tuple[int, float]] = []
+    recent_long_bounce_lows: list[tuple[int, float]] = []
+    watch_for_breach: Optional[dict] = None
 
-    # Double confirm state
-    recent_short_reject_highs: list[tuple[int, float]] = []  # (idx, high) recent SHORT reject signals
-    recent_long_bounce_lows: list[tuple[int, float]] = []    # (idx, low) recent LONG bounce signals
-
-    # Post-safeguard-exit watch: after EMA reject exit in SIDEWAYS, watch N candles for breach
-    watch_for_breach: Optional[dict] = None  # {side: 'long'|'short', anchor: price, expires_at: idx}
-
-    # EMA reject cooldown (from v0.9)
+    # v1.1: cooldowns PERSIST across state transitions (bug #2 fix)
     ema_reject_long_cd_until = -1
     ema_reject_short_cd_until = -1
 
@@ -164,27 +126,27 @@ def run_state_machine_backtest(
         c = float(closes[i])
         cur_ema = float(ema20[i])
 
-        # ═══════════════ Priority check: watch_for_breach ═══════════════
-        # After SIDEWAYS safeguard exit, check next N candles for HH/LL breach
-        if watch_for_breach is not None and i <= watch_for_breach["expires_at"]:
-            if watch_for_breach["side"] == "short" and c > watch_for_breach["anchor"]:
-                # SHORT was rejected + candle break entry high → SWITCH BULL
-                state_transitions.append({
-                    "idx": i, "from": state.value, "to": "bull",
-                    "reason": f"HH breach: close {c:.2f} > short anchor {watch_for_breach['anchor']:.2f}",
-                })
-                state = State.BULL
+        # ─── Priority: watch_for_breach check EVERY candle ───
+        if watch_for_breach is not None:
+            if i > watch_for_breach["expires_at"]:
                 watch_for_breach = None
-            elif watch_for_breach["side"] == "long" and c < watch_for_breach["anchor"]:
-                # LONG was rejected + candle break entry low → SWITCH BEAR
-                state_transitions.append({
-                    "idx": i, "from": state.value, "to": "bear",
-                    "reason": f"LL breach: close {c:.2f} < long anchor {watch_for_breach['anchor']:.2f}",
-                })
-                state = State.BEAR
-                watch_for_breach = None
-            elif i >= watch_for_breach["expires_at"]:
-                watch_for_breach = None  # timeout, no breach → stay SIDEWAYS
+            else:
+                if watch_for_breach["side"] == "short" and c > watch_for_breach["anchor"]:
+                    state_transitions.append({
+                        "idx": i, "from": state.value, "to": "bull",
+                        "reason": f"HH breach: close {c:.2f} > short anchor {watch_for_breach['anchor']:.2f}",
+                    })
+                    state = State.BULL
+                    state_entered_at = i
+                    watch_for_breach = None
+                elif watch_for_breach["side"] == "long" and c < watch_for_breach["anchor"]:
+                    state_transitions.append({
+                        "idx": i, "from": state.value, "to": "bear",
+                        "reason": f"LL breach: close {c:.2f} < long anchor {watch_for_breach['anchor']:.2f}",
+                    })
+                    state = State.BEAR
+                    state_entered_at = i
+                    watch_for_breach = None
 
         # ═══════════════ STATE: SIDEWAYS ═══════════════
         if state == State.SIDEWAYS:
@@ -193,7 +155,7 @@ def run_state_machine_backtest(
                 i += 1
                 continue
 
-            # Check EMA reject cooldown (v0.9)
+            # v1.1: cooldown check (PRESERVED across state transitions)
             if sig.side == SideEnum.LONG and i < ema_reject_long_cd_until:
                 i += 1
                 continue
@@ -203,13 +165,12 @@ def run_state_machine_backtest(
 
             side_str = "long" if sig.side == SideEnum.LONG else "short"
 
-            # ─── Check double confirm ───
+            # Double confirm check
             is_double = False
             size_mult = 1.0
             sl_pct = cfg.sw_sl_pct_from_level
 
             if side_str == "short":
-                # Check if there's a recent SHORT reject signal within tolerance
                 for prev_idx, prev_high in recent_short_reject_highs:
                     if i - prev_idx > cfg.double_confirm_lookback:
                         continue
@@ -219,14 +180,12 @@ def run_state_machine_backtest(
                         size_mult = cfg.double_size_multiplier
                         sl_pct = cfg.double_sl_pct
                         break
-                # Update recent list
                 recent_short_reject_highs.append((i, float(highs[i])))
-                # Trim old
                 recent_short_reject_highs = [
                     (idx, hi) for idx, hi in recent_short_reject_highs
                     if i - idx <= cfg.double_confirm_lookback
                 ]
-            else:  # long
+            else:
                 for prev_idx, prev_low in recent_long_bounce_lows:
                     if i - prev_idx > cfg.double_confirm_lookback:
                         continue
@@ -242,12 +201,10 @@ def run_state_machine_backtest(
                     if i - idx <= cfg.double_confirm_lookback
                 ]
 
-            # ─── Execute SIDEWAYS trade (simplified from v0.9) ───
             entry_price = c * (1 + cfg.slippage_pct if side_str == "long" else 1 - cfg.slippage_pct)
             position_usd = cfg.position_usd * size_mult
             notional = position_usd * cfg.leverage
 
-            # SL/TP from VAL/VAH/POC
             if side_str == "long":
                 sl_level = sig.val * (1 - sl_pct)
                 tp1_p = sig.poc
@@ -257,7 +214,6 @@ def run_state_machine_backtest(
                 tp1_p = sig.poc
                 tp3_p = sig.val
 
-            # Validation
             if side_str == "long" and (tp1_p <= entry_price or sl_level >= entry_price):
                 i += 1
                 continue
@@ -281,14 +237,12 @@ def run_state_machine_backtest(
             elif side_str == "short" and entry_price <= cur_ema:
                 ema_broken = True
 
-            # Manage position
             for j in range(entry_idx + 1, min(entry_idx + cfg.sw_max_hold + 1, n)):
                 hh = float(highs[j])
                 ll = float(lows[j])
                 cc = float(closes[j])
                 cur_ema_j = float(ema20[j])
 
-                # SL check (close-confirm from v0.7.1)
                 sl_hit = (side_str == "long" and cc <= sl_level) or \
                          (side_str == "short" and cc >= sl_level)
                 if sl_hit:
@@ -297,7 +251,6 @@ def run_state_machine_backtest(
                     exit_idx = j
                     break
 
-                # TP1
                 if not tp1_hit:
                     if (side_str == "long" and hh >= tp1_p) or (side_str == "short" and ll <= tp1_p):
                         tp1_hit = True
@@ -308,7 +261,6 @@ def run_state_machine_backtest(
                         sl_level = entry_price
                         moved_to_be = True
 
-                # TP2, TP3 (simplified—skip intermediate levels)
                 if tp1_hit and remaining > 0:
                     if (side_str == "long" and hh >= tp3_p) or (side_str == "short" and ll <= tp3_p):
                         exit_reason = "tp3"
@@ -316,7 +268,6 @@ def run_state_machine_backtest(
                         exit_idx = j
                         break
 
-                # EMA reject exit (v0.7.1: current-profit gate)
                 if cur_ema_j > 0 and not ema_broken:
                     cur_profit = (cc - entry_price) / entry_price if side_str == "long" else (entry_price - cc) / entry_price
                     min_profit_ok = cur_profit >= cfg.sw_ema_exit_min_profit_pct
@@ -337,7 +288,6 @@ def run_state_machine_backtest(
                             exit_idx = j
                             break
 
-                # Max hold
                 if j - entry_idx >= cfg.sw_max_hold:
                     exit_reason = "max_hold"
                     exit_price = cc
@@ -347,7 +297,6 @@ def run_state_machine_backtest(
                 exit_idx = min(entry_idx + cfg.sw_max_hold, n - 1)
                 exit_price = float(closes[exit_idx])
 
-            # Compute final PnL including remaining
             if remaining > 0:
                 gp = (exit_price - entry_price) / entry_price if side_str == "long" else (entry_price - exit_price) / entry_price
                 pn = notional * remaining
@@ -365,23 +314,13 @@ def run_state_machine_backtest(
                 is_double=is_double, size_multiplier=size_mult,
             ))
 
-            # Track anchors
-            if side_str == "short":
-                last_short_entry_high = entry_high_anchor
-                last_short_entry_idx = entry_idx
-            else:
-                last_long_entry_low = entry_low_anchor
-                last_long_entry_idx = entry_idx
-
-            # Set EMA reject cooldown for same direction
+            # Set EMA reject cooldown (PERSISTED across state transitions in v1.1)
             if exit_reason == "ema_reject":
                 if side_str == "long":
                     ema_reject_long_cd_until = exit_idx + cfg.sw_ema_reject_cooldown
                 else:
                     ema_reject_short_cd_until = exit_idx + cfg.sw_ema_reject_cooldown
 
-                # Set watch for breach (SIDEWAYS transition trigger)
-                # Watch for 10 candles after EMA reject exit for HH/LL breach
                 watch_for_breach = {
                     "side": side_str,
                     "anchor": entry_high_anchor if side_str == "short" else entry_low_anchor,
@@ -394,9 +333,13 @@ def run_state_machine_backtest(
 
         # ═══════════════ STATE: BULL ═══════════════
         elif state == State.BULL:
+            # v1.1 Fix #1: wait N candles after transition before allowing entry
+            if i - state_entered_at < cfg.post_transition_wait:
+                i += 1
+                continue
+
             sig = detect_bull_entry_signal(highs, lows, closes, opens, ema20, i, cfg.bull_cfg)
             if sig is None:
-                # Also check if we should switch state without entry (LL breach absent → stay BULL)
                 i += 1
                 continue
 
@@ -418,25 +361,30 @@ def run_state_machine_backtest(
                 state_transition=trade.state_signal,
             ))
 
-            # State transition based on trade outcome
             if trade.state_signal == "switch_bear":
                 state_transitions.append({
                     "idx": trade.exit_idx, "from": "bull", "to": "bear",
                     "reason": "LL breach during BULL trade",
                 })
                 state = State.BEAR
-            else:  # stay_bull → but we changed rule: trailing exit → SIDEWAYS
+                state_entered_at = trade.exit_idx
+            else:
                 state_transitions.append({
                     "idx": trade.exit_idx, "from": "bull", "to": "sideways",
                     "reason": "Trailing stop, no LL breach",
                 })
                 state = State.SIDEWAYS
+                state_entered_at = trade.exit_idx
 
             i = trade.exit_idx + 1
             continue
 
         # ═══════════════ STATE: BEAR ═══════════════
         elif state == State.BEAR:
+            if i - state_entered_at < cfg.post_transition_wait:
+                i += 1
+                continue
+
             sig = detect_bear_entry_signal(highs, lows, closes, opens, ema20, i, cfg.bear_cfg)
             if sig is None:
                 i += 1
@@ -466,12 +414,14 @@ def run_state_machine_backtest(
                     "reason": "HH breach during BEAR trade",
                 })
                 state = State.BULL
-            else:  # stay_bear → trailing exit → SIDEWAYS
+                state_entered_at = trade.exit_idx
+            else:
                 state_transitions.append({
                     "idx": trade.exit_idx, "from": "bear", "to": "sideways",
                     "reason": "Trailing stop, no HH breach",
                 })
                 state = State.SIDEWAYS
+                state_entered_at = trade.exit_idx
 
             i = trade.exit_idx + 1
             continue
@@ -479,7 +429,6 @@ def run_state_machine_backtest(
         else:
             i += 1
 
-    # Aggregate stats
     total = len(trades)
     wins = sum(1 for t in trades if t.pnl_net > 0.01)
     losses = sum(1 for t in trades if t.pnl_net < -0.01)
@@ -503,7 +452,7 @@ def run_state_machine_backtest(
 
     return {
         "ok": True,
-        "orchestrator": "v1.0",
+        "orchestrator": "v1.1",
         "stats": {
             "total_trades": total,
             "wins": wins,
