@@ -1,14 +1,16 @@
 """
-strategy_sideways.py — Sideways Tektok Strategy v0.6
+strategy_sideways.py — v0.8: 4h EMA50 bias filter
 ======================================================
-v0.6 changes (EMA20 slope filter):
-- Optional filter: skip trades against strong EMA slope (counter-trend)
-- SHORT skipped when EMA20 rising too fast (uptrend momentum kills reject_vah)
-- LONG skipped when EMA20 falling too fast (downtrend momentum kills bounce_val)
-- Default disabled; enable via use_ema_slope_filter=True
+v0.8 changes:
+- Add use_4h_bias_filter: skip counter-trend trades based on 4h EMA50
+- STRONG BULL (4h close > 4h EMA50 by margin) → skip SHORT reject_vah
+- STRONG BEAR (4h close < 4h EMA50 by margin) → skip LONG bounce_val
+- NEUTRAL (within margin) → both allowed
+- bias_arr_1h precomputed by endpoint, passed to strategy
 
-v0.4.1 preserved (Pine candle direction match)
-v0.4 preserved (MTF Container integration)
+v0.6 preserved: EMA20 slope filter
+v0.4.1 preserved: Pine candle direction
+v0.4 preserved: MTF Container filter
 """
 
 from __future__ import annotations
@@ -51,7 +53,6 @@ class SidewaysConfig:
     skip_regime_filter: bool = False
     skip_range_width_filter: bool = False
 
-    # v0.3 confidence scoring - DISABLED by default in v0.4+
     enable_confidence_scoring: bool = False
     structure_lookback: int = 10
     wick_ratio_threshold: float = 1.5
@@ -62,17 +63,19 @@ class SidewaysConfig:
     full_size_min_score: int = 4
     half_size_min_score: int = 2
 
-    # v0.4: MTF Container filter (PRIMARY)
     use_mtf_filter: bool = True
     min_mtf_confidence: int = 2
     enable_low_conf_quarter: bool = False
 
-    # v0.6: EMA20 slope filter (skip counter-trend)
     use_ema_slope_filter: bool = False
     ema_slope_period: int = 20
     ema_slope_lookback: int = 10
-    long_min_slope_pct: float = -1.0    # LONG skip if slope < this (strong down)
-    short_max_slope_pct: float = 1.0    # SHORT skip if slope > this (strong up)
+    long_min_slope_pct: float = -1.0
+    short_max_slope_pct: float = 1.0
+
+    # v0.8: 4h EMA50 bias filter
+    use_4h_bias_filter: bool = False
+    bias_margin_pct: float = 0.005   # 0.5% margin for STRONG bias detection
 
 
 @dataclass
@@ -89,6 +92,7 @@ class SidewaysSignal:
     score: int = 0
     mtf_confidence: int = -1
     ema_slope_pct: float = 0.0
+    bias_4h: int = 0   # v0.8: -1=bear, 0=neutral, +1=bull
     signals_detail: dict = field(default_factory=dict)
     reason: str = ""
 
@@ -113,6 +117,7 @@ def generate_sideways_signals(
     cfg: SidewaysConfig,
     mtf_classifications: Optional[list] = None,
     opens: Optional[np.ndarray] = None,
+    bias_arr_1h: Optional[np.ndarray] = None,   # v0.8
 ) -> list[SidewaysSignal]:
     n = len(closes)
     signals: list[SidewaysSignal] = []
@@ -122,7 +127,6 @@ def generate_sideways_signals(
         start = max(0, i - 19)
         vol_avg[i] = float(np.mean(volumes[start:i + 1])) if i > start else 1.0
 
-    # v0.6: precompute EMA20 for slope filter (also useful for backtest dynamic exit)
     ema20_arr = ema(closes, cfg.ema_slope_period) if cfg.use_ema_slope_filter else ema(closes, cfg.ema_period)
 
     last_long_bar = -9999
@@ -166,13 +170,17 @@ def generate_sideways_signals(
             bullish_candle = c > closes[i - 1]
             bearish_candle = c < closes[i - 1]
 
-        # v0.6: compute EMA slope for filter
         cur_slope_pct = 0.0
         if cfg.use_ema_slope_filter and i >= cfg.ema_slope_lookback:
             e_now = ema20_arr[i]
             e_prev = ema20_arr[i - cfg.ema_slope_lookback]
             if e_prev > 0:
                 cur_slope_pct = (e_now - e_prev) / e_prev * 100
+
+        # v0.8: 4h bias
+        cur_bias_4h = 0
+        if cfg.use_4h_bias_filter and bias_arr_1h is not None and i < len(bias_arr_1h):
+            cur_bias_4h = int(bias_arr_1h[i])
 
         mtf_conf = -1
         if cfg.use_mtf_filter and mtf_classifications is not None and i < len(mtf_classifications):
@@ -184,12 +192,19 @@ def generate_sideways_signals(
                 continue
 
         def build_signal(side: SideEnum, mode: SidewaysMode, reason: str):
-            # v0.6: EMA slope counter-trend filter
+            # v0.8: 4h bias filter — skip counter-trend
+            if cfg.use_4h_bias_filter:
+                if cur_bias_4h == 1 and side == SideEnum.SHORT:
+                    return None  # STRONG BULL → skip SHORT
+                if cur_bias_4h == -1 and side == SideEnum.LONG:
+                    return None  # STRONG BEAR → skip LONG
+
+            # v0.6: EMA slope filter
             if cfg.use_ema_slope_filter:
                 if side == SideEnum.LONG and cur_slope_pct < cfg.long_min_slope_pct:
-                    return None  # skip LONG in strong downtrend
+                    return None
                 if side == SideEnum.SHORT and cur_slope_pct > cfg.short_max_slope_pct:
-                    return None  # skip SHORT in strong uptrend
+                    return None
 
             if cfg.use_mtf_filter and mtf_conf >= 0:
                 size_mult = _mtf_conf_to_size(mtf_conf, cfg)
@@ -197,14 +212,15 @@ def generate_sideways_signals(
                     return None
                 confidence = size_mult
                 score = mtf_conf
-                details = {"mtf_confidence": mtf_conf, "mtf_used": True, "ema_slope_pct": round(cur_slope_pct, 3)}
+                details = {"mtf_confidence": mtf_conf, "mtf_used": True,
+                           "ema_slope_pct": round(cur_slope_pct, 3), "bias_4h": cur_bias_4h}
             elif cfg.enable_confidence_scoring:
-                score, details = 0, {"ema_slope_pct": round(cur_slope_pct, 3)}
+                score, details = 0, {"ema_slope_pct": round(cur_slope_pct, 3), "bias_4h": cur_bias_4h}
                 confidence = 1.0
             else:
                 confidence = 1.0
                 score = 0
-                details = {"ema_slope_pct": round(cur_slope_pct, 3)}
+                details = {"ema_slope_pct": round(cur_slope_pct, 3), "bias_4h": cur_bias_4h}
 
             return SidewaysSignal(
                 idx=i, side=side, mode=mode,
@@ -212,6 +228,7 @@ def generate_sideways_signals(
                 regime=rs.regime.value,
                 confidence=confidence, score=score, mtf_confidence=mtf_conf,
                 ema_slope_pct=float(cur_slope_pct),
+                bias_4h=cur_bias_4h,
                 signals_detail=details, reason=reason,
             )
 
