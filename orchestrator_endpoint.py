@@ -1,5 +1,5 @@
 """
-orchestrator_endpoint.py — v1.2 with toggleable fixes A/B/C
+orchestrator_endpoint.py — v1.3 VAH/VAL break switcher
 """
 from fastapi import APIRouter
 import os
@@ -128,20 +128,23 @@ def orchestrator_backtest(
     bull_min_pullback: float = 0.02,
     bear_min_rally: float = 0.02,
     post_transition_wait: int = 24,
-    # v1.2 toggleable fixes
+    # v1.3 CORE: VAH/VAL break switcher
+    vah_break_candles: int = 1,
+    val_break_candles: int = 1,
+    vah_break_margin: float = 0.0,
+    # Toggles (v1.3: A ON, B&C OFF default)
     enable_state_timeout: bool = True,
     state_timeout_candles: int = 100,
-    enable_broader_triggers: bool = True,
+    enable_broader_triggers: bool = False,
     trigger_lookback: int = 20,
-    enable_slope_gate: bool = True,
+    enable_slope_gate: bool = False,
     slope_min_pct: float = 0.001,
     slope_lookback: int = 10,
-    watch_window_candles: int = 20,
     double_confirm_tolerance: float = 0.003,
     double_size_multiplier: float = 1.5,
     include_trades: int = 50,
 ):
-    """v1.2 orchestrator — 3 toggleable switcher fixes + NO direct BULL/BEAR switch."""
+    """v1.3 orchestrator — VAH/VAL break as core switcher."""
     try:
         from mode3_regime.mtf_container import classify_mtf
         from mode3_regime.strategy_sideways import SidewaysConfig
@@ -182,6 +185,9 @@ def orchestrator_backtest(
             sw_ema_reject_cooldown=sw_ema_reject_cooldown,
             trending_max_hold=trending_max_hold,
             post_transition_wait=post_transition_wait,
+            vah_break_candles=vah_break_candles,
+            val_break_candles=val_break_candles,
+            vah_break_margin=vah_break_margin,
             enable_state_timeout=enable_state_timeout,
             state_timeout_candles=state_timeout_candles,
             enable_broader_triggers=enable_broader_triggers,
@@ -189,7 +195,6 @@ def orchestrator_backtest(
             enable_slope_gate=enable_slope_gate,
             slope_min_pct=slope_min_pct,
             slope_lookback=slope_lookback,
-            watch_window_candles=watch_window_candles,
             double_confirm_tolerance=double_confirm_tolerance,
             double_size_multiplier=double_size_multiplier,
         )
