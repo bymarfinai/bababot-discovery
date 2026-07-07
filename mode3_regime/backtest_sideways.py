@@ -1,8 +1,15 @@
 """
-backtest_sideways.py — v0.4.1: MTF + Pine-compat candle direction
-=================================================================
-v0.4.1: forward opens array to strategy (for Pine `close > open` check)
-v0.4: MTF integration preserved
+backtest_sideways.py — v0.5: ATR-based SL option (match Pine v0.2)
+==================================================================
+v0.5 changes:
+- Add use_atr_sl: bool option (default False for backward compat)
+- Add sl_atr_mult: float (default 1.5, match Pine)
+- Add atr_period: int (default 14, match Pine)
+- When use_atr_sl=True: SL = entry_price +/- atr[i] * sl_atr_mult
+- When False: use existing level-based SL (0.5% dari VAL/VAH)
+
+v0.4.1 preserved: forward opens for Pine candle match
+v0.4 preserved: MTF integration
 """
 
 from __future__ import annotations
@@ -17,6 +24,7 @@ from .strategy_sideways import (
     SideEnum, SidewaysMode, SidewaysConfig, SidewaysSignal,
     generate_sideways_signals,
 )
+from .indicators import atr as compute_atr
 
 
 class ExitReasonSW(Enum):
@@ -38,7 +46,14 @@ class SidewaysBTConfig:
     slippage_pct: float = 0.001
     candle_hours: float = 1.0
 
+    # Level-based SL (default, backward compat)
     sl_pct_from_level: float = 0.005
+
+    # v0.5: ATR-based SL (Pine v0.2 match)
+    use_atr_sl: bool = False
+    sl_atr_mult: float = 1.5
+    atr_period: int = 14
+
     tp1_ratio: float = 0.5
     tp2_ratio: float = 0.3
     tp3_ratio: float = 0.2
@@ -146,7 +161,7 @@ def run_sideways_backtest(
     strategy_cfg: Optional[SidewaysConfig] = None,
     warmup: int = 100,
     mtf_classifications: Optional[list] = None,
-    opens: Optional[np.ndarray] = None,  # v0.4.1: for Pine-match candle direction
+    opens: Optional[np.ndarray] = None,
 ) -> SidewaysBTResult:
     t0 = time.time()
 
@@ -160,16 +175,22 @@ def run_sideways_backtest(
             error=f"insufficient candles: {n}",
         )
 
-    print(f"[SW BT v0.4.1] Classifying regime for {n} candles...")
+    print(f"[SW BT v0.5] Classifying regime for {n} candles...")
     regime_states = classify_regime_series(highs, lows, closes, volumes, regime_cfg, warmup=warmup)
 
-    print(f"[SW BT v0.4.1] Generating signals (MTF: {strategy_cfg.use_mtf_filter}, opens: {opens is not None})...")
+    print(f"[SW BT v0.5] Generating signals (MTF: {strategy_cfg.use_mtf_filter}, opens: {opens is not None})...")
     signals = generate_sideways_signals(
         highs, lows, closes, volumes, regime_states, strategy_cfg,
         mtf_classifications=mtf_classifications,
         opens=opens,
     )
-    print(f"[SW BT v0.4.1] {len(signals)} signals generated")
+    print(f"[SW BT v0.5] {len(signals)} signals generated")
+
+    # v0.5: Pre-compute ATR if using ATR-based SL
+    atr_arr = None
+    if cfg.use_atr_sl:
+        atr_arr = compute_atr(highs, lows, closes, cfg.atr_period)
+        print(f"[SW BT v0.5] ATR-based SL enabled (mult={cfg.sl_atr_mult}, period={cfg.atr_period})")
 
     trades: list[SidewaysTradeRecord] = []
     equity = cfg.position_usd * 10
@@ -329,13 +350,34 @@ def run_sideways_backtest(
 
             side_str = 'long' if sig.side == SideEnum.LONG else 'short'
 
+            # v0.5: SL calculation - ATR-based or level-based
+            if cfg.use_atr_sl and atr_arr is not None:
+                cur_atr = float(atr_arr[i]) if i < len(atr_arr) else 0.0
+                if cur_atr <= 0:
+                    # Fallback to level-based if ATR not ready
+                    if side_str == 'long':
+                        sl = sig.val * (1 - cfg.sl_pct_from_level)
+                    else:
+                        sl = sig.vah * (1 + cfg.sl_pct_from_level)
+                else:
+                    # ATR-based SL from ENTRY (Pine v0.2 match)
+                    if side_str == 'long':
+                        sl = entry_price - cur_atr * cfg.sl_atr_mult
+                    else:
+                        sl = entry_price + cur_atr * cfg.sl_atr_mult
+            else:
+                # Level-based SL (original v0.4)
+                if side_str == 'long':
+                    sl = sig.val * (1 - cfg.sl_pct_from_level)
+                else:
+                    sl = sig.vah * (1 + cfg.sl_pct_from_level)
+
+            # TP tiers (unchanged: POC → mid → opposite level)
             if side_str == 'long':
-                sl = sig.val * (1 - cfg.sl_pct_from_level)
                 tp1 = sig.poc
                 tp2 = (sig.poc + sig.vah) / 2
                 tp3 = sig.vah
             else:
-                sl = sig.vah * (1 + cfg.sl_pct_from_level)
                 tp1 = sig.poc
                 tp2 = (sig.poc + sig.val) / 2
                 tp3 = sig.val
