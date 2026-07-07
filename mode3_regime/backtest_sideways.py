@@ -1,11 +1,8 @@
 """
-backtest_sideways.py — v0.4: MTF-integrated backtest
-=====================================================
-v0.4 changes:
-- Accept mtf_classifications parameter (from mtf_container.classify_mtf)
-- Pass to generate_sideways_signals for MTF filter/sizing
-- Position size still scales by sig.confidence (which now = MTF-derived)
-- Stats add by_mtf_tier breakdown (3/3, 2/3, 1/3, 0/3)
+backtest_sideways.py — v0.4.1: MTF + Pine-compat candle direction
+=================================================================
+v0.4.1: forward opens array to strategy (for Pine `close > open` check)
+v0.4: MTF integration preserved
 """
 
 from __future__ import annotations
@@ -102,7 +99,7 @@ class SidewaysBTStats:
     by_regime: dict = field(default_factory=dict)
     by_mode: dict = field(default_factory=dict)
     by_confidence_tier: dict = field(default_factory=dict)
-    by_mtf_tier: dict = field(default_factory=dict)  # v0.4: breakdown by MTF confidence
+    by_mtf_tier: dict = field(default_factory=dict)
 
     runtime_sec: float = 0.0
     total_candles: int = 0
@@ -148,7 +145,8 @@ def run_sideways_backtest(
     regime_cfg: Optional[RegimeConfig] = None,
     strategy_cfg: Optional[SidewaysConfig] = None,
     warmup: int = 100,
-    mtf_classifications: Optional[list] = None,  # v0.4
+    mtf_classifications: Optional[list] = None,
+    opens: Optional[np.ndarray] = None,  # v0.4.1: for Pine-match candle direction
 ) -> SidewaysBTResult:
     t0 = time.time()
 
@@ -162,15 +160,16 @@ def run_sideways_backtest(
             error=f"insufficient candles: {n}",
         )
 
-    print(f"[SW BT v0.4] Classifying regime for {n} candles...")
+    print(f"[SW BT v0.4.1] Classifying regime for {n} candles...")
     regime_states = classify_regime_series(highs, lows, closes, volumes, regime_cfg, warmup=warmup)
 
-    print(f"[SW BT v0.4] Generating signals (MTF filter: {strategy_cfg.use_mtf_filter}, MTF data: {mtf_classifications is not None})...")
+    print(f"[SW BT v0.4.1] Generating signals (MTF: {strategy_cfg.use_mtf_filter}, opens: {opens is not None})...")
     signals = generate_sideways_signals(
         highs, lows, closes, volumes, regime_states, strategy_cfg,
         mtf_classifications=mtf_classifications,
+        opens=opens,
     )
-    print(f"[SW BT v0.4] {len(signals)} signals generated")
+    print(f"[SW BT v0.4.1] {len(signals)} signals generated")
 
     trades: list[SidewaysTradeRecord] = []
     equity = cfg.position_usd * 10
@@ -368,7 +367,6 @@ def run_sideways_backtest(
                 'moved_to_be': False,
             }
 
-    # Close open at end
     if active_pos is not None:
         side = active_pos['side']
         entry = active_pos['entry_price']
