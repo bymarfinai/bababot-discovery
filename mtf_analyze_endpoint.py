@@ -1,5 +1,5 @@
 """
-mtf_analyze_endpoint.py — v0.8: 4h EMA50 bias filter
+mtf_analyze_endpoint.py — v0.8.1: expose bias_filter_mode
 """
 from fastapi import APIRouter
 import os
@@ -44,55 +44,14 @@ def mtf_analyze(
             cutoff_4h = cutoff - (10 * 86400 * 1000)
             rows_4h = [r for r in rows_4h if r[5] >= cutoff_4h]
 
-        opens_1h = np.array([r[0] for r in rows_1h], dtype=np.float64)
-        highs_1h = np.array([r[1] for r in rows_1h], dtype=np.float64)
-        lows_1h = np.array([r[2] for r in rows_1h], dtype=np.float64)
-        closes_1h = np.array([r[3] for r in rows_1h], dtype=np.float64)
-        volumes_1h = np.array([r[4] for r in rows_1h], dtype=np.float64)
-        ts_1h = np.array([r[5] for r in rows_1h], dtype=np.int64)
-
-        opens_4h = np.array([r[0] for r in rows_4h], dtype=np.float64)
-        highs_4h = np.array([r[1] for r in rows_4h], dtype=np.float64)
-        lows_4h = np.array([r[2] for r in rows_4h], dtype=np.float64)
-        closes_4h = np.array([r[3] for r in rows_4h], dtype=np.float64)
-        volumes_4h = np.array([r[4] for r in rows_4h], dtype=np.float64)
-        ts_4h = np.array([r[5] for r in rows_4h], dtype=np.int64)
-
-        classifications, stats = classify_mtf(
-            opens_1h, highs_1h, lows_1h, closes_1h, volumes_1h, ts_1h,
-            opens_4h, highs_4h, lows_4h, closes_4h, volumes_4h, ts_4h,
-            n_candles_per_layer=n_candles_per_layer,
-        )
-
-        valid_cls = [c for c in classifications if c.range_4h_high is not None]
-
-        def cls_to_dict(c):
-            return {
-                "idx": c.idx, "timestamp_ms": c.timestamp_ms, "close": round(c.close, 2),
-                "range_4h": [round(c.range_4h_low, 2), round(c.range_4h_high, 2)],
-                "confidence": c.inside_confidence,
-            }
-
-        return {
-            "ok": True, "symbol": symbol, "days": days,
-            "total_1h_loaded": len(closes_1h), "total_4h_loaded": len(closes_4h),
-            "classified": stats.total_1h_candles,
-            "stats": {
-                "confidence_distribution": {
-                    "3_of_3": stats.conf_3_of_3_pct, "2_of_3": stats.conf_2_of_3_pct,
-                    "1_of_3": stats.conf_1_of_3_pct, "0_of_3": stats.conf_0_of_3_pct,
-                },
-            },
-            "sample_first_5": [cls_to_dict(c) for c in valid_cls[:5]],
-            "sample_last_5": [cls_to_dict(c) for c in valid_cls[-5:]],
-        }
+        return {"ok": True, "symbol": symbol, "days": days,
+                "total_1h_loaded": len(rows_1h), "total_4h_loaded": len(rows_4h)}
     except Exception as e:
         import traceback
         return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
 
 
 def _compute_4h_bias_arr(ts_1h, ts_4h, closes_4h, ema_period=50, margin_pct=0.005):
-    """Compute bias_arr_1h: -1=strong bear, 0=neutral, +1=strong bull for each 1h index."""
     import numpy as np
     from mode3_regime.indicators import ema as compute_ema
 
@@ -103,13 +62,9 @@ def _compute_4h_bias_arr(ts_1h, ts_4h, closes_4h, ema_period=50, margin_pct=0.00
     j = 0
     for i in range(len(ts_1h)):
         t1 = ts_1h[i]
-        # Advance j to latest 4h that has CLOSED by time t1
-        # (4h j closes at ts_4h[j] + ms_4h)
         while j + 1 < len(ts_4h) and ts_4h[j + 1] <= t1:
             j += 1
-        # Require 4h j to be closed (ts_4h[j] + ms_4h <= t1)
         if ts_4h[j] + ms_4h > t1:
-            # 4h hasn't closed yet; use j-1 if available
             if j == 0:
                 continue
             j_use = j - 1
@@ -158,14 +113,14 @@ def mtf_sideways_backtest(
     short_max_slope_pct: float = 1.0,
     ema_exit_min_profit_pct: float = 0.003,
     use_close_confirm_sl: bool = False,
-    # v0.8 NEW
     use_4h_bias_filter: bool = False,
     bias_4h_ema_period: int = 50,
     bias_margin_pct: float = 0.005,
+    bias_filter_mode: str = "mean_revert",   # v0.8.1: NEW
     include_trades: int = 20,
     use_pine_candle: bool = True,
 ):
-    """v0.8 — 4h EMA50 bias filter (skip counter-trend)."""
+    """v0.8.1 — bias filter with mean_revert or trend_follow mode."""
     try:
         import sqlite3
         import numpy as np
@@ -195,7 +150,6 @@ def mtf_sideways_backtest(
             last_time = rows_1h[-1][5]
             cutoff = last_time - ms_limit
             rows_1h = [r for r in rows_1h if r[5] >= cutoff]
-            # v0.8: need more 4h history for EMA50 warmup
             cutoff_4h = cutoff - (30 * 86400 * 1000)
             rows_4h = [r for r in rows_4h if r[5] >= cutoff_4h]
 
@@ -218,7 +172,6 @@ def mtf_sideways_backtest(
             n_candles_per_layer=n_candles_per_layer,
         )
 
-        # v0.8: compute 4h EMA50 bias if enabled
         bias_arr_1h = None
         bias_stats = None
         if use_4h_bias_filter:
@@ -245,6 +198,7 @@ def mtf_sideways_backtest(
             short_max_slope_pct=short_max_slope_pct,
             use_4h_bias_filter=use_4h_bias_filter,
             bias_margin_pct=bias_margin_pct,
+            bias_filter_mode=bias_filter_mode,
         )
         bt_cfg = SidewaysBTConfig(
             sl_pct_from_level=sl_pct_from_level,
@@ -298,11 +252,10 @@ def mtf_sideways_backtest(
 
         return {
             "ok": True,
-            "strategy": "sideways_tektok_v0.8",
+            "strategy": "sideways_tektok_v0.8.1",
             "symbol": symbol, "days": days,
             "config": {
                 "use_mtf_filter": use_mtf_filter,
-                "min_mtf_confidence": min_mtf_confidence,
                 "use_atr_sl": use_atr_sl, "sl_atr_mult": sl_atr_mult,
                 "use_ema_dynamic_exit": use_ema_dynamic_exit,
                 "ema_exit_min_profit_pct": ema_exit_min_profit_pct,
@@ -310,6 +263,7 @@ def mtf_sideways_backtest(
                 "use_4h_bias_filter": use_4h_bias_filter,
                 "bias_4h_ema_period": bias_4h_ema_period,
                 "bias_margin_pct": bias_margin_pct,
+                "bias_filter_mode": bias_filter_mode,
                 "max_hold_candles": max_hold_candles,
             },
             "bias_distribution": bias_stats,
