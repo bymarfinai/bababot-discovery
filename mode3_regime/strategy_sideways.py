@@ -1,16 +1,16 @@
 """
-strategy_sideways.py — v0.8: 4h EMA50 bias filter
-======================================================
-v0.8 changes:
-- Add use_4h_bias_filter: skip counter-trend trades based on 4h EMA50
-- STRONG BULL (4h close > 4h EMA50 by margin) → skip SHORT reject_vah
-- STRONG BEAR (4h close < 4h EMA50 by margin) → skip LONG bounce_val
-- NEUTRAL (within margin) → both allowed
-- bias_arr_1h precomputed by endpoint, passed to strategy
+strategy_sideways.py — v0.8.1: bias filter with mode option (mean_revert default)
+================================================================================
+v0.8.1 changes:
+- Add bias_filter_mode: "mean_revert" (default) or "trend_follow"
+- "mean_revert": BULL bias → skip LONG (overbought), BEAR → skip SHORT (oversold)
+- "trend_follow": BULL → skip SHORT (v0.8 original), BEAR → skip LONG
+- Rationale: data 30-day BTC menunjukkan mean-reversion mode lebih tepat
+  untuk bounce_VAL / reject_VAH strategy (contrarian by nature)
 
+v0.8 preserved: 4h EMA50 bias detection infrastructure
 v0.6 preserved: EMA20 slope filter
-v0.4.1 preserved: Pine candle direction
-v0.4 preserved: MTF Container filter
+v0.4 preserved: MTF Container
 """
 
 from __future__ import annotations
@@ -73,9 +73,10 @@ class SidewaysConfig:
     long_min_slope_pct: float = -1.0
     short_max_slope_pct: float = 1.0
 
-    # v0.8: 4h EMA50 bias filter
     use_4h_bias_filter: bool = False
-    bias_margin_pct: float = 0.005   # 0.5% margin for STRONG bias detection
+    bias_margin_pct: float = 0.005
+    # v0.8.1: filter mode
+    bias_filter_mode: str = "mean_revert"   # "mean_revert" or "trend_follow"
 
 
 @dataclass
@@ -92,7 +93,7 @@ class SidewaysSignal:
     score: int = 0
     mtf_confidence: int = -1
     ema_slope_pct: float = 0.0
-    bias_4h: int = 0   # v0.8: -1=bear, 0=neutral, +1=bull
+    bias_4h: int = 0
     signals_detail: dict = field(default_factory=dict)
     reason: str = ""
 
@@ -117,7 +118,7 @@ def generate_sideways_signals(
     cfg: SidewaysConfig,
     mtf_classifications: Optional[list] = None,
     opens: Optional[np.ndarray] = None,
-    bias_arr_1h: Optional[np.ndarray] = None,   # v0.8
+    bias_arr_1h: Optional[np.ndarray] = None,
 ) -> list[SidewaysSignal]:
     n = len(closes)
     signals: list[SidewaysSignal] = []
@@ -177,7 +178,6 @@ def generate_sideways_signals(
             if e_prev > 0:
                 cur_slope_pct = (e_now - e_prev) / e_prev * 100
 
-        # v0.8: 4h bias
         cur_bias_4h = 0
         if cfg.use_4h_bias_filter and bias_arr_1h is not None and i < len(bias_arr_1h):
             cur_bias_4h = int(bias_arr_1h[i])
@@ -192,14 +192,20 @@ def generate_sideways_signals(
                 continue
 
         def build_signal(side: SideEnum, mode: SidewaysMode, reason: str):
-            # v0.8: 4h bias filter — skip counter-trend
+            # v0.8.1: bias filter with mode
             if cfg.use_4h_bias_filter:
-                if cur_bias_4h == 1 and side == SideEnum.SHORT:
-                    return None  # STRONG BULL → skip SHORT
-                if cur_bias_4h == -1 and side == SideEnum.LONG:
-                    return None  # STRONG BEAR → skip LONG
+                if cfg.bias_filter_mode == "mean_revert":
+                    # BULL bias (overbought) → skip LONG. BEAR (oversold) → skip SHORT
+                    if cur_bias_4h == 1 and side == SideEnum.LONG:
+                        return None
+                    if cur_bias_4h == -1 and side == SideEnum.SHORT:
+                        return None
+                else:  # trend_follow (v0.8 original)
+                    if cur_bias_4h == 1 and side == SideEnum.SHORT:
+                        return None
+                    if cur_bias_4h == -1 and side == SideEnum.LONG:
+                        return None
 
-            # v0.6: EMA slope filter
             if cfg.use_ema_slope_filter:
                 if side == SideEnum.LONG and cur_slope_pct < cfg.long_min_slope_pct:
                     return None
