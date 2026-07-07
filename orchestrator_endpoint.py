@@ -1,5 +1,5 @@
 """
-orchestrator_endpoint.py — v1.3 VAH/VAL break switcher
+orchestrator_endpoint.py — v1.4 with 4 toggles + SL/TP tunable
 """
 from fastapi import APIRouter
 import os
@@ -58,7 +58,8 @@ def bull_backtest(
     days: int = 30,
     ema_period: int = 20,
     min_pullback_pct: float = 0.015,
-    lookback_recent_high: int = 20,
+    sl_buffer_pct: float = 0.001,
+    tp1_target_pct: float = 0.01,
     max_hold: int = 200,
     include_trades: int = 30,
 ):
@@ -67,14 +68,11 @@ def bull_backtest(
         d1, _ = _load_candles(symbol, days)
         if d1 is None:
             return {"ok": False, "error": f"no data for {symbol}"}
-        cfg = BullConfig(
-            ema_period=ema_period,
-            min_pullback_pct=min_pullback_pct,
-            lookback_recent_high=lookback_recent_high,
-        )
+        cfg = BullConfig(ema_period=ema_period, min_pullback_pct=min_pullback_pct)
         result = run_bull_backtest(
             d1["highs"], d1["lows"], d1["closes"], d1["opens"],
             cfg=cfg, max_hold=max_hold,
+            sl_buffer_pct=sl_buffer_pct, tp1_target_pct=tp1_target_pct,
         )
         if include_trades and result.get("trades"):
             result["trades"] = result["trades"][:include_trades]
@@ -90,7 +88,8 @@ def bear_backtest(
     days: int = 30,
     ema_period: int = 20,
     min_rally_pct: float = 0.015,
-    lookback_recent_low: int = 20,
+    sl_buffer_pct: float = 0.001,
+    tp1_target_pct: float = 0.01,
     max_hold: int = 200,
     include_trades: int = 30,
 ):
@@ -99,14 +98,11 @@ def bear_backtest(
         d1, _ = _load_candles(symbol, days)
         if d1 is None:
             return {"ok": False, "error": f"no data for {symbol}"}
-        cfg = BearConfig(
-            ema_period=ema_period,
-            min_rally_pct=min_rally_pct,
-            lookback_recent_low=lookback_recent_low,
-        )
+        cfg = BearConfig(ema_period=ema_period, min_rally_pct=min_rally_pct)
         result = run_bear_backtest(
             d1["highs"], d1["lows"], d1["closes"], d1["opens"],
             cfg=cfg, max_hold=max_hold,
+            sl_buffer_pct=sl_buffer_pct, tp1_target_pct=tp1_target_pct,
         )
         if include_trades and result.get("trades"):
             result["trades"] = result["trades"][:include_trades]
@@ -125,26 +121,25 @@ def orchestrator_backtest(
     sw_max_hold: int = 48,
     sw_ema_reject_cooldown: int = 48,
     trending_max_hold: int = 200,
-    bull_min_pullback: float = 0.02,
-    bear_min_rally: float = 0.02,
+    bull_min_pullback: float = 0.015,
+    bear_min_rally: float = 0.015,
     post_transition_wait: int = 24,
-    # v1.3 CORE: VAH/VAL break switcher
+    # v1.4 core toggles
+    use_rolling_va: bool = True,
+    va_window: int = 50,
+    va_recompute_every: int = 20,
+    use_va_tp: bool = True,
+    tp1_partial_ratio: float = 0.5,
+    use_sl_buffer: bool = True,
+    sl_buffer_pct: float = 0.001,
+    # State transition
     vah_break_candles: int = 1,
     val_break_candles: int = 1,
-    vah_break_margin: float = 0.0,
-    # Toggles (v1.3: A ON, B&C OFF default)
     enable_state_timeout: bool = True,
     state_timeout_candles: int = 100,
-    enable_broader_triggers: bool = False,
-    trigger_lookback: int = 20,
-    enable_slope_gate: bool = False,
-    slope_min_pct: float = 0.001,
-    slope_lookback: int = 10,
-    double_confirm_tolerance: float = 0.003,
-    double_size_multiplier: float = 1.5,
     include_trades: int = 50,
 ):
-    """v1.3 orchestrator — VAH/VAL break as core switcher."""
+    """v1.4 orchestrator — rolling VAH/VAL + TP at levels + proper SL."""
     try:
         from mode3_regime.mtf_container import classify_mtf
         from mode3_regime.strategy_sideways import SidewaysConfig
@@ -178,25 +173,22 @@ def orchestrator_backtest(
         bear_cfg = BearConfig(ema_period=20, min_rally_pct=bear_min_rally)
 
         orch_cfg = OrchestratorConfig(
-            sideways_cfg=sw_cfg,
-            bull_cfg=bull_cfg,
-            bear_cfg=bear_cfg,
+            sideways_cfg=sw_cfg, bull_cfg=bull_cfg, bear_cfg=bear_cfg,
             sw_max_hold=sw_max_hold,
             sw_ema_reject_cooldown=sw_ema_reject_cooldown,
             trending_max_hold=trending_max_hold,
             post_transition_wait=post_transition_wait,
+            use_rolling_va=use_rolling_va,
+            va_window=va_window,
+            va_recompute_every=va_recompute_every,
+            use_va_tp=use_va_tp,
+            tp1_partial_ratio=tp1_partial_ratio,
+            use_sl_buffer=use_sl_buffer,
+            sl_buffer_pct=sl_buffer_pct,
             vah_break_candles=vah_break_candles,
             val_break_candles=val_break_candles,
-            vah_break_margin=vah_break_margin,
             enable_state_timeout=enable_state_timeout,
             state_timeout_candles=state_timeout_candles,
-            enable_broader_triggers=enable_broader_triggers,
-            trigger_lookback=trigger_lookback,
-            enable_slope_gate=enable_slope_gate,
-            slope_min_pct=slope_min_pct,
-            slope_lookback=slope_lookback,
-            double_confirm_tolerance=double_confirm_tolerance,
-            double_size_multiplier=double_size_multiplier,
         )
 
         result = run_state_machine_backtest(
