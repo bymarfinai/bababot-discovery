@@ -1,5 +1,5 @@
 """
-mtf_analyze_endpoint.py — v0.4.1: pass opens to backtest for Pine-match candle direction
+mtf_analyze_endpoint.py — v0.5: expose ATR SL params for Pine match
 """
 from fastapi import APIRouter
 import os
@@ -124,15 +124,19 @@ def mtf_sideways_backtest(
     touch_tolerance: float = 0.003,
     volume_multiplier: float = 1.3,
     cooldown_bars: int = 10,
-    sl_pct_from_level: float = 0.005,
+    # SL params (v0.5: choose between level-based or ATR-based)
+    use_atr_sl: bool = False,           # NEW v0.5
+    sl_atr_mult: float = 1.5,           # NEW v0.5 (Pine default)
+    atr_period: int = 14,               # NEW v0.5 (Pine default)
+    sl_pct_from_level: float = 0.005,   # only used if use_atr_sl=False
     tp1_ratio: float = 0.5,
     tp2_ratio: float = 0.3,
     tp3_ratio: float = 0.2,
     max_hold_candles: int = 12,
     include_trades: int = 20,
-    use_pine_candle: bool = True,  # v0.4.1: True = close > open (Pine match), False = c > prev_close
+    use_pine_candle: bool = True,
 ):
-    """v0.4.1 — with Pine-compatible candle direction check."""
+    """v0.5 — ATR-based SL option, Pine-compat candle direction."""
     try:
         import sqlite3
         import numpy as np
@@ -197,11 +201,13 @@ def mtf_sideways_backtest(
         )
         bt_cfg = SidewaysBTConfig(
             sl_pct_from_level=sl_pct_from_level,
+            use_atr_sl=use_atr_sl,
+            sl_atr_mult=sl_atr_mult,
+            atr_period=atr_period,
             tp1_ratio=tp1_ratio, tp2_ratio=tp2_ratio, tp3_ratio=tp3_ratio,
             max_hold_candles=max_hold_candles,
         )
 
-        # v0.4.1: pass opens for Pine-match candle direction
         opens_arg = opens_1h if use_pine_candle else None
 
         result = run_sideways_backtest(
@@ -217,12 +223,22 @@ def mtf_sideways_backtest(
         s = result.stats
         sample_trades = []
         for t in result.trades[:include_trades]:
+            # Compute distances for R:R analysis
+            if t.side == 'long':
+                sl_dist_pct = (t.entry_price - t.sl_price) / t.entry_price * 100
+                tp1_dist_pct = (t.tp1_price - t.entry_price) / t.entry_price * 100
+            else:
+                sl_dist_pct = (t.sl_price - t.entry_price) / t.entry_price * 100
+                tp1_dist_pct = (t.entry_price - t.tp1_price) / t.entry_price * 100
             sample_trades.append({
                 "entry_idx": t.entry_idx, "side": t.side, "mode": t.mode,
                 "mtf_conf": t.mtf_confidence, "confidence": round(t.confidence, 2),
                 "position_usd": round(t.position_usd, 2),
                 "entry_price": round(t.entry_price, 2), "exit_price": round(t.exit_price, 2),
                 "sl_price": round(t.sl_price, 2),
+                "sl_dist_pct": round(sl_dist_pct, 3),
+                "tp1_dist_pct": round(tp1_dist_pct, 3),
+                "rr_ratio": round(tp1_dist_pct / sl_dist_pct, 3) if sl_dist_pct > 0 else None,
                 "tp1_hit": t.tp1_hit, "tp2_hit": t.tp2_hit, "tp3_hit": t.tp3_hit,
                 "exit_reason": t.exit_reason, "pnl_net": round(t.pnl_net, 2),
                 "hold": t.hold_candles,
@@ -230,13 +246,16 @@ def mtf_sideways_backtest(
 
         return {
             "ok": True,
-            "strategy": "sideways_tektok_v0.4.1_mtf_pine",
+            "strategy": "sideways_tektok_v0.5_atr_sl",
             "symbol": symbol, "days": days,
             "config": {
                 "n_candles_per_layer": n_candles_per_layer,
                 "min_mtf_confidence": min_mtf_confidence,
                 "use_mtf_filter": use_mtf_filter,
                 "use_pine_candle": use_pine_candle,
+                "use_atr_sl": use_atr_sl,
+                "sl_atr_mult": sl_atr_mult,
+                "sl_pct_from_level": sl_pct_from_level,
                 "range_max_width_pct": range_max_width_pct,
             },
             "mtf_context": {
