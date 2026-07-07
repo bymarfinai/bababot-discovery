@@ -1,18 +1,14 @@
 """
-strategy_sideways.py — Sideways Tektok Strategy v0.4.1
+strategy_sideways.py — Sideways Tektok Strategy v0.6
 ======================================================
-v0.4.1 fix: candle direction check now match Pine v0.2 semantics
-- OLD (v0.4): bullish_candle = c > closes[i-1]  (uptick from previous close)
-- NEW (v0.4.1): bullish_candle = c > opens[i]   (Pine's `close > open`)
+v0.6 changes (EMA20 slope filter):
+- Optional filter: skip trades against strong EMA slope (counter-trend)
+- SHORT skipped when EMA20 rising too fast (uptrend momentum kills reject_vah)
+- LONG skipped when EMA20 falling too fast (downtrend momentum kills bounce_val)
+- Default disabled; enable via use_ema_slope_filter=True
 
-This aligns Python trade count with Pine visual. Previous mismatch:
-- Pine: candle green (close > open) — captures pullback recovery patterns
-- Python: uptick required — skipped many valid bounces
-
-v0.4 changes preserved (MTF Container Integration):
-- Accept optional mtf_classifications parameter
-- PRIMARY filter: skip signals where mtf.inside_confidence < min_mtf_confidence
-- Sizing: 3/3 full, 2/3 half, 1/3 skip (or quarter opt-in), 0/3 skip
+v0.4.1 preserved (Pine candle direction match)
+v0.4 preserved (MTF Container integration)
 """
 
 from __future__ import annotations
@@ -55,7 +51,7 @@ class SidewaysConfig:
     skip_regime_filter: bool = False
     skip_range_width_filter: bool = False
 
-    # v0.3 confidence scoring - DISABLED by default in v0.4
+    # v0.3 confidence scoring - DISABLED by default in v0.4+
     enable_confidence_scoring: bool = False
     structure_lookback: int = 10
     wick_ratio_threshold: float = 1.5
@@ -71,6 +67,13 @@ class SidewaysConfig:
     min_mtf_confidence: int = 2
     enable_low_conf_quarter: bool = False
 
+    # v0.6: EMA20 slope filter (skip counter-trend)
+    use_ema_slope_filter: bool = False
+    ema_slope_period: int = 20
+    ema_slope_lookback: int = 10
+    long_min_slope_pct: float = -1.0    # LONG skip if slope < this (strong down)
+    short_max_slope_pct: float = 1.0    # SHORT skip if slope > this (strong up)
+
 
 @dataclass
 class SidewaysSignal:
@@ -85,6 +88,7 @@ class SidewaysSignal:
     confidence: float = 1.0
     score: int = 0
     mtf_confidence: int = -1
+    ema_slope_pct: float = 0.0
     signals_detail: dict = field(default_factory=dict)
     reason: str = ""
 
@@ -108,13 +112,8 @@ def generate_sideways_signals(
     regime_states: list[RegimeState],
     cfg: SidewaysConfig,
     mtf_classifications: Optional[list] = None,
-    opens: Optional[np.ndarray] = None,  # v0.4.1: NEW, for Pine-match candle check
+    opens: Optional[np.ndarray] = None,
 ) -> list[SidewaysSignal]:
-    """
-    Generate signals sideways tektok.
-    v0.4.1: bullish_candle = c > opens[i] (Pine `close > open`).
-    Fallback to c > closes[i-1] if opens not provided (backward compat).
-    """
     n = len(closes)
     signals: list[SidewaysSignal] = []
 
@@ -123,7 +122,8 @@ def generate_sideways_signals(
         start = max(0, i - 19)
         vol_avg[i] = float(np.mean(volumes[start:i + 1])) if i > start else 1.0
 
-    ema_arr = ema(closes, cfg.ema_period) if cfg.enable_confidence_scoring else np.zeros(n)
+    # v0.6: precompute EMA20 for slope filter (also useful for backtest dynamic exit)
+    ema20_arr = ema(closes, cfg.ema_slope_period) if cfg.use_ema_slope_filter else ema(closes, cfg.ema_period)
 
     last_long_bar = -9999
     last_short_bar = -9999
@@ -159,14 +159,20 @@ def generate_sideways_signals(
         wick_below_val = l < val * (1 - cfg.touch_tolerance) and c > val
         wick_above_vah = h > vah * (1 + cfg.touch_tolerance) and c < vah
 
-        # v0.4.1: Pine-compat candle check
         if opens is not None and i < len(opens):
             bullish_candle = c > opens[i]
             bearish_candle = c < opens[i]
         else:
-            # Fallback (backward compat)
             bullish_candle = c > closes[i - 1]
             bearish_candle = c < closes[i - 1]
+
+        # v0.6: compute EMA slope for filter
+        cur_slope_pct = 0.0
+        if cfg.use_ema_slope_filter and i >= cfg.ema_slope_lookback:
+            e_now = ema20_arr[i]
+            e_prev = ema20_arr[i - cfg.ema_slope_lookback]
+            if e_prev > 0:
+                cur_slope_pct = (e_now - e_prev) / e_prev * 100
 
         mtf_conf = -1
         if cfg.use_mtf_filter and mtf_classifications is not None and i < len(mtf_classifications):
@@ -178,26 +184,34 @@ def generate_sideways_signals(
                 continue
 
         def build_signal(side: SideEnum, mode: SidewaysMode, reason: str):
+            # v0.6: EMA slope counter-trend filter
+            if cfg.use_ema_slope_filter:
+                if side == SideEnum.LONG and cur_slope_pct < cfg.long_min_slope_pct:
+                    return None  # skip LONG in strong downtrend
+                if side == SideEnum.SHORT and cur_slope_pct > cfg.short_max_slope_pct:
+                    return None  # skip SHORT in strong uptrend
+
             if cfg.use_mtf_filter and mtf_conf >= 0:
                 size_mult = _mtf_conf_to_size(mtf_conf, cfg)
                 if size_mult <= 0.0:
                     return None
                 confidence = size_mult
                 score = mtf_conf
-                details = {"mtf_confidence": mtf_conf, "mtf_used": True}
+                details = {"mtf_confidence": mtf_conf, "mtf_used": True, "ema_slope_pct": round(cur_slope_pct, 3)}
             elif cfg.enable_confidence_scoring:
-                score, details = 0, {}
+                score, details = 0, {"ema_slope_pct": round(cur_slope_pct, 3)}
                 confidence = 1.0
             else:
                 confidence = 1.0
                 score = 0
-                details = {}
+                details = {"ema_slope_pct": round(cur_slope_pct, 3)}
 
             return SidewaysSignal(
                 idx=i, side=side, mode=mode,
                 price=float(c), val=float(val), vah=float(vah), poc=float(poc),
                 regime=rs.regime.value,
                 confidence=confidence, score=score, mtf_confidence=mtf_conf,
+                ema_slope_pct=float(cur_slope_pct),
                 signals_detail=details, reason=reason,
             )
 
