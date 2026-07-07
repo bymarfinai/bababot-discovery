@@ -1,5 +1,5 @@
 """
-mtf_analyze_endpoint.py — v0.5: expose ATR SL params for Pine match
+mtf_analyze_endpoint.py — v0.6: EMA dynamic exit + slope filter params
 """
 from fastapi import APIRouter
 import os
@@ -65,8 +65,6 @@ def mtf_analyze(
         )
 
         valid_cls = [c for c in classifications if c.range_4h_high is not None]
-        sample_first = valid_cls[:5]
-        sample_last = valid_cls[-5:]
 
         def cls_to_dict(c):
             return {
@@ -104,8 +102,8 @@ def mtf_analyze(
                     "1_of_3": stats.conf_1_of_3_pct, "0_of_3": stats.conf_0_of_3_pct,
                 },
             },
-            "sample_first_5": [cls_to_dict(c) for c in sample_first],
-            "sample_last_5": [cls_to_dict(c) for c in sample_last],
+            "sample_first_5": [cls_to_dict(c) for c in valid_cls[:5]],
+            "sample_last_5": [cls_to_dict(c) for c in valid_cls[-5:]],
         }
     except Exception as e:
         import traceback
@@ -124,19 +122,29 @@ def mtf_sideways_backtest(
     touch_tolerance: float = 0.003,
     volume_multiplier: float = 1.3,
     cooldown_bars: int = 10,
-    # SL params (v0.5: choose between level-based or ATR-based)
-    use_atr_sl: bool = False,           # NEW v0.5
-    sl_atr_mult: float = 1.5,           # NEW v0.5 (Pine default)
-    atr_period: int = 14,               # NEW v0.5 (Pine default)
-    sl_pct_from_level: float = 0.005,   # only used if use_atr_sl=False
+    # SL params
+    use_atr_sl: bool = False,
+    sl_atr_mult: float = 1.5,
+    atr_period: int = 14,
+    sl_pct_from_level: float = 0.005,
+    # TP + hold
     tp1_ratio: float = 0.5,
     tp2_ratio: float = 0.3,
     tp3_ratio: float = 0.2,
     max_hold_candles: int = 12,
+    # v0.6 NEW
+    use_ema_dynamic_exit: bool = False,
+    ema_exit_period: int = 20,
+    use_ema_slope_filter: bool = False,
+    ema_slope_period: int = 20,
+    ema_slope_lookback: int = 10,
+    long_min_slope_pct: float = -1.0,
+    short_max_slope_pct: float = 1.0,
+    # display
     include_trades: int = 20,
     use_pine_candle: bool = True,
 ):
-    """v0.5 — ATR-based SL option, Pine-compat candle direction."""
+    """v0.6 — EMA20 dynamic exit + slope filter options."""
     try:
         import sqlite3
         import numpy as np
@@ -198,6 +206,11 @@ def mtf_sideways_backtest(
             enable_low_conf_quarter=enable_low_conf_quarter,
             skip_regime_filter=True,
             skip_range_width_filter=False,
+            use_ema_slope_filter=use_ema_slope_filter,
+            ema_slope_period=ema_slope_period,
+            ema_slope_lookback=ema_slope_lookback,
+            long_min_slope_pct=long_min_slope_pct,
+            short_max_slope_pct=short_max_slope_pct,
         )
         bt_cfg = SidewaysBTConfig(
             sl_pct_from_level=sl_pct_from_level,
@@ -206,6 +219,8 @@ def mtf_sideways_backtest(
             atr_period=atr_period,
             tp1_ratio=tp1_ratio, tp2_ratio=tp2_ratio, tp3_ratio=tp3_ratio,
             max_hold_candles=max_hold_candles,
+            use_ema_dynamic_exit=use_ema_dynamic_exit,
+            ema_exit_period=ema_exit_period,
         )
 
         opens_arg = opens_1h if use_pine_candle else None
@@ -223,7 +238,6 @@ def mtf_sideways_backtest(
         s = result.stats
         sample_trades = []
         for t in result.trades[:include_trades]:
-            # Compute distances for R:R analysis
             if t.side == 'long':
                 sl_dist_pct = (t.entry_price - t.sl_price) / t.entry_price * 100
                 tp1_dist_pct = (t.tp1_price - t.entry_price) / t.entry_price * 100
@@ -232,13 +246,13 @@ def mtf_sideways_backtest(
                 tp1_dist_pct = (t.entry_price - t.tp1_price) / t.entry_price * 100
             sample_trades.append({
                 "entry_idx": t.entry_idx, "side": t.side, "mode": t.mode,
-                "mtf_conf": t.mtf_confidence, "confidence": round(t.confidence, 2),
+                "mtf_conf": t.mtf_confidence, "ema_slope_pct": round(t.ema_slope_pct, 3),
+                "confidence": round(t.confidence, 2),
                 "position_usd": round(t.position_usd, 2),
                 "entry_price": round(t.entry_price, 2), "exit_price": round(t.exit_price, 2),
                 "sl_price": round(t.sl_price, 2),
                 "sl_dist_pct": round(sl_dist_pct, 3),
                 "tp1_dist_pct": round(tp1_dist_pct, 3),
-                "rr_ratio": round(tp1_dist_pct / sl_dist_pct, 3) if sl_dist_pct > 0 else None,
                 "tp1_hit": t.tp1_hit, "tp2_hit": t.tp2_hit, "tp3_hit": t.tp3_hit,
                 "exit_reason": t.exit_reason, "pnl_net": round(t.pnl_net, 2),
                 "hold": t.hold_candles,
@@ -246,17 +260,20 @@ def mtf_sideways_backtest(
 
         return {
             "ok": True,
-            "strategy": "sideways_tektok_v0.5_atr_sl",
+            "strategy": "sideways_tektok_v0.6_ema",
             "symbol": symbol, "days": days,
             "config": {
                 "n_candles_per_layer": n_candles_per_layer,
                 "min_mtf_confidence": min_mtf_confidence,
                 "use_mtf_filter": use_mtf_filter,
                 "use_pine_candle": use_pine_candle,
-                "use_atr_sl": use_atr_sl,
-                "sl_atr_mult": sl_atr_mult,
-                "sl_pct_from_level": sl_pct_from_level,
-                "range_max_width_pct": range_max_width_pct,
+                "use_atr_sl": use_atr_sl, "sl_atr_mult": sl_atr_mult,
+                "use_ema_dynamic_exit": use_ema_dynamic_exit,
+                "ema_exit_period": ema_exit_period,
+                "use_ema_slope_filter": use_ema_slope_filter,
+                "short_max_slope_pct": short_max_slope_pct,
+                "long_min_slope_pct": long_min_slope_pct,
+                "max_hold_candles": max_hold_candles,
             },
             "mtf_context": {
                 "conf_3_of_3_pct": mtf_stats.conf_3_of_3_pct,
