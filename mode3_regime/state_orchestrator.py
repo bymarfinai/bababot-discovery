@@ -1,21 +1,22 @@
 """
-state_orchestrator.py — v1.3 3-State Trading Bot
+state_orchestrator.py — v1.4 with rolling VAH/VAL + TP at levels
 ======================================================
-v1.3 DESIGN (per user intent):
+v1.4 major changes:
+1. VAH/VAL computed via ROLLING WINDOW (not just from signals)
+   - Recompute every N candles from last window_size candles
+   - Always fresh, no stale data
+2. BULL trade TP1 = current tracked VAH (level of resistance)
+3. BEAR trade TP1 = current tracked VAL (level of support)
+4. Proper SL with buffer (bull_tool/bear_tool v1.4)
+5. All exits → back SIDEWAYS (fully decoupled)
+6. State switch: VAH break → BULL, VAL break → BEAR
+   (during SIDEWAYS mode only)
 
-State transition logic uses VAH/VAL levels from SIDEWAYS signals as anchors:
-- In SIDEWAYS: track latest VAH/VAL from generated signal
-- If close > VAH for vah_break_candles → BULL mode (HH confirmed structurally)
-- If close < VAL for val_break_candles → BEAR mode (LL confirmed structurally)
-- BULL/BEAR exit ALWAYS to SIDEWAYS via trailing stop
-- No direct BULL↔BEAR switch
-- VAH/VAL re-established when new SIDEWAYS signal fires
-
-Default toggles (data-optimized):
-- Fix A (state_timeout): ON — safety net
-- Fix B (broader_triggers HH/LL structure): OFF — over-detects false trends
-- Fix C (slope_gate): OFF — blocks too aggressively
-- vah_break_candles: 1 (tunable, 1-3)
+Toggleable features (test each in isolation):
+- use_rolling_va (default True): rolling VAH/VAL compute
+- use_va_tp (default True): TP1 at VAH/VAL for BULL/BEAR
+- use_sl_buffer (default True): SL with buffer from wick
+- enable_state_timeout (default True): safety timeout
 """
 
 from __future__ import annotations
@@ -30,12 +31,8 @@ from .strategy_sideways import (
     generate_sideways_signals,
 )
 from .regime import RegimeConfig, classify_regime_series
-from .bull_tool import (
-    BullConfig, detect_bull_entry_signal, run_bull_trade,
-)
-from .bear_tool import (
-    BearConfig, detect_bear_entry_signal, run_bear_trade,
-)
+from .bull_tool import BullConfig, detect_bull_entry_signal, run_bull_trade
+from .bear_tool import BearConfig, detect_bear_entry_signal, run_bear_trade
 
 
 class State(Enum):
@@ -63,19 +60,24 @@ class OrchestratorConfig:
     trending_max_hold: int = 200
     post_transition_wait: int = 24
 
-    # v1.3 CORE: VAH/VAL break detection
-    vah_break_candles: int = 1        # N candle close above VAH to trigger BULL
-    val_break_candles: int = 1        # N candle close below VAL to trigger BEAR
-    vah_break_margin: float = 0.0     # additional margin (e.g. 0.003 = 0.3%)
+    # v1.4 toggles
+    use_rolling_va: bool = True
+    va_window: int = 50                # rolling window candles
+    va_recompute_every: int = 20       # recompute frequency
 
-    # Toggles (v1.3 default: Fix A ON, B&C OFF)
+    use_va_tp: bool = True              # BULL TP1 = VAH, BEAR TP1 = VAL
+    tp1_partial_ratio: float = 0.5
+
+    use_sl_buffer: bool = True
+    sl_buffer_pct: float = 0.001       # tunable: 0.1%, 0.2%, 0.3%
+
+    # State transition
+    vah_break_candles: int = 1
+    val_break_candles: int = 1
+    vah_break_margin: float = 0.0
+
     enable_state_timeout: bool = True
     state_timeout_candles: int = 100
-    enable_broader_triggers: bool = False   # v1.2 fix — off by default (over-detects)
-    trigger_lookback: int = 20
-    enable_slope_gate: bool = False         # v1.2 fix — off by default (blocks too much)
-    slope_min_pct: float = 0.001
-    slope_lookback: int = 10
 
     # Double confirm
     double_confirm_lookback: int = 20
@@ -106,44 +108,35 @@ class TradeRecord:
     is_double: bool = False
     size_multiplier: float = 1.0
     state_transition: str = ""
+    tp1_target: Optional[float] = None
 
 
-def _ema_slope_pct(ema_arr, i, lookback):
-    if i < lookback or i >= len(ema_arr):
-        return 0.0
-    e0 = float(ema_arr[i - lookback])
-    e1 = float(ema_arr[i])
-    if e0 <= 0:
-        return 0.0
-    return (e1 - e0) / e0 / lookback
+def compute_va_from_window(highs, lows, closes, volumes, i, window=50):
+    """
+    Simple value area computation from rolling window.
+    POC = volume-weighted typical price
+    VAH = 85th percentile of high
+    VAL = 15th percentile of low
+    Returns (vah, val, poc) or (None, None, None).
+    """
+    if i < window:
+        return None, None, None
+    seg_h = highs[i - window:i]
+    seg_l = lows[i - window:i]
+    seg_c = closes[i - window:i]
+    seg_v = volumes[i - window:i]
+    if len(seg_h) < window:
+        return None, None, None
 
+    total_vol = float(np.sum(seg_v))
+    if total_vol <= 0:
+        return None, None, None
 
-def _detect_hh_structure(highs, i, lookback):
-    if i < lookback:
-        return False
-    recent = highs[i - lookback:i + 1]
-    third = len(recent) // 3
-    if third < 2:
-        return False
-    first_avg = float(np.mean(recent[:third]))
-    last_avg = float(np.mean(recent[-third:]))
-    if first_avg <= 0:
-        return False
-    return (last_avg - first_avg) / first_avg > 0.01
-
-
-def _detect_ll_structure(lows, i, lookback):
-    if i < lookback:
-        return False
-    recent = lows[i - lookback:i + 1]
-    third = len(recent) // 3
-    if third < 2:
-        return False
-    first_avg = float(np.mean(recent[:third]))
-    last_avg = float(np.mean(recent[-third:]))
-    if first_avg <= 0:
-        return False
-    return (first_avg - last_avg) / first_avg > 0.01
+    typical = (seg_h + seg_l + seg_c) / 3.0
+    poc = float(np.sum(typical * seg_v) / total_vol)
+    vah = float(np.percentile(seg_h, 85))
+    val = float(np.percentile(seg_l, 15))
+    return vah, val, poc
 
 
 def run_state_machine_backtest(
@@ -181,10 +174,11 @@ def run_state_machine_backtest(
     ema_reject_long_cd_until = -1
     ema_reject_short_cd_until = -1
 
-    # v1.3 CORE: VAH/VAL tracking for state transitions
+    # v1.4: rolling VAH/VAL tracking
     current_vah: Optional[float] = None
     current_val: Optional[float] = None
     current_poc: Optional[float] = None
+    va_last_computed_at: int = -999
     vah_break_streak: int = 0
     val_break_streak: int = 0
 
@@ -193,80 +187,58 @@ def run_state_machine_backtest(
         c = float(closes[i])
         cur_ema = float(ema20[i])
 
-        # ═══════════════ VAH/VAL BREAK CHECK (v1.3 CORE) ═══════════════
-        # Only check when in SIDEWAYS state and have valid levels
-        if state == State.SIDEWAYS and current_vah is not None and current_val is not None:
-            vah_threshold = current_vah * (1 + cfg.vah_break_margin)
-            val_threshold = current_val * (1 - cfg.vah_break_margin)
+        # ═══════════════ v1.4: Rolling VAH/VAL recompute ═══════════════
+        if cfg.use_rolling_va and state == State.SIDEWAYS:
+            if i - va_last_computed_at >= cfg.va_recompute_every:
+                vah, val, poc = compute_va_from_window(
+                    highs, lows, closes, volumes, i, cfg.va_window
+                )
+                if vah is not None and val is not None:
+                    current_vah = vah
+                    current_val = val
+                    current_poc = poc
+                    va_last_computed_at = i
+                    vah_break_streak = 0
+                    val_break_streak = 0
 
-            if c > vah_threshold:
+        # ═══════════════ VAH/VAL Break check ═══════════════
+        if state == State.SIDEWAYS and current_vah is not None and current_val is not None:
+            vah_th = current_vah * (1 + cfg.vah_break_margin)
+            val_th = current_val * (1 - cfg.vah_break_margin)
+
+            if c > vah_th:
                 vah_break_streak += 1
                 val_break_streak = 0
-            elif c < val_threshold:
+            elif c < val_th:
                 val_break_streak += 1
                 vah_break_streak = 0
             else:
                 vah_break_streak = 0
                 val_break_streak = 0
 
-            # VAH break confirmed → switch BULL
             if vah_break_streak >= cfg.vah_break_candles:
                 state_transitions.append({
                     "idx": i, "from": "sideways", "to": "bull",
-                    "reason": f"VAH break ({vah_break_streak}c close > {current_vah:.0f})",
+                    "reason": f"VAH break ({vah_break_streak}c > {current_vah:.0f})",
                 })
                 state = State.BULL
                 state_entered_at = i
-                current_vah = None
-                current_val = None
-                current_poc = None
                 vah_break_streak = 0
                 val_break_streak = 0
                 continue
 
-            # VAL break confirmed → switch BEAR
             if val_break_streak >= cfg.val_break_candles:
                 state_transitions.append({
                     "idx": i, "from": "sideways", "to": "bear",
-                    "reason": f"VAL break ({val_break_streak}c close < {current_val:.0f})",
+                    "reason": f"VAL break ({val_break_streak}c < {current_val:.0f})",
                 })
                 state = State.BEAR
                 state_entered_at = i
-                current_vah = None
-                current_val = None
-                current_poc = None
                 vah_break_streak = 0
                 val_break_streak = 0
                 continue
 
-        # ─── Legacy broader triggers (v1.2 Fix B, off by default) ───
-        if state == State.SIDEWAYS and cfg.enable_broader_triggers:
-            if _detect_hh_structure(highs, i, cfg.trigger_lookback):
-                slope_ok = True
-                if cfg.enable_slope_gate:
-                    slope = _ema_slope_pct(ema20, i, cfg.slope_lookback)
-                    slope_ok = slope >= cfg.slope_min_pct
-                if slope_ok:
-                    state_transitions.append({
-                        "idx": i, "from": "sideways", "to": "bull",
-                        "reason": "HH structure + slope",
-                    })
-                    state = State.BULL
-                    state_entered_at = i
-            elif _detect_ll_structure(lows, i, cfg.trigger_lookback):
-                slope_ok = True
-                if cfg.enable_slope_gate:
-                    slope = _ema_slope_pct(ema20, i, cfg.slope_lookback)
-                    slope_ok = slope <= -cfg.slope_min_pct
-                if slope_ok:
-                    state_transitions.append({
-                        "idx": i, "from": "sideways", "to": "bear",
-                        "reason": "LL structure + slope",
-                    })
-                    state = State.BEAR
-                    state_entered_at = i
-
-        # ─── State timeout (Fix A, ON by default) ───
+        # ═══════════════ State timeout ═══════════════
         if cfg.enable_state_timeout and state != State.SIDEWAYS:
             if i - state_entered_at > cfg.state_timeout_candles:
                 state_transitions.append({
@@ -283,10 +255,11 @@ def run_state_machine_backtest(
                 i += 1
                 continue
 
-            # v1.3: update VAH/VAL from new signal (recompute each SIDEWAYS entry)
+            # Also update VAH/VAL from signal (freshest)
             current_vah = sig.vah
             current_val = sig.val
             current_poc = sig.poc
+            va_last_computed_at = i
             vah_break_streak = 0
             val_break_streak = 0
 
@@ -462,12 +435,23 @@ def run_state_machine_backtest(
                 i += 1
                 continue
 
+            # v1.4: TP1 at current VAH (if enabled and available)
+            tp1_target = None
+            if cfg.use_va_tp and current_vah is not None:
+                if current_vah > sig.entry_price:
+                    tp1_target = current_vah
+
+            sl_buf = cfg.sl_buffer_pct if cfg.use_sl_buffer else 0.0
+
             trade = run_bull_trade(
                 highs, lows, closes, ema20, sig, i,
                 entry_low_anchor=float(lows[i]),
                 max_hold=cfg.trending_max_hold,
                 fee_pct=cfg.fee_pct, slippage_pct=cfg.slippage_pct,
                 position_usd=cfg.position_usd, leverage=cfg.leverage,
+                sl_buffer_pct=sl_buf,
+                tp1_target=tp1_target,
+                tp1_partial_ratio=cfg.tp1_partial_ratio,
             )
 
             trades.append(TradeRecord(
@@ -478,15 +462,17 @@ def run_state_machine_backtest(
                 exit_reason=trade.exit_reason, pnl_net=trade.pnl_net,
                 hold_candles=trade.hold_candles,
                 state_transition=trade.state_signal,
+                tp1_target=tp1_target,
             ))
 
-            # v1.3: ALWAYS back to SIDEWAYS (VAH/VAL will re-establish on next signal)
+            # v1.4: ALL exits back to SIDEWAYS
             state_transitions.append({
                 "idx": trade.exit_idx, "from": "bull", "to": "sideways",
-                "reason": f"BULL trade exit ({trade.exit_reason}) → SIDEWAYS wait",
+                "reason": f"BULL exit ({trade.exit_reason})",
             })
             state = State.SIDEWAYS
             state_entered_at = trade.exit_idx
+            va_last_computed_at = -999  # force recompute VA on next SIDEWAYS
 
             i = trade.exit_idx + 1
             continue
@@ -502,12 +488,22 @@ def run_state_machine_backtest(
                 i += 1
                 continue
 
+            tp1_target = None
+            if cfg.use_va_tp and current_val is not None:
+                if current_val < sig.entry_price:
+                    tp1_target = current_val
+
+            sl_buf = cfg.sl_buffer_pct if cfg.use_sl_buffer else 0.0
+
             trade = run_bear_trade(
                 highs, lows, closes, ema20, sig, i,
                 entry_high_anchor=float(highs[i]),
                 max_hold=cfg.trending_max_hold,
                 fee_pct=cfg.fee_pct, slippage_pct=cfg.slippage_pct,
                 position_usd=cfg.position_usd, leverage=cfg.leverage,
+                sl_buffer_pct=sl_buf,
+                tp1_target=tp1_target,
+                tp1_partial_ratio=cfg.tp1_partial_ratio,
             )
 
             trades.append(TradeRecord(
@@ -518,14 +514,16 @@ def run_state_machine_backtest(
                 exit_reason=trade.exit_reason, pnl_net=trade.pnl_net,
                 hold_candles=trade.hold_candles,
                 state_transition=trade.state_signal,
+                tp1_target=tp1_target,
             ))
 
             state_transitions.append({
                 "idx": trade.exit_idx, "from": "bear", "to": "sideways",
-                "reason": f"BEAR trade exit ({trade.exit_reason}) → SIDEWAYS wait",
+                "reason": f"BEAR exit ({trade.exit_reason})",
             })
             state = State.SIDEWAYS
             state_entered_at = trade.exit_idx
+            va_last_computed_at = -999
 
             i = trade.exit_idx + 1
             continue
@@ -556,13 +554,13 @@ def run_state_machine_backtest(
 
     return {
         "ok": True,
-        "orchestrator": "v1.3",
-        "config": {
-            "vah_break_candles": cfg.vah_break_candles,
-            "val_break_candles": cfg.val_break_candles,
-            "state_timeout": cfg.enable_state_timeout,
-            "broader_triggers": cfg.enable_broader_triggers,
-            "slope_gate": cfg.enable_slope_gate,
+        "orchestrator": "v1.4",
+        "features_active": {
+            "use_rolling_va": cfg.use_rolling_va,
+            "use_va_tp": cfg.use_va_tp,
+            "use_sl_buffer": cfg.use_sl_buffer,
+            "sl_buffer_pct": cfg.sl_buffer_pct,
+            "enable_state_timeout": cfg.enable_state_timeout,
         },
         "stats": {
             "total_trades": total,
@@ -583,9 +581,9 @@ def run_state_machine_backtest(
                 "exit_price": round(t.exit_price, 2),
                 "exit_reason": t.exit_reason,
                 "pnl_net": round(t.pnl_net, 2),
-                "is_double": t.is_double, "size_mult": t.size_multiplier,
+                "tp1_target": round(t.tp1_target, 2) if t.tp1_target else None,
+                "is_double": t.is_double,
                 "hold": t.hold_candles,
-                "state_next": t.state_transition,
             }
             for t in trades[:50]
         ],
@@ -594,5 +592,5 @@ def run_state_machine_backtest(
 
 __all__ = [
     "State", "OrchestratorConfig", "TradeRecord",
-    "run_state_machine_backtest",
+    "run_state_machine_backtest", "compute_va_from_window",
 ]
