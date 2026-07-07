@@ -1,5 +1,5 @@
 """
-mtf_analyze_endpoint.py — v0.6: EMA dynamic exit + slope filter params
+mtf_analyze_endpoint.py — v0.7: 3 fixes from user review
 """
 from fastapi import APIRouter
 import os
@@ -83,20 +83,6 @@ def mtf_analyze(
             "total_1h_loaded": len(closes_1h), "total_4h_loaded": len(closes_4h),
             "classified": stats.total_1h_candles,
             "stats": {
-                "inside_pct": {"4h": stats.inside_4h_pct, "1d": stats.inside_1d_pct, "1w": stats.inside_1w_pct},
-                "break_pct": {
-                    "4h_total": stats.break_4h_pct, "1d_total": stats.break_1d_pct, "1w_total": stats.break_1w_pct,
-                    "4h_up": round(stats.break_up_4h / max(stats.total_1h_candles, 1), 4),
-                    "4h_down": round(stats.break_down_4h / max(stats.total_1h_candles, 1), 4),
-                    "1d_up": round(stats.break_up_1d / max(stats.total_1h_candles, 1), 4),
-                    "1d_down": round(stats.break_down_1d / max(stats.total_1h_candles, 1), 4),
-                    "1w_up": round(stats.break_up_1w / max(stats.total_1h_candles, 1), 4),
-                    "1w_down": round(stats.break_down_1w / max(stats.total_1h_candles, 1), 4),
-                },
-                "hierarchy_consistency": {
-                    "break_1d_also_break_4h_pct": stats.break_1d_also_break_4h_pct,
-                    "break_1w_also_break_1d_pct": stats.break_1w_also_break_1d_pct,
-                },
                 "confidence_distribution": {
                     "3_of_3": stats.conf_3_of_3_pct, "2_of_3": stats.conf_2_of_3_pct,
                     "1_of_3": stats.conf_1_of_3_pct, "0_of_3": stats.conf_0_of_3_pct,
@@ -122,17 +108,14 @@ def mtf_sideways_backtest(
     touch_tolerance: float = 0.003,
     volume_multiplier: float = 1.3,
     cooldown_bars: int = 10,
-    # SL params
     use_atr_sl: bool = False,
     sl_atr_mult: float = 1.5,
     atr_period: int = 14,
     sl_pct_from_level: float = 0.005,
-    # TP + hold
     tp1_ratio: float = 0.5,
     tp2_ratio: float = 0.3,
     tp3_ratio: float = 0.2,
     max_hold_candles: int = 12,
-    # v0.6 NEW
     use_ema_dynamic_exit: bool = False,
     ema_exit_period: int = 20,
     use_ema_slope_filter: bool = False,
@@ -140,11 +123,14 @@ def mtf_sideways_backtest(
     ema_slope_lookback: int = 10,
     long_min_slope_pct: float = -1.0,
     short_max_slope_pct: float = 1.0,
+    # v0.7 NEW params
+    ema_exit_min_profit_pct: float = 0.003,
+    use_close_confirm_sl: bool = False,
     # display
     include_trades: int = 20,
     use_pine_candle: bool = True,
 ):
-    """v0.6 — EMA20 dynamic exit + slope filter options."""
+    """v0.7 — EMA min-profit gate + SL close-confirm."""
     try:
         import sqlite3
         import numpy as np
@@ -221,6 +207,8 @@ def mtf_sideways_backtest(
             max_hold_candles=max_hold_candles,
             use_ema_dynamic_exit=use_ema_dynamic_exit,
             ema_exit_period=ema_exit_period,
+            ema_exit_min_profit_pct=ema_exit_min_profit_pct,
+            use_close_confirm_sl=use_close_confirm_sl,
         )
 
         opens_arg = opens_1h if use_pine_candle else None
@@ -253,6 +241,7 @@ def mtf_sideways_backtest(
                 "sl_price": round(t.sl_price, 2),
                 "sl_dist_pct": round(sl_dist_pct, 3),
                 "tp1_dist_pct": round(tp1_dist_pct, 3),
+                "max_profit_pct": round(t.max_profit_pct * 100, 3),  # v0.7 NEW
                 "tp1_hit": t.tp1_hit, "tp2_hit": t.tp2_hit, "tp3_hit": t.tp3_hit,
                 "exit_reason": t.exit_reason, "pnl_net": round(t.pnl_net, 2),
                 "hold": t.hold_candles,
@@ -260,7 +249,7 @@ def mtf_sideways_backtest(
 
         return {
             "ok": True,
-            "strategy": "sideways_tektok_v0.6_ema",
+            "strategy": "sideways_tektok_v0.7",
             "symbol": symbol, "days": days,
             "config": {
                 "n_candles_per_layer": n_candles_per_layer,
@@ -270,16 +259,12 @@ def mtf_sideways_backtest(
                 "use_atr_sl": use_atr_sl, "sl_atr_mult": sl_atr_mult,
                 "use_ema_dynamic_exit": use_ema_dynamic_exit,
                 "ema_exit_period": ema_exit_period,
+                "ema_exit_min_profit_pct": ema_exit_min_profit_pct,
+                "use_close_confirm_sl": use_close_confirm_sl,
                 "use_ema_slope_filter": use_ema_slope_filter,
                 "short_max_slope_pct": short_max_slope_pct,
                 "long_min_slope_pct": long_min_slope_pct,
                 "max_hold_candles": max_hold_candles,
-            },
-            "mtf_context": {
-                "conf_3_of_3_pct": mtf_stats.conf_3_of_3_pct,
-                "conf_2_of_3_pct": mtf_stats.conf_2_of_3_pct,
-                "conf_1_of_3_pct": mtf_stats.conf_1_of_3_pct,
-                "conf_0_of_3_pct": mtf_stats.conf_0_of_3_pct,
             },
             "stats": {
                 "total_trades": s.total_trades, "wins": s.wins, "losses": s.losses,
