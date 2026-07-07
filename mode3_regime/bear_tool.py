@@ -1,20 +1,5 @@
 """
-bear_tool.py — v1.0 BEAR market tool
-======================================================
-Entry: SHORT at EMA20 rally reject (dari bawah)
-- Bot must be in BEAR state (confirmed LL breach earlier)
-- Wait for price rally to EMA20 from below
-- Candle touches EMA20 and closes BACK BELOW = reject → SHORT entry
-
-Exit: Trailing stop EMA20 (close-based)
-- If candle close > EMA20 → full exit
-- No fixed TP tiers, ride the trend down
-
-State exit triggers:
-- HH breach: candle close breaks entry_high → force exit + signal BEAR→BULL
-- Trailing stop: normal exit → signal BEAR→SIDEWAYS
-
-Mirror of bull_tool.py.
+bear_tool.py — v1.4 with proper SL + TP1 at VAL (mirror of bull_tool)
 """
 
 from __future__ import annotations
@@ -27,23 +12,21 @@ from .indicators import ema as compute_ema
 
 
 class BearExitReason(Enum):
-    TRAILING_STOP = "trailing_stop"     # close > EMA20
-    HH_BREACH = "hh_breach"             # force exit → BULL switch
+    SL = "sl"
+    SL_BE = "sl_breakeven"
+    TP1_TP3 = "tp"
+    TRAILING_STOP = "trailing_stop"
+    HH_BREACH = "hh_breach"
+    MAX_HOLD = "max_hold"
     END = "end_of_data"
-
-
-class BearStateSignal(Enum):
-    NONE = "none"
-    STAY_BEAR = "stay_bear"             # trailing exit, no HH breach
-    SWITCH_BULL = "switch_bull"         # HH breach detected
 
 
 @dataclass
 class BearConfig:
     ema_period: int = 20
-    min_rally_pct: float = 0.005         # min 0.5% rally from recent low
-    require_close_confirm: bool = True   # close below EMA required
-    lookback_recent_low: int = 20        # window for detecting rally
+    min_rally_pct: float = 0.015
+    require_close_confirm: bool = True
+    lookback_recent_low: int = 20
 
 
 @dataclass
@@ -51,7 +34,7 @@ class BearSignal:
     idx: int
     entry_price: float
     ema20_at_entry: float
-    recent_low: float                    # tracked for rally validation
+    recent_low: float
     reason: str = ""
 
 
@@ -61,157 +44,133 @@ class BearTradeRecord:
     exit_idx: int
     entry_price: float
     exit_price: float
-    entry_high: float                    # anchor for HH detection
+    entry_high: float
     ema20_at_entry: float
     ema20_at_exit: float
     exit_reason: str
     pnl_net: float
     hold_candles: int
-    state_signal: str                    # STAY_BEAR or SWITCH_BULL
+    state_signal: str
+    tp1_hit: bool = False
 
 
-def detect_bear_entry_signal(
-    highs: np.ndarray,
-    lows: np.ndarray,
-    closes: np.ndarray,
-    opens: np.ndarray,
-    ema20: np.ndarray,
-    i: int,
-    cfg: BearConfig,
-) -> Optional[BearSignal]:
-    """
-    Detect BEAR entry signal at candle i:
-    1. Price was below EMA20 recently (downtrend context)
-    2. Current candle high >= EMA20 (rally touched EMA)
-    3. Current candle close < EMA20 (rejected back down)
-    4. Minimum rally met (from recent low)
-    """
+def detect_bear_entry_signal(highs, lows, closes, opens, ema20, i, cfg):
     if i < cfg.lookback_recent_low or i >= len(closes):
         return None
-
     cur_ema = float(ema20[i])
     if cur_ema <= 0:
         return None
-
-    h_i = float(highs[i])
-    l_i = float(lows[i])
-    c_i = float(closes[i])
-    o_i = float(opens[i])
-
-    # Recent low in lookback window
+    h_i, l_i, c_i, o_i = float(highs[i]), float(lows[i]), float(closes[i]), float(opens[i])
     recent_low = float(np.min(lows[i - cfg.lookback_recent_low:i]))
-
-    # Condition 1: recent low must be below EMA20 (context = downtrend)
     if recent_low >= cur_ema:
         return None
-
-    # Condition 2: minimum rally from recent low
     rally_pct = (h_i - recent_low) / recent_low
     if rally_pct < cfg.min_rally_pct:
         return None
-
-    # Condition 3: current candle touched EMA20 from below (high >= ema)
     if h_i < cur_ema:
         return None
-
-    # Condition 4: current candle rejected back down (close < EMA20)
-    if cfg.require_close_confirm:
-        if c_i >= cur_ema:
-            return None
-    # Additional bearish candle check
-    if c_i >= o_i:  # must be bearish candle (close < open)
+    if cfg.require_close_confirm and c_i >= cur_ema:
         return None
-
+    if c_i >= o_i:
+        return None
     return BearSignal(
-        idx=i,
-        entry_price=c_i,
-        ema20_at_entry=cur_ema,
-        recent_low=recent_low,
+        idx=i, entry_price=c_i, ema20_at_entry=cur_ema, recent_low=recent_low,
         reason=f"rally_reject_ema20 rally={rally_pct*100:.2f}%",
     )
 
 
 def run_bear_trade(
-    highs: np.ndarray,
-    lows: np.ndarray,
-    closes: np.ndarray,
-    ema20: np.ndarray,
-    signal: BearSignal,
-    entry_idx: int,
-    entry_high_anchor: float,   # from signal candle high, used for HH breach detection
+    highs, lows, closes, ema20, signal, entry_idx,
+    entry_high_anchor: float,
     max_hold: int = 200,
     fee_pct: float = 0.0004,
     slippage_pct: float = 0.001,
     position_usd: float = 10.0,
     leverage: float = 50.0,
+    sl_buffer_pct: float = 0.001,        # SL = wick high × (1 + buffer)
+    tp1_target: Optional[float] = None,  # e.g., VAL from orchestrator
+    tp1_partial_ratio: float = 0.5,
+    use_trailing_after_tp1: bool = True,
 ) -> BearTradeRecord:
-    """
-    Manage BEAR SHORT position from entry until exit.
-    Exit conditions:
-    1. Close > entry_high_anchor → hh_breach → SWITCH_BULL signal (priority)
-    2. Close > EMA20 → trailing_stop → STAY_BEAR signal
-    """
     entry_price = signal.entry_price * (1 - slippage_pct)
     notional = position_usd * leverage
     n = len(closes)
 
+    # v1.4: SL above wick high with buffer
+    sl_level = entry_high_anchor * (1 + sl_buffer_pct)
+
     exit_idx = entry_idx
     exit_price = entry_price
     exit_reason = BearExitReason.END
-    state_signal = BearStateSignal.STAY_BEAR
+    state_signal = "back_to_sideways"
+    tp1_hit = False
+    moved_to_be = False
+    realized_pnl = 0.0
+    remaining = 1.0
 
     for i in range(entry_idx + 1, min(entry_idx + max_hold, n)):
         c = float(closes[i])
+        l = float(lows[i])
         cur_ema = float(ema20[i])
 
-        # Priority 1: HH breach check (force exit + switch BULL)
-        if c > entry_high_anchor:
-            exit_idx = i
+        # Priority 1: SL (close-based)
+        if c >= sl_level:
+            exit_reason = BearExitReason.SL_BE if moved_to_be else BearExitReason.SL
             exit_price = c
-            exit_reason = BearExitReason.HH_BREACH
-            state_signal = BearStateSignal.SWITCH_BULL
+            exit_idx = i
             break
 
-        # Priority 2: trailing stop (close > EMA20)
-        if cur_ema > 0 and c > cur_ema:
-            exit_idx = i
-            exit_price = c
-            exit_reason = BearExitReason.TRAILING_STOP
-            state_signal = BearStateSignal.STAY_BEAR
-            break
+        # Priority 2: TP1 (partial)
+        if not tp1_hit and tp1_target is not None:
+            if l <= tp1_target:
+                tp1_hit = True
+                pn = notional * tp1_partial_ratio
+                gp = (entry_price - tp1_target) / entry_price
+                realized_pnl += gp * pn - fee_pct * pn - slippage_pct * pn
+                remaining -= tp1_partial_ratio
+                sl_level = entry_price
+                moved_to_be = True
 
-    # If loop ended without break, exit at end
-    if exit_reason == BearExitReason.END:
+        # Priority 3: Trailing (after TP1)
+        if tp1_hit and use_trailing_after_tp1:
+            if cur_ema > 0 and c > cur_ema:
+                exit_reason = BearExitReason.TRAILING_STOP
+                exit_price = c
+                exit_idx = i
+                break
+
+        if i - entry_idx >= max_hold - 1:
+            exit_reason = BearExitReason.MAX_HOLD
+            exit_price = c
+            exit_idx = i
+            break
+    else:
         exit_idx = min(entry_idx + max_hold - 1, n - 1)
         exit_price = float(closes[exit_idx])
+        exit_reason = BearExitReason.END
 
-    # PnL calc (SHORT: profit when exit < entry)
-    gross_pct = (entry_price - exit_price) / entry_price
-    gross_pnl = gross_pct * notional
-    fee = fee_pct * notional * 2
-    slip = slippage_pct * notional
-    pnl_net = gross_pnl - fee - slip
+    if remaining > 0:
+        gp = (entry_price - exit_price) / entry_price
+        pn = notional * remaining
+        realized_pnl += gp * pn - fee_pct * pn - slippage_pct * pn
+    realized_pnl -= fee_pct * notional + slippage_pct * notional
 
     return BearTradeRecord(
-        entry_idx=entry_idx,
-        exit_idx=exit_idx,
-        entry_price=entry_price,
-        exit_price=exit_price,
+        entry_idx=entry_idx, exit_idx=exit_idx,
+        entry_price=entry_price, exit_price=exit_price,
         entry_high=entry_high_anchor,
         ema20_at_entry=signal.ema20_at_entry,
         ema20_at_exit=float(ema20[exit_idx]) if exit_idx < len(ema20) else 0.0,
         exit_reason=exit_reason.value,
-        pnl_net=pnl_net,
+        pnl_net=realized_pnl,
         hold_candles=exit_idx - entry_idx,
-        state_signal=state_signal.value,
+        state_signal=state_signal,
+        tp1_hit=tp1_hit,
     )
 
 
 def run_bear_backtest(
-    highs: np.ndarray,
-    lows: np.ndarray,
-    closes: np.ndarray,
-    opens: np.ndarray,
+    highs, lows, closes, opens,
     cfg: Optional[BearConfig] = None,
     max_hold: int = 200,
     fee_pct: float = 0.0004,
@@ -219,73 +178,59 @@ def run_bear_backtest(
     position_usd: float = 10.0,
     leverage: float = 50.0,
     warmup: int = 50,
+    sl_buffer_pct: float = 0.001,
+    tp1_target_pct: float = 0.01,
 ) -> dict:
-    """
-    Standalone BEAR backtest — assumes we're in BEAR state throughout.
-    Real orchestrator would only invoke this while state=BEAR.
-    """
     cfg = cfg or BearConfig()
     n = len(closes)
     if n < warmup + 50:
         return {"ok": False, "error": f"insufficient candles: {n}"}
-
     ema20_arr = compute_ema(closes, cfg.ema_period)
     trades: list[BearTradeRecord] = []
-
     i = warmup
     while i < n - 1:
         sig = detect_bear_entry_signal(highs, lows, closes, opens, ema20_arr, i, cfg)
         if sig is not None:
+            tp1_target = sig.entry_price * (1 - tp1_target_pct)
             trade = run_bear_trade(
                 highs, lows, closes, ema20_arr, sig, i,
                 entry_high_anchor=float(highs[i]),
                 max_hold=max_hold, fee_pct=fee_pct, slippage_pct=slippage_pct,
                 position_usd=position_usd, leverage=leverage,
+                sl_buffer_pct=sl_buffer_pct,
+                tp1_target=tp1_target,
             )
             trades.append(trade)
             i = trade.exit_idx + 1
         else:
             i += 1
-
     total = len(trades)
     wins = sum(1 for t in trades if t.pnl_net > 0.01)
     losses = sum(1 for t in trades if t.pnl_net < -0.01)
     pnl_total = sum(t.pnl_net for t in trades)
     wr = wins / max(wins + losses, 1)
-    hh_breach_count = sum(1 for t in trades if t.state_signal == "switch_bull")
-    trailing_count = sum(1 for t in trades if t.state_signal == "stay_bear")
-
+    tp1_hits = sum(1 for t in trades if t.tp1_hit)
     return {
-        "ok": True,
-        "tool": "bear_v1.0",
+        "ok": True, "tool": "bear_v1.4",
         "config": {
-            "ema_period": cfg.ema_period,
-            "min_rally_pct": cfg.min_rally_pct,
-            "max_hold": max_hold,
+            "ema_period": cfg.ema_period, "min_rally_pct": cfg.min_rally_pct,
+            "sl_buffer_pct": sl_buffer_pct, "tp1_target_pct": tp1_target_pct,
         },
         "stats": {
-            "total_trades": total,
-            "wins": wins,
-            "losses": losses,
-            "win_rate": round(wr, 4),
-            "total_pnl": round(pnl_total, 2),
+            "total_trades": total, "wins": wins, "losses": losses,
+            "win_rate": round(wr, 4), "total_pnl": round(pnl_total, 2),
             "avg_win": round(np.mean([t.pnl_net for t in trades if t.pnl_net > 0.01]), 2) if wins > 0 else 0.0,
             "avg_loss": round(np.mean([t.pnl_net for t in trades if t.pnl_net < -0.01]), 2) if losses > 0 else 0.0,
-            "hh_breach_exits": hh_breach_count,
-            "trailing_exits": trailing_count,
+            "tp1_hits": tp1_hits,
         },
         "trades": [
             {
-                "entry_idx": t.entry_idx,
-                "exit_idx": t.exit_idx,
-                "entry_price": round(t.entry_price, 2),
-                "exit_price": round(t.exit_price, 2),
+                "entry_idx": t.entry_idx, "exit_idx": t.exit_idx,
+                "entry_price": round(t.entry_price, 2), "exit_price": round(t.exit_price, 2),
                 "entry_high": round(t.entry_high, 2),
-                "ema20_entry": round(t.ema20_at_entry, 2),
                 "exit_reason": t.exit_reason,
-                "state_signal": t.state_signal,
-                "pnl_net": round(t.pnl_net, 2),
-                "hold": t.hold_candles,
+                "tp1_hit": t.tp1_hit,
+                "pnl_net": round(t.pnl_net, 2), "hold": t.hold_candles,
             }
             for t in trades
         ],
@@ -293,7 +238,6 @@ def run_bear_backtest(
 
 
 __all__ = [
-    "BearConfig", "BearSignal", "BearTradeRecord",
-    "BearExitReason", "BearStateSignal",
+    "BearConfig", "BearSignal", "BearTradeRecord", "BearExitReason",
     "detect_bear_entry_signal", "run_bear_trade", "run_bear_backtest",
 ]
