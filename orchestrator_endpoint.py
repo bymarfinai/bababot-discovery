@@ -1,5 +1,5 @@
 """
-orchestrator_endpoint.py — v1.1 endpoints with post_transition_wait tunable
+orchestrator_endpoint.py — v1.2 with toggleable fixes A/B/C
 """
 from fastapi import APIRouter
 import os
@@ -125,14 +125,23 @@ def orchestrator_backtest(
     sw_max_hold: int = 48,
     sw_ema_reject_cooldown: int = 48,
     trending_max_hold: int = 200,
-    bull_min_pullback: float = 0.015,      # v1.1: 1.5% default (was 0.5%)
-    bear_min_rally: float = 0.015,
-    post_transition_wait: int = 8,         # v1.1 NEW: wait N candles after switch
+    bull_min_pullback: float = 0.02,
+    bear_min_rally: float = 0.02,
+    post_transition_wait: int = 24,
+    # v1.2 toggleable fixes
+    enable_state_timeout: bool = True,
+    state_timeout_candles: int = 100,
+    enable_broader_triggers: bool = True,
+    trigger_lookback: int = 20,
+    enable_slope_gate: bool = True,
+    slope_min_pct: float = 0.001,
+    slope_lookback: int = 10,
+    watch_window_candles: int = 20,
     double_confirm_tolerance: float = 0.003,
     double_size_multiplier: float = 1.5,
     include_trades: int = 50,
 ):
-    """v1.1 orchestrator — with post_transition_wait tunable."""
+    """v1.2 orchestrator — 3 toggleable switcher fixes + NO direct BULL/BEAR switch."""
     try:
         from mode3_regime.mtf_container import classify_mtf
         from mode3_regime.strategy_sideways import SidewaysConfig
@@ -173,6 +182,14 @@ def orchestrator_backtest(
             sw_ema_reject_cooldown=sw_ema_reject_cooldown,
             trending_max_hold=trending_max_hold,
             post_transition_wait=post_transition_wait,
+            enable_state_timeout=enable_state_timeout,
+            state_timeout_candles=state_timeout_candles,
+            enable_broader_triggers=enable_broader_triggers,
+            trigger_lookback=trigger_lookback,
+            enable_slope_gate=enable_slope_gate,
+            slope_min_pct=slope_min_pct,
+            slope_lookback=slope_lookback,
+            watch_window_candles=watch_window_candles,
             double_confirm_tolerance=double_confirm_tolerance,
             double_size_multiplier=double_size_multiplier,
         )
