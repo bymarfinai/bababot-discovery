@@ -65,6 +65,15 @@ try:
 except Exception as _e:
     print(f"[WARN] mtf_analyze_endpoint not available: {_e}")
     _MTF_AVAILABLE = False
+
+# ── Mode3 Clean Rebuild (spec v0.21) ────────────────────────────
+try:
+    from mode3_backtest_endpoint import router as mode3_clean_router
+    _MODE3_CLEAN_AVAILABLE = True
+    print("[INIT] Mode3 Clean (v0.21) module loaded")
+except Exception as _e:
+    print(f"[WARN] mode3_backtest_endpoint not available: {_e}")
+    _MODE3_CLEAN_AVAILABLE = False
 # ────────────────────────────────────────────────────────────────
 
 app = FastAPI(title="BabaBot Backtesting API", version="1.3.0")
@@ -89,6 +98,11 @@ if _MODE3_REGIME_AVAILABLE:
 if _MTF_AVAILABLE:
     app.include_router(mtf_router)
     print("[INIT] MTF Analyze mounted at /mtf/*")
+# ── Mount Mode3 Clean router (spec v0.21) ──────────────────────
+if _MODE3_CLEAN_AVAILABLE:
+    app.include_router(mode3_clean_router)
+    print("[INIT] Mode3 Clean mounted at /mode3/backtest, /mode3/health")
+
 # ────────────────────────────────────────────────────────────────
 security = HTTPBearer(auto_error=False)
 
