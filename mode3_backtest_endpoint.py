@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint - FastAPI router. v0.34 (BEAR max volume filter).
+Mode3 Backtest Endpoint v1.0 — final cleanup, proven config as defaults.
 """
 import os
 import json as jsonlib
@@ -56,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '0.34', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '1.0', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -89,37 +89,9 @@ def load_candles_from_db(symbol, timeframe, start_ts, end_ts, db_path=None):
     return rows
 
 
-def compute_mtf_bull_confirm(rows_1h, rows_15m, strict=False):
-    if not rows_15m: return [False] * len(rows_1h)
-    opens_15m = np.array([r[1] for r in rows_15m], dtype=float)
-    highs_15m = np.array([r[2] for r in rows_15m], dtype=float)
-    lows_15m = np.array([r[3] for r in rows_15m], dtype=float)
-    closes_15m = np.array([r[4] for r in rows_15m], dtype=float)
-    ema_15m = compute_ema_series(closes_15m, 20)
-    ts_to_idx = {r[0]: i for i, r in enumerate(rows_15m)}
-    ONE_15M_MS = 15 * 60 * 1000
-    confirm = []
-    for r in rows_1h:
-        t_1h = r[0]
-        ok = False
-        for k in range(4):
-            j = ts_to_idx.get(t_1h + k * ONE_15M_MS)
-            if j is None: continue
-            basic = (lows_15m[j] <= ema_15m[j] and closes_15m[j] > ema_15m[j]
-                     and closes_15m[j] > opens_15m[j])
-            if not basic: continue
-            if strict:
-                rng = highs_15m[j] - lows_15m[j]
-                if rng > 0:
-                    close_pos = (closes_15m[j] - lows_15m[j]) / rng
-                    if close_pos < 0.7: continue
-            ok = True
-            break
-        confirm.append(ok)
-    return confirm
-
-
 def compute_mtf_bull_entry(rows_1h, rows_15m):
+    """Find first 15m candle inside each 1h bar with bullish reject pattern.
+    Returns (list of close_or_None, list of low_or_None) for BULL entry mode."""
     if not rows_15m: return [None]*len(rows_1h), [None]*len(rows_1h)
     opens_15m = np.array([r[1] for r in rows_15m], dtype=float)
     lows_15m = np.array([r[3] for r in rows_15m], dtype=float)
@@ -141,53 +113,23 @@ def compute_mtf_bull_entry(rows_1h, rows_15m):
     return entry_closes, entry_lows
 
 
-def compute_mtf_bear_entry(rows_1h, rows_15m):
-    if not rows_15m: return [None]*len(rows_1h), [None]*len(rows_1h)
-    opens_15m = np.array([r[1] for r in rows_15m], dtype=float)
-    highs_15m = np.array([r[2] for r in rows_15m], dtype=float)
-    closes_15m = np.array([r[4] for r in rows_15m], dtype=float)
-    ema_15m = compute_ema_series(closes_15m, 20)
-    ts_to_idx = {r[0]: i for i, r in enumerate(rows_15m)}
-    ONE_15M_MS = 15 * 60 * 1000
-    entry_closes, entry_highs = [], []
-    for r in rows_1h:
-        t_1h = r[0]
-        fc, fh = None, None
-        for k in range(4):
-            j = ts_to_idx.get(t_1h + k * ONE_15M_MS)
-            if j is None: continue
-            if (highs_15m[j] >= ema_15m[j] and closes_15m[j] < ema_15m[j]
-                    and closes_15m[j] < opens_15m[j]):
-                fc = float(closes_15m[j]); fh = float(highs_15m[j]); break
-        entry_closes.append(fc); entry_highs.append(fh)
-    return entry_closes, entry_highs
-
-
 @router.get("/backtest")
 def backtest_mode3(
     symbol: str = Query("BTCUSDT"),
     timeframe: str = Query("1h"),
     days: int = Query(30, ge=1, le=365),
+    # Trading params (proven defaults)
     va_window: int = Query(50, ge=20, le=200),
-    tp_pct: float = Query(0.006, ge=0.001, le=0.05),
+    tp_pct: float = Query(0.003, ge=0.001, le=0.05),
     entry_usd: float = Query(10.0),
     leverage: float = Query(50.0),
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
-    sideways_ema_dist_cap: float = Query(0.005, ge=0.0, le=0.05),
-    chop_max_crossings: int = Query(6, ge=0, le=20),
-    trailing_sl_pct: float = Query(0.0, ge=0.0, le=0.05),
-    bull_confirmation_candle: bool = Query(False),
-    bull_min_ema_distance_pct: float = Query(0.0, ge=0.0, le=0.02),
-    bull_min_volume_ratio: float = Query(0.0, ge=0.0, le=5.0),
-    bull_disable_downtrend: bool = Query(False),
-    bull_max_candle_range_pct: float = Query(0.0, ge=0.0, le=0.05),
-    bull_mtf_15m_confirm: bool = Query(False),
-    bull_mtf_15m_strict: bool = Query(False),
-    bull_mtf_15m_entry: bool = Query(False),
-    bear_min_volume_ratio: float = Query(0.0, ge=0.0, le=5.0),
-    bear_max_volume_ratio: float = Query(0.0, ge=0.0, le=5.0),
-    bear_mtf_15m_entry: bool = Query(False),
+    # Filters (proven defaults)
+    sideways_ema_dist_cap: float = Query(0.003, ge=0.0, le=0.05),
+    chop_max_crossings: int = Query(4, ge=0, le=20),
+    bull_min_volume_ratio: float = Query(1.5, ge=0.0, le=5.0),
+    bull_mtf_15m_entry: bool = Query(True),
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
@@ -199,18 +141,8 @@ def backtest_mode3(
         slippage_pct=slippage_pct,
         sideways_ema_distance_cap=sideways_ema_dist_cap,
         chop_max_crossings=chop_max_crossings,
-        trailing_sl_pct=trailing_sl_pct,
-        bull_confirmation_candle=bull_confirmation_candle,
-        bull_min_ema_distance_pct=bull_min_ema_distance_pct,
         bull_min_volume_ratio=bull_min_volume_ratio,
-        bull_disable_downtrend=bull_disable_downtrend,
-        bull_max_candle_range_pct=bull_max_candle_range_pct,
-        bull_mtf_15m_confirm=bull_mtf_15m_confirm,
-        bull_mtf_15m_strict=bull_mtf_15m_strict,
         bull_mtf_15m_entry=bull_mtf_15m_entry,
-        bear_min_volume_ratio=bear_min_volume_ratio,
-        bear_max_volume_ratio=bear_max_volume_ratio,
-        bear_mtf_15m_entry=bear_mtf_15m_entry,
     )
 
     end_ts = int(datetime.utcnow().timestamp() * 1000)
@@ -230,19 +162,13 @@ def backtest_mode3(
     ema20 = compute_ema_series(closes, config.ema_period)
     switcher = Switcher(config)
 
-    if (bull_mtf_15m_confirm or bull_mtf_15m_entry or bear_mtf_15m_entry):
+    # Preprocess 15m MTF data for BULL entry
+    if bull_mtf_15m_entry:
         rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
         if rows_15m:
-            if bull_mtf_15m_confirm:
-                switcher.mtf_bull_confirm = compute_mtf_bull_confirm(rows, rows_15m, strict=bull_mtf_15m_strict)
-            if bull_mtf_15m_entry:
-                ec, el = compute_mtf_bull_entry(rows, rows_15m)
-                switcher.mtf_bull_entry_close = ec
-                switcher.mtf_bull_entry_low = el
-            if bear_mtf_15m_entry:
-                ec, eh = compute_mtf_bear_entry(rows, rows_15m)
-                switcher.mtf_bear_entry_close = ec
-                switcher.mtf_bear_entry_high = eh
+            ec, el = compute_mtf_bull_entry(rows, rows_15m)
+            switcher.mtf_bull_entry_close = ec
+            switcher.mtf_bull_entry_low = el
 
     for i in range(len(rows)):
         vah, val, poc = compute_va_at_bar(highs, lows, closes, volumes, i,
@@ -284,14 +210,8 @@ def backtest_mode3(
             "capital_end": round(config.capital_usd + total_pnl_usd, 2),
             "sideways_blocked_count": switcher._sideways_blocked_count,
             "chop_blocked_count": switcher._chop_blocked_count,
-            "bull_blocked_ema_dist": switcher._bull_blocked_ema_dist,
             "bull_blocked_volume": switcher._bull_blocked_volume,
-            "bull_blocked_slope": switcher._bull_blocked_slope,
-            "bull_blocked_confirm": switcher._bull_blocked_confirm,
-            "bull_blocked_range": switcher._bull_blocked_range,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
-            "bear_blocked_volume": switcher._bear_blocked_volume,
-            "bear_blocked_mtf": switcher._bear_blocked_mtf,
         },
         "per_tool": tool_stats,
         "trades": [
@@ -401,5 +321,5 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "0.34", "db_path": DB_PATH,
-            "features": ["chop_filter", "trailing_sl", "bull_filters", "bull_mtf_entry", "bear_min_volume", "bear_max_volume", "bear_mtf_entry"]}
+    return {"status": "ok", "module": "mode3", "version": "1.0", "db_path": DB_PATH,
+            "features": ["chop_filter_4", "bull_volume_1.5x", "bull_mtf_15m_entry"]}
