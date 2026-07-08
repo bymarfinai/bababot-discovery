@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint - FastAPI router. v0.33 (BEAR volume + MTF entry mirror).
+Mode3 Backtest Endpoint - FastAPI router. v0.34 (BEAR max volume filter).
 """
 import os
 import json as jsonlib
@@ -56,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '0.33', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '0.34', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -142,12 +142,6 @@ def compute_mtf_bull_entry(rows_1h, rows_15m):
 
 
 def compute_mtf_bear_entry(rows_1h, rows_15m):
-    """
-    Mirror of compute_mtf_bull_entry for BEAR (SHORT direction).
-    Find first 15m candle inside 1h bar with bearish reject pattern:
-      high_15m >= ema20_15m AND close_15m < ema20_15m AND close_15m < open_15m
-    Return (list of close_or_None, list of high_or_None).
-    """
     if not rows_15m: return [None]*len(rows_1h), [None]*len(rows_1h)
     opens_15m = np.array([r[1] for r in rows_15m], dtype=float)
     highs_15m = np.array([r[2] for r in rows_15m], dtype=float)
@@ -192,6 +186,7 @@ def backtest_mode3(
     bull_mtf_15m_strict: bool = Query(False),
     bull_mtf_15m_entry: bool = Query(False),
     bear_min_volume_ratio: float = Query(0.0, ge=0.0, le=5.0),
+    bear_max_volume_ratio: float = Query(0.0, ge=0.0, le=5.0),
     bear_mtf_15m_entry: bool = Query(False),
     log_result: bool = Query(True),
 ):
@@ -214,6 +209,7 @@ def backtest_mode3(
         bull_mtf_15m_strict=bull_mtf_15m_strict,
         bull_mtf_15m_entry=bull_mtf_15m_entry,
         bear_min_volume_ratio=bear_min_volume_ratio,
+        bear_max_volume_ratio=bear_max_volume_ratio,
         bear_mtf_15m_entry=bear_mtf_15m_entry,
     )
 
@@ -234,7 +230,6 @@ def backtest_mode3(
     ema20 = compute_ema_series(closes, config.ema_period)
     switcher = Switcher(config)
 
-    # Preprocess 15m MTF data (BULL and/or BEAR)
     if (bull_mtf_15m_confirm or bull_mtf_15m_entry or bear_mtf_15m_entry):
         rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
         if rows_15m:
@@ -406,5 +401,5 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "0.33", "db_path": DB_PATH,
-            "features": ["chop_filter", "trailing_sl", "bull_filters", "bull_mtf_entry", "bear_volume", "bear_mtf_entry"]}
+    return {"status": "ok", "module": "mode3", "version": "0.34", "db_path": DB_PATH,
+            "features": ["chop_filter", "trailing_sl", "bull_filters", "bull_mtf_entry", "bear_min_volume", "bear_max_volume", "bear_mtf_entry"]}
