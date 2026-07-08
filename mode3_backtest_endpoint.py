@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint - FastAPI router. v0.27 (chop filter).
+Mode3 Backtest Endpoint - FastAPI router. v0.28 (trailing SL + chop filter).
 """
 import os
 import json as jsonlib
@@ -75,7 +75,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '0.27', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '0.28', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -125,6 +125,7 @@ def backtest_mode3(
     slippage_pct: float = Query(0.0005),
     sideways_ema_dist_cap: float = Query(0.005, ge=0.0, le=0.05),
     chop_max_crossings: int = Query(6, ge=0, le=20),
+    trailing_sl_pct: float = Query(0.0, ge=0.0, le=0.05),
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
@@ -136,6 +137,7 @@ def backtest_mode3(
         slippage_pct=slippage_pct,
         sideways_ema_distance_cap=sideways_ema_dist_cap,
         chop_max_crossings=chop_max_crossings,
+        trailing_sl_pct=trailing_sl_pct,
     )
 
     end_ts = int(datetime.utcnow().timestamp() * 1000)
@@ -190,6 +192,10 @@ def backtest_mode3(
                 "pnl_pct": round(sum(t.pnl_pct for t in tt) * 100, 3),
             }
 
+    trailing_sl_exits = sum(1 for t in trades if t.exit_type == 'TRAILING_SL')
+    fixed_sl_exits = sum(1 for t in trades if t.exit_type == 'SL')
+    tp_exits = sum(1 for t in trades if t.exit_type == 'TP')
+
     result = {
         "symbol": symbol,
         "timeframe": timeframe,
@@ -207,6 +213,9 @@ def backtest_mode3(
             "capital_end": round(config.capital_usd + total_pnl_usd, 2),
             "sideways_blocked_count": switcher._sideways_blocked_count,
             "chop_blocked_count": switcher._chop_blocked_count,
+            "trailing_sl_exits": trailing_sl_exits,
+            "fixed_sl_exits": fixed_sl_exits,
+            "tp_exits": tp_exits,
         },
         "per_tool": tool_stats,
         "trades": [
@@ -218,6 +227,7 @@ def backtest_mode3(
                 "pnl_pct": round(t.pnl_pct * 100, 3), "pnl_usd": round(t.pnl_usd, 2),
                 "sl_level": round(t.sl_level, 2), "tp_level": round(t.tp_level, 2),
                 "ema_at_entry": round(t.ema_at_entry, 2), "ema_at_exit": round(t.ema_at_exit, 2),
+                "initial_sl": round(t.initial_sl, 2), "sl_trailed": t.sl_trailed,
             }
             for t in trades
         ],
@@ -395,4 +405,5 @@ def candles_debug(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "0.27", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "0.28", "db_path": DB_PATH,
+            "features": ["chop_filter", "trailing_sl"]}
