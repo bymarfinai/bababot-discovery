@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint - FastAPI router. v0.25 (rollback stable).
+Mode3 Backtest Endpoint - FastAPI router. v0.27 (chop filter).
 """
 import os
 import json as jsonlib
@@ -75,7 +75,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '0.25', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '0.27', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -124,6 +124,7 @@ def backtest_mode3(
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
     sideways_ema_dist_cap: float = Query(0.005, ge=0.0, le=0.05),
+    chop_max_crossings: int = Query(6, ge=0, le=20),
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
@@ -134,6 +135,7 @@ def backtest_mode3(
         fee_pct_roundtrip=fee_pct,
         slippage_pct=slippage_pct,
         sideways_ema_distance_cap=sideways_ema_dist_cap,
+        chop_max_crossings=chop_max_crossings,
     )
 
     end_ts = int(datetime.utcnow().timestamp() * 1000)
@@ -204,6 +206,7 @@ def backtest_mode3(
             "capital_start": config.capital_usd,
             "capital_end": round(config.capital_usd + total_pnl_usd, 2),
             "sideways_blocked_count": switcher._sideways_blocked_count,
+            "chop_blocked_count": switcher._chop_blocked_count,
         },
         "per_tool": tool_stats,
         "trades": [
@@ -302,27 +305,6 @@ def experiments_summary():
         FROM mode3_experiments ORDER BY pnl_usd DESC LIMIT 10
     """).fetchall()
 
-    best_per_combo = conn.execute("""
-        SELECT symbol, timeframe, days,
-               MAX(pnl_usd) as best_pnl,
-               (SELECT cap_pct FROM mode3_experiments e2
-                WHERE e2.symbol=e1.symbol AND e2.timeframe=e1.timeframe AND e2.days=e1.days
-                ORDER BY pnl_usd DESC LIMIT 1) as best_cap,
-               (SELECT tp_pct FROM mode3_experiments e2
-                WHERE e2.symbol=e1.symbol AND e2.timeframe=e1.timeframe AND e2.days=e1.days
-                ORDER BY pnl_usd DESC LIMIT 1) as best_tp
-        FROM mode3_experiments e1
-        GROUP BY symbol, timeframe, days
-        ORDER BY best_pnl DESC
-    """).fetchall()
-
-    cap_tp = conn.execute("""
-        SELECT days, cap_pct, tp_pct, pnl_usd, wr_pct, total_trades
-        FROM mode3_experiments
-        WHERE symbol='BTCUSDT' AND timeframe='1h'
-        ORDER BY days, cap_pct, tp_pct
-    """).fetchall()
-
     conn.close()
 
     return {
@@ -332,18 +314,6 @@ def experiments_summary():
              "cap%": round(r["cap_pct"]*100, 3), "tp%": round(r["tp_pct"]*100, 3),
              "trades": r["total_trades"], "wr%": r["wr_pct"], "pnl$": r["pnl_usd"]}
             for r in top
-        ],
-        "best_per_combo": [
-            {"symbol": r["symbol"], "tf": r["timeframe"], "days": r["days"],
-             "best_cap%": round(r["best_cap"]*100, 3), "best_tp%": round(r["best_tp"]*100, 3),
-             "best_pnl$": r["best_pnl"]}
-            for r in best_per_combo
-        ],
-        "btc_1h_grid": [
-            {"days": r["days"], "cap%": round(r["cap_pct"]*100, 3),
-             "tp%": round(r["tp_pct"]*100, 3), "pnl$": r["pnl_usd"],
-             "wr%": r["wr_pct"], "trades": r["total_trades"]}
-            for r in cap_tp
         ],
     }
 
@@ -425,4 +395,4 @@ def candles_debug(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "0.25", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "0.27", "db_path": DB_PATH}
