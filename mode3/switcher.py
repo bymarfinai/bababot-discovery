@@ -1,9 +1,11 @@
 """
 Mode3 Switcher - State machine orchestrator + 3 tools (SIDEWAYS, BULL, BEAR).
 
-Spec reference: BabaBot_Switcher_Spec_v0_23
+Spec reference: BabaBot_Switcher_Spec_v0_24
 v0.22: 1 action per candle max
 v0.23: add ema_at_entry/exit + sl_level/tp_level to Trade for debugging
+v0.24: SIDEWAYS distance filter - block entry if |close-EMA20|/EMA20 > cap (default 0.5%)
+       Rationale: deep counter-trend from EMA = market trending, mean reversion fails
 """
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -48,7 +50,7 @@ class Position:
     tp_level: float
     peak_high: float = 0.0
     trough_low: float = 1e18
-    ema_at_entry: float = 0.0  # v0.23
+    ema_at_entry: float = 0.0
 
 
 @dataclass
@@ -64,7 +66,6 @@ class Trade:
     pnl_usd: float
     peak_high: float
     trough_low: float
-    # v0.23 debug fields
     sl_level: float = 0.0
     tp_level: float = 0.0
     ema_at_entry: float = 0.0
@@ -82,14 +83,14 @@ class Switcher:
         self.bear_stay_warmup: bool = False
         self.startup_bias: Optional[str] = None
         self._action_taken_this_bar: bool = False
-        # v0.23: track current bar indicators for internal use
         self._current_ema20: float = 0.0
         self._current_vah: Optional[float] = None
         self._current_val: Optional[float] = None
+        # v0.24: track blocked entries for debugging
+        self._sideways_blocked_count: int = 0
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
         self._action_taken_this_bar = False
-        # v0.23: cache for _open_* and _close_position use
         self._current_ema20 = ema20
         self._current_vah = vah
         self._current_val = val
@@ -253,7 +254,19 @@ class Switcher:
         elif long_ok:
             self._open_long_sideways(bar_idx, h, l, c)
 
+    def _sideways_distance_ok(self, c: float) -> bool:
+        """v0.24: check if close is within distance cap from EMA20."""
+        ema = self._current_ema20
+        if ema <= 0:
+            return True  # no EMA yet (startup), skip filter
+        distance = abs(c - ema) / ema
+        return distance <= self.config.sideways_ema_distance_cap
+
     def _open_short_sideways(self, bar_idx, h, l, c):
+        # v0.24: distance filter
+        if not self._sideways_distance_ok(c):
+            self._sideways_blocked_count += 1
+            return
         self.markers.marker_high_short = h
         self.markers.marker_close_short = c
         sl = h
@@ -268,6 +281,10 @@ class Switcher:
         )
 
     def _open_long_sideways(self, bar_idx, h, l, c):
+        # v0.24: distance filter
+        if not self._sideways_distance_ok(c):
+            self._sideways_blocked_count += 1
+            return
         self.markers.marker_low_long = l
         self.markers.marker_close_long = c
         sl = l
