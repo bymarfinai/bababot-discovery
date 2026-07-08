@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v1.0 — final cleanup, proven config as defaults.
+Mode3 Backtest Endpoint v1.1 — added SIDEWAYS EMA_INVALIDATION query params.
 """
 import os
 import json as jsonlib
@@ -56,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '1.0', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '1.1', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -90,8 +90,6 @@ def load_candles_from_db(symbol, timeframe, start_ts, end_ts, db_path=None):
 
 
 def compute_mtf_bull_entry(rows_1h, rows_15m):
-    """Find first 15m candle inside each 1h bar with bullish reject pattern.
-    Returns (list of close_or_None, list of low_or_None) for BULL entry mode."""
     if not rows_15m: return [None]*len(rows_1h), [None]*len(rows_1h)
     opens_15m = np.array([r[1] for r in rows_15m], dtype=float)
     lows_15m = np.array([r[3] for r in rows_15m], dtype=float)
@@ -118,18 +116,20 @@ def backtest_mode3(
     symbol: str = Query("BTCUSDT"),
     timeframe: str = Query("1h"),
     days: int = Query(30, ge=1, le=365),
-    # Trading params (proven defaults)
     va_window: int = Query(50, ge=20, le=200),
     tp_pct: float = Query(0.003, ge=0.001, le=0.05),
     entry_usd: float = Query(10.0),
     leverage: float = Query(50.0),
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
-    # Filters (proven defaults)
     sideways_ema_dist_cap: float = Query(0.003, ge=0.0, le=0.05),
     chop_max_crossings: int = Query(4, ge=0, le=20),
     bull_min_volume_ratio: float = Query(1.5, ge=0.0, le=5.0),
     bull_mtf_15m_entry: bool = Query(True),
+    # v1.1 SIDEWAYS EMA_INVALIDATION controls
+    sideways_ema_invalidation: bool = Query(True),
+    sideways_ema_invalidation_tolerance: float = Query(0.0, ge=0.0, le=0.02),
+    sideways_ema_invalidation_delay: int = Query(0, ge=0, le=10),
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
@@ -143,6 +143,9 @@ def backtest_mode3(
         chop_max_crossings=chop_max_crossings,
         bull_min_volume_ratio=bull_min_volume_ratio,
         bull_mtf_15m_entry=bull_mtf_15m_entry,
+        sideways_ema_invalidation=sideways_ema_invalidation,
+        sideways_ema_invalidation_tolerance=sideways_ema_invalidation_tolerance,
+        sideways_ema_invalidation_delay=sideways_ema_invalidation_delay,
     )
 
     end_ts = int(datetime.utcnow().timestamp() * 1000)
@@ -162,7 +165,6 @@ def backtest_mode3(
     ema20 = compute_ema_series(closes, config.ema_period)
     switcher = Switcher(config)
 
-    # Preprocess 15m MTF data for BULL entry
     if bull_mtf_15m_entry:
         rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
         if rows_15m:
@@ -321,5 +323,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "1.0", "db_path": DB_PATH,
-            "features": ["chop_filter_4", "bull_volume_1.5x", "bull_mtf_15m_entry"]}
+    return {"status": "ok", "module": "mode3", "version": "1.1", "db_path": DB_PATH}
