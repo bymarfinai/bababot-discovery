@@ -1,7 +1,5 @@
 """
-Mode3 Switcher v0.28 — trailing SL added (on top of v0.27 chop filter).
-LONG: SL = peak_high * (1 - trailing_sl_pct); only tightens.
-SHORT: SL = trough_low * (1 + trailing_sl_pct); only tightens.
+Mode3 Switcher v0.29 — BULL filters (idea 1-4) added.
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -84,6 +82,13 @@ class Switcher:
         self._sideways_blocked_count = 0
         self._chop_history = deque(maxlen=config.chop_window)
         self._chop_blocked_count = 0
+        self._volume_history = deque(maxlen=config.bull_volume_window)
+        self._ema_history = deque(maxlen=config.bull_slope_window)
+        self._bull_blocked_ema_dist = 0
+        self._bull_blocked_volume = 0
+        self._bull_blocked_slope = 0
+        self._bull_blocked_confirm = 0
+        self._bull_pending_confirm = None
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
         self._action_taken_this_bar = False
@@ -93,6 +98,8 @@ class Switcher:
         if ema20 > 0:
             sign = 1 if c > ema20 else (-1 if c < ema20 else 0)
             self._chop_history.append(sign)
+            self._ema_history.append(ema20)
+        self._volume_history.append(v)
 
         if self.state == 'STARTUP':
             if vah is None or val is None: return
@@ -102,6 +109,9 @@ class Switcher:
             self._update_position_tracking(h, l)
             self._update_trailing_sl()
             self._check_exit(bar_idx, o, h, l, c, ema20, vah, val)
+
+        if self.position is None and self._bull_pending_confirm is not None:
+            self._check_bull_confirmation(bar_idx, o, h, l, c, ema20)
 
         if self.position is None and not self._action_taken_this_bar:
             if self._is_choppy():
@@ -116,13 +126,11 @@ class Switcher:
         if pos.side == 'LONG':
             potential = pos.peak_high * (1.0 - trail)
             if potential > pos.sl_level:
-                pos.sl_level = potential
-                pos.sl_trailed = True
+                pos.sl_level = potential; pos.sl_trailed = True
         else:
             potential = pos.trough_low * (1.0 + trail)
             if potential < pos.sl_level:
-                pos.sl_level = potential
-                pos.sl_trailed = True
+                pos.sl_level = potential; pos.sl_trailed = True
 
     def _is_choppy(self):
         if self.config.chop_max_crossings <= 0: return False
@@ -131,13 +139,43 @@ class Switcher:
         hist = list(self._chop_history)
         prev = hist[0]
         for s in hist[1:]:
-            if s != 0 and prev != 0 and s != prev:
-                crossings += 1
+            if s != 0 and prev != 0 and s != prev: crossings += 1
             if s != 0: prev = s
         return crossings > self.config.chop_max_crossings
 
     def _sl_exit_type(self):
         return 'TRAILING_SL' if (self.position and self.position.sl_trailed) else 'SL'
+
+    def _bull_ema_distance_ok(self, c, ema20):
+        min_dist = self.config.bull_min_ema_distance_pct
+        if min_dist <= 0: return True
+        if ema20 <= 0: return True
+        distance = (c - ema20) / ema20
+        return distance >= min_dist
+
+    def _bull_volume_ok(self, v):
+        min_ratio = self.config.bull_min_volume_ratio
+        if min_ratio <= 0: return True
+        if len(self._volume_history) < self.config.bull_volume_window: return True
+        avg = sum(self._volume_history) / len(self._volume_history)
+        if avg <= 0: return True
+        return v >= avg * min_ratio
+
+    def _bull_slope_ok(self):
+        if not self.config.bull_disable_downtrend: return True
+        if len(self._ema_history) < self.config.bull_slope_window: return True
+        hist = list(self._ema_history)
+        return hist[-1] >= hist[0]
+
+    def _check_bull_confirmation(self, bar_idx, o, h, l, c, ema20):
+        prev_entry_bar, prev_o, prev_h, prev_l, prev_c, prev_ema = self._bull_pending_confirm
+        if (c > ema20) and (c > prev_c):
+            self.position = Position(tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
+                entry_high=h, entry_low=l, sl_level=l, tp_level=c*(1.0+self.config.tp_pct),
+                peak_high=h, trough_low=l, ema_at_entry=ema20, initial_sl=l)
+        else:
+            self._bull_blocked_confirm += 1
+        self._bull_pending_confirm = None
 
     def _startup_transition(self, close, ema20):
         if close > ema20: self.startup_bias = 'bullish'
@@ -279,6 +317,18 @@ class Switcher:
         if self.bull_stay_warmup and c < ema20:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False; return
         if (l <= ema20) and (c > ema20) and (c > o):
+            if not self._bull_ema_distance_ok(c, ema20):
+                self._bull_blocked_ema_dist += 1
+                return
+            if not self._bull_volume_ok(self._volume_history[-1] if self._volume_history else 0):
+                self._bull_blocked_volume += 1
+                return
+            if not self._bull_slope_ok():
+                self._bull_blocked_slope += 1
+                return
+            if self.config.bull_confirmation_candle:
+                self._bull_pending_confirm = (bar_idx, o, h, l, c, ema20)
+                return
             self.position = Position(tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
                 entry_high=h, entry_low=l, sl_level=l, tp_level=c*(1.0+self.config.tp_pct),
                 peak_high=h, trough_low=l, ema_at_entry=self._current_ema20, initial_sl=l)
