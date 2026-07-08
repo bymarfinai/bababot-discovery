@@ -31,9 +31,10 @@ class Mode3Config:
     bull_mtf_15m_confirm: bool = False
     bull_mtf_15m_strict: bool = False
     bull_mtf_15m_entry: bool = False
-    # v0.33: BEAR filters (mirror of BULL)
     bear_min_volume_ratio: float = 0.0
     bear_mtf_15m_entry: bool = False
+    # v0.34: BEAR max volume filter (skip capitulation spikes - opposite of BULL)
+    bear_max_volume_ratio: float = 0.0
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
