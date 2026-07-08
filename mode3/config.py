@@ -1,47 +1,38 @@
 """
-Mode3 Config — all parameters centralized.
-Every rule number from BabaBot_Switcher_Spec_v0_21 lives here.
-Zero magic numbers in any other file.
+Mode3 Config - all parameters centralized.
 """
 from dataclasses import dataclass
 
 
 @dataclass
 class Mode3Config:
-    # =========================================================================
-    # VA computation (spec §3.0, v0.19 locked — percentile-based)
-    # =========================================================================
-    va_window: int = 50                    # candle lookback
-    va_percentile_high: float = 85.0       # VAH percentile
-    va_percentile_low: float = 15.0        # VAL percentile
+    # VA (v0.19)
+    va_window: int = 50
+    va_percentile_high: float = 85.0
+    va_percentile_low: float = 15.0
 
-    # =========================================================================
-    # EMA (spec §2.5, 6.2, 7.2)
-    # =========================================================================
+    # EMA
     ema_period: int = 20
 
-    # =========================================================================
-    # TP fixed 0.6% (spec §3.3 sideways, §6.3 BULL, §7.3 BEAR — v0.11)
-    # =========================================================================
-    tp_pct: float = 0.006                  # 0.6% profit target, all tools
+    # TP (v0.11)
+    tp_pct: float = 0.006
 
-    # =========================================================================
-    # Position sizing (spec §11 v0.21)
-    # =========================================================================
+    # Position sizing (v0.21)
     capital_usd: float = 100.0
-    entry_usd: float = 10.0                # 10% of capital
+    entry_usd: float = 10.0
     leverage: float = 50.0
 
-    # =========================================================================
-    # Trading costs (spec §11 v0.21)
-    # =========================================================================
-    fee_pct_roundtrip: float = 0.001       # 0.10% (0.05% × 2 sides, market taker)
-    slippage_pct: float = 0.0005           # 0.05%
+    # Trading costs (v0.21)
+    fee_pct_roundtrip: float = 0.001
+    slippage_pct: float = 0.0005
 
-    # =========================================================================
-    # Startup (spec §12 v0.19)
-    # =========================================================================
-    startup_warmup_candles: int = 51       # va_window + 1
+    # Startup (v0.19)
+    startup_warmup_candles: int = 51
+
+    # v0.24: SIDEWAYS distance filter
+    # Block SIDEWAYS entry if |close - EMA20| / EMA20 > sideways_ema_distance_cap
+    # Rationale: deep counter-trend = market trending, mean reversion melawan momentum
+    sideways_ema_distance_cap: float = 0.005  # 0.5%
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
