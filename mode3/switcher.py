@@ -1,11 +1,5 @@
 """
-Mode3 Switcher - State machine orchestrator + 3 tools (SIDEWAYS, BULL, BEAR).
-
-Spec reference: BabaBot_Switcher_Spec_v0_26
-v0.22: 1 action per candle max
-v0.23: add debug fields to Trade
-v0.24: SIDEWAYS distance filter
-v0.26: Trailing SL - LONG: peak_high*(1-pct); SHORT: trough_low*(1+pct). Only tightens.
+Mode3 Switcher - v0.24 rollback (no trailing SL).
 """
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -51,9 +45,6 @@ class Position:
     peak_high: float = 0.0
     trough_low: float = 1e18
     ema_at_entry: float = 0.0
-    # v0.26: trailing SL tracking
-    initial_sl: float = 0.0  # initial SL for comparison
-    sl_trailed: bool = False  # True if trailing has moved SL
 
 
 @dataclass
@@ -64,7 +55,7 @@ class Trade:
     exit_price: float
     entry_bar: int
     exit_bar: int
-    exit_type: str  # SL | TP | EMA_INVALIDATION | TRAILING_SL
+    exit_type: str
     pnl_pct: float
     pnl_usd: float
     peak_high: float
@@ -73,8 +64,6 @@ class Trade:
     tp_level: float = 0.0
     ema_at_entry: float = 0.0
     ema_at_exit: float = 0.0
-    initial_sl: float = 0.0  # v0.26
-    sl_trailed: bool = False  # v0.26
 
 
 class Switcher:
@@ -106,7 +95,6 @@ class Switcher:
 
         if self.position is not None:
             self._update_position_tracking(h, l)
-            self._update_trailing_sl()  # v0.26
             self._check_exit(bar_idx, o, h, l, c, ema20, vah, val)
 
         if self.position is None and not self._action_taken_this_bar:
@@ -124,26 +112,6 @@ class Switcher:
         self.position.peak_high = max(self.position.peak_high, h)
         self.position.trough_low = min(self.position.trough_low, l)
 
-    def _update_trailing_sl(self):
-        """v0.26: tighten SL based on peak_high (LONG) or trough_low (SHORT)."""
-        pos = self.position
-        assert pos is not None
-        trail_pct = self.config.trailing_sl_pct
-        if trail_pct <= 0:
-            return  # disabled
-
-        if pos.side == 'LONG':
-            # SL trails peak: potential_new_sl = peak * (1 - trail_pct)
-            potential = pos.peak_high * (1.0 - trail_pct)
-            if potential > pos.sl_level:
-                pos.sl_level = potential
-                pos.sl_trailed = True
-        else:  # SHORT
-            potential = pos.trough_low * (1.0 + trail_pct)
-            if potential < pos.sl_level:
-                pos.sl_level = potential
-                pos.sl_trailed = True
-
     def _check_exit(self, bar_idx, o, h, l, c, ema20, vah, val):
         pos = self.position
         assert pos is not None
@@ -154,18 +122,13 @@ class Switcher:
         elif pos.tool == 'BEAR':
             self._exit_bear(bar_idx, c)
 
-    def _sl_exit_type(self):
-        """Return 'TRAILING_SL' if SL was trailed, else 'SL'."""
-        return 'TRAILING_SL' if (self.position and self.position.sl_trailed) else 'SL'
-
     def _exit_sideways(self, bar_idx, c, ema20, l=None, h=None):
         pos = self.position
         assert pos is not None
         if pos.side == 'SHORT':
             if c > pos.sl_level:
-                exit_type = self._sl_exit_type()
-                self._close_position(bar_idx, c, exit_type)
-                self._post_exit_sideways_short('SL')  # transition treats trailing same as SL
+                self._close_position(bar_idx, c, 'SL')
+                self._post_exit_sideways_short('SL')
                 return
             if c <= pos.tp_level:
                 self._close_position(bar_idx, c, 'TP')
@@ -177,8 +140,7 @@ class Switcher:
                 return
         else:
             if c < pos.sl_level:
-                exit_type = self._sl_exit_type()
-                self._close_position(bar_idx, c, exit_type)
+                self._close_position(bar_idx, c, 'SL')
                 self._post_exit_sideways_long('SL')
                 return
             if c >= pos.tp_level:
@@ -216,8 +178,7 @@ class Switcher:
         pos = self.position
         assert pos is not None
         if c < pos.sl_level:
-            exit_type = self._sl_exit_type()
-            self._close_position(bar_idx, c, exit_type)
+            self._close_position(bar_idx, c, 'SL')
             self._post_exit_bull('SL')
             return
         if c >= pos.tp_level:
@@ -240,8 +201,7 @@ class Switcher:
         pos = self.position
         assert pos is not None
         if c > pos.sl_level:
-            exit_type = self._sl_exit_type()
-            self._close_position(bar_idx, c, exit_type)
+            self._close_position(bar_idx, c, 'SL')
             self._post_exit_bear('SL')
             return
         if c <= pos.tp_level:
@@ -309,7 +269,6 @@ class Switcher:
             sl_level=sl, tp_level=tp,
             peak_high=h, trough_low=l,
             ema_at_entry=self._current_ema20,
-            initial_sl=sl,
         )
 
     def _open_long_sideways(self, bar_idx, h, l, c):
@@ -327,7 +286,6 @@ class Switcher:
             sl_level=sl, tp_level=tp,
             peak_high=h, trough_low=l,
             ema_at_entry=self._current_ema20,
-            initial_sl=sl,
         )
 
     def _entry_wait_see_bullish(self, bar_idx, o, h, l, c, ema20, vah, val):
@@ -372,7 +330,6 @@ class Switcher:
                 sl_level=l, tp_level=c * (1.0 + self.config.tp_pct),
                 peak_high=h, trough_low=l,
                 ema_at_entry=self._current_ema20,
-                initial_sl=l,
             )
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
@@ -389,7 +346,6 @@ class Switcher:
                 sl_level=h, tp_level=c * (1.0 - self.config.tp_pct),
                 peak_high=h, trough_low=l,
                 ema_at_entry=self._current_ema20,
-                initial_sl=h,
             )
 
     def _close_position(self, bar_idx, exit_price, exit_type):
@@ -411,8 +367,6 @@ class Switcher:
             sl_level=pos.sl_level, tp_level=pos.tp_level,
             ema_at_entry=pos.ema_at_entry,
             ema_at_exit=self._current_ema20,
-            initial_sl=pos.initial_sl,
-            sl_trailed=pos.sl_trailed,
         ))
         self.position = None
         self._action_taken_this_bar = True
