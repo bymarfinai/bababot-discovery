@@ -1,8 +1,5 @@
 """
 Mode3 Backtest Endpoint - FastAPI router.
-Wiring di app.py:
-    from mode3_backtest_endpoint import router as mode3_clean_router
-    app.include_router(mode3_clean_router)
 """
 import os
 from dataclasses import asdict
@@ -15,13 +12,10 @@ from datetime import datetime
 from mode3 import Mode3Config, Switcher, compute_ema_series, compute_va_at_bar
 
 router = APIRouter(prefix="/mode3", tags=["mode3"])
-
-# Use same DB path as app.py
 DB_PATH = os.environ.get("DB_PATH", "market_data.db")
 
 
 def load_candles_from_db(symbol, timeframe, start_ts, end_ts, db_path=None):
-    """Load candles from SQLite DB (klines table, matching app.py schema)."""
     if db_path is None:
         db_path = DB_PATH
     conn = sqlite3.connect(db_path)
@@ -55,7 +49,7 @@ def backtest_mode3(
 ):
     """
     Backtest Mode3 switcher on historical candles.
-    Returns per-trade breakdown + summary metrics + per-tool stats.
+    v0.23: trades now include sl_level, tp_level, ema_at_entry, ema_at_exit
     """
     config = Mode3Config(
         va_window=va_window,
@@ -146,6 +140,11 @@ def backtest_mode3(
                 "exit_type": t.exit_type,
                 "pnl_pct": round(t.pnl_pct * 100, 3),
                 "pnl_usd": round(t.pnl_usd, 2),
+                # v0.23 debug fields
+                "sl_level": round(t.sl_level, 2),
+                "tp_level": round(t.tp_level, 2),
+                "ema_at_entry": round(t.ema_at_entry, 2),
+                "ema_at_exit": round(t.ema_at_exit, 2),
             }
             for t in trades
         ],
@@ -153,6 +152,73 @@ def backtest_mode3(
     }
 
 
+@router.get("/candles-debug")
+def candles_debug(
+    symbol: str = Query("BTCUSDT"),
+    timeframe: str = Query("1h"),
+    days: int = Query(30, ge=1, le=365),
+    va_window: int = Query(50, ge=20, le=200),
+    bar_start: int = Query(0, ge=0),
+    bar_end: int = Query(20, ge=1),
+):
+    """
+    Return raw OHLCV + EMA20 + VAH + VAL + POC per bar for a given range.
+    Useful for debugging why entries/exits fired.
+    Bar indexing matches trade record (0 = first candle in period).
+    """
+    end_ts = int(datetime.utcnow().timestamp() * 1000)
+    start_ts = end_ts - (days * 86400 * 1000)
+    rows = load_candles_from_db(symbol, timeframe, start_ts, end_ts)
+
+    if len(rows) == 0:
+        return {"error": "no candles", "trades": []}
+
+    opens = np.array([r[1] for r in rows], dtype=float)
+    highs = np.array([r[2] for r in rows], dtype=float)
+    lows = np.array([r[3] for r in rows], dtype=float)
+    closes = np.array([r[4] for r in rows], dtype=float)
+    volumes = np.array([r[5] for r in rows], dtype=float)
+
+    ema20 = compute_ema_series(closes, 20)
+
+    # Clamp bar range
+    bar_end = min(bar_end, len(rows))
+    bar_start = min(bar_start, len(rows) - 1)
+
+    candles = []
+    for i in range(bar_start, bar_end):
+        vah, val, poc = compute_va_at_bar(
+            highs, lows, closes, volumes, i,
+            va_window, 85.0, 15.0,
+        )
+        candles.append({
+            "bar_idx": i,
+            "open_time": rows[i][0],
+            "o": round(opens[i], 2),
+            "h": round(highs[i], 2),
+            "l": round(lows[i], 2),
+            "c": round(closes[i], 2),
+            "v": round(volumes[i], 2),
+            "ema20": round(ema20[i], 2),
+            "vah": round(vah, 2) if vah else None,
+            "val": round(val, 2) if val else None,
+            "poc": round(poc, 2) if poc else None,
+            # helper flags
+            "close_above_ema": bool(closes[i] > ema20[i]),
+            "high_touches_ema": bool(highs[i] >= ema20[i]),
+            "low_touches_ema": bool(lows[i] <= ema20[i]),
+            "range_pct": round((highs[i] - lows[i]) / opens[i] * 100, 3),
+        })
+
+    return {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "total_candles": len(rows),
+        "bar_range": [bar_start, bar_end],
+        "candles": candles,
+    }
+
+
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "0.21", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "0.23", "db_path": DB_PATH}
