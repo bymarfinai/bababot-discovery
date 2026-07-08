@@ -1,5 +1,5 @@
 """
-Mode3 Switcher v0.32 — MTF 15m strict filter + MTF 15m entry mode.
+Mode3 Switcher v0.33 — BEAR volume + MTF entry mirror added.
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -91,10 +91,14 @@ class Switcher:
         self._bull_blocked_range = 0
         self._bull_blocked_mtf = 0
         self._bull_pending_confirm = None
-        # v0.31: MTF filter, v0.32: MTF entry mode
-        self.mtf_bull_confirm = None       # list[bool] per bar_idx for filter mode
-        self.mtf_bull_entry_close = None   # list[float or None] for entry mode
-        self.mtf_bull_entry_low = None     # list[float or None] for entry mode
+        self.mtf_bull_confirm = None
+        self.mtf_bull_entry_close = None
+        self.mtf_bull_entry_low = None
+        # v0.33 BEAR mirror
+        self._bear_blocked_volume = 0
+        self._bear_blocked_mtf = 0
+        self.mtf_bear_entry_close = None
+        self.mtf_bear_entry_high = None
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
         self._action_taken_this_bar = False
@@ -337,12 +341,10 @@ class Switcher:
                 if candle_range > self.config.bull_max_candle_range_pct:
                     self._bull_blocked_range += 1
                     return
-            # MTF filter mode (also uses strict pattern via preprocessing)
             if self.config.bull_mtf_15m_confirm and self.mtf_bull_confirm is not None:
                 if bar_idx < len(self.mtf_bull_confirm) and not self.mtf_bull_confirm[bar_idx]:
                     self._bull_blocked_mtf += 1
                     return
-            # MTF ENTRY mode - use 15m rejection candle data for tighter SL
             if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
                 if bar_idx < len(self.mtf_bull_entry_close):
                     mtf_close = self.mtf_bull_entry_close[bar_idx]
@@ -368,6 +370,28 @@ class Switcher:
         if self.bear_stay_warmup and c > ema20:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False; return
         if (h >= ema20) and (c < ema20) and (c < o):
+            # v0.33: BEAR Volume filter (mirror of BULL)
+            if self.config.bear_min_volume_ratio > 0:
+                if len(self._volume_history) >= self.config.bull_volume_window:
+                    avg = sum(self._volume_history) / len(self._volume_history)
+                    if avg > 0 and (self._volume_history[-1] if self._volume_history else 0) < avg * self.config.bear_min_volume_ratio:
+                        self._bear_blocked_volume += 1
+                        return
+            # v0.33: MTF ENTRY mode for BEAR (mirror of BULL, SHORT direction)
+            if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
+                if bar_idx < len(self.mtf_bear_entry_close):
+                    mtf_close = self.mtf_bear_entry_close[bar_idx]
+                    mtf_high = self.mtf_bear_entry_high[bar_idx]
+                    if mtf_close is None or mtf_high is None:
+                        self._bear_blocked_mtf += 1
+                        return
+                    entry_price = mtf_close
+                    sl_level = mtf_high
+                    tp_level = entry_price * (1.0 - self.config.tp_pct)
+                    self.position = Position(tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
+                        entry_high=mtf_high, entry_low=l, sl_level=sl_level, tp_level=tp_level,
+                        peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20, initial_sl=sl_level)
+                    return
             self.position = Position(tool='BEAR', side='SHORT', entry_price=c, entry_bar=bar_idx,
                 entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-self.config.tp_pct),
                 peak_high=h, trough_low=l, ema_at_entry=self._current_ema20, initial_sl=h)
