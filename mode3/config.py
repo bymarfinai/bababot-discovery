@@ -29,9 +29,11 @@ class Mode3Config:
     bull_slope_window: int = 20
     bull_max_candle_range_pct: float = 0.0
     bull_mtf_15m_confirm: bool = False
-    # v0.32: MTF strict filter + MTF entry mode
-    bull_mtf_15m_strict: bool = False  # strict pattern (close in top 30% of range)
-    bull_mtf_15m_entry: bool = False   # use 15m rejection candle for entry (tight SL)
+    bull_mtf_15m_strict: bool = False
+    bull_mtf_15m_entry: bool = False
+    # v0.33: BEAR filters (mirror of BULL)
+    bear_min_volume_ratio: float = 0.0
+    bear_mtf_15m_entry: bool = False
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
