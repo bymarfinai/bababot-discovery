@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint - FastAPI router. v0.31 (MTF 15m BULL filter added).
+Mode3 Backtest Endpoint - FastAPI router. v0.32 (MTF strict + entry mode).
 """
 import os
 import json as jsonlib
@@ -56,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '0.31', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '0.32', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -89,12 +89,10 @@ def load_candles_from_db(symbol, timeframe, start_ts, end_ts, db_path=None):
     return rows
 
 
-def compute_mtf_bull_confirm(rows_1h, rows_15m):
+def compute_mtf_bull_confirm(rows_1h, rows_15m, strict=False):
     """
-    For each 1h bar, check if any of the 4 aligned 15m candles is a
-    bullish reject pattern at 15m EMA20:
-        low_15m <= ema20_15m AND close_15m > ema20_15m AND close_15m > open_15m
-    Returns list[bool] of len(rows_1h).
+    For each 1h bar, check if any of the 4 aligned 15m candles is a bullish reject.
+    Strict variant: close in top 30% of range AND all above conditions.
     """
     if not rows_15m:
         return [False] * len(rows_1h)
@@ -103,26 +101,61 @@ def compute_mtf_bull_confirm(rows_1h, rows_15m):
     lows_15m = np.array([r[3] for r in rows_15m], dtype=float)
     closes_15m = np.array([r[4] for r in rows_15m], dtype=float)
     ema_15m = compute_ema_series(closes_15m, 20)
-
-    # Map 15m open_time to index for O(1) lookup
     ts_to_idx = {r[0]: i for i, r in enumerate(rows_15m)}
-
     ONE_15M_MS = 15 * 60 * 1000
     confirm = []
     for r in rows_1h:
         t_1h = r[0]
-        # 4 aligned 15m candles: t_1h + 0, +15m, +30m, +45m
         ok = False
         for k in range(4):
             j = ts_to_idx.get(t_1h + k * ONE_15M_MS)
-            if j is None:
-                continue
-            if (lows_15m[j] <= ema_15m[j] and closes_15m[j] > ema_15m[j]
-                    and closes_15m[j] > opens_15m[j]):
-                ok = True
-                break
+            if j is None: continue
+            basic = (lows_15m[j] <= ema_15m[j] and closes_15m[j] > ema_15m[j]
+                     and closes_15m[j] > opens_15m[j])
+            if not basic: continue
+            if strict:
+                rng = highs_15m[j] - lows_15m[j]
+                if rng > 0:
+                    close_pos = (closes_15m[j] - lows_15m[j]) / rng
+                    if close_pos < 0.7:  # close must be in top 30% of range
+                        continue
+            ok = True
+            break
         confirm.append(ok)
     return confirm
+
+
+def compute_mtf_bull_entry(rows_1h, rows_15m):
+    """
+    For each 1h bar, find first 15m candle inside with bullish reject.
+    Return (list of close_or_None, list of low_or_None) for entry mode.
+    """
+    if not rows_15m:
+        return [None]*len(rows_1h), [None]*len(rows_1h)
+    opens_15m = np.array([r[1] for r in rows_15m], dtype=float)
+    highs_15m = np.array([r[2] for r in rows_15m], dtype=float)
+    lows_15m = np.array([r[3] for r in rows_15m], dtype=float)
+    closes_15m = np.array([r[4] for r in rows_15m], dtype=float)
+    ema_15m = compute_ema_series(closes_15m, 20)
+    ts_to_idx = {r[0]: i for i, r in enumerate(rows_15m)}
+    ONE_15M_MS = 15 * 60 * 1000
+    entry_closes = []
+    entry_lows = []
+    for r in rows_1h:
+        t_1h = r[0]
+        found_close = None
+        found_low = None
+        for k in range(4):
+            j = ts_to_idx.get(t_1h + k * ONE_15M_MS)
+            if j is None: continue
+            if (lows_15m[j] <= ema_15m[j] and closes_15m[j] > ema_15m[j]
+                    and closes_15m[j] > opens_15m[j]):
+                found_close = float(closes_15m[j])
+                found_low = float(lows_15m[j])
+                break
+        entry_closes.append(found_close)
+        entry_lows.append(found_low)
+    return entry_closes, entry_lows
 
 
 @router.get("/backtest")
@@ -145,6 +178,8 @@ def backtest_mode3(
     bull_disable_downtrend: bool = Query(False),
     bull_max_candle_range_pct: float = Query(0.0, ge=0.0, le=0.05),
     bull_mtf_15m_confirm: bool = Query(False),
+    bull_mtf_15m_strict: bool = Query(False),
+    bull_mtf_15m_entry: bool = Query(False),
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
@@ -163,6 +198,8 @@ def backtest_mode3(
         bull_disable_downtrend=bull_disable_downtrend,
         bull_max_candle_range_pct=bull_max_candle_range_pct,
         bull_mtf_15m_confirm=bull_mtf_15m_confirm,
+        bull_mtf_15m_strict=bull_mtf_15m_strict,
+        bull_mtf_15m_entry=bull_mtf_15m_entry,
     )
 
     end_ts = int(datetime.utcnow().timestamp() * 1000)
@@ -184,14 +221,21 @@ def backtest_mode3(
     ema20 = compute_ema_series(closes, config.ema_period)
     switcher = Switcher(config)
 
-    # v0.31: Preprocess 15m MTF confirmation if requested
+    # v0.31/v0.32: Preprocess 15m MTF data if needed
     mtf_confirm_used = False
-    if bull_mtf_15m_confirm:
+    mtf_entry_used = False
+    if bull_mtf_15m_confirm or bull_mtf_15m_entry:
         rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
         if rows_15m:
-            mtf = compute_mtf_bull_confirm(rows, rows_15m)
-            switcher.mtf_bull_confirm = mtf
-            mtf_confirm_used = True
+            if bull_mtf_15m_confirm:
+                mtf = compute_mtf_bull_confirm(rows, rows_15m, strict=bull_mtf_15m_strict)
+                switcher.mtf_bull_confirm = mtf
+                mtf_confirm_used = True
+            if bull_mtf_15m_entry:
+                ec, el = compute_mtf_bull_entry(rows, rows_15m)
+                switcher.mtf_bull_entry_close = ec
+                switcher.mtf_bull_entry_low = el
+                mtf_entry_used = True
 
     for i in range(len(rows)):
         vah, val, poc = compute_va_at_bar(
@@ -225,6 +269,7 @@ def backtest_mode3(
         "symbol": symbol, "timeframe": timeframe, "days": days,
         "candles_processed": len(rows),
         "mtf_confirm_used": mtf_confirm_used,
+        "mtf_entry_used": mtf_entry_used,
         "config": asdict(config),
         "summary": {
             "total_trades": n,
@@ -253,6 +298,7 @@ def backtest_mode3(
                 "pnl_pct": round(t.pnl_pct * 100, 3), "pnl_usd": round(t.pnl_usd, 2),
                 "sl_level": round(t.sl_level, 2), "tp_level": round(t.tp_level, 2),
                 "ema_at_entry": round(t.ema_at_entry, 2), "ema_at_exit": round(t.ema_at_exit, 2),
+                "sl_distance_pct": round((t.entry_price - t.sl_level) / t.entry_price * 100, 3) if t.side == 'LONG' else round((t.sl_level - t.entry_price) / t.entry_price * 100, 3),
             }
             for t in trades
         ],
@@ -353,5 +399,5 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "0.31", "db_path": DB_PATH,
-            "features": ["chop_filter", "trailing_sl", "bull_filters", "bull_range_filter", "mtf_15m"]}
+    return {"status": "ok", "module": "mode3", "version": "0.32", "db_path": DB_PATH,
+            "features": ["chop_filter", "trailing_sl", "bull_filters", "bull_range_filter", "mtf_15m_confirm", "mtf_15m_strict", "mtf_15m_entry"]}
