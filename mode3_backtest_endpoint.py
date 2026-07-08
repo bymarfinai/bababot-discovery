@@ -46,10 +46,12 @@ def backtest_mode3(
     leverage: float = Query(50.0),
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
+    sideways_ema_dist_cap: float = Query(0.005, ge=0.0, le=0.05),
 ):
     """
-    Backtest Mode3 switcher on historical candles.
-    v0.23: trades now include sl_level, tp_level, ema_at_entry, ema_at_exit
+    Backtest Mode3 switcher.
+    v0.24: SIDEWAYS distance filter (default cap 0.5%).
+    Set sideways_ema_dist_cap=0.05 (5%) to effectively disable filter.
     """
     config = Mode3Config(
         va_window=va_window,
@@ -58,6 +60,7 @@ def backtest_mode3(
         leverage=leverage,
         fee_pct_roundtrip=fee_pct,
         slippage_pct=slippage_pct,
+        sideways_ema_distance_cap=sideways_ema_dist_cap,
     )
 
     end_ts = int(datetime.utcnow().timestamp() * 1000)
@@ -127,6 +130,7 @@ def backtest_mode3(
             "total_pnl_pct": round(total_pnl_pct, 3),
             "capital_start": config.capital_usd,
             "capital_end": round(config.capital_usd + total_pnl_usd, 2),
+            "sideways_blocked_count": switcher._sideways_blocked_count,
         },
         "per_tool": tool_stats,
         "trades": [
@@ -140,7 +144,6 @@ def backtest_mode3(
                 "exit_type": t.exit_type,
                 "pnl_pct": round(t.pnl_pct * 100, 3),
                 "pnl_usd": round(t.pnl_usd, 2),
-                # v0.23 debug fields
                 "sl_level": round(t.sl_level, 2),
                 "tp_level": round(t.tp_level, 2),
                 "ema_at_entry": round(t.ema_at_entry, 2),
@@ -161,11 +164,6 @@ def candles_debug(
     bar_start: int = Query(0, ge=0),
     bar_end: int = Query(20, ge=1),
 ):
-    """
-    Return raw OHLCV + EMA20 + VAH + VAL + POC per bar for a given range.
-    Useful for debugging why entries/exits fired.
-    Bar indexing matches trade record (0 = first candle in period).
-    """
     end_ts = int(datetime.utcnow().timestamp() * 1000)
     start_ts = end_ts - (days * 86400 * 1000)
     rows = load_candles_from_db(symbol, timeframe, start_ts, end_ts)
@@ -181,7 +179,6 @@ def candles_debug(
 
     ema20 = compute_ema_series(closes, 20)
 
-    # Clamp bar range
     bar_end = min(bar_end, len(rows))
     bar_start = min(bar_start, len(rows) - 1)
 
@@ -203,7 +200,6 @@ def candles_debug(
             "vah": round(vah, 2) if vah else None,
             "val": round(val, 2) if val else None,
             "poc": round(poc, 2) if poc else None,
-            # helper flags
             "close_above_ema": bool(closes[i] > ema20[i]),
             "high_touches_ema": bool(highs[i] >= ema20[i]),
             "low_touches_ema": bool(lows[i] <= ema20[i]),
@@ -221,4 +217,4 @@ def candles_debug(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "0.23", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "0.24", "db_path": DB_PATH}
