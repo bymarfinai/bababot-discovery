@@ -1,9 +1,10 @@
 """
 Mode3 Backtest Endpoint - FastAPI router.
 Wiring di app.py:
-    from mode3_backtest_endpoint import router as mode3_router
-    app.include_router(mode3_router)
+    from mode3_backtest_endpoint import router as mode3_clean_router
+    app.include_router(mode3_clean_router)
 """
+import os
 from dataclasses import asdict
 from fastapi import APIRouter, Query
 from typing import Optional
@@ -15,9 +16,14 @@ from mode3 import Mode3Config, Switcher, compute_ema_series, compute_va_at_bar
 
 router = APIRouter(prefix="/mode3", tags=["mode3"])
 
+# Use same DB path as app.py
+DB_PATH = os.environ.get("DB_PATH", "market_data.db")
 
-def load_candles_from_db(symbol, timeframe, start_ts, end_ts, db_path="klines.db"):
-    """Load candles from SQLite DB. Adjust query/db_path per your existing schema."""
+
+def load_candles_from_db(symbol, timeframe, start_ts, end_ts, db_path=None):
+    """Load candles from SQLite DB (klines table, matching app.py schema)."""
+    if db_path is None:
+        db_path = DB_PATH
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute(
@@ -67,6 +73,7 @@ def backtest_mode3(
     if len(rows) < config.startup_warmup_candles:
         return {
             "error": f"Not enough candles: got {len(rows)}, need >= {config.startup_warmup_candles}",
+            "db_path_used": DB_PATH,
             "trades": [],
         }
 
@@ -148,4 +155,4 @@ def backtest_mode3(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "0.21"}
+    return {"status": "ok", "module": "mode3", "version": "0.21", "db_path": DB_PATH}
