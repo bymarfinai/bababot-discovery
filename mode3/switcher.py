@@ -1,11 +1,10 @@
 """
-Mode3 Switcher v1.0 — session cleanup.
+Mode3 Switcher v1.1 — SIDEWAYS EMA_INVALIDATION controls added.
 
-Kept:
-- Global: chop filter, VA + EMA-based state machine
-- BULL: volume filter + MTF 15m entry mode
-- BEAR: pure 1h entry (no filter)
-- SIDEWAYS: distance cap + EMA_INVALIDATION exit
+Same as v1.0 plus:
+- config.sideways_ema_invalidation: turn on/off
+- config.sideways_ema_invalidation_tolerance: min close-break-EMA %
+- config.sideways_ema_invalidation_delay: min candles held
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -87,7 +86,6 @@ class Switcher:
         self._volume_history = deque(maxlen=config.bull_volume_window)
         self._bull_blocked_volume = 0
         self._bull_blocked_mtf = 0
-        # MTF 15m entry data (set externally by endpoint)
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
 
@@ -134,6 +132,28 @@ class Switcher:
         if avg <= 0: return True
         return v >= avg * min_ratio
 
+    def _sideways_ema_inv_ok_short(self, bar_idx, pos, c, ema20):
+        if not self.config.sideways_ema_invalidation:
+            return False
+        bars_held = bar_idx - pos.entry_bar
+        if bars_held < self.config.sideways_ema_invalidation_delay:
+            return False
+        tol = self.config.sideways_ema_invalidation_tolerance
+        if tol > 0 and (c - ema20) / ema20 < tol:
+            return False
+        return True
+
+    def _sideways_ema_inv_ok_long(self, bar_idx, pos, c, ema20):
+        if not self.config.sideways_ema_invalidation:
+            return False
+        bars_held = bar_idx - pos.entry_bar
+        if bars_held < self.config.sideways_ema_invalidation_delay:
+            return False
+        tol = self.config.sideways_ema_invalidation_tolerance
+        if tol > 0 and (ema20 - c) / ema20 < tol:
+            return False
+        return True
+
     def _startup_transition(self, close, ema20):
         if close > ema20: self.startup_bias = 'bullish'
         elif close < ema20: self.startup_bias = 'bearish'
@@ -157,14 +177,16 @@ class Switcher:
             if c <= pos.tp_level:
                 self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_short('TP'); return
             if l is not None and l <= ema20 and c > ema20:
-                self._close_position(bar_idx, c, 'EMA_INVALIDATION'); self._post_exit_sideways_short('EMA_INVALIDATION'); return
+                if self._sideways_ema_inv_ok_short(bar_idx, pos, c, ema20):
+                    self._close_position(bar_idx, c, 'EMA_INVALIDATION'); self._post_exit_sideways_short('EMA_INVALIDATION'); return
         else:
             if c < pos.sl_level:
                 self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_long('SL'); return
             if c >= pos.tp_level:
                 self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_long('TP'); return
             if h is not None and h >= ema20 and c < ema20:
-                self._close_position(bar_idx, c, 'EMA_INVALIDATION'); self._post_exit_sideways_long('EMA_INVALIDATION'); return
+                if self._sideways_ema_inv_ok_long(bar_idx, pos, c, ema20):
+                    self._close_position(bar_idx, c, 'EMA_INVALIDATION'); self._post_exit_sideways_long('EMA_INVALIDATION'); return
 
     def _post_exit_sideways_short(self, et):
         if et == 'SL':
@@ -267,15 +289,12 @@ class Switcher:
             self._open_short_sideways(bar_idx, h, l, c); return
 
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
-        """BULL: 1h trigger + volume filter + MTF 15m entry."""
         if self.bull_stay_warmup and c < ema20:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False; return
         if (l <= ema20) and (c > ema20) and (c > o):
-            # Volume filter
             if not self._bull_volume_ok(self._volume_history[-1] if self._volume_history else 0):
                 self._bull_blocked_volume += 1
                 return
-            # MTF 15m entry — use 15m rejection candle for tight SL
             if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
                 if bar_idx < len(self.mtf_bull_entry_close):
                     mtf_close = self.mtf_bull_entry_close[bar_idx]
@@ -290,13 +309,11 @@ class Switcher:
                         entry_high=h, entry_low=mtf_low, sl_level=sl_level, tp_level=tp_level,
                         peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20)
                     return
-            # Fallback: 1h entry (if MTF disabled)
             self.position = Position(tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
                 entry_high=h, entry_low=l, sl_level=l, tp_level=c*(1.0+self.config.tp_pct),
                 peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
-        """BEAR: pure 1h entry (no filter — proven optimal)."""
         if self.bear_stay_warmup and c > ema20:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False; return
         if (h >= ema20) and (c < ema20) and (c < o):
