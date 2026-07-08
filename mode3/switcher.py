@@ -1,5 +1,5 @@
 """
-Mode3 Switcher v0.31 — MTF 15m BULL confirmation filter added.
+Mode3 Switcher v0.32 — MTF 15m strict filter + MTF 15m entry mode.
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -91,7 +91,10 @@ class Switcher:
         self._bull_blocked_range = 0
         self._bull_blocked_mtf = 0
         self._bull_pending_confirm = None
-        self.mtf_bull_confirm = None  # list[bool] per bar_idx, set externally by endpoint
+        # v0.31: MTF filter, v0.32: MTF entry mode
+        self.mtf_bull_confirm = None       # list[bool] per bar_idx for filter mode
+        self.mtf_bull_entry_close = None   # list[float or None] for entry mode
+        self.mtf_bull_entry_low = None     # list[float or None] for entry mode
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
         self._action_taken_this_bar = False
@@ -334,10 +337,25 @@ class Switcher:
                 if candle_range > self.config.bull_max_candle_range_pct:
                     self._bull_blocked_range += 1
                     return
-            # Idea 6: MTF 15m confirmation
+            # MTF filter mode (also uses strict pattern via preprocessing)
             if self.config.bull_mtf_15m_confirm and self.mtf_bull_confirm is not None:
                 if bar_idx < len(self.mtf_bull_confirm) and not self.mtf_bull_confirm[bar_idx]:
                     self._bull_blocked_mtf += 1
+                    return
+            # MTF ENTRY mode - use 15m rejection candle data for tighter SL
+            if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
+                if bar_idx < len(self.mtf_bull_entry_close):
+                    mtf_close = self.mtf_bull_entry_close[bar_idx]
+                    mtf_low = self.mtf_bull_entry_low[bar_idx]
+                    if mtf_close is None or mtf_low is None:
+                        self._bull_blocked_mtf += 1
+                        return
+                    entry_price = mtf_close
+                    sl_level = mtf_low
+                    tp_level = entry_price * (1.0 + self.config.tp_pct)
+                    self.position = Position(tool='BULL', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
+                        entry_high=h, entry_low=mtf_low, sl_level=sl_level, tp_level=tp_level,
+                        peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20, initial_sl=sl_level)
                     return
             if self.config.bull_confirmation_candle:
                 self._bull_pending_confirm = (bar_idx, o, h, l, c, ema20)
