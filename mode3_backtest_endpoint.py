@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint - FastAPI router. v0.29 (BULL filters + chop + trailing).
+Mode3 Backtest Endpoint - FastAPI router. v0.30 (idea 5 candle range).
 """
 import os
 import json as jsonlib
@@ -56,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '0.29', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '0.30', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -107,6 +107,7 @@ def backtest_mode3(
     bull_min_ema_distance_pct: float = Query(0.0, ge=0.0, le=0.02),
     bull_min_volume_ratio: float = Query(0.0, ge=0.0, le=5.0),
     bull_disable_downtrend: bool = Query(False),
+    bull_max_candle_range_pct: float = Query(0.0, ge=0.0, le=0.05),
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
@@ -123,6 +124,7 @@ def backtest_mode3(
         bull_min_ema_distance_pct=bull_min_ema_distance_pct,
         bull_min_volume_ratio=bull_min_volume_ratio,
         bull_disable_downtrend=bull_disable_downtrend,
+        bull_max_candle_range_pct=bull_max_candle_range_pct,
     )
 
     end_ts = int(datetime.utcnow().timestamp() * 1000)
@@ -190,6 +192,7 @@ def backtest_mode3(
             "bull_blocked_volume": switcher._bull_blocked_volume,
             "bull_blocked_slope": switcher._bull_blocked_slope,
             "bull_blocked_confirm": switcher._bull_blocked_confirm,
+            "bull_blocked_range": switcher._bull_blocked_range,
         },
         "per_tool": tool_stats,
         "trades": [
@@ -301,5 +304,5 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "0.29", "db_path": DB_PATH,
-            "features": ["chop_filter", "trailing_sl", "bull_filters"]}
+    return {"status": "ok", "module": "mode3", "version": "0.30", "db_path": DB_PATH,
+            "features": ["chop_filter", "trailing_sl", "bull_filters", "bull_range_filter"]}
