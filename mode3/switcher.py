@@ -1,5 +1,11 @@
 """
-Mode3 Switcher v0.34 — BEAR max volume filter (skip capitulation spikes).
+Mode3 Switcher v1.0 — session cleanup.
+
+Kept:
+- Global: chop filter, VA + EMA-based state machine
+- BULL: volume filter + MTF 15m entry mode
+- BEAR: pure 1h entry (no filter)
+- SIDEWAYS: distance cap + EMA_INVALIDATION exit
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -40,8 +46,6 @@ class Position:
     peak_high: float = 0.0
     trough_low: float = 1e18
     ema_at_entry: float = 0.0
-    initial_sl: float = 0.0
-    sl_trailed: bool = False
 
 
 @dataclass
@@ -61,8 +65,6 @@ class Trade:
     tp_level: float = 0.0
     ema_at_entry: float = 0.0
     ema_at_exit: float = 0.0
-    initial_sl: float = 0.0
-    sl_trailed: bool = False
 
 
 class Switcher:
@@ -83,21 +85,11 @@ class Switcher:
         self._chop_history = deque(maxlen=config.chop_window)
         self._chop_blocked_count = 0
         self._volume_history = deque(maxlen=config.bull_volume_window)
-        self._ema_history = deque(maxlen=config.bull_slope_window)
-        self._bull_blocked_ema_dist = 0
         self._bull_blocked_volume = 0
-        self._bull_blocked_slope = 0
-        self._bull_blocked_confirm = 0
-        self._bull_blocked_range = 0
         self._bull_blocked_mtf = 0
-        self._bull_pending_confirm = None
-        self.mtf_bull_confirm = None
+        # MTF 15m entry data (set externally by endpoint)
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
-        self._bear_blocked_volume = 0
-        self._bear_blocked_mtf = 0
-        self.mtf_bear_entry_close = None
-        self.mtf_bear_entry_high = None
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
         self._action_taken_this_bar = False
@@ -107,7 +99,6 @@ class Switcher:
         if ema20 > 0:
             sign = 1 if c > ema20 else (-1 if c < ema20 else 0)
             self._chop_history.append(sign)
-            self._ema_history.append(ema20)
         self._volume_history.append(v)
 
         if self.state == 'STARTUP':
@@ -116,30 +107,13 @@ class Switcher:
 
         if self.position is not None:
             self._update_position_tracking(h, l)
-            self._update_trailing_sl()
             self._check_exit(bar_idx, o, h, l, c, ema20, vah, val)
-
-        if self.position is None and self._bull_pending_confirm is not None:
-            self._check_bull_confirmation(bar_idx, o, h, l, c, ema20)
 
         if self.position is None and not self._action_taken_this_bar:
             if self._is_choppy():
                 self._chop_blocked_count += 1
                 return
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val, poc)
-
-    def _update_trailing_sl(self):
-        pos = self.position
-        trail = self.config.trailing_sl_pct
-        if trail <= 0: return
-        if pos.side == 'LONG':
-            potential = pos.peak_high * (1.0 - trail)
-            if potential > pos.sl_level:
-                pos.sl_level = potential; pos.sl_trailed = True
-        else:
-            potential = pos.trough_low * (1.0 + trail)
-            if potential < pos.sl_level:
-                pos.sl_level = potential; pos.sl_trailed = True
 
     def _is_choppy(self):
         if self.config.chop_max_crossings <= 0: return False
@@ -152,16 +126,6 @@ class Switcher:
             if s != 0: prev = s
         return crossings > self.config.chop_max_crossings
 
-    def _sl_exit_type(self):
-        return 'TRAILING_SL' if (self.position and self.position.sl_trailed) else 'SL'
-
-    def _bull_ema_distance_ok(self, c, ema20):
-        min_dist = self.config.bull_min_ema_distance_pct
-        if min_dist <= 0: return True
-        if ema20 <= 0: return True
-        distance = (c - ema20) / ema20
-        return distance >= min_dist
-
     def _bull_volume_ok(self, v):
         min_ratio = self.config.bull_min_volume_ratio
         if min_ratio <= 0: return True
@@ -169,22 +133,6 @@ class Switcher:
         avg = sum(self._volume_history) / len(self._volume_history)
         if avg <= 0: return True
         return v >= avg * min_ratio
-
-    def _bull_slope_ok(self):
-        if not self.config.bull_disable_downtrend: return True
-        if len(self._ema_history) < self.config.bull_slope_window: return True
-        hist = list(self._ema_history)
-        return hist[-1] >= hist[0]
-
-    def _check_bull_confirmation(self, bar_idx, o, h, l, c, ema20):
-        prev_entry_bar, prev_o, prev_h, prev_l, prev_c, prev_ema = self._bull_pending_confirm
-        if (c > ema20) and (c > prev_c):
-            self.position = Position(tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
-                entry_high=h, entry_low=l, sl_level=l, tp_level=c*(1.0+self.config.tp_pct),
-                peak_high=h, trough_low=l, ema_at_entry=ema20, initial_sl=l)
-        else:
-            self._bull_blocked_confirm += 1
-        self._bull_pending_confirm = None
 
     def _startup_transition(self, close, ema20):
         if close > ema20: self.startup_bias = 'bullish'
@@ -205,16 +153,14 @@ class Switcher:
         pos = self.position
         if pos.side == 'SHORT':
             if c > pos.sl_level:
-                et = self._sl_exit_type()
-                self._close_position(bar_idx, c, et); self._post_exit_sideways_short('SL'); return
+                self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_short('SL'); return
             if c <= pos.tp_level:
                 self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_short('TP'); return
             if l is not None and l <= ema20 and c > ema20:
                 self._close_position(bar_idx, c, 'EMA_INVALIDATION'); self._post_exit_sideways_short('EMA_INVALIDATION'); return
         else:
             if c < pos.sl_level:
-                et = self._sl_exit_type()
-                self._close_position(bar_idx, c, et); self._post_exit_sideways_long('SL'); return
+                self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_long('SL'); return
             if c >= pos.tp_level:
                 self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_long('TP'); return
             if h is not None and h >= ema20 and c < ema20:
@@ -235,8 +181,7 @@ class Switcher:
     def _exit_bull(self, bar_idx, c):
         pos = self.position
         if c < pos.sl_level:
-            et = self._sl_exit_type()
-            self._close_position(bar_idx, c, et); self._post_exit_bull('SL'); return
+            self._close_position(bar_idx, c, 'SL'); self._post_exit_bull('SL'); return
         if c >= pos.tp_level:
             self._close_position(bar_idx, c, 'TP'); self._post_exit_bull('TP'); return
 
@@ -251,8 +196,7 @@ class Switcher:
     def _exit_bear(self, bar_idx, c):
         pos = self.position
         if c > pos.sl_level:
-            et = self._sl_exit_type()
-            self._close_position(bar_idx, c, et); self._post_exit_bear('SL'); return
+            self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
         if c <= pos.tp_level:
             self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
 
@@ -292,7 +236,7 @@ class Switcher:
         self.markers.marker_high_short = h; self.markers.marker_close_short = c
         self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-self.config.tp_pct),
-            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20, initial_sl=h)
+            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
 
     def _open_long_sideways(self, bar_idx, h, l, c):
         if not self._sideways_distance_ok(c):
@@ -300,7 +244,7 @@ class Switcher:
         self.markers.marker_low_long = l; self.markers.marker_close_long = c
         self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=l, tp_level=c*(1.0+self.config.tp_pct),
-            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20, initial_sl=l)
+            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
 
     def _entry_wait_see_bullish(self, bar_idx, o, h, l, c, ema20, vah, val):
         hh_lvl = self.markers.hh_breach_level()
@@ -323,27 +267,15 @@ class Switcher:
             self._open_short_sideways(bar_idx, h, l, c); return
 
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
+        """BULL: 1h trigger + volume filter + MTF 15m entry."""
         if self.bull_stay_warmup and c < ema20:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False; return
         if (l <= ema20) and (c > ema20) and (c > o):
-            if not self._bull_ema_distance_ok(c, ema20):
-                self._bull_blocked_ema_dist += 1
-                return
+            # Volume filter
             if not self._bull_volume_ok(self._volume_history[-1] if self._volume_history else 0):
                 self._bull_blocked_volume += 1
                 return
-            if not self._bull_slope_ok():
-                self._bull_blocked_slope += 1
-                return
-            if self.config.bull_max_candle_range_pct > 0 and o > 0:
-                candle_range = (h - l) / o
-                if candle_range > self.config.bull_max_candle_range_pct:
-                    self._bull_blocked_range += 1
-                    return
-            if self.config.bull_mtf_15m_confirm and self.mtf_bull_confirm is not None:
-                if bar_idx < len(self.mtf_bull_confirm) and not self.mtf_bull_confirm[bar_idx]:
-                    self._bull_blocked_mtf += 1
-                    return
+            # MTF 15m entry — use 15m rejection candle for tight SL
             if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
                 if bar_idx < len(self.mtf_bull_entry_close):
                     mtf_close = self.mtf_bull_entry_close[bar_idx]
@@ -356,49 +288,21 @@ class Switcher:
                     tp_level = entry_price * (1.0 + self.config.tp_pct)
                     self.position = Position(tool='BULL', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
                         entry_high=h, entry_low=mtf_low, sl_level=sl_level, tp_level=tp_level,
-                        peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20, initial_sl=sl_level)
+                        peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20)
                     return
-            if self.config.bull_confirmation_candle:
-                self._bull_pending_confirm = (bar_idx, o, h, l, c, ema20)
-                return
+            # Fallback: 1h entry (if MTF disabled)
             self.position = Position(tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
                 entry_high=h, entry_low=l, sl_level=l, tp_level=c*(1.0+self.config.tp_pct),
-                peak_high=h, trough_low=l, ema_at_entry=self._current_ema20, initial_sl=l)
+                peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
+        """BEAR: pure 1h entry (no filter — proven optimal)."""
         if self.bear_stay_warmup and c > ema20:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False; return
         if (h >= ema20) and (c < ema20) and (c < o):
-            # v0.34: BEAR max volume filter (skip capitulation spikes)
-            if self.config.bear_max_volume_ratio > 0:
-                if len(self._volume_history) >= self.config.bull_volume_window:
-                    avg = sum(self._volume_history) / len(self._volume_history)
-                    if avg > 0 and (self._volume_history[-1] if self._volume_history else 0) > avg * self.config.bear_max_volume_ratio:
-                        self._bear_blocked_volume += 1
-                        return
-            if self.config.bear_min_volume_ratio > 0:
-                if len(self._volume_history) >= self.config.bull_volume_window:
-                    avg = sum(self._volume_history) / len(self._volume_history)
-                    if avg > 0 and (self._volume_history[-1] if self._volume_history else 0) < avg * self.config.bear_min_volume_ratio:
-                        self._bear_blocked_volume += 1
-                        return
-            if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
-                if bar_idx < len(self.mtf_bear_entry_close):
-                    mtf_close = self.mtf_bear_entry_close[bar_idx]
-                    mtf_high = self.mtf_bear_entry_high[bar_idx]
-                    if mtf_close is None or mtf_high is None:
-                        self._bear_blocked_mtf += 1
-                        return
-                    entry_price = mtf_close
-                    sl_level = mtf_high
-                    tp_level = entry_price * (1.0 - self.config.tp_pct)
-                    self.position = Position(tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
-                        entry_high=mtf_high, entry_low=l, sl_level=sl_level, tp_level=tp_level,
-                        peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20, initial_sl=sl_level)
-                    return
             self.position = Position(tool='BEAR', side='SHORT', entry_price=c, entry_bar=bar_idx,
                 entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-self.config.tp_pct),
-                peak_high=h, trough_low=l, ema_at_entry=self._current_ema20, initial_sl=h)
+                peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
 
     def _close_position(self, bar_idx, exit_price, exit_type):
         pos = self.position
@@ -411,7 +315,6 @@ class Switcher:
         self.trades.append(Trade(tool=pos.tool, side=pos.side, entry_price=pos.entry_price, exit_price=exit_price,
             entry_bar=pos.entry_bar, exit_bar=bar_idx, exit_type=exit_type, pnl_pct=pnl_pct_net, pnl_usd=pnl_usd,
             peak_high=pos.peak_high, trough_low=pos.trough_low, sl_level=pos.sl_level, tp_level=pos.tp_level,
-            ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20,
-            initial_sl=pos.initial_sl, sl_trailed=pos.sl_trailed))
+            ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20))
         self.position = None
         self._action_taken_this_bar = True
