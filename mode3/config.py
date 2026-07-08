@@ -18,6 +18,9 @@ class Mode3Config:
     slippage_pct: float = 0.0005
     startup_warmup_candles: int = 51
     sideways_ema_distance_cap: float = 0.005
+    # v0.27: chop filter (EMA crossings in last window candles)
+    chop_window: int = 20
+    chop_max_crossings: int = 6  # 0 = disabled
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
