@@ -30,9 +30,13 @@ class Mode3Config:
     startup_warmup_candles: int = 51
 
     # v0.24: SIDEWAYS distance filter
-    # Block SIDEWAYS entry if |close - EMA20| / EMA20 > sideways_ema_distance_cap
-    # Rationale: deep counter-trend = market trending, mean reversion melawan momentum
-    sideways_ema_distance_cap: float = 0.005  # 0.5%
+    sideways_ema_distance_cap: float = 0.005
+
+    # v0.26: Trailing SL (0 = disabled)
+    # LONG: SL trails at peak_high * (1 - pct); only tightens
+    # SHORT: SL trails at trough_low * (1 + pct); only tightens
+    # Applies to all 3 tools (SIDEWAYS, BULL, BEAR)
+    trailing_sl_pct: float = 0.0  # e.g. 0.003 = 0.3%
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
