@@ -20,10 +20,14 @@ class Mode3Config:
     sideways_ema_distance_cap: float = 0.005
     chop_window: int = 20
     chop_max_crossings: int = 6
-    # v0.28: trailing SL (0 = disabled). Only tightens SL as position moves favorable.
-    # LONG: SL = peak_high * (1 - trailing_sl_pct)
-    # SHORT: SL = trough_low * (1 + trailing_sl_pct)
     trailing_sl_pct: float = 0.0
+    # v0.29: BULL-specific filters (ideas 1-4)
+    bull_confirmation_candle: bool = False  # idea 1
+    bull_min_ema_distance_pct: float = 0.0  # idea 2
+    bull_volume_window: int = 20
+    bull_min_volume_ratio: float = 0.0      # idea 3
+    bull_disable_downtrend: bool = False    # idea 4
+    bull_slope_window: int = 20
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
