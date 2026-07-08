@@ -1,9 +1,11 @@
 """
 Mode3 Backtest Endpoint - FastAPI router.
+v0.25: auto-log experiments to SQLite (experiments table)
 """
 import os
+import json as jsonlib
 from dataclasses import asdict
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Body
 from typing import Optional
 import sqlite3
 import numpy as np
@@ -13,6 +15,84 @@ from mode3 import Mode3Config, Switcher, compute_ema_series, compute_va_at_bar
 
 router = APIRouter(prefix="/mode3", tags=["mode3"])
 DB_PATH = os.environ.get("DB_PATH", "market_data.db")
+
+
+def _ensure_experiments_table():
+    """Create experiments table if not exists."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS mode3_experiments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp INTEGER NOT NULL,
+            version TEXT,
+            symbol TEXT,
+            timeframe TEXT,
+            days INTEGER,
+            cap_pct REAL,
+            tp_pct REAL,
+            va_window INTEGER,
+            entry_usd REAL,
+            leverage REAL,
+            fee_pct REAL,
+            slippage_pct REAL,
+            total_trades INTEGER,
+            wins INTEGER,
+            losses INTEGER,
+            wr_pct REAL,
+            pnl_usd REAL,
+            pnl_pct REAL,
+            sw_count INTEGER, sw_wr REAL, sw_pnl REAL,
+            bull_count INTEGER, bull_wr REAL, bull_pnl REAL,
+            bear_count INTEGER, bear_wr REAL, bear_pnl REAL,
+            blocked_count INTEGER,
+            final_state TEXT,
+            config_json TEXT,
+            notes TEXT
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_exp_symbol_tf ON mode3_experiments(symbol, timeframe)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_exp_days_cap_tp ON mode3_experiments(days, cap_pct, tp_pct)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_exp_pnl ON mode3_experiments(pnl_usd)")
+    conn.commit()
+    conn.close()
+
+
+def _log_experiment(config, result, symbol, timeframe, days):
+    """Save experiment result to DB."""
+    try:
+        _ensure_experiments_table()
+        s = result['summary']
+        pt = result.get('per_tool', {})
+        sw = pt.get('SIDEWAYS', {})
+        bl = pt.get('BULL', {})
+        br = pt.get('BEAR', {})
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("""
+            INSERT INTO mode3_experiments (
+                timestamp, version, symbol, timeframe, days,
+                cap_pct, tp_pct, va_window, entry_usd, leverage, fee_pct, slippage_pct,
+                total_trades, wins, losses, wr_pct, pnl_usd, pnl_pct,
+                sw_count, sw_wr, sw_pnl,
+                bull_count, bull_wr, bull_pnl,
+                bear_count, bear_wr, bear_pnl,
+                blocked_count, final_state, config_json
+            ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
+        """, (
+            int(datetime.utcnow().timestamp()), '0.25', symbol, timeframe, days,
+            config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
+            config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
+            s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
+            s['total_pnl_usd'], s['total_pnl_pct'],
+            sw.get('count', 0), sw.get('wr_pct', 0), sw.get('pnl_usd', 0),
+            bl.get('count', 0), bl.get('wr_pct', 0), bl.get('pnl_usd', 0),
+            br.get('count', 0), br.get('wr_pct', 0), br.get('pnl_usd', 0),
+            s.get('sideways_blocked_count', 0), result.get('final_state', ''),
+            jsonlib.dumps(asdict(config)),
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[WARN] Failed to log experiment: {e}")
 
 
 def load_candles_from_db(symbol, timeframe, start_ts, end_ts, db_path=None):
@@ -47,11 +127,11 @@ def backtest_mode3(
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
     sideways_ema_dist_cap: float = Query(0.005, ge=0.0, le=0.05),
+    log_result: bool = Query(True),
 ):
     """
     Backtest Mode3 switcher.
-    v0.24: SIDEWAYS distance filter (default cap 0.5%).
-    Set sideways_ema_dist_cap=0.05 (5%) to effectively disable filter.
+    v0.25: Auto-log every run to experiments DB (set log_result=false to skip).
     """
     config = Mode3Config(
         va_window=va_window,
@@ -115,7 +195,7 @@ def backtest_mode3(
                 "pnl_pct": round(sum(t.pnl_pct for t in tt) * 100, 3),
             }
 
-    return {
+    result = {
         "symbol": symbol,
         "timeframe": timeframe,
         "days": days,
@@ -135,24 +215,175 @@ def backtest_mode3(
         "per_tool": tool_stats,
         "trades": [
             {
-                "tool": t.tool,
-                "side": t.side,
-                "entry_price": round(t.entry_price, 2),
-                "exit_price": round(t.exit_price, 2),
-                "entry_bar": t.entry_bar,
-                "exit_bar": t.exit_bar,
+                "tool": t.tool, "side": t.side,
+                "entry_price": round(t.entry_price, 2), "exit_price": round(t.exit_price, 2),
+                "entry_bar": t.entry_bar, "exit_bar": t.exit_bar,
                 "exit_type": t.exit_type,
-                "pnl_pct": round(t.pnl_pct * 100, 3),
-                "pnl_usd": round(t.pnl_usd, 2),
-                "sl_level": round(t.sl_level, 2),
-                "tp_level": round(t.tp_level, 2),
-                "ema_at_entry": round(t.ema_at_entry, 2),
-                "ema_at_exit": round(t.ema_at_exit, 2),
+                "pnl_pct": round(t.pnl_pct * 100, 3), "pnl_usd": round(t.pnl_usd, 2),
+                "sl_level": round(t.sl_level, 2), "tp_level": round(t.tp_level, 2),
+                "ema_at_entry": round(t.ema_at_entry, 2), "ema_at_exit": round(t.ema_at_exit, 2),
             }
             for t in trades
         ],
         "final_state": switcher.state,
     }
+
+    # v0.25: auto-log
+    if log_result:
+        _log_experiment(config, result, symbol, timeframe, days)
+
+    return result
+
+
+@router.get("/experiments")
+def list_experiments(
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    days: Optional[int] = None,
+    min_pnl: Optional[float] = None,
+    max_pnl: Optional[float] = None,
+    order_by: str = Query("pnl_usd", regex="^(pnl_usd|wr_pct|timestamp|total_trades)$"),
+    order: str = Query("desc", regex="^(asc|desc)$"),
+    limit: int = Query(50, ge=1, le=500),
+):
+    """
+    Query experiment log with filters.
+    Example: /mode3/experiments?days=60&order_by=pnl_usd&limit=10
+    """
+    _ensure_experiments_table()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+
+    q = "SELECT * FROM mode3_experiments WHERE 1=1"
+    params = []
+    if symbol:
+        q += " AND symbol = ?"
+        params.append(symbol)
+    if timeframe:
+        q += " AND timeframe = ?"
+        params.append(timeframe)
+    if days is not None:
+        q += " AND days = ?"
+        params.append(days)
+    if min_pnl is not None:
+        q += " AND pnl_usd >= ?"
+        params.append(min_pnl)
+    if max_pnl is not None:
+        q += " AND pnl_usd <= ?"
+        params.append(max_pnl)
+    q += f" ORDER BY {order_by} {order.upper()} LIMIT ?"
+    params.append(limit)
+
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+
+    return {
+        "count": len(rows),
+        "experiments": [
+            {
+                "id": r["id"],
+                "date": datetime.fromtimestamp(r["timestamp"]).strftime("%Y-%m-%d %H:%M UTC"),
+                "symbol": r["symbol"], "tf": r["timeframe"], "days": r["days"],
+                "cap%": round(r["cap_pct"]*100, 3),
+                "tp%": round(r["tp_pct"]*100, 3),
+                "trades": r["total_trades"], "wr%": r["wr_pct"],
+                "pnl$": r["pnl_usd"],
+                "sw": f"{r['sw_count']}/{r['sw_wr']}%/${r['sw_pnl']:.2f}",
+                "bull": f"{r['bull_count']}/{r['bull_wr']}%/${r['bull_pnl']:.2f}",
+                "bear": f"{r['bear_count']}/{r['bear_wr']}%/${r['bear_pnl']:.2f}",
+                "notes": r["notes"] or "",
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get("/experiments/summary")
+def experiments_summary():
+    """Ranking + aggregate stats of all experiments."""
+    _ensure_experiments_table()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+
+    total = conn.execute("SELECT COUNT(*) FROM mode3_experiments").fetchone()[0]
+    if total == 0:
+        conn.close()
+        return {"total_experiments": 0, "message": "No experiments logged yet"}
+
+    # Top 10 by PnL
+    top = conn.execute("""
+        SELECT symbol, timeframe, days, cap_pct, tp_pct, total_trades, wr_pct, pnl_usd
+        FROM mode3_experiments ORDER BY pnl_usd DESC LIMIT 10
+    """).fetchall()
+
+    # Best per (symbol, tf, days) combo
+    best_per_combo = conn.execute("""
+        SELECT symbol, timeframe, days,
+               MAX(pnl_usd) as best_pnl,
+               (SELECT cap_pct FROM mode3_experiments e2
+                WHERE e2.symbol=e1.symbol AND e2.timeframe=e1.timeframe AND e2.days=e1.days
+                ORDER BY pnl_usd DESC LIMIT 1) as best_cap,
+               (SELECT tp_pct FROM mode3_experiments e2
+                WHERE e2.symbol=e1.symbol AND e2.timeframe=e1.timeframe AND e2.days=e1.days
+                ORDER BY pnl_usd DESC LIMIT 1) as best_tp
+        FROM mode3_experiments e1
+        GROUP BY symbol, timeframe, days
+        ORDER BY best_pnl DESC
+    """).fetchall()
+
+    # Per (cap, tp) breakdown for BTCUSDT 1h
+    cap_tp = conn.execute("""
+        SELECT days, cap_pct, tp_pct, pnl_usd, wr_pct, total_trades
+        FROM mode3_experiments
+        WHERE symbol='BTCUSDT' AND timeframe='1h'
+        ORDER BY days, cap_pct, tp_pct
+    """).fetchall()
+
+    conn.close()
+
+    return {
+        "total_experiments": total,
+        "top_10_by_pnl": [
+            {"symbol": r["symbol"], "tf": r["timeframe"], "days": r["days"],
+             "cap%": round(r["cap_pct"]*100, 3), "tp%": round(r["tp_pct"]*100, 3),
+             "trades": r["total_trades"], "wr%": r["wr_pct"], "pnl$": r["pnl_usd"]}
+            for r in top
+        ],
+        "best_per_combo": [
+            {"symbol": r["symbol"], "tf": r["timeframe"], "days": r["days"],
+             "best_cap%": round(r["best_cap"]*100, 3), "best_tp%": round(r["best_tp"]*100, 3),
+             "best_pnl$": r["best_pnl"]}
+            for r in best_per_combo
+        ],
+        "btc_1h_grid": [
+            {"days": r["days"], "cap%": round(r["cap_pct"]*100, 3),
+             "tp%": round(r["tp_pct"]*100, 3), "pnl$": r["pnl_usd"],
+             "wr%": r["wr_pct"], "trades": r["total_trades"]}
+            for r in cap_tp
+        ],
+    }
+
+
+@router.post("/experiments/note")
+def add_note(id: int = Query(...), note: str = Body(...)):
+    """Add or update note for a specific experiment."""
+    _ensure_experiments_table()
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("UPDATE mode3_experiments SET notes = ? WHERE id = ?", (note, id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "id": id, "note": note}
+
+
+@router.delete("/experiments/{exp_id}")
+def delete_experiment(exp_id: int):
+    """Delete a specific experiment."""
+    _ensure_experiments_table()
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("DELETE FROM mode3_experiments WHERE id = ?", (exp_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "deleted_id": exp_id}
 
 
 @router.get("/candles-debug")
@@ -189,12 +420,9 @@ def candles_debug(
             va_window, 85.0, 15.0,
         )
         candles.append({
-            "bar_idx": i,
-            "open_time": rows[i][0],
-            "o": round(opens[i], 2),
-            "h": round(highs[i], 2),
-            "l": round(lows[i], 2),
-            "c": round(closes[i], 2),
+            "bar_idx": i, "open_time": rows[i][0],
+            "o": round(opens[i], 2), "h": round(highs[i], 2),
+            "l": round(lows[i], 2), "c": round(closes[i], 2),
             "v": round(volumes[i], 2),
             "ema20": round(ema20[i], 2),
             "vah": round(vah, 2) if vah else None,
@@ -207,14 +435,13 @@ def candles_debug(
         })
 
     return {
-        "symbol": symbol,
-        "timeframe": timeframe,
-        "total_candles": len(rows),
-        "bar_range": [bar_start, bar_end],
+        "symbol": symbol, "timeframe": timeframe,
+        "total_candles": len(rows), "bar_range": [bar_start, bar_end],
         "candles": candles,
     }
 
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "0.24", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "0.25", "db_path": DB_PATH,
+            "features": ["auto-log experiments", "query history", "summary rankings"]}
