@@ -21,13 +21,14 @@ class Mode3Config:
     chop_window: int = 20
     chop_max_crossings: int = 6
     trailing_sl_pct: float = 0.0
-    # v0.29: BULL-specific filters (ideas 1-4)
-    bull_confirmation_candle: bool = False  # idea 1
-    bull_min_ema_distance_pct: float = 0.0  # idea 2
+    bull_confirmation_candle: bool = False
+    bull_min_ema_distance_pct: float = 0.0
     bull_volume_window: int = 20
-    bull_min_volume_ratio: float = 0.0      # idea 3
-    bull_disable_downtrend: bool = False    # idea 4
+    bull_min_volume_ratio: float = 0.0
+    bull_disable_downtrend: bool = False
     bull_slope_window: int = 20
+    # v0.30: idea 5 - max candle range for BULL entry (0 = disabled)
+    bull_max_candle_range_pct: float = 0.0
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
