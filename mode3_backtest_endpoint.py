@@ -1,6 +1,5 @@
 """
-Mode3 Backtest Endpoint - FastAPI router.
-v0.25: auto-log experiments to SQLite
+Mode3 Backtest Endpoint - FastAPI router. v0.25 (rollback stable).
 """
 import os
 import json as jsonlib
@@ -125,7 +124,6 @@ def backtest_mode3(
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
     sideways_ema_dist_cap: float = Query(0.005, ge=0.0, le=0.05),
-    trailing_sl_pct: float = Query(0.0, ge=0.0, le=0.05),
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
@@ -136,7 +134,6 @@ def backtest_mode3(
         fee_pct_roundtrip=fee_pct,
         slippage_pct=slippage_pct,
         sideways_ema_distance_cap=sideways_ema_dist_cap,
-        trailing_sl_pct=trailing_sl_pct,
     )
 
     end_ts = int(datetime.utcnow().timestamp() * 1000)
@@ -428,4 +425,4 @@ def candles_debug(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "0.26-endpoint-rollback", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "0.25", "db_path": DB_PATH}
