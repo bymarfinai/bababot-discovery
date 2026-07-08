@@ -1,8 +1,9 @@
 """
-Mode3 Switcher v0.27 — chop filter added.
-Blocks entry if too many EMA20 crossings in last N candles (choppy market).
+Mode3 Switcher v0.28 — trailing SL added (on top of v0.27 chop filter).
+LONG: SL = peak_high * (1 - trailing_sl_pct); only tightens.
+SHORT: SL = trough_low * (1 + trailing_sl_pct); only tightens.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, List
 from collections import deque
 from .config import Mode3Config
@@ -18,12 +19,10 @@ class MarkerState:
     trough_low_bear: Optional[float] = None
     hh_breach_case: str = 'none'
     ll_breach_case: str = 'none'
-
     def hh_breach_level(self):
         if self.hh_breach_case == 'A': return self.marker_high_short
         if self.hh_breach_case == 'B': return self.peak_high_bull
         return None
-
     def ll_breach_level(self):
         if self.ll_breach_case == 'A': return self.marker_low_long
         if self.ll_breach_case == 'B': return self.trough_low_bear
@@ -43,6 +42,8 @@ class Position:
     peak_high: float = 0.0
     trough_low: float = 1e18
     ema_at_entry: float = 0.0
+    initial_sl: float = 0.0
+    sl_trailed: bool = False
 
 
 @dataclass
@@ -62,10 +63,12 @@ class Trade:
     tp_level: float = 0.0
     ema_at_entry: float = 0.0
     ema_at_exit: float = 0.0
+    initial_sl: float = 0.0
+    sl_trailed: bool = False
 
 
 class Switcher:
-    def __init__(self, config: Mode3Config):
+    def __init__(self, config):
         self.config = config
         self.markers = MarkerState()
         self.state = 'STARTUP'
@@ -79,7 +82,6 @@ class Switcher:
         self._current_vah = None
         self._current_val = None
         self._sideways_blocked_count = 0
-        # v0.27: chop tracking
         self._chop_history = deque(maxlen=config.chop_window)
         self._chop_blocked_count = 0
 
@@ -88,7 +90,6 @@ class Switcher:
         self._current_ema20 = ema20
         self._current_vah = vah
         self._current_val = val
-        # v0.27: update chop history (sign of close - ema20)
         if ema20 > 0:
             sign = 1 if c > ema20 else (-1 if c < ema20 else 0)
             self._chop_history.append(sign)
@@ -99,30 +100,44 @@ class Switcher:
 
         if self.position is not None:
             self._update_position_tracking(h, l)
+            self._update_trailing_sl()
             self._check_exit(bar_idx, o, h, l, c, ema20, vah, val)
 
         if self.position is None and not self._action_taken_this_bar:
-            # v0.27: chop filter - skip entry if market too choppy
             if self._is_choppy():
                 self._chop_blocked_count += 1
                 return
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val, poc)
 
+    def _update_trailing_sl(self):
+        pos = self.position
+        trail = self.config.trailing_sl_pct
+        if trail <= 0: return
+        if pos.side == 'LONG':
+            potential = pos.peak_high * (1.0 - trail)
+            if potential > pos.sl_level:
+                pos.sl_level = potential
+                pos.sl_trailed = True
+        else:
+            potential = pos.trough_low * (1.0 + trail)
+            if potential < pos.sl_level:
+                pos.sl_level = potential
+                pos.sl_trailed = True
+
     def _is_choppy(self):
-        """Count sign changes in chop_window. If > max, market is choppy."""
-        if self.config.chop_max_crossings <= 0:
-            return False
-        if len(self._chop_history) < self.config.chop_window:
-            return False
+        if self.config.chop_max_crossings <= 0: return False
+        if len(self._chop_history) < self.config.chop_window: return False
         crossings = 0
         hist = list(self._chop_history)
         prev = hist[0]
         for s in hist[1:]:
             if s != 0 and prev != 0 and s != prev:
                 crossings += 1
-            if s != 0:
-                prev = s
+            if s != 0: prev = s
         return crossings > self.config.chop_max_crossings
+
+    def _sl_exit_type(self):
+        return 'TRAILING_SL' if (self.position and self.position.sl_trailed) else 'SL'
 
     def _startup_transition(self, close, ema20):
         if close > ema20: self.startup_bias = 'bullish'
@@ -142,50 +157,62 @@ class Switcher:
     def _exit_sideways(self, bar_idx, c, ema20, l=None, h=None):
         pos = self.position
         if pos.side == 'SHORT':
-            if c > pos.sl_level: self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_short('SL'); return
-            if c <= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_short('TP'); return
+            if c > pos.sl_level:
+                et = self._sl_exit_type()
+                self._close_position(bar_idx, c, et); self._post_exit_sideways_short('SL'); return
+            if c <= pos.tp_level:
+                self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_short('TP'); return
             if l is not None and l <= ema20 and c > ema20:
                 self._close_position(bar_idx, c, 'EMA_INVALIDATION'); self._post_exit_sideways_short('EMA_INVALIDATION'); return
         else:
-            if c < pos.sl_level: self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_long('SL'); return
-            if c >= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_long('TP'); return
+            if c < pos.sl_level:
+                et = self._sl_exit_type()
+                self._close_position(bar_idx, c, et); self._post_exit_sideways_long('SL'); return
+            if c >= pos.tp_level:
+                self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_long('TP'); return
             if h is not None and h >= ema20 and c < ema20:
                 self._close_position(bar_idx, c, 'EMA_INVALIDATION'); self._post_exit_sideways_long('EMA_INVALIDATION'); return
 
-    def _post_exit_sideways_short(self, exit_type):
-        if exit_type == 'SL':
+    def _post_exit_sideways_short(self, et):
+        if et == 'SL':
             self.state = 'BULL'; self.bull_stay_warmup = False; self.markers.hh_breach_case = 'none'
-        elif exit_type == 'TP': self.state = 'SIDEWAYS'
+        elif et == 'TP': self.state = 'SIDEWAYS'
         else: self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'A'
 
-    def _post_exit_sideways_long(self, exit_type):
-        if exit_type == 'SL':
+    def _post_exit_sideways_long(self, et):
+        if et == 'SL':
             self.state = 'BEAR'; self.bear_stay_warmup = False; self.markers.ll_breach_case = 'none'
-        elif exit_type == 'TP': self.state = 'SIDEWAYS'
+        elif et == 'TP': self.state = 'SIDEWAYS'
         else: self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'A'
 
     def _exit_bull(self, bar_idx, c):
         pos = self.position
-        if c < pos.sl_level: self._close_position(bar_idx, c, 'SL'); self._post_exit_bull('SL'); return
-        if c >= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_bull('TP'); return
+        if c < pos.sl_level:
+            et = self._sl_exit_type()
+            self._close_position(bar_idx, c, et); self._post_exit_bull('SL'); return
+        if c >= pos.tp_level:
+            self._close_position(bar_idx, c, 'TP'); self._post_exit_bull('TP'); return
 
-    def _post_exit_bull(self, exit_type):
+    def _post_exit_bull(self, et):
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
         self.markers.peak_high_bull = last_peak
-        if exit_type == 'TP':
+        if et == 'TP':
             self.state = 'BULL'; self.bull_stay_warmup = True
         else:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False
 
     def _exit_bear(self, bar_idx, c):
         pos = self.position
-        if c > pos.sl_level: self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
-        if c <= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
+        if c > pos.sl_level:
+            et = self._sl_exit_type()
+            self._close_position(bar_idx, c, et); self._post_exit_bear('SL'); return
+        if c <= pos.tp_level:
+            self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
 
-    def _post_exit_bear(self, exit_type):
+    def _post_exit_bear(self, et):
         last_trough = self.position.trough_low if self.position else self.trades[-1].trough_low
         self.markers.trough_low_bear = last_trough
-        if exit_type == 'TP':
+        if et == 'TP':
             self.state = 'BEAR'; self.bear_stay_warmup = True
         else:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False
@@ -218,7 +245,7 @@ class Switcher:
         self.markers.marker_high_short = h; self.markers.marker_close_short = c
         self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-self.config.tp_pct),
-            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
+            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20, initial_sl=h)
 
     def _open_long_sideways(self, bar_idx, h, l, c):
         if not self._sideways_distance_ok(c):
@@ -226,7 +253,7 @@ class Switcher:
         self.markers.marker_low_long = l; self.markers.marker_close_long = c
         self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=l, tp_level=c*(1.0+self.config.tp_pct),
-            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
+            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20, initial_sl=l)
 
     def _entry_wait_see_bullish(self, bar_idx, o, h, l, c, ema20, vah, val):
         hh_lvl = self.markers.hh_breach_level()
@@ -254,7 +281,7 @@ class Switcher:
         if (l <= ema20) and (c > ema20) and (c > o):
             self.position = Position(tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
                 entry_high=h, entry_low=l, sl_level=l, tp_level=c*(1.0+self.config.tp_pct),
-                peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
+                peak_high=h, trough_low=l, ema_at_entry=self._current_ema20, initial_sl=l)
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bear_stay_warmup and c > ema20:
@@ -262,7 +289,7 @@ class Switcher:
         if (h >= ema20) and (c < ema20) and (c < o):
             self.position = Position(tool='BEAR', side='SHORT', entry_price=c, entry_bar=bar_idx,
                 entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-self.config.tp_pct),
-                peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
+                peak_high=h, trough_low=l, ema_at_entry=self._current_ema20, initial_sl=h)
 
     def _close_position(self, bar_idx, exit_price, exit_type):
         pos = self.position
@@ -275,6 +302,7 @@ class Switcher:
         self.trades.append(Trade(tool=pos.tool, side=pos.side, entry_price=pos.entry_price, exit_price=exit_price,
             entry_bar=pos.entry_bar, exit_bar=bar_idx, exit_type=exit_type, pnl_pct=pnl_pct_net, pnl_usd=pnl_usd,
             peak_high=pos.peak_high, trough_low=pos.trough_low, sl_level=pos.sl_level, tp_level=pos.tp_level,
-            ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20))
+            ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20,
+            initial_sl=pos.initial_sl, sl_trailed=pos.sl_trailed))
         self.position = None
         self._action_taken_this_bar = True
