@@ -27,8 +27,9 @@ class Mode3Config:
     bull_min_volume_ratio: float = 0.0
     bull_disable_downtrend: bool = False
     bull_slope_window: int = 20
-    # v0.30: idea 5 - max candle range for BULL entry (0 = disabled)
     bull_max_candle_range_pct: float = 0.0
+    # v0.31: MTF 15m confirmation for BULL
+    bull_mtf_15m_confirm: bool = False
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
