@@ -1,5 +1,5 @@
 """
-Mode3 Switcher v0.29 — BULL filters (idea 1-4) added.
+Mode3 Switcher v0.30 — added idea 5 (BULL max candle range filter).
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -88,6 +88,7 @@ class Switcher:
         self._bull_blocked_volume = 0
         self._bull_blocked_slope = 0
         self._bull_blocked_confirm = 0
+        self._bull_blocked_range = 0
         self._bull_pending_confirm = None
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
@@ -326,6 +327,12 @@ class Switcher:
             if not self._bull_slope_ok():
                 self._bull_blocked_slope += 1
                 return
+            # Idea 5: candle range filter
+            if self.config.bull_max_candle_range_pct > 0 and o > 0:
+                candle_range = (h - l) / o
+                if candle_range > self.config.bull_max_candle_range_pct:
+                    self._bull_blocked_range += 1
+                    return
             if self.config.bull_confirmation_candle:
                 self._bull_pending_confirm = (bar_idx, o, h, l, c, ema20)
                 return
