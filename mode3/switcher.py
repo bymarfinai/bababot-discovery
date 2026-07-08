@@ -1,5 +1,5 @@
 """
-Mode3 Switcher v0.33 — BEAR volume + MTF entry mirror added.
+Mode3 Switcher v0.34 — BEAR max volume filter (skip capitulation spikes).
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -94,7 +94,6 @@ class Switcher:
         self.mtf_bull_confirm = None
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
-        # v0.33 BEAR mirror
         self._bear_blocked_volume = 0
         self._bear_blocked_mtf = 0
         self.mtf_bear_entry_close = None
@@ -370,14 +369,19 @@ class Switcher:
         if self.bear_stay_warmup and c > ema20:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False; return
         if (h >= ema20) and (c < ema20) and (c < o):
-            # v0.33: BEAR Volume filter (mirror of BULL)
+            # v0.34: BEAR max volume filter (skip capitulation spikes)
+            if self.config.bear_max_volume_ratio > 0:
+                if len(self._volume_history) >= self.config.bull_volume_window:
+                    avg = sum(self._volume_history) / len(self._volume_history)
+                    if avg > 0 and (self._volume_history[-1] if self._volume_history else 0) > avg * self.config.bear_max_volume_ratio:
+                        self._bear_blocked_volume += 1
+                        return
             if self.config.bear_min_volume_ratio > 0:
                 if len(self._volume_history) >= self.config.bull_volume_window:
                     avg = sum(self._volume_history) / len(self._volume_history)
                     if avg > 0 and (self._volume_history[-1] if self._volume_history else 0) < avg * self.config.bear_min_volume_ratio:
                         self._bear_blocked_volume += 1
                         return
-            # v0.33: MTF ENTRY mode for BEAR (mirror of BULL, SHORT direction)
             if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
                 if bar_idx < len(self.mtf_bear_entry_close):
                     mtf_close = self.mtf_bear_entry_close[bar_idx]
