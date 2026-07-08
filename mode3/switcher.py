@@ -1,20 +1,9 @@
 """
 Mode3 Switcher - State machine orchestrator + 3 tools (SIDEWAYS, BULL, BEAR).
 
-Spec reference: BabaBot_Switcher_Spec_v0_22
-v0.22 change: 1 action per candle max (exit OR entry, not both).
-Loophole fixed: same-candle exit + re-entry (e.g. trade #20 in 30d BTC test)
-
-STATES (spec section 1):
-  - STARTUP           : bot warm-up sebelum VA siap
-  - SIDEWAYS          : default, cari VAH reject / VAL bounce
-  - WAIT_SEE_BULLISH  : sedang mengarah bullish, monitor 3 trigger (section 4.3)
-  - WAIT_SEE_BEARISH  : sedang mengarah bearish, monitor 3 trigger (section 5.3)
-  - BULL              : uptrend confirmed, LONG di EMA20 reject-up (section 6)
-  - BEAR              : downtrend confirmed, SHORT di EMA20 reject-down (section 7)
-
-Each state can have a Position open (only 1 at a time - invariant).
-Per switcher instance: max 1 action (exit OR entry) per candle.
+Spec reference: BabaBot_Switcher_Spec_v0_23
+v0.22: 1 action per candle max
+v0.23: add ema_at_entry/exit + sl_level/tp_level to Trade for debugging
 """
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -59,6 +48,7 @@ class Position:
     tp_level: float
     peak_high: float = 0.0
     trough_low: float = 1e18
+    ema_at_entry: float = 0.0  # v0.23
 
 
 @dataclass
@@ -74,6 +64,11 @@ class Trade:
     pnl_usd: float
     peak_high: float
     trough_low: float
+    # v0.23 debug fields
+    sl_level: float = 0.0
+    tp_level: float = 0.0
+    ema_at_entry: float = 0.0
+    ema_at_exit: float = 0.0
 
 
 class Switcher:
@@ -86,12 +81,18 @@ class Switcher:
         self.bull_stay_warmup: bool = False
         self.bear_stay_warmup: bool = False
         self.startup_bias: Optional[str] = None
-        # v0.22: 1 action per candle guard
         self._action_taken_this_bar: bool = False
+        # v0.23: track current bar indicators for internal use
+        self._current_ema20: float = 0.0
+        self._current_vah: Optional[float] = None
+        self._current_val: Optional[float] = None
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
-        # v0.22: reset action flag at start of every candle
         self._action_taken_this_bar = False
+        # v0.23: cache for _open_* and _close_position use
+        self._current_ema20 = ema20
+        self._current_vah = vah
+        self._current_val = val
 
         if self.state == 'STARTUP':
             if vah is None or val is None:
@@ -102,12 +103,10 @@ class Switcher:
             self._update_position_tracking(h, l)
             self._check_exit(bar_idx, o, h, l, c, ema20, vah, val)
 
-        # v0.22: skip entry if exit just happened this candle
         if self.position is None and not self._action_taken_this_bar:
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val, poc)
 
     def _startup_transition(self, close, ema20):
-        """Spec section 12: hybrid monitor by EMA20 bias."""
         if close > ema20:
             self.startup_bias = 'bullish'
         elif close < ema20:
@@ -130,14 +129,6 @@ class Switcher:
             self._exit_bear(bar_idx, c)
 
     def _exit_sideways(self, bar_idx, c, ema20, l=None, h=None):
-        """
-        SIDEWAYS exit (spec section 3.3 v0.18 + section 3.4):
-          1. SL close-based (SL SHORT = marker_high_short = HH breach level)
-          2. TP close-based (tp_pct)
-          3. EMA-invalidation (spec section 2.2):
-             SHORT: low <= EMA20 AND close > EMA20 (BOTH required)
-             LONG:  high >= EMA20 AND close < EMA20 (BOTH required)
-        """
         pos = self.position
         assert pos is not None
         if pos.side == 'SHORT':
@@ -169,7 +160,6 @@ class Switcher:
 
     def _post_exit_sideways_short(self, exit_type):
         if exit_type == 'SL':
-            # SL == HH breach -> BULL warm-up (v0.18)
             self.state = 'BULL'
             self.bull_stay_warmup = False
             self.markers.hh_breach_case = 'none'
@@ -191,7 +181,6 @@ class Switcher:
             self.markers.ll_breach_case = 'A'
 
     def _exit_bull(self, bar_idx, c):
-        """BULL exit (spec section 6.3 v0.11)."""
         pos = self.position
         assert pos is not None
         if c < pos.sl_level:
@@ -204,7 +193,6 @@ class Switcher:
             return
 
     def _post_exit_bull(self, exit_type):
-        """Spec section 6.4 v0.13 asimetri."""
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
         self.markers.peak_high_bull = last_peak
         if exit_type == 'TP':
@@ -253,7 +241,6 @@ class Switcher:
             self._entry_bear(bar_idx, o, h, l, c, ema20, vah, val)
 
     def _entry_sideways(self, bar_idx, o, h, l, c, ema20, vah, val):
-        """Spec section 3.1/3.2."""
         short_ok = (h >= vah) and (c <= vah)
         long_ok = (l <= val) and (c >= val)
         if short_ok and long_ok:
@@ -267,7 +254,6 @@ class Switcher:
             self._open_long_sideways(bar_idx, h, l, c)
 
     def _open_short_sideways(self, bar_idx, h, l, c):
-        """Spec section 3.1 + 3.3 v0.18. SL = marker_high_short."""
         self.markers.marker_high_short = h
         self.markers.marker_close_short = c
         sl = h
@@ -278,6 +264,7 @@ class Switcher:
             entry_high=h, entry_low=l,
             sl_level=sl, tp_level=tp,
             peak_high=h, trough_low=l,
+            ema_at_entry=self._current_ema20,
         )
 
     def _open_long_sideways(self, bar_idx, h, l, c):
@@ -291,10 +278,10 @@ class Switcher:
             entry_high=h, entry_low=l,
             sl_level=sl, tp_level=tp,
             peak_high=h, trough_low=l,
+            ema_at_entry=self._current_ema20,
         )
 
     def _entry_wait_see_bullish(self, bar_idx, o, h, l, c, ema20, vah, val):
-        """Spec section 4.3."""
         hh_lvl = self.markers.hh_breach_level()
         if hh_lvl is not None and c > hh_lvl:
             self.state = 'BULL'
@@ -309,7 +296,6 @@ class Switcher:
             return
 
     def _entry_wait_see_bearish(self, bar_idx, o, h, l, c, ema20, vah, val):
-        """Spec section 5.3 mirror."""
         ll_lvl = self.markers.ll_breach_level()
         if ll_lvl is not None and c < ll_lvl:
             self.state = 'BEAR'
@@ -324,7 +310,6 @@ class Switcher:
             return
 
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
-        """Spec section 6.2 + 6.4 case 1b."""
         if self.bull_stay_warmup and c < ema20:
             self.state = 'WAIT_SEE_BULLISH'
             self.markers.hh_breach_case = 'B'
@@ -337,10 +322,10 @@ class Switcher:
                 entry_high=h, entry_low=l,
                 sl_level=l, tp_level=c * (1.0 + self.config.tp_pct),
                 peak_high=h, trough_low=l,
+                ema_at_entry=self._current_ema20,
             )
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
-        """Spec section 7.2 mirror."""
         if self.bear_stay_warmup and c > ema20:
             self.state = 'WAIT_SEE_BEARISH'
             self.markers.ll_breach_case = 'B'
@@ -353,6 +338,7 @@ class Switcher:
                 entry_high=h, entry_low=l,
                 sl_level=h, tp_level=c * (1.0 - self.config.tp_pct),
                 peak_high=h, trough_low=l,
+                ema_at_entry=self._current_ema20,
             )
 
     def _close_position(self, bar_idx, exit_price, exit_type):
@@ -371,7 +357,9 @@ class Switcher:
             exit_type=exit_type,
             pnl_pct=pnl_pct_net, pnl_usd=pnl_usd,
             peak_high=pos.peak_high, trough_low=pos.trough_low,
+            sl_level=pos.sl_level, tp_level=pos.tp_level,
+            ema_at_entry=pos.ema_at_entry,
+            ema_at_exit=self._current_ema20,
         ))
         self.position = None
-        # v0.22: mark action taken - block entry check same candle
         self._action_taken_this_bar = True
