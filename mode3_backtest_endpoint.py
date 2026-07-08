@@ -1,6 +1,7 @@
 """
 Mode3 Backtest Endpoint - FastAPI router.
-v0.25: auto-log experiments to SQLite (experiments table)
+v0.25: auto-log experiments to SQLite
+v0.26: trailing SL support
 """
 import os
 import json as jsonlib
@@ -18,7 +19,7 @@ DB_PATH = os.environ.get("DB_PATH", "market_data.db")
 
 
 def _ensure_experiments_table():
-    """Create experiments table if not exists."""
+    """Create experiments table if not exists. v0.26 adds trailing_sl_pct column."""
     conn = sqlite3.connect(DB_PATH)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS mode3_experiments (
@@ -47,9 +48,15 @@ def _ensure_experiments_table():
             blocked_count INTEGER,
             final_state TEXT,
             config_json TEXT,
-            notes TEXT
+            notes TEXT,
+            trailing_sl_pct REAL DEFAULT 0.0
         )
     """)
+    # v0.26 migration: add column if table was created by older version
+    try:
+        conn.execute("ALTER TABLE mode3_experiments ADD COLUMN trailing_sl_pct REAL DEFAULT 0.0")
+    except sqlite3.OperationalError:
+        pass  # already exists
     conn.execute("CREATE INDEX IF NOT EXISTS idx_exp_symbol_tf ON mode3_experiments(symbol, timeframe)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_exp_days_cap_tp ON mode3_experiments(days, cap_pct, tp_pct)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_exp_pnl ON mode3_experiments(pnl_usd)")
@@ -58,7 +65,6 @@ def _ensure_experiments_table():
 
 
 def _log_experiment(config, result, symbol, timeframe, days):
-    """Save experiment result to DB."""
     try:
         _ensure_experiments_table()
         s = result['summary']
@@ -75,10 +81,10 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 sw_count, sw_wr, sw_pnl,
                 bull_count, bull_wr, bull_pnl,
                 bear_count, bear_wr, bear_pnl,
-                blocked_count, final_state, config_json
-            ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
+                blocked_count, final_state, config_json, trailing_sl_pct
+            ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '0.25', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '0.26', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -87,7 +93,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
             bl.get('count', 0), bl.get('wr_pct', 0), bl.get('pnl_usd', 0),
             br.get('count', 0), br.get('wr_pct', 0), br.get('pnl_usd', 0),
             s.get('sideways_blocked_count', 0), result.get('final_state', ''),
-            jsonlib.dumps(asdict(config)),
+            jsonlib.dumps(asdict(config)), config.trailing_sl_pct,
         ))
         conn.commit()
         conn.close()
@@ -127,11 +133,12 @@ def backtest_mode3(
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
     sideways_ema_dist_cap: float = Query(0.005, ge=0.0, le=0.05),
+    trailing_sl_pct: float = Query(0.0, ge=0.0, le=0.05),
     log_result: bool = Query(True),
 ):
     """
     Backtest Mode3 switcher.
-    v0.25: Auto-log every run to experiments DB (set log_result=false to skip).
+    v0.26: trailing_sl_pct (0=disabled, e.g. 0.003 = 0.3%).
     """
     config = Mode3Config(
         va_window=va_window,
@@ -141,6 +148,7 @@ def backtest_mode3(
         fee_pct_roundtrip=fee_pct,
         slippage_pct=slippage_pct,
         sideways_ema_distance_cap=sideways_ema_dist_cap,
+        trailing_sl_pct=trailing_sl_pct,
     )
 
     end_ts = int(datetime.utcnow().timestamp() * 1000)
@@ -183,6 +191,11 @@ def backtest_mode3(
     total_pnl_pct = sum(t.pnl_pct for t in trades) * 100
     wr = 100.0 * len(wins) / n if n > 0 else 0
 
+    # v0.26: trailing SL stats
+    trailing_exits = sum(1 for t in trades if t.exit_type == 'TRAILING_SL')
+    fixed_sl_exits = sum(1 for t in trades if t.exit_type == 'SL')
+    trailed_positions = sum(1 for t in trades if t.sl_trailed)
+
     tool_stats = {}
     for tool in ['SIDEWAYS', 'BULL', 'BEAR']:
         tt = [t for t in trades if t.tool == tool]
@@ -211,6 +224,9 @@ def backtest_mode3(
             "capital_start": config.capital_usd,
             "capital_end": round(config.capital_usd + total_pnl_usd, 2),
             "sideways_blocked_count": switcher._sideways_blocked_count,
+            "trailing_sl_exits": trailing_exits,
+            "fixed_sl_exits": fixed_sl_exits,
+            "positions_with_trailing_active": trailed_positions,
         },
         "per_tool": tool_stats,
         "trades": [
@@ -221,6 +237,8 @@ def backtest_mode3(
                 "exit_type": t.exit_type,
                 "pnl_pct": round(t.pnl_pct * 100, 3), "pnl_usd": round(t.pnl_usd, 2),
                 "sl_level": round(t.sl_level, 2), "tp_level": round(t.tp_level, 2),
+                "initial_sl": round(t.initial_sl, 2),
+                "sl_trailed": t.sl_trailed,
                 "ema_at_entry": round(t.ema_at_entry, 2), "ema_at_exit": round(t.ema_at_exit, 2),
             }
             for t in trades
@@ -228,7 +246,6 @@ def backtest_mode3(
         "final_state": switcher.state,
     }
 
-    # v0.25: auto-log
     if log_result:
         _log_experiment(config, result, symbol, timeframe, days)
 
@@ -246,10 +263,6 @@ def list_experiments(
     order: str = Query("desc", regex="^(asc|desc)$"),
     limit: int = Query(50, ge=1, le=500),
 ):
-    """
-    Query experiment log with filters.
-    Example: /mode3/experiments?days=60&order_by=pnl_usd&limit=10
-    """
     _ensure_experiments_table()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -286,6 +299,7 @@ def list_experiments(
                 "symbol": r["symbol"], "tf": r["timeframe"], "days": r["days"],
                 "cap%": round(r["cap_pct"]*100, 3),
                 "tp%": round(r["tp_pct"]*100, 3),
+                "trail%": round((r["trailing_sl_pct"] or 0)*100, 3),
                 "trades": r["total_trades"], "wr%": r["wr_pct"],
                 "pnl$": r["pnl_usd"],
                 "sw": f"{r['sw_count']}/{r['sw_wr']}%/${r['sw_pnl']:.2f}",
@@ -300,7 +314,6 @@ def list_experiments(
 
 @router.get("/experiments/summary")
 def experiments_summary():
-    """Ranking + aggregate stats of all experiments."""
     _ensure_experiments_table()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -310,13 +323,11 @@ def experiments_summary():
         conn.close()
         return {"total_experiments": 0, "message": "No experiments logged yet"}
 
-    # Top 10 by PnL
     top = conn.execute("""
-        SELECT symbol, timeframe, days, cap_pct, tp_pct, total_trades, wr_pct, pnl_usd
+        SELECT symbol, timeframe, days, cap_pct, tp_pct, trailing_sl_pct, total_trades, wr_pct, pnl_usd
         FROM mode3_experiments ORDER BY pnl_usd DESC LIMIT 10
     """).fetchall()
 
-    # Best per (symbol, tf, days) combo
     best_per_combo = conn.execute("""
         SELECT symbol, timeframe, days,
                MAX(pnl_usd) as best_pnl,
@@ -325,18 +336,20 @@ def experiments_summary():
                 ORDER BY pnl_usd DESC LIMIT 1) as best_cap,
                (SELECT tp_pct FROM mode3_experiments e2
                 WHERE e2.symbol=e1.symbol AND e2.timeframe=e1.timeframe AND e2.days=e1.days
-                ORDER BY pnl_usd DESC LIMIT 1) as best_tp
+                ORDER BY pnl_usd DESC LIMIT 1) as best_tp,
+               (SELECT trailing_sl_pct FROM mode3_experiments e2
+                WHERE e2.symbol=e1.symbol AND e2.timeframe=e1.timeframe AND e2.days=e1.days
+                ORDER BY pnl_usd DESC LIMIT 1) as best_trail
         FROM mode3_experiments e1
         GROUP BY symbol, timeframe, days
         ORDER BY best_pnl DESC
     """).fetchall()
 
-    # Per (cap, tp) breakdown for BTCUSDT 1h
     cap_tp = conn.execute("""
-        SELECT days, cap_pct, tp_pct, pnl_usd, wr_pct, total_trades
+        SELECT days, cap_pct, tp_pct, trailing_sl_pct, pnl_usd, wr_pct, total_trades
         FROM mode3_experiments
         WHERE symbol='BTCUSDT' AND timeframe='1h'
-        ORDER BY days, cap_pct, tp_pct
+        ORDER BY days, cap_pct, tp_pct, trailing_sl_pct
     """).fetchall()
 
     conn.close()
@@ -346,18 +359,22 @@ def experiments_summary():
         "top_10_by_pnl": [
             {"symbol": r["symbol"], "tf": r["timeframe"], "days": r["days"],
              "cap%": round(r["cap_pct"]*100, 3), "tp%": round(r["tp_pct"]*100, 3),
+             "trail%": round((r["trailing_sl_pct"] or 0)*100, 3),
              "trades": r["total_trades"], "wr%": r["wr_pct"], "pnl$": r["pnl_usd"]}
             for r in top
         ],
         "best_per_combo": [
             {"symbol": r["symbol"], "tf": r["timeframe"], "days": r["days"],
              "best_cap%": round(r["best_cap"]*100, 3), "best_tp%": round(r["best_tp"]*100, 3),
+             "best_trail%": round((r["best_trail"] or 0)*100, 3),
              "best_pnl$": r["best_pnl"]}
             for r in best_per_combo
         ],
         "btc_1h_grid": [
             {"days": r["days"], "cap%": round(r["cap_pct"]*100, 3),
-             "tp%": round(r["tp_pct"]*100, 3), "pnl$": r["pnl_usd"],
+             "tp%": round(r["tp_pct"]*100, 3),
+             "trail%": round((r["trailing_sl_pct"] or 0)*100, 3),
+             "pnl$": r["pnl_usd"],
              "wr%": r["wr_pct"], "trades": r["total_trades"]}
             for r in cap_tp
         ],
@@ -366,7 +383,6 @@ def experiments_summary():
 
 @router.post("/experiments/note")
 def add_note(id: int = Query(...), note: str = Body(...)):
-    """Add or update note for a specific experiment."""
     _ensure_experiments_table()
     conn = sqlite3.connect(DB_PATH)
     conn.execute("UPDATE mode3_experiments SET notes = ? WHERE id = ?", (note, id))
@@ -377,7 +393,6 @@ def add_note(id: int = Query(...), note: str = Body(...)):
 
 @router.delete("/experiments/{exp_id}")
 def delete_experiment(exp_id: int):
-    """Delete a specific experiment."""
     _ensure_experiments_table()
     conn = sqlite3.connect(DB_PATH)
     conn.execute("DELETE FROM mode3_experiments WHERE id = ?", (exp_id,))
@@ -443,5 +458,5 @@ def candles_debug(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "0.25", "db_path": DB_PATH,
-            "features": ["auto-log experiments", "query history", "summary rankings"]}
+    return {"status": "ok", "module": "mode3", "version": "0.26", "db_path": DB_PATH,
+            "features": ["auto-log experiments", "trailing SL", "distance filter"]}
