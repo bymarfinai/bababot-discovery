@@ -1,8 +1,9 @@
 """
 Mode3 Switcher - State machine orchestrator + 3 tools (SIDEWAYS, BULL, BEAR).
 
-Spec reference: BabaBot_Switcher_Spec_v0_21
-Every state transition and every rule number links to a spec section.
+Spec reference: BabaBot_Switcher_Spec_v0_22
+v0.22 change: 1 action per candle max (exit OR entry, not both).
+Loophole fixed: same-candle exit + re-entry (e.g. trade #20 in 30d BTC test)
 
 STATES (spec section 1):
   - STARTUP           : bot warm-up sebelum VA siap
@@ -13,15 +14,13 @@ STATES (spec section 1):
   - BEAR              : downtrend confirmed, SHORT di EMA20 reject-down (section 7)
 
 Each state can have a Position open (only 1 at a time - invariant).
+Per switcher instance: max 1 action (exit OR entry) per candle.
 """
 from dataclasses import dataclass, field
 from typing import Optional, List
 from .config import Mode3Config
 
 
-# -----------------------------------------------------------------------------
-# Marker state (spec section 2.3, section 2.4)
-# -----------------------------------------------------------------------------
 @dataclass
 class MarkerState:
     marker_high_short: Optional[float] = None
@@ -87,8 +86,13 @@ class Switcher:
         self.bull_stay_warmup: bool = False
         self.bear_stay_warmup: bool = False
         self.startup_bias: Optional[str] = None
+        # v0.22: 1 action per candle guard
+        self._action_taken_this_bar: bool = False
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
+        # v0.22: reset action flag at start of every candle
+        self._action_taken_this_bar = False
+
         if self.state == 'STARTUP':
             if vah is None or val is None:
                 return
@@ -98,7 +102,8 @@ class Switcher:
             self._update_position_tracking(h, l)
             self._check_exit(bar_idx, o, h, l, c, ema20, vah, val)
 
-        if self.position is None:
+        # v0.22: skip entry if exit just happened this candle
+        if self.position is None and not self._action_taken_this_bar:
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val, poc)
 
     def _startup_transition(self, close, ema20):
@@ -368,3 +373,5 @@ class Switcher:
             peak_high=pos.peak_high, trough_low=pos.trough_low,
         ))
         self.position = None
+        # v0.22: mark action taken - block entry check same candle
+        self._action_taken_this_bar = True
