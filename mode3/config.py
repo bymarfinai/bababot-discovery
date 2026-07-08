@@ -28,8 +28,10 @@ class Mode3Config:
     bull_disable_downtrend: bool = False
     bull_slope_window: int = 20
     bull_max_candle_range_pct: float = 0.0
-    # v0.31: MTF 15m confirmation for BULL
     bull_mtf_15m_confirm: bool = False
+    # v0.32: MTF strict filter + MTF entry mode
+    bull_mtf_15m_strict: bool = False  # strict pattern (close in top 30% of range)
+    bull_mtf_15m_entry: bool = False   # use 15m rejection candle for entry (tight SL)
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
