@@ -1,5 +1,5 @@
 """
-Mode3 Switcher v0.30 — added idea 5 (BULL max candle range filter).
+Mode3 Switcher v0.31 — MTF 15m BULL confirmation filter added.
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -89,7 +89,9 @@ class Switcher:
         self._bull_blocked_slope = 0
         self._bull_blocked_confirm = 0
         self._bull_blocked_range = 0
+        self._bull_blocked_mtf = 0
         self._bull_pending_confirm = None
+        self.mtf_bull_confirm = None  # list[bool] per bar_idx, set externally by endpoint
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
         self._action_taken_this_bar = False
@@ -327,11 +329,15 @@ class Switcher:
             if not self._bull_slope_ok():
                 self._bull_blocked_slope += 1
                 return
-            # Idea 5: candle range filter
             if self.config.bull_max_candle_range_pct > 0 and o > 0:
                 candle_range = (h - l) / o
                 if candle_range > self.config.bull_max_candle_range_pct:
                     self._bull_blocked_range += 1
+                    return
+            # Idea 6: MTF 15m confirmation
+            if self.config.bull_mtf_15m_confirm and self.mtf_bull_confirm is not None:
+                if bar_idx < len(self.mtf_bull_confirm) and not self.mtf_bull_confirm[bar_idx]:
+                    self._bull_blocked_mtf += 1
                     return
             if self.config.bull_confirmation_candle:
                 self._bull_pending_confirm = (bar_idx, o, h, l, c, ema20)
