@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v2.7 — expose 4h EMA slope for analysis.
+Mode3 Backtest Endpoint v2.8 — Fix #5 counter-trend BULL enhancement exposed.
 """
 import os
 import json as jsonlib
@@ -56,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '2.7', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '2.8', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -213,10 +213,6 @@ def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
 
 
 def compute_htf_4h_slope(ema_4h_series, window_bars=20):
-    """
-    Compute 4h EMA slope as % change over last `window_bars` 1h candles (~5 4h candles).
-    Positive = uptrend, negative = downtrend.
-    """
     slopes = [None] * len(ema_4h_series)
     for i in range(window_bars, len(ema_4h_series)):
         curr = ema_4h_series[i]
@@ -259,13 +255,18 @@ def backtest_mode3(
     sm_fix_3_extreme_pct: float = Query(0.05, ge=0.05, le=0.5),
     sm_fix_4_bull_confirm: bool = Query(False),
     sm_fix_4_bear_confirm: bool = Query(False),
+    # v2.8 Fix #5
+    bull_countertrend_enabled: bool = Query(False),
+    bull_countertrend_slope_window: int = Query(20, ge=5, le=100),
+    bull_countertrend_slope_threshold: float = Query(-1.0, ge=-10.0, le=0.0),
+    bull_countertrend_tp_pct: float = Query(0.020, ge=0.005, le=0.10),
+    bull_countertrend_size_mult: float = Query(1.0, ge=0.5, le=5.0),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
     trap_tp_pct: float = Query(0.012, ge=0.001, le=0.05),
     trap_use_1h_va_tp: bool = Query(False),
     trap_priority_over_state: bool = Query(True),
-    # v2.7: 4h EMA slope exposure for analysis
     include_htf: bool = Query(True),
     htf_slope_window: int = Query(20, ge=5, le=100),
     log_result: bool = Query(True),
@@ -295,6 +296,11 @@ def backtest_mode3(
         sm_fix_3_extreme_pct=sm_fix_3_extreme_pct,
         sm_fix_4_bull_confirm=sm_fix_4_bull_confirm,
         sm_fix_4_bear_confirm=sm_fix_4_bear_confirm,
+        bull_countertrend_enabled=bull_countertrend_enabled,
+        bull_countertrend_slope_window=bull_countertrend_slope_window,
+        bull_countertrend_slope_threshold=bull_countertrend_slope_threshold,
+        bull_countertrend_tp_pct=bull_countertrend_tp_pct,
+        bull_countertrend_size_mult=bull_countertrend_size_mult,
         trap_enabled=trap_enabled,
         trap_lookback_4h=trap_lookback_4h,
         trap_zone_tolerance=trap_zone_tolerance,
@@ -345,11 +351,10 @@ def backtest_mode3(
                 switcher.mtf_sideways_long_entry_close = lc
                 switcher.mtf_sideways_long_entry_low = ll
 
-    # v2.7: Load 4h data if TRAP, Fix#1, OR include_htf enabled
     htf_ema_series = None
     htf_slope_series = None
     htf_close_series = None
-    if trap_enabled or sm_fix_1_htf_confirm or include_htf:
+    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
         htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window,
@@ -360,9 +365,13 @@ def backtest_mode3(
         switcher.htf_4h_close = htf['close']
         switcher.htf_trap_short_recent = htf['trap_short']
         switcher.htf_trap_long_recent = htf['trap_long']
-        # Compute slope for analysis output
         htf_ema_series = htf['ema']
         htf_close_series = htf['close']
+        # For counter-trend, use countertrend_slope_window; for output display use htf_slope_window
+        # We use the countertrend window for the switcher, display window for output
+        countertrend_slope = compute_htf_4h_slope(htf['ema'], window_bars=bull_countertrend_slope_window)
+        switcher.htf_4h_slope = countertrend_slope
+        # Display slope (may differ from countertrend for analysis)
         htf_slope_series = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
 
     for i in range(len(rows)):
@@ -391,7 +400,6 @@ def backtest_mode3(
             }
 
     def get_htf_at_bar(bar):
-        """Look up 4h ema/slope/close at given 1h bar."""
         if htf_ema_series is None or bar >= len(htf_ema_series):
             return None, None, None
         ema_v = htf_ema_series[bar]
@@ -412,6 +420,8 @@ def backtest_mode3(
             "sl_level": round(t.sl_level, 2), "tp_level": round(t.tp_level, 2),
             "sl_distance_pct": round(abs(t.entry_price - t.sl_level) / t.entry_price * 100, 3),
             "ema_at_entry": round(t.ema_at_entry, 2), "ema_at_exit": round(t.ema_at_exit, 2),
+            "peak_high": round(t.peak_high, 2), "trough_low": round(t.trough_low, 2),
+            "size_mult": t.size_mult,
         }
         if htf_ema is not None:
             trade_dict["htf_4h_ema"] = htf_ema
@@ -448,6 +458,7 @@ def backtest_mode3(
             "sm_fix4_bull_cancelled": switcher._sm_fix4_bull_cancelled,
             "sm_fix4_bear_confirmed": switcher._sm_fix4_bear_confirmed,
             "sm_fix4_bear_cancelled": switcher._sm_fix4_bear_cancelled,
+            "bull_countertrend_count": switcher._bull_countertrend_count,
         },
         "per_tool": tool_stats,
         "trades": trade_list,
@@ -548,4 +559,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "2.7", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "2.8", "db_path": DB_PATH}
