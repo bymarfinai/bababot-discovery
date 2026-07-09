@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v2.3 — added TRAP tool (HTF contrarian entries).
+Mode3 Backtest Endpoint v2.4 — added BEAR min SL distance filter.
 """
 import os
 import json as jsonlib
@@ -56,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '2.3', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '2.4', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -162,14 +162,12 @@ def compute_mtf_sideways_entry(rows_1h, rows_15m, vahs, vals):
 
 
 def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
-    """For each 1h bar, compute 4h VAH/VAL/EMA20 and recent rejection flags."""
     n = len(rows_1h)
     if not rows_4h:
         return {
             'vah': [None]*n, 'val': [None]*n, 'ema': [None]*n,
             'trap_short': [False]*n, 'trap_long': [False]*n,
         }
-
     opens_4h = np.array([r[1] for r in rows_4h], dtype=float)
     highs_4h = np.array([r[2] for r in rows_4h], dtype=float)
     lows_4h = np.array([r[3] for r in rows_4h], dtype=float)
@@ -177,17 +175,11 @@ def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
     volumes_4h = np.array([r[5] for r in rows_4h], dtype=float)
     ts_4h = [r[0] for r in rows_4h]
     ONE_4H_MS = 4 * 60 * 60 * 1000
-
     ema_4h = compute_ema_series(closes_4h, 20)
-
-    # Compute 4h VAH/VAL for each 4h bar
     vahs_4h, vals_4h = [], []
     for i in range(len(rows_4h)):
         v, l_, _ = compute_va_at_bar(highs_4h, lows_4h, closes_4h, volumes_4h, i, va_window, 85.0, 15.0)
         vahs_4h.append(v); vals_4h.append(l_)
-
-    # Detect rejection per 4h bar
-    # SHORT reject: high >= VAH AND close < VAH AND bearish candle
     reject_short_4h = [False]*len(rows_4h)
     reject_long_4h = [False]*len(rows_4h)
     for i in range(len(rows_4h)):
@@ -196,29 +188,23 @@ def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
             reject_short_4h[i] = True
         if l_ is not None and lows_4h[i] <= l_ and closes_4h[i] > l_ and closes_4h[i] > opens_4h[i]:
             reject_long_4h[i] = True
-
-    # Align to 1h bars
     vah_out, val_out, ema_out = [], [], []
     trap_short_out, trap_long_out = [], []
-
     idx_4h = 0
     for r in rows_1h:
         t_1h = r[0]
-        # Find last 4h bar that has CLOSED before this 1h bar
         while idx_4h + 1 < len(ts_4h) and ts_4h[idx_4h + 1] + ONE_4H_MS <= t_1h:
             idx_4h += 1
         if ts_4h[idx_4h] + ONE_4H_MS <= t_1h:
             vah_out.append(vahs_4h[idx_4h])
             val_out.append(vals_4h[idx_4h])
             ema_out.append(float(ema_4h[idx_4h]))
-            # Check any of last N 4h bars for rejection
             start = max(0, idx_4h - trap_lookback + 1)
             trap_short_out.append(any(reject_short_4h[start:idx_4h+1]))
             trap_long_out.append(any(reject_long_4h[start:idx_4h+1]))
         else:
             vah_out.append(None); val_out.append(None); ema_out.append(None)
             trap_short_out.append(False); trap_long_out.append(False)
-
     return {
         'vah': vah_out, 'val': val_out, 'ema': ema_out,
         'trap_short': trap_short_out, 'trap_long': trap_long_out,
@@ -243,12 +229,13 @@ def backtest_mode3(
     bull_use_rr_tp: bool = Query(False),
     bull_rr_ratio: float = Query(1.0, ge=0.5, le=5.0),
     bear_mtf_15m_entry: bool = Query(True),
+    bear_min_sl_dist: float = Query(0.0, ge=0.0, le=0.01),
+    bear_use_1h_sl_fallback: bool = Query(False),
     sideways_ema_invalidation: bool = Query(True),
     sideways_ema_invalidation_tolerance: float = Query(0.0015, ge=0.0, le=0.02),
     sideways_mtf_15m_entry: bool = Query(True),
     sideways_tp_pct: float = Query(0.007, ge=0.0, le=0.05),
     sideways_max_slope_pct: float = Query(0.018, ge=0.0, le=0.1),
-    # v2.3 TRAP tool
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -271,6 +258,8 @@ def backtest_mode3(
         bull_use_rr_tp=bull_use_rr_tp,
         bull_rr_ratio=bull_rr_ratio,
         bear_mtf_15m_entry=bear_mtf_15m_entry,
+        bear_min_sl_dist=bear_min_sl_dist,
+        bear_use_1h_sl_fallback=bear_use_1h_sl_fallback,
         sideways_ema_invalidation=sideways_ema_invalidation,
         sideways_ema_invalidation_tolerance=sideways_ema_invalidation_tolerance,
         sideways_mtf_15m_entry=sideways_mtf_15m_entry,
@@ -326,9 +315,7 @@ def backtest_mode3(
                 switcher.mtf_sideways_long_entry_close = lc
                 switcher.mtf_sideways_long_entry_low = ll
 
-    # v2.3: Load 4h data for TRAP tool
     if trap_enabled:
-        # Extend start to load enough 4h history for VA window
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
         htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window,
@@ -382,6 +369,7 @@ def backtest_mode3(
             "bull_blocked_volume": switcher._bull_blocked_volume,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
+            "bear_blocked_min_sl": switcher._bear_blocked_min_sl,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
             "trap_short_count": switcher._trap_short_count,
             "trap_long_count": switcher._trap_long_count,
@@ -494,4 +482,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "2.3", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "2.4", "db_path": DB_PATH}
