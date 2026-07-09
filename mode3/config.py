@@ -1,5 +1,16 @@
 """
-Mode3 Config v2.5 - state machine switching fixes (redirect, not filter).
+Mode3 Config v2.5 CHAMPION — state machine switching fixes as defaults.
+
+Champion config (BTC 1h):
+- Fixed TP 1.2% (BULL/BEAR), 0.3% (SIDEWAYS)
+- MTF 15m entry all tools
+- Fix #2: BEAR streak switch to SIDEWAYS
+- Fix #3: Extreme low (5% below recent high) switch to SIDEWAYS
+
+Performance (BTC):
+- Full year: +$233.31
+- 2026 YTD: +$193.14
+- Nov 2025: +$5.23 (was -$16.62)
 """
 from dataclasses import dataclass
 
@@ -12,7 +23,7 @@ class Mode3Config:
     ema_period: int = 20
     startup_warmup_candles: int = 51
 
-    tp_pct: float = 0.003
+    tp_pct: float = 0.012  # v2.5: fixed TP 1.2% BULL/BEAR (was 0.003)
     capital_usd: float = 100.0
     entry_usd: float = 10.0
     leverage: float = 50.0
@@ -23,7 +34,7 @@ class Mode3Config:
     sideways_ema_invalidation: bool = True
     sideways_ema_invalidation_tolerance: float = 0.0015
     sideways_mtf_15m_entry: bool = True
-    sideways_tp_pct: float = 0.007
+    sideways_tp_pct: float = 0.003  # v2.5: SW TP 0.3% (was 0.007)
     sideways_max_slope_pct: float = 0.018
     sideways_slope_window: int = 20
 
@@ -40,19 +51,15 @@ class Mode3Config:
     bear_min_sl_dist: float = 0.0
     bear_use_1h_sl_fallback: bool = False
 
-    # === v2.5: STATE MACHINE SWITCHING FIXES ===
-    # Prinsip: perbaiki tool selection, bukan filter signal
-    # Fix #1: HTF confirm sebelum flip SW SHORT SL → BULL
-    sm_fix_1_htf_confirm: bool = False
-    # Fix #2: 2+ BEAR SL streak → switch state ke SIDEWAYS
-    sm_fix_2_bear_streak: bool = False
+    # === v2.5: STATE MACHINE SWITCHING FIXES (CHAMPION defaults) ===
+    sm_fix_1_htf_confirm: bool = False   # doesn't fire in BTC data, kept off
+    sm_fix_2_bear_streak: bool = True    # CHAMPION ON
     sm_fix_2_streak_threshold: int = 2
-    # Fix #3: BEAR TP tapi harga jauh di bawah peak → switch SIDEWAYS
-    sm_fix_3_extreme_low: bool = False
+    sm_fix_3_extreme_low: bool = True    # CHAMPION ON
     sm_fix_3_high_lookback: int = 100
-    sm_fix_3_extreme_pct: float = 0.15
+    sm_fix_3_extreme_pct: float = 0.05   # CHAMPION 5%
 
-    # === v2.3: TRAP TOOL ===
+    # === v2.3: TRAP TOOL (OFF default) ===
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
     trap_zone_tolerance: float = 0.002
