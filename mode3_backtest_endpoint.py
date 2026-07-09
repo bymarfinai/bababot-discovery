@@ -1,11 +1,11 @@
 """
-Mode3 Backtest Endpoint v2.8 CHAMPION — Fix #5 B1 defaults enabled.
+Mode3 Backtest Endpoint v2.9 CHAMPION — Fix #7 position-based counter-trend BULL.
 
 Champion defaults (BTC 1h):
 - Fixed TP 1.2% (BULL/BEAR), 0.3% (SIDEWAYS)
 - Fix #2: BEAR streak → SIDEWAYS
 - Fix #3: Extreme low 5% → SIDEWAYS
-- Fix #5: Counter-trend BULL 2x size when 4h slope < -0.5%
+- Fix #7: Counter-trend BULL 2x size when 4h close < 4h EMA20 (position-based)
 """
 import os
 import json as jsonlib
@@ -62,7 +62,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '2.8', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '2.9', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -261,8 +261,10 @@ def backtest_mode3(
     sm_fix_3_extreme_pct: float = Query(0.05, ge=0.05, le=0.5),
     sm_fix_4_bull_confirm: bool = Query(False),
     sm_fix_4_bear_confirm: bool = Query(False),
-    # v2.8 Fix #5 B1 CHAMPION defaults
+    # v2.9 Fix #7 CHAMPION defaults (position-based counter-trend BULL)
     bull_countertrend_enabled: bool = Query(True),
+    bull_countertrend_use_position: bool = Query(True),
+    bull_countertrend_max_close_pct: float = Query(0.0, ge=-10.0, le=10.0),
     bull_countertrend_slope_window: int = Query(20, ge=5, le=100),
     bull_countertrend_slope_threshold: float = Query(-0.5, ge=-10.0, le=0.0),
     bull_countertrend_tp_pct: float = Query(0.012, ge=0.005, le=0.10),
@@ -303,6 +305,8 @@ def backtest_mode3(
         sm_fix_4_bull_confirm=sm_fix_4_bull_confirm,
         sm_fix_4_bear_confirm=sm_fix_4_bear_confirm,
         bull_countertrend_enabled=bull_countertrend_enabled,
+        bull_countertrend_use_position=bull_countertrend_use_position,
+        bull_countertrend_max_close_pct=bull_countertrend_max_close_pct,
         bull_countertrend_slope_window=bull_countertrend_slope_window,
         bull_countertrend_slope_threshold=bull_countertrend_slope_threshold,
         bull_countertrend_tp_pct=bull_countertrend_tp_pct,
@@ -562,4 +566,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "2.8", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "2.9", "db_path": DB_PATH}
