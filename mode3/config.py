@@ -1,5 +1,5 @@
 """
-Mode3 Config v2.3 - added TRAP tool (HTF context contrarian entries).
+Mode3 Config v2.4 - added BEAR min SL distance filter (regime protection).
 """
 from dataclasses import dataclass
 
@@ -37,15 +37,18 @@ class Mode3Config:
     bull_rr_ratio: float = 1.0
 
     bear_mtf_15m_entry: bool = True
+    # NEW v2.4: BEAR minimum SL distance filter
+    # In volatile bear markets, tight SL (< 0.2%) get whipsawed
+    bear_min_sl_dist: float = 0.0    # 0.0 = disabled, 0.002 = 0.2% minimum
+    bear_use_1h_sl_fallback: bool = False  # if 15m SL too tight, use 1h high instead
 
     # === v2.3: TRAP TOOL ===
-    # Contrarian entry based on HTF (4h) rejection at VAH/VAL
-    trap_enabled: bool = False           # Toggle TRAP tool
-    trap_lookback_4h: int = 3            # How many recent 4h bars to check for rejection
-    trap_zone_tolerance: float = 0.002   # 4h VAH/VAL zone tolerance (0.2%)
-    trap_tp_pct: float = 0.012           # TRAP TP (fixed for simplicity)
-    trap_use_1h_va_tp: bool = False      # If True, TP at 1h VAL/VAH instead of fixed
-    trap_priority_over_state: bool = True  # If True, TRAP overrides mode3 state entries
+    trap_enabled: bool = False
+    trap_lookback_4h: int = 3
+    trap_zone_tolerance: float = 0.002
+    trap_tp_pct: float = 0.012
+    trap_use_1h_va_tp: bool = False
+    trap_priority_over_state: bool = True
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
