@@ -1,5 +1,6 @@
 """
 Mode3 Backtest Endpoint v2.0 — final champion, defaults=proven.
+Also triggers mode4 auto-registration on import.
 """
 import os
 import json as jsonlib
@@ -11,6 +12,12 @@ import numpy as np
 from datetime import datetime
 
 from mode3 import Mode3Config, Switcher, compute_ema_series, compute_va_at_bar
+
+# Trigger mode4 auto-registration (side effect via import)
+try:
+    import mode4_backtest_endpoint  # noqa: F401
+except Exception as _e:
+    print(f"[WARN] mode4 not available: {_e}")
 
 router = APIRouter(prefix="/mode3", tags=["mode3"])
 DB_PATH = os.environ.get("DB_PATH", "market_data.db")
