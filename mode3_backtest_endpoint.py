@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v2.6 — Fix #4 confirmation bar exposed.
+Mode3 Backtest Endpoint v2.7 — expose 4h EMA slope for analysis.
 """
 import os
 import json as jsonlib
@@ -56,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '2.6', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '2.7', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -212,6 +212,20 @@ def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
     }
 
 
+def compute_htf_4h_slope(ema_4h_series, window_bars=20):
+    """
+    Compute 4h EMA slope as % change over last `window_bars` 1h candles (~5 4h candles).
+    Positive = uptrend, negative = downtrend.
+    """
+    slopes = [None] * len(ema_4h_series)
+    for i in range(window_bars, len(ema_4h_series)):
+        curr = ema_4h_series[i]
+        prev = ema_4h_series[i - window_bars]
+        if curr is not None and prev is not None and prev > 0:
+            slopes[i] = (curr - prev) / prev * 100
+    return slopes
+
+
 @router.get("/backtest")
 def backtest_mode3(
     symbol: str = Query("BTCUSDT"),
@@ -243,7 +257,6 @@ def backtest_mode3(
     sm_fix_3_extreme_low: bool = Query(True),
     sm_fix_3_high_lookback: int = Query(100, ge=20, le=500),
     sm_fix_3_extreme_pct: float = Query(0.05, ge=0.05, le=0.5),
-    # v2.6 Fix #4
     sm_fix_4_bull_confirm: bool = Query(False),
     sm_fix_4_bear_confirm: bool = Query(False),
     trap_enabled: bool = Query(False),
@@ -252,6 +265,9 @@ def backtest_mode3(
     trap_tp_pct: float = Query(0.012, ge=0.001, le=0.05),
     trap_use_1h_va_tp: bool = Query(False),
     trap_priority_over_state: bool = Query(True),
+    # v2.7: 4h EMA slope exposure for analysis
+    include_htf: bool = Query(True),
+    htf_slope_window: int = Query(20, ge=5, le=100),
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
@@ -329,7 +345,11 @@ def backtest_mode3(
                 switcher.mtf_sideways_long_entry_close = lc
                 switcher.mtf_sideways_long_entry_low = ll
 
-    if trap_enabled or sm_fix_1_htf_confirm:
+    # v2.7: Load 4h data if TRAP, Fix#1, OR include_htf enabled
+    htf_ema_series = None
+    htf_slope_series = None
+    htf_close_series = None
+    if trap_enabled or sm_fix_1_htf_confirm or include_htf:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
         htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window,
@@ -340,6 +360,10 @@ def backtest_mode3(
         switcher.htf_4h_close = htf['close']
         switcher.htf_trap_short_recent = htf['trap_short']
         switcher.htf_trap_long_recent = htf['trap_long']
+        # Compute slope for analysis output
+        htf_ema_series = htf['ema']
+        htf_close_series = htf['close']
+        htf_slope_series = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
 
     for i in range(len(rows)):
         vah, val = vahs[i], vals[i]
@@ -365,6 +389,35 @@ def backtest_mode3(
                 "pnl_usd": round(sum(t.pnl_usd for t in tt), 2),
                 "pnl_pct": round(sum(t.pnl_pct for t in tt) * 100, 3),
             }
+
+    def get_htf_at_bar(bar):
+        """Look up 4h ema/slope/close at given 1h bar."""
+        if htf_ema_series is None or bar >= len(htf_ema_series):
+            return None, None, None
+        ema_v = htf_ema_series[bar]
+        slope_v = htf_slope_series[bar] if htf_slope_series else None
+        close_v = htf_close_series[bar] if htf_close_series else None
+        return (round(ema_v, 2) if ema_v else None,
+                round(slope_v, 3) if slope_v is not None else None,
+                round(close_v, 2) if close_v else None)
+
+    trade_list = []
+    for t in trades:
+        htf_ema, htf_slope, htf_close = get_htf_at_bar(t.entry_bar)
+        trade_dict = {
+            "tool": t.tool, "side": t.side,
+            "entry_price": round(t.entry_price, 2), "exit_price": round(t.exit_price, 2),
+            "entry_bar": t.entry_bar, "exit_bar": t.exit_bar, "exit_type": t.exit_type,
+            "pnl_pct": round(t.pnl_pct * 100, 3), "pnl_usd": round(t.pnl_usd, 2),
+            "sl_level": round(t.sl_level, 2), "tp_level": round(t.tp_level, 2),
+            "sl_distance_pct": round(abs(t.entry_price - t.sl_level) / t.entry_price * 100, 3),
+            "ema_at_entry": round(t.ema_at_entry, 2), "ema_at_exit": round(t.ema_at_exit, 2),
+        }
+        if htf_ema is not None:
+            trade_dict["htf_4h_ema"] = htf_ema
+            trade_dict["htf_4h_close"] = htf_close
+            trade_dict["htf_4h_slope_pct"] = htf_slope
+        trade_list.append(trade_dict)
 
     result = {
         "symbol": symbol, "timeframe": timeframe, "days": days,
@@ -397,16 +450,7 @@ def backtest_mode3(
             "sm_fix4_bear_cancelled": switcher._sm_fix4_bear_cancelled,
         },
         "per_tool": tool_stats,
-        "trades": [
-            {"tool": t.tool, "side": t.side,
-             "entry_price": round(t.entry_price, 2), "exit_price": round(t.exit_price, 2),
-             "entry_bar": t.entry_bar, "exit_bar": t.exit_bar, "exit_type": t.exit_type,
-             "pnl_pct": round(t.pnl_pct * 100, 3), "pnl_usd": round(t.pnl_usd, 2),
-             "sl_level": round(t.sl_level, 2), "tp_level": round(t.tp_level, 2),
-             "sl_distance_pct": round(abs(t.entry_price - t.sl_level) / t.entry_price * 100, 3),
-             "ema_at_entry": round(t.ema_at_entry, 2), "ema_at_exit": round(t.ema_at_exit, 2)}
-            for t in trades
-        ],
+        "trades": trade_list,
         "final_state": switcher.state,
     }
 
@@ -504,4 +548,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "2.6", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "2.7", "db_path": DB_PATH}
