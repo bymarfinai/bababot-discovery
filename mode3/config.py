@@ -1,10 +1,5 @@
 """
-Mode3 Config v2.1 - CHAMPION with BEAR MTF 15m entry.
-
-Proven config (190d YTD +$123.46):
-- BULL: volume 1.5x + MTF 15m entry (WR 89%)
-- BEAR: MTF 15m entry (WR 69%, +58% profit vs pure 1h)
-- SIDEWAYS: MTF 15m entry + TP 0.7% + tolerance 0.15% + slope 1.8%
+Mode3 Config v2.2 - added BULL dynamic R:R based TP.
 """
 from dataclasses import dataclass
 
@@ -38,8 +33,11 @@ class Mode3Config:
     bull_volume_window: int = 20
     bull_min_volume_ratio: float = 1.5
     bull_mtf_15m_entry: bool = True
+    # NEW v2.2: BULL R:R based dynamic TP
+    bull_use_rr_tp: bool = False   # if True: TP = SL_distance × bull_rr_ratio
+    bull_rr_ratio: float = 1.0     # 1.0 = 1:1 R:R
 
-    bear_mtf_15m_entry: bool = True  # v2.1 default
+    bear_mtf_15m_entry: bool = True
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
