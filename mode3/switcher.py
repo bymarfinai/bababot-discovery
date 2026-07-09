@@ -1,5 +1,5 @@
 """
-Mode3 Switcher v2.1 — added BEAR MTF 15m entry mirror of BULL.
+Mode3 Switcher v2.2 — BULL R:R based dynamic TP option.
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -85,7 +85,6 @@ class Switcher:
         self._sideways_blocked_mtf = 0
         self._sideways_blocked_slope = 0
         self._ema_history = deque(maxlen=config.sideways_slope_window)
-        # MTF 15m entry data
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -166,6 +165,14 @@ class Switcher:
 
     def _sideways_tp_pct(self):
         return self.config.sideways_tp_pct if self.config.sideways_tp_pct > 0 else self.config.tp_pct
+
+    def _bull_tp_level(self, entry_price, sl_level):
+        """v2.2: Dynamic TP based on R:R ratio, or fallback to fixed tp_pct."""
+        if self.config.bull_use_rr_tp:
+            sl_distance = entry_price - sl_level  # positive for BULL LONG
+            if sl_distance > 0:
+                return entry_price + sl_distance * self.config.bull_rr_ratio
+        return entry_price * (1.0 + self.config.tp_pct)
 
     def _startup_transition(self, close, ema20):
         if close > ema20: self.startup_bias = 'bullish'
@@ -347,20 +354,20 @@ class Switcher:
                         return
                     entry_price = mtf_close
                     sl_level = mtf_low
-                    tp_level = entry_price * (1.0 + self.config.tp_pct)
+                    tp_level = self._bull_tp_level(entry_price, sl_level)
                     self.position = Position(tool='BULL', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
                         entry_high=h, entry_low=mtf_low, sl_level=sl_level, tp_level=tp_level,
                         peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20)
                     return
+            tp_level = self._bull_tp_level(c, l)
             self.position = Position(tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
-                entry_high=h, entry_low=l, sl_level=l, tp_level=c*(1.0+self.config.tp_pct),
+                entry_high=h, entry_low=l, sl_level=l, tp_level=tp_level,
                 peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bear_stay_warmup and c > ema20:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False; return
         if (h >= ema20) and (c < ema20) and (c < o):
-            # v2.1: BEAR MTF 15m entry (mirror BULL)
             if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
                 if bar_idx < len(self.mtf_bear_entry_close):
                     mtf_close = self.mtf_bear_entry_close[bar_idx]
