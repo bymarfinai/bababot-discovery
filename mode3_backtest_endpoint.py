@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v2.4 — added BEAR min SL distance filter.
+Mode3 Backtest Endpoint v2.5 — state machine switching fixes.
 """
 import os
 import json as jsonlib
@@ -56,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '2.4', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '2.5', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -165,7 +165,7 @@ def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
     n = len(rows_1h)
     if not rows_4h:
         return {
-            'vah': [None]*n, 'val': [None]*n, 'ema': [None]*n,
+            'vah': [None]*n, 'val': [None]*n, 'ema': [None]*n, 'close': [None]*n,
             'trap_short': [False]*n, 'trap_long': [False]*n,
         }
     opens_4h = np.array([r[1] for r in rows_4h], dtype=float)
@@ -188,7 +188,7 @@ def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
             reject_short_4h[i] = True
         if l_ is not None and lows_4h[i] <= l_ and closes_4h[i] > l_ and closes_4h[i] > opens_4h[i]:
             reject_long_4h[i] = True
-    vah_out, val_out, ema_out = [], [], []
+    vah_out, val_out, ema_out, close_out = [], [], [], []
     trap_short_out, trap_long_out = [], []
     idx_4h = 0
     for r in rows_1h:
@@ -199,14 +199,15 @@ def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
             vah_out.append(vahs_4h[idx_4h])
             val_out.append(vals_4h[idx_4h])
             ema_out.append(float(ema_4h[idx_4h]))
+            close_out.append(float(closes_4h[idx_4h]))
             start = max(0, idx_4h - trap_lookback + 1)
             trap_short_out.append(any(reject_short_4h[start:idx_4h+1]))
             trap_long_out.append(any(reject_long_4h[start:idx_4h+1]))
         else:
-            vah_out.append(None); val_out.append(None); ema_out.append(None)
+            vah_out.append(None); val_out.append(None); ema_out.append(None); close_out.append(None)
             trap_short_out.append(False); trap_long_out.append(False)
     return {
-        'vah': vah_out, 'val': val_out, 'ema': ema_out,
+        'vah': vah_out, 'val': val_out, 'ema': ema_out, 'close': close_out,
         'trap_short': trap_short_out, 'trap_long': trap_long_out,
     }
 
@@ -236,6 +237,14 @@ def backtest_mode3(
     sideways_mtf_15m_entry: bool = Query(True),
     sideways_tp_pct: float = Query(0.007, ge=0.0, le=0.05),
     sideways_max_slope_pct: float = Query(0.018, ge=0.0, le=0.1),
+    # v2.5: state machine fixes
+    sm_fix_1_htf_confirm: bool = Query(False),
+    sm_fix_2_bear_streak: bool = Query(False),
+    sm_fix_2_streak_threshold: int = Query(2, ge=2, le=5),
+    sm_fix_3_extreme_low: bool = Query(False),
+    sm_fix_3_high_lookback: int = Query(100, ge=20, le=500),
+    sm_fix_3_extreme_pct: float = Query(0.15, ge=0.05, le=0.5),
+    # v2.3 TRAP
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -245,18 +254,14 @@ def backtest_mode3(
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
-        va_window=va_window,
-        tp_pct=tp_pct,
-        entry_usd=entry_usd,
-        leverage=leverage,
-        fee_pct_roundtrip=fee_pct,
-        slippage_pct=slippage_pct,
+        va_window=va_window, tp_pct=tp_pct,
+        entry_usd=entry_usd, leverage=leverage,
+        fee_pct_roundtrip=fee_pct, slippage_pct=slippage_pct,
         sideways_ema_distance_cap=sideways_ema_dist_cap,
         chop_max_crossings=chop_max_crossings,
         bull_min_volume_ratio=bull_min_volume_ratio,
         bull_mtf_15m_entry=bull_mtf_15m_entry,
-        bull_use_rr_tp=bull_use_rr_tp,
-        bull_rr_ratio=bull_rr_ratio,
+        bull_use_rr_tp=bull_use_rr_tp, bull_rr_ratio=bull_rr_ratio,
         bear_mtf_15m_entry=bear_mtf_15m_entry,
         bear_min_sl_dist=bear_min_sl_dist,
         bear_use_1h_sl_fallback=bear_use_1h_sl_fallback,
@@ -265,6 +270,12 @@ def backtest_mode3(
         sideways_mtf_15m_entry=sideways_mtf_15m_entry,
         sideways_tp_pct=sideways_tp_pct,
         sideways_max_slope_pct=sideways_max_slope_pct,
+        sm_fix_1_htf_confirm=sm_fix_1_htf_confirm,
+        sm_fix_2_bear_streak=sm_fix_2_bear_streak,
+        sm_fix_2_streak_threshold=sm_fix_2_streak_threshold,
+        sm_fix_3_extreme_low=sm_fix_3_extreme_low,
+        sm_fix_3_high_lookback=sm_fix_3_high_lookback,
+        sm_fix_3_extreme_pct=sm_fix_3_extreme_pct,
         trap_enabled=trap_enabled,
         trap_lookback_4h=trap_lookback_4h,
         trap_zone_tolerance=trap_zone_tolerance,
@@ -315,7 +326,8 @@ def backtest_mode3(
                 switcher.mtf_sideways_long_entry_close = lc
                 switcher.mtf_sideways_long_entry_low = ll
 
-    if trap_enabled:
+    # Load 4h if TRAP or Fix#1 needs it
+    if trap_enabled or sm_fix_1_htf_confirm:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
         htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window,
@@ -323,6 +335,7 @@ def backtest_mode3(
         switcher.htf_4h_vah = htf['vah']
         switcher.htf_4h_val = htf['val']
         switcher.htf_4h_ema20 = htf['ema']
+        switcher.htf_4h_close = htf['close']
         switcher.htf_trap_short_recent = htf['trap_short']
         switcher.htf_trap_long_recent = htf['trap_long']
 
@@ -373,6 +386,9 @@ def backtest_mode3(
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
             "trap_short_count": switcher._trap_short_count,
             "trap_long_count": switcher._trap_long_count,
+            "sm_fix1_count": switcher._sm_fix1_count,
+            "sm_fix2_count": switcher._sm_fix2_count,
+            "sm_fix3_count": switcher._sm_fix3_count,
         },
         "per_tool": tool_stats,
         "trades": [
@@ -482,4 +498,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "2.4", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "2.5", "db_path": DB_PATH}
