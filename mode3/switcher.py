@@ -1,11 +1,5 @@
 """
-Mode3 Switcher v1.5 — SIDEWAYS MTF 15m entry mode.
-
-New: SIDEWAYS can enter at 15m rejection candle (like BULL MTF entry).
-- SHORT: find 15m candle with high >= VAH_1h AND close <= VAH_1h
-  → entry at 15m close, SL at 15m high (tighter than 1h)
-- LONG: find 15m candle with low <= VAL_1h AND close >= VAL_1h
-  → entry at 15m close, SL at 15m low
+Mode3 Switcher v1.6 — SIDEWAYS volume + slope entry filters.
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -88,10 +82,13 @@ class Switcher:
         self._bull_blocked_volume = 0
         self._bull_blocked_mtf = 0
         self._sideways_blocked_mtf = 0
-        # MTF 15m entry data (set externally by endpoint)
+        self._sideways_blocked_volume = 0
+        self._sideways_blocked_slope = 0
+        # EMA slope history for SIDEWAYS filter
+        self._ema_history = deque(maxlen=config.sideways_slope_window)
+        # MTF 15m entry data
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
-        # v1.5: SIDEWAYS MTF 15m entry data
         self.mtf_sideways_short_entry_close = None
         self.mtf_sideways_short_entry_high = None
         self.mtf_sideways_long_entry_close = None
@@ -105,6 +102,7 @@ class Switcher:
         if ema20 > 0:
             sign = 1 if c > ema20 else (-1 if c < ema20 else 0)
             self._chop_history.append(sign)
+            self._ema_history.append(ema20)
         self._volume_history.append(v)
 
         if self.state == 'STARTUP':
@@ -140,6 +138,25 @@ class Switcher:
         if avg <= 0: return True
         return v >= avg * min_ratio
 
+    def _sideways_volume_ok(self, v):
+        """v1.6: SIDEWAYS volume filter."""
+        min_ratio = self.config.sideways_min_volume_ratio
+        if min_ratio <= 0: return True
+        if len(self._volume_history) < self.config.bull_volume_window: return True
+        avg = sum(self._volume_history) / len(self._volume_history)
+        if avg <= 0: return True
+        return v >= avg * min_ratio
+
+    def _sideways_slope_ok(self):
+        """v1.6: SIDEWAYS slope filter — skip if trending too strongly."""
+        max_slope = self.config.sideways_max_slope_pct
+        if max_slope <= 0: return True
+        if len(self._ema_history) < self.config.sideways_slope_window: return True
+        hist = list(self._ema_history)
+        if hist[0] <= 0: return True
+        slope_pct = abs(hist[-1] - hist[0]) / hist[0]
+        return slope_pct <= max_slope
+
     def _sideways_ema_inv_ok_short(self, c, ema20):
         if not self.config.sideways_ema_invalidation:
             return False
@@ -157,7 +174,6 @@ class Switcher:
         return True
 
     def _sideways_tp_pct(self):
-        """Return SIDEWAYS-specific TP if set, else global tp_pct."""
         return self.config.sideways_tp_pct if self.config.sideways_tp_pct > 0 else self.config.tp_pct
 
     def _startup_transition(self, close, ema20):
@@ -258,11 +274,22 @@ class Switcher:
         if ema <= 0: return True
         return abs(c - ema) / ema <= self.config.sideways_ema_distance_cap
 
+    def _sideways_entry_filters_ok(self):
+        """v1.6: Volume + slope filters for SIDEWAYS entry."""
+        if not self._sideways_volume_ok(self._volume_history[-1] if self._volume_history else 0):
+            self._sideways_blocked_volume += 1
+            return False
+        if not self._sideways_slope_ok():
+            self._sideways_blocked_slope += 1
+            return False
+        return True
+
     def _open_short_sideways(self, bar_idx, h, l, c):
         if not self._sideways_distance_ok(c):
             self._sideways_blocked_count += 1; return
+        if not self._sideways_entry_filters_ok():
+            return
         tp_pct = self._sideways_tp_pct()
-        # v1.5: MTF 15m entry mode
         if self.config.sideways_mtf_15m_entry and self.mtf_sideways_short_entry_close is not None:
             if bar_idx < len(self.mtf_sideways_short_entry_close):
                 mtf_close = self.mtf_sideways_short_entry_close[bar_idx]
@@ -275,7 +302,6 @@ class Switcher:
                     entry_high=mtf_high, entry_low=l, sl_level=mtf_high, tp_level=mtf_close*(1.0-tp_pct),
                     peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20)
                 return
-        # Default: 1h entry
         self.markers.marker_high_short = h; self.markers.marker_close_short = c
         self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-tp_pct),
@@ -284,8 +310,9 @@ class Switcher:
     def _open_long_sideways(self, bar_idx, h, l, c):
         if not self._sideways_distance_ok(c):
             self._sideways_blocked_count += 1; return
+        if not self._sideways_entry_filters_ok():
+            return
         tp_pct = self._sideways_tp_pct()
-        # v1.5: MTF 15m entry mode
         if self.config.sideways_mtf_15m_entry and self.mtf_sideways_long_entry_close is not None:
             if bar_idx < len(self.mtf_sideways_long_entry_close):
                 mtf_close = self.mtf_sideways_long_entry_close[bar_idx]
@@ -298,7 +325,6 @@ class Switcher:
                     entry_high=h, entry_low=mtf_low, sl_level=mtf_low, tp_level=mtf_close*(1.0+tp_pct),
                     peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20)
                 return
-        # Default: 1h entry
         self.markers.marker_low_long = l; self.markers.marker_close_long = c
         self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=l, tp_level=c*(1.0+tp_pct),
