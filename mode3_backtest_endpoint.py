@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v1.6 — SIDEWAYS volume + slope filter params.
+Mode3 Backtest Endpoint v2.0 — final champion, defaults=proven.
 """
 import os
 import json as jsonlib
@@ -56,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '1.6', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '2.0', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -156,11 +156,9 @@ def backtest_mode3(
     bull_mtf_15m_entry: bool = Query(True),
     sideways_ema_invalidation: bool = Query(True),
     sideways_ema_invalidation_tolerance: float = Query(0.0015, ge=0.0, le=0.02),
-    sideways_mtf_15m_entry: bool = Query(False),
-    sideways_tp_pct: float = Query(0.0, ge=0.0, le=0.05),
-    sideways_min_volume_ratio: float = Query(0.0, ge=0.0, le=5.0),
-    sideways_max_slope_pct: float = Query(0.0, ge=0.0, le=0.1),
-    sideways_slope_window: int = Query(20, ge=5, le=100),
+    sideways_mtf_15m_entry: bool = Query(True),
+    sideways_tp_pct: float = Query(0.007, ge=0.0, le=0.05),
+    sideways_max_slope_pct: float = Query(0.018, ge=0.0, le=0.1),
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
@@ -178,9 +176,7 @@ def backtest_mode3(
         sideways_ema_invalidation_tolerance=sideways_ema_invalidation_tolerance,
         sideways_mtf_15m_entry=sideways_mtf_15m_entry,
         sideways_tp_pct=sideways_tp_pct,
-        sideways_min_volume_ratio=sideways_min_volume_ratio,
         sideways_max_slope_pct=sideways_max_slope_pct,
-        sideways_slope_window=sideways_slope_window,
     )
 
     end_ts = int(datetime.utcnow().timestamp() * 1000)
@@ -259,12 +255,11 @@ def backtest_mode3(
             "capital_start": config.capital_usd,
             "capital_end": round(config.capital_usd + total_pnl_usd, 2),
             "sideways_blocked_count": switcher._sideways_blocked_count,
+            "sideways_blocked_slope": switcher._sideways_blocked_slope,
             "chop_blocked_count": switcher._chop_blocked_count,
             "bull_blocked_volume": switcher._bull_blocked_volume,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
-            "sideways_blocked_volume": switcher._sideways_blocked_volume,
-            "sideways_blocked_slope": switcher._sideways_blocked_slope,
         },
         "per_tool": tool_stats,
         "trades": [
@@ -374,4 +369,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "1.6", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "2.0", "db_path": DB_PATH}
