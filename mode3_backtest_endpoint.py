@@ -12,11 +12,6 @@ from datetime import datetime
 
 from mode3 import Mode3Config, Switcher, compute_ema_series, compute_va_at_bar
 
-try:
-    import mode4_backtest_endpoint  # noqa: F401
-except Exception as _e:
-    print(f"[WARN] mode4 not available: {_e}")
-
 router = APIRouter(prefix="/mode3", tags=["mode3"])
 DB_PATH = os.environ.get("DB_PATH", "market_data.db")
 
