@@ -1,5 +1,5 @@
 """
-Mode3 Config v2.4 - added BEAR min SL distance filter (regime protection).
+Mode3 Config v2.5 - state machine switching fixes (redirect, not filter).
 """
 from dataclasses import dataclass
 
@@ -37,10 +37,20 @@ class Mode3Config:
     bull_rr_ratio: float = 1.0
 
     bear_mtf_15m_entry: bool = True
-    # NEW v2.4: BEAR minimum SL distance filter
-    # In volatile bear markets, tight SL (< 0.2%) get whipsawed
-    bear_min_sl_dist: float = 0.0    # 0.0 = disabled, 0.002 = 0.2% minimum
-    bear_use_1h_sl_fallback: bool = False  # if 15m SL too tight, use 1h high instead
+    bear_min_sl_dist: float = 0.0
+    bear_use_1h_sl_fallback: bool = False
+
+    # === v2.5: STATE MACHINE SWITCHING FIXES ===
+    # Prinsip: perbaiki tool selection, bukan filter signal
+    # Fix #1: HTF confirm sebelum flip SW SHORT SL → BULL
+    sm_fix_1_htf_confirm: bool = False
+    # Fix #2: 2+ BEAR SL streak → switch state ke SIDEWAYS
+    sm_fix_2_bear_streak: bool = False
+    sm_fix_2_streak_threshold: int = 2
+    # Fix #3: BEAR TP tapi harga jauh di bawah peak → switch SIDEWAYS
+    sm_fix_3_extreme_low: bool = False
+    sm_fix_3_high_lookback: int = 100
+    sm_fix_3_extreme_pct: float = 0.15
 
     # === v2.3: TRAP TOOL ===
     trap_enabled: bool = False
