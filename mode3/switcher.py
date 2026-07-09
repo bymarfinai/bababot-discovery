@@ -1,11 +1,5 @@
 """
-Mode3 Switcher v2.0 — final champion, cleaned.
-
-Kept (all proven):
-- Global: chop filter
-- BULL: volume filter + MTF 15m entry
-- BEAR: pure 1h entry (no filter)
-- SIDEWAYS: MTF 15m entry + tolerance filter + slope filter
+Mode3 Switcher v2.1 — added BEAR MTF 15m entry mirror of BULL.
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -87,12 +81,15 @@ class Switcher:
         self._volume_history = deque(maxlen=config.bull_volume_window)
         self._bull_blocked_volume = 0
         self._bull_blocked_mtf = 0
+        self._bear_blocked_mtf = 0
         self._sideways_blocked_mtf = 0
         self._sideways_blocked_slope = 0
         self._ema_history = deque(maxlen=config.sideways_slope_window)
         # MTF 15m entry data
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
+        self.mtf_bear_entry_close = None
+        self.mtf_bear_entry_high = None
         self.mtf_sideways_short_entry_close = None
         self.mtf_sideways_short_entry_high = None
         self.mtf_sideways_long_entry_close = None
@@ -363,6 +360,21 @@ class Switcher:
         if self.bear_stay_warmup and c > ema20:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False; return
         if (h >= ema20) and (c < ema20) and (c < o):
+            # v2.1: BEAR MTF 15m entry (mirror BULL)
+            if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
+                if bar_idx < len(self.mtf_bear_entry_close):
+                    mtf_close = self.mtf_bear_entry_close[bar_idx]
+                    mtf_high = self.mtf_bear_entry_high[bar_idx]
+                    if mtf_close is None or mtf_high is None:
+                        self._bear_blocked_mtf += 1
+                        return
+                    entry_price = mtf_close
+                    sl_level = mtf_high
+                    tp_level = entry_price * (1.0 - self.config.tp_pct)
+                    self.position = Position(tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
+                        entry_high=mtf_high, entry_low=l, sl_level=sl_level, tp_level=tp_level,
+                        peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20)
+                    return
             self.position = Position(tool='BEAR', side='SHORT', entry_price=c, entry_bar=bar_idx,
                 entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-self.config.tp_pct),
                 peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
