@@ -1,6 +1,5 @@
 """
-Mode3 Backtest Endpoint v2.1 — BEAR MTF 15m entry default ON (champion).
-Also triggers mode4 auto-registration on import.
+Mode3 Backtest Endpoint v2.2 — BULL R:R dynamic TP option.
 """
 import os
 import json as jsonlib
@@ -62,7 +61,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '2.1', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '2.2', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -182,6 +181,8 @@ def backtest_mode3(
     chop_max_crossings: int = Query(4, ge=0, le=20),
     bull_min_volume_ratio: float = Query(1.5, ge=0.0, le=5.0),
     bull_mtf_15m_entry: bool = Query(True),
+    bull_use_rr_tp: bool = Query(False),
+    bull_rr_ratio: float = Query(1.0, ge=0.5, le=5.0),
     bear_mtf_15m_entry: bool = Query(True),
     sideways_ema_invalidation: bool = Query(True),
     sideways_ema_invalidation_tolerance: float = Query(0.0015, ge=0.0, le=0.02),
@@ -201,6 +202,8 @@ def backtest_mode3(
         chop_max_crossings=chop_max_crossings,
         bull_min_volume_ratio=bull_min_volume_ratio,
         bull_mtf_15m_entry=bull_mtf_15m_entry,
+        bull_use_rr_tp=bull_use_rr_tp,
+        bull_rr_ratio=bull_rr_ratio,
         bear_mtf_15m_entry=bear_mtf_15m_entry,
         sideways_ema_invalidation=sideways_ema_invalidation,
         sideways_ema_invalidation_tolerance=sideways_ema_invalidation_tolerance,
@@ -404,4 +407,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "2.1", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "2.2", "db_path": DB_PATH}
