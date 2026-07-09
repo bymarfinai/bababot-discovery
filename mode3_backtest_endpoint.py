@@ -1,5 +1,11 @@
 """
-Mode3 Backtest Endpoint v2.5 — state machine switching fixes.
+Mode3 Backtest Endpoint v2.5 CHAMPION — champion defaults active.
+
+Champion config (BTC 1h):
+- Fixed TP 1.2% (BULL/BEAR), 0.3% (SIDEWAYS)
+- MTF 15m entry all tools
+- Fix #2: BEAR streak switch to SIDEWAYS
+- Fix #3: Extreme low (5%) switch to SIDEWAYS
 """
 import os
 import json as jsonlib
@@ -218,7 +224,7 @@ def backtest_mode3(
     timeframe: str = Query("1h"),
     days: int = Query(30, ge=1, le=365),
     va_window: int = Query(50, ge=20, le=200),
-    tp_pct: float = Query(0.003, ge=0.001, le=0.05),
+    tp_pct: float = Query(0.012, ge=0.001, le=0.05),
     entry_usd: float = Query(10.0),
     leverage: float = Query(50.0),
     fee_pct: float = Query(0.001),
@@ -235,16 +241,14 @@ def backtest_mode3(
     sideways_ema_invalidation: bool = Query(True),
     sideways_ema_invalidation_tolerance: float = Query(0.0015, ge=0.0, le=0.02),
     sideways_mtf_15m_entry: bool = Query(True),
-    sideways_tp_pct: float = Query(0.007, ge=0.0, le=0.05),
+    sideways_tp_pct: float = Query(0.003, ge=0.0, le=0.05),
     sideways_max_slope_pct: float = Query(0.018, ge=0.0, le=0.1),
-    # v2.5: state machine fixes
     sm_fix_1_htf_confirm: bool = Query(False),
-    sm_fix_2_bear_streak: bool = Query(False),
+    sm_fix_2_bear_streak: bool = Query(True),
     sm_fix_2_streak_threshold: int = Query(2, ge=2, le=5),
-    sm_fix_3_extreme_low: bool = Query(False),
+    sm_fix_3_extreme_low: bool = Query(True),
     sm_fix_3_high_lookback: int = Query(100, ge=20, le=500),
-    sm_fix_3_extreme_pct: float = Query(0.15, ge=0.05, le=0.5),
-    # v2.3 TRAP
+    sm_fix_3_extreme_pct: float = Query(0.05, ge=0.05, le=0.5),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -326,7 +330,6 @@ def backtest_mode3(
                 switcher.mtf_sideways_long_entry_close = lc
                 switcher.mtf_sideways_long_entry_low = ll
 
-    # Load 4h if TRAP or Fix#1 needs it
     if trap_enabled or sm_fix_1_htf_confirm:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
