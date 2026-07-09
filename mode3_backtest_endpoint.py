@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v2.1 — added BEAR MTF 15m entry option.
+Mode3 Backtest Endpoint v2.1 — BEAR MTF 15m entry default ON (champion).
 Also triggers mode4 auto-registration on import.
 """
 import os
@@ -118,10 +118,6 @@ def compute_mtf_bull_entry(rows_1h, rows_15m):
 
 
 def compute_mtf_bear_entry(rows_1h, rows_15m):
-    """BEAR MTF entry: find first 15m candle inside 1h with:
-    high >= EMA_15m AND close < EMA_15m AND close < open (bearish rejection).
-    Returns (entry_closes, entry_highs) aligned to rows_1h.
-    """
     if not rows_15m: return [None]*len(rows_1h), [None]*len(rows_1h)
     opens_15m = np.array([r[1] for r in rows_15m], dtype=float)
     highs_15m = np.array([r[2] for r in rows_15m], dtype=float)
@@ -186,7 +182,7 @@ def backtest_mode3(
     chop_max_crossings: int = Query(4, ge=0, le=20),
     bull_min_volume_ratio: float = Query(1.5, ge=0.0, le=5.0),
     bull_mtf_15m_entry: bool = Query(True),
-    bear_mtf_15m_entry: bool = Query(False),
+    bear_mtf_15m_entry: bool = Query(True),
     sideways_ema_invalidation: bool = Query(True),
     sideways_ema_invalidation_tolerance: float = Query(0.0015, ge=0.0, le=0.02),
     sideways_mtf_15m_entry: bool = Query(True),
