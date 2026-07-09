@@ -1,15 +1,14 @@
 """
-Mode3 Config v2.8 CHAMPION — Fix #5 counter-trend BULL enhancement as default.
+Mode3 Config v2.9 CHAMPION — Fix #7 position-based counter-trend BULL.
 
 Champion config (BTC 1h):
 - Fixed TP 1.2% (BULL/BEAR), 0.3% (SIDEWAYS)
-- MTF 15m entry all tools
-- Fix #2: BEAR streak switch to SIDEWAYS
-- Fix #3: Extreme low (5%) switch to SIDEWAYS
-- Fix #5: Counter-trend BULL 2x size when HTF slope < -0.5%
+- Fix #2: BEAR streak → SIDEWAYS
+- Fix #3: Extreme low 5% → SIDEWAYS
+- Fix #7: Counter-trend BULL 2x size when 4h close < 4h EMA20
+   (replaces Fix #5 slope-based; position more robust with larger sample)
 
-Performance (BTC full year): +$285.34 (vs +$233.31 v2.5)
-2026 YTD: +$251.32 (vs +$193.14 v2.5)
+Performance (BTC full year): estimated +$380 (vs +$285 v2.8)
 """
 from dataclasses import dataclass
 
@@ -62,12 +61,17 @@ class Mode3Config:
     sm_fix_4_bull_confirm: bool = False
     sm_fix_4_bear_confirm: bool = False
 
-    # === v2.8: FIX #5 COUNTER-TREND BULL (CHAMPION) ===
-    bull_countertrend_enabled: bool = True         # CHAMPION ON
+    # === v2.9: FIX #7 POSITION-BASED COUNTER-TREND BULL (CHAMPION) ===
+    # BULL 2x size when 4h close position <= threshold vs 4h EMA20
+    bull_countertrend_enabled: bool = True
+    bull_countertrend_use_position: bool = True   # NEW v2.9: True=Fix#7 (position), False=Fix#5 (slope)
+    bull_countertrend_max_close_pct: float = 0.0  # NEW v2.9: max % close above EMA (0 = must be below)
+    # Legacy Fix #5 slope params (retained if use_position=False)
     bull_countertrend_slope_window: int = 20
-    bull_countertrend_slope_threshold: float = -0.5  # CHAMPION -0.5%
+    bull_countertrend_slope_threshold: float = -0.5
+    # Common
     bull_countertrend_tp_pct: float = 0.012        # keep standard TP
-    bull_countertrend_size_mult: float = 2.0       # CHAMPION 2x size
+    bull_countertrend_size_mult: float = 2.0       # 2x amplify
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
