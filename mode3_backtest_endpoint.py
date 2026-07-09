@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v1.3 — MTF 15m early exit for SIDEWAYS invalidation.
+Mode3 Backtest Endpoint v1.4 — final cleanup, proven config as defaults.
 """
 import os
 import json as jsonlib
@@ -56,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '1.3', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '1.4', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -90,6 +90,7 @@ def load_candles_from_db(symbol, timeframe, start_ts, end_ts, db_path=None):
 
 
 def compute_mtf_bull_entry(rows_1h, rows_15m):
+    """Find first 15m candle inside each 1h bar with bullish reject pattern."""
     if not rows_15m: return [None]*len(rows_1h), [None]*len(rows_1h)
     opens_15m = np.array([r[1] for r in rows_15m], dtype=float)
     lows_15m = np.array([r[3] for r in rows_15m], dtype=float)
@@ -111,66 +112,6 @@ def compute_mtf_bull_entry(rows_1h, rows_15m):
     return entry_closes, entry_lows
 
 
-def compute_mtf_sideways_invalidation(rows_1h, rows_15m):
-    """Last 15m confirmation (proven useless, kept for compat)."""
-    if not rows_15m:
-        return [None]*len(rows_1h), [None]*len(rows_1h)
-    closes_15m = np.array([r[4] for r in rows_15m], dtype=float)
-    ema_15m = compute_ema_series(closes_15m, 20)
-    ts_to_idx = {r[0]: i for i, r in enumerate(rows_15m)}
-    ONE_15M_MS = 15 * 60 * 1000
-    short_ok, long_ok = [], []
-    for r in rows_1h:
-        t_1h = r[0]
-        j = ts_to_idx.get(t_1h + 3 * ONE_15M_MS)
-        if j is None or ema_15m[j] <= 0:
-            short_ok.append(None); long_ok.append(None); continue
-        c15, e15 = closes_15m[j], ema_15m[j]
-        short_ok.append(c15 > e15)
-        long_ok.append(c15 < e15)
-    return short_ok, long_ok
-
-
-def compute_mtf_sideways_early_exit(rows_1h, rows_15m):
-    """v1.3: For each 1h bar, find EARLIEST 15m candle (offset 0/1/2, NOT 3 = 1h close)
-    where reversal signal fires. Returns 4 lists:
-    - short_early_close: close price of that 15m or None
-    - short_early_ema: ema20_15m at that candle or None
-    - long_early_close: same for LONG direction
-    - long_early_ema: same
-    """
-    n = len(rows_1h)
-    if not rows_15m:
-        return [None]*n, [None]*n, [None]*n, [None]*n
-    lows_15m = np.array([r[3] for r in rows_15m], dtype=float)
-    highs_15m = np.array([r[2] for r in rows_15m], dtype=float)
-    closes_15m = np.array([r[4] for r in rows_15m], dtype=float)
-    ema_15m = compute_ema_series(closes_15m, 20)
-    ts_to_idx = {r[0]: i for i, r in enumerate(rows_15m)}
-    ONE_15M_MS = 15 * 60 * 1000
-    short_c, short_e, long_c, long_e = [], [], [], []
-    for r in rows_1h:
-        t_1h = r[0]
-        sc, se, lc, le = None, None, None, None
-        # Only look at 15m offsets 0, 1, 2 (not 3 = 1h close, already handled by 1h logic)
-        for k in range(3):
-            j = ts_to_idx.get(t_1h + k * ONE_15M_MS)
-            if j is None or ema_15m[j] <= 0: continue
-            # SHORT reversal: low touched EMA20 AND close above EMA20
-            if sc is None:
-                if lows_15m[j] <= ema_15m[j] and closes_15m[j] > ema_15m[j]:
-                    sc = float(closes_15m[j]); se = float(ema_15m[j])
-            # LONG reversal: high touched EMA20 AND close below EMA20
-            if lc is None:
-                if highs_15m[j] >= ema_15m[j] and closes_15m[j] < ema_15m[j]:
-                    lc = float(closes_15m[j]); le = float(ema_15m[j])
-            if sc is not None and lc is not None:
-                break
-        short_c.append(sc); short_e.append(se)
-        long_c.append(lc); long_e.append(le)
-    return short_c, short_e, long_c, long_e
-
-
 @router.get("/backtest")
 def backtest_mode3(
     symbol: str = Query("BTCUSDT"),
@@ -187,10 +128,7 @@ def backtest_mode3(
     bull_min_volume_ratio: float = Query(1.5, ge=0.0, le=5.0),
     bull_mtf_15m_entry: bool = Query(True),
     sideways_ema_invalidation: bool = Query(True),
-    sideways_ema_invalidation_tolerance: float = Query(0.0, ge=0.0, le=0.02),
-    sideways_ema_invalidation_delay: int = Query(0, ge=0, le=10),
-    sideways_ema_invalidation_mtf_15m: bool = Query(False),
-    sideways_ema_invalidation_mtf_early_exit: bool = Query(False),
+    sideways_ema_invalidation_tolerance: float = Query(0.0015, ge=0.0, le=0.02),
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
@@ -206,9 +144,6 @@ def backtest_mode3(
         bull_mtf_15m_entry=bull_mtf_15m_entry,
         sideways_ema_invalidation=sideways_ema_invalidation,
         sideways_ema_invalidation_tolerance=sideways_ema_invalidation_tolerance,
-        sideways_ema_invalidation_delay=sideways_ema_invalidation_delay,
-        sideways_ema_invalidation_mtf_15m=sideways_ema_invalidation_mtf_15m,
-        sideways_ema_invalidation_mtf_early_exit=sideways_ema_invalidation_mtf_early_exit,
     )
 
     end_ts = int(datetime.utcnow().timestamp() * 1000)
@@ -228,24 +163,12 @@ def backtest_mode3(
     ema20 = compute_ema_series(closes, config.ema_period)
     switcher = Switcher(config)
 
-    needs_15m = bull_mtf_15m_entry or sideways_ema_invalidation_mtf_15m or sideways_ema_invalidation_mtf_early_exit
-    if needs_15m:
+    if bull_mtf_15m_entry:
         rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
         if rows_15m:
-            if bull_mtf_15m_entry:
-                ec, el = compute_mtf_bull_entry(rows, rows_15m)
-                switcher.mtf_bull_entry_close = ec
-                switcher.mtf_bull_entry_low = el
-            if sideways_ema_invalidation_mtf_15m:
-                s_ok, l_ok = compute_mtf_sideways_invalidation(rows, rows_15m)
-                switcher.mtf_sideways_short_inv_ok = s_ok
-                switcher.mtf_sideways_long_inv_ok = l_ok
-            if sideways_ema_invalidation_mtf_early_exit:
-                sc, se, lc, le = compute_mtf_sideways_early_exit(rows, rows_15m)
-                switcher.mtf_sideways_short_early_close = sc
-                switcher.mtf_sideways_short_early_ema = se
-                switcher.mtf_sideways_long_early_close = lc
-                switcher.mtf_sideways_long_early_ema = le
+            ec, el = compute_mtf_bull_entry(rows, rows_15m)
+            switcher.mtf_bull_entry_close = ec
+            switcher.mtf_bull_entry_low = el
 
     for i in range(len(rows)):
         vah, val, poc = compute_va_at_bar(highs, lows, closes, volumes, i,
@@ -398,4 +321,5 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "1.3", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "1.4", "db_path": DB_PATH,
+            "features": ["chop_filter", "bull_volume", "bull_mtf_15m_entry", "sideways_tolerance"]}
