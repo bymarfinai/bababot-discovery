@@ -1,11 +1,11 @@
 """
-Mode3 Switcher v2.6 — Fix #4 confirmation bar for BULL/BEAR entries.
+Mode3 Switcher v2.8 — Fix #5 counter-trend BULL enhancement.
 
-Prinsip: filter fake breakouts. If 1h rejection detected, wait 1 bar for confirmation.
-- Confirmed (still above/below EMA20) → entry
-- Failed → cancel, switch to SIDEWAYS (redirect, not filter)
+Fix #5: When BULL setup detected + HTF 4h EMA slope strongly bearish (bounce from oversold):
+- Use bigger TP (default 2.0%) — bounces tend to run bigger
+- Optional bigger position size — higher confidence trades
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, List
 from collections import deque
 from .config import Mode3Config
@@ -44,6 +44,7 @@ class Position:
     peak_high: float = 0.0
     trough_low: float = 1e18
     ema_at_entry: float = 0.0
+    size_mult: float = 1.0  # v2.8: position size multiplier for enhanced trades
 
 
 @dataclass
@@ -63,6 +64,7 @@ class Trade:
     tp_level: float = 0.0
     ema_at_entry: float = 0.0
     ema_at_exit: float = 0.0
+    size_mult: float = 1.0
 
 
 class Switcher:
@@ -92,20 +94,20 @@ class Switcher:
         self._trap_short_count = 0
         self._trap_long_count = 0
         self._ema_history = deque(maxlen=config.sideways_slope_window)
-        # v2.5 fixes
         self._bear_loss_streak = 0
         self._high_history = deque(maxlen=max(config.sm_fix_3_high_lookback, 10))
         self._last_exit_bar = 0
         self._sm_fix1_count = 0
         self._sm_fix2_count = 0
         self._sm_fix3_count = 0
-        # v2.6 Fix #4 tracking
         self._bull_setup_bar = -1
         self._bear_setup_bar = -1
         self._sm_fix4_bull_confirmed = 0
         self._sm_fix4_bull_cancelled = 0
         self._sm_fix4_bear_confirmed = 0
         self._sm_fix4_bear_cancelled = 0
+        # v2.8: counter-trend BULL tracking
+        self._bull_countertrend_count = 0
         # MTF data
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
@@ -119,6 +121,7 @@ class Switcher:
         self.htf_4h_val = None
         self.htf_4h_close = None
         self.htf_4h_ema20 = None
+        self.htf_4h_slope = None  # NEW v2.8: pre-computed slope array
         self.htf_trap_short_recent = None
         self.htf_trap_long_recent = None
 
@@ -219,6 +222,21 @@ class Switcher:
         if c is None or e is None:
             return None
         return c > e
+
+    def _htf_slope_at(self, bar_idx):
+        """v2.8: Get 4h EMA slope at bar. Returns None if unavailable."""
+        if self.htf_4h_slope is None or bar_idx >= len(self.htf_4h_slope):
+            return None
+        return self.htf_4h_slope[bar_idx]
+
+    def _is_countertrend_bull(self, bar_idx):
+        """v2.8: Check if current BULL entry qualifies as counter-trend (HTF bearish bounce)."""
+        if not self.config.bull_countertrend_enabled:
+            return False
+        slope = self._htf_slope_at(bar_idx)
+        if slope is None:
+            return False
+        return slope < self.config.bull_countertrend_slope_threshold
 
     def _startup_transition(self, close, ema20):
         if close > ema20: self.startup_bias = 'bullish'
@@ -496,10 +514,15 @@ class Switcher:
             self._open_short_sideways(bar_idx, h, l, c); return
 
     def _execute_bull_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
-        """Execute BULL entry (used by immediate and confirmed paths)."""
+        """Execute BULL entry (immediate or confirmed path). v2.8: check counter-trend."""
         if not self._bull_volume_ok(self._volume_history[-1] if self._volume_history else 0):
             self._bull_blocked_volume += 1
             return
+
+        # v2.8: Check if this is a counter-trend BULL (HTF bearish)
+        is_ct = self._is_countertrend_bull(bar_idx)
+        size_mult = self.config.bull_countertrend_size_mult if is_ct else 1.0
+
         if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
             if bar_idx < len(self.mtf_bull_entry_close):
                 mtf_close = self.mtf_bull_entry_close[bar_idx]
@@ -509,16 +532,28 @@ class Switcher:
                     return
                 entry_price = mtf_close
                 sl_level = mtf_low
-                tp_level = self._bull_tp_level(entry_price, sl_level)
+                # v2.8: override TP if counter-trend
+                if is_ct:
+                    tp_level = entry_price * (1.0 + self.config.bull_countertrend_tp_pct)
+                    self._bull_countertrend_count += 1
+                else:
+                    tp_level = self._bull_tp_level(entry_price, sl_level)
                 self.position = Position(tool='BULL', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
                     entry_high=h, entry_low=mtf_low, sl_level=sl_level, tp_level=tp_level,
-                    peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20)
+                    peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20,
+                    size_mult=size_mult)
                 self._bear_loss_streak = 0
                 return
-        tp_level = self._bull_tp_level(c, l)
+        # Fallback 1h entry
+        if is_ct:
+            tp_level = c * (1.0 + self.config.bull_countertrend_tp_pct)
+            self._bull_countertrend_count += 1
+        else:
+            tp_level = self._bull_tp_level(c, l)
         self.position = Position(tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=l, tp_level=tp_level,
-            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
+            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
+            size_mult=size_mult)
         self._bear_loss_streak = 0
 
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
@@ -526,37 +561,26 @@ class Switcher:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False
             self._bull_setup_bar = -1
             return
-
-        # v2.6 Fix #4: Check pending confirmation
         if self.config.sm_fix_4_bull_confirm and self._bull_setup_bar == bar_idx - 1:
             if c > ema20 and c > o:
-                # Confirmed
                 self._bull_setup_bar = -1
                 self._sm_fix4_bull_confirmed += 1
                 self._execute_bull_entry(bar_idx, o, h, l, c, ema20, vah, val)
                 return
             else:
-                # Failed confirmation
                 self._bull_setup_bar = -1
                 self._sm_fix4_bull_cancelled += 1
                 self.state = 'SIDEWAYS'
                 return
-
-        # Reset stale pending
         if self.config.sm_fix_4_bull_confirm and self._bull_setup_bar != -1 and self._bull_setup_bar < bar_idx - 1:
             self._bull_setup_bar = -1
-
-        # Fresh setup detection
         if (l <= ema20) and (c > ema20) and (c > o):
             if self.config.sm_fix_4_bull_confirm:
-                # Defer entry — mark pending
                 self._bull_setup_bar = bar_idx
                 return
-            # Immediate entry
             self._execute_bull_entry(bar_idx, o, h, l, c, ema20, vah, val)
 
     def _execute_bear_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
-        """Execute BEAR entry (used by immediate and confirmed paths)."""
         if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
             if bar_idx < len(self.mtf_bear_entry_close):
                 mtf_close = self.mtf_bear_entry_close[bar_idx]
@@ -599,26 +623,19 @@ class Switcher:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False
             self._bear_setup_bar = -1
             return
-
-        # v2.6 Fix #4: Check pending confirmation
         if self.config.sm_fix_4_bear_confirm and self._bear_setup_bar == bar_idx - 1:
             if c < ema20 and c < o:
-                # Confirmed
                 self._bear_setup_bar = -1
                 self._sm_fix4_bear_confirmed += 1
                 self._execute_bear_entry(bar_idx, o, h, l, c, ema20, vah, val)
                 return
             else:
-                # Failed
                 self._bear_setup_bar = -1
                 self._sm_fix4_bear_cancelled += 1
                 self.state = 'SIDEWAYS'
                 return
-
         if self.config.sm_fix_4_bear_confirm and self._bear_setup_bar != -1 and self._bear_setup_bar < bar_idx - 1:
             self._bear_setup_bar = -1
-
-        # Fresh setup detection
         if (h >= ema20) and (c < ema20) and (c < o):
             if self.config.sm_fix_4_bear_confirm:
                 self._bear_setup_bar = bar_idx
@@ -632,11 +649,12 @@ class Switcher:
         else:
             pnl_pct = (pos.entry_price - exit_price) / pos.entry_price
         pnl_pct_net = pnl_pct - self.config.total_cost_pct()
-        pnl_usd = pnl_pct_net * self.config.notional()
+        # v2.8: apply size multiplier
+        pnl_usd = pnl_pct_net * self.config.notional() * pos.size_mult
         self.trades.append(Trade(tool=pos.tool, side=pos.side, entry_price=pos.entry_price, exit_price=exit_price,
             entry_bar=pos.entry_bar, exit_bar=bar_idx, exit_type=exit_type, pnl_pct=pnl_pct_net, pnl_usd=pnl_usd,
             peak_high=pos.peak_high, trough_low=pos.trough_low, sl_level=pos.sl_level, tp_level=pos.tp_level,
-            ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20))
+            ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20, size_mult=pos.size_mult))
         self.position = None
         self._action_taken_this_bar = True
         self._last_exit_bar = bar_idx
