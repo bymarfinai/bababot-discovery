@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v1.4 — final cleanup, proven config as defaults.
+Mode3 Backtest Endpoint v1.5 — SIDEWAYS MTF 15m entry preprocessing.
 """
 import os
 import json as jsonlib
@@ -56,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '1.4', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '1.5', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -90,7 +90,6 @@ def load_candles_from_db(symbol, timeframe, start_ts, end_ts, db_path=None):
 
 
 def compute_mtf_bull_entry(rows_1h, rows_15m):
-    """Find first 15m candle inside each 1h bar with bullish reject pattern."""
     if not rows_15m: return [None]*len(rows_1h), [None]*len(rows_1h)
     opens_15m = np.array([r[1] for r in rows_15m], dtype=float)
     lows_15m = np.array([r[3] for r in rows_15m], dtype=float)
@@ -112,6 +111,42 @@ def compute_mtf_bull_entry(rows_1h, rows_15m):
     return entry_closes, entry_lows
 
 
+def compute_mtf_sideways_entry(rows_1h, rows_15m, vahs, vals):
+    """For each 1h bar, find first 15m candle inside 1h with:
+    - SHORT: high_15m >= VAH_1h AND close_15m <= VAH_1h (reject at VAH)
+    - LONG: low_15m <= VAL_1h AND close_15m >= VAL_1h (reject at VAL)
+    Returns (short_close, short_high, long_close, long_low) arrays.
+    """
+    n = len(rows_1h)
+    if not rows_15m:
+        return [None]*n, [None]*n, [None]*n, [None]*n
+    highs_15m = np.array([r[2] for r in rows_15m], dtype=float)
+    lows_15m = np.array([r[3] for r in rows_15m], dtype=float)
+    closes_15m = np.array([r[4] for r in rows_15m], dtype=float)
+    ts_to_idx = {r[0]: i for i, r in enumerate(rows_15m)}
+    ONE_15M_MS = 15 * 60 * 1000
+    short_c, short_h, long_c, long_l = [], [], [], []
+    for i, r in enumerate(rows_1h):
+        t_1h = r[0]
+        vah = vahs[i]
+        val = vals[i]
+        sc, sh, lc, ll = None, None, None, None
+        if vah is None or val is None:
+            short_c.append(None); short_h.append(None); long_c.append(None); long_l.append(None); continue
+        for k in range(4):
+            j = ts_to_idx.get(t_1h + k * ONE_15M_MS)
+            if j is None: continue
+            # SHORT: reject at VAH
+            if sc is None and highs_15m[j] >= vah and closes_15m[j] <= vah:
+                sc = float(closes_15m[j]); sh = float(highs_15m[j])
+            # LONG: reject at VAL
+            if lc is None and lows_15m[j] <= val and closes_15m[j] >= val:
+                lc = float(closes_15m[j]); ll = float(lows_15m[j])
+            if sc is not None and lc is not None: break
+        short_c.append(sc); short_h.append(sh); long_c.append(lc); long_l.append(ll)
+    return short_c, short_h, long_c, long_l
+
+
 @router.get("/backtest")
 def backtest_mode3(
     symbol: str = Query("BTCUSDT"),
@@ -129,6 +164,8 @@ def backtest_mode3(
     bull_mtf_15m_entry: bool = Query(True),
     sideways_ema_invalidation: bool = Query(True),
     sideways_ema_invalidation_tolerance: float = Query(0.0015, ge=0.0, le=0.02),
+    sideways_mtf_15m_entry: bool = Query(False),
+    sideways_tp_pct: float = Query(0.0, ge=0.0, le=0.05),
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
@@ -144,6 +181,8 @@ def backtest_mode3(
         bull_mtf_15m_entry=bull_mtf_15m_entry,
         sideways_ema_invalidation=sideways_ema_invalidation,
         sideways_ema_invalidation_tolerance=sideways_ema_invalidation_tolerance,
+        sideways_mtf_15m_entry=sideways_mtf_15m_entry,
+        sideways_tp_pct=sideways_tp_pct,
     )
 
     end_ts = int(datetime.utcnow().timestamp() * 1000)
@@ -161,20 +200,35 @@ def backtest_mode3(
     volumes = np.array([r[5] for r in rows], dtype=float)
 
     ema20 = compute_ema_series(closes, config.ema_period)
-    switcher = Switcher(config)
 
-    if bull_mtf_15m_entry:
-        rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
-        if rows_15m:
-            ec, el = compute_mtf_bull_entry(rows, rows_15m)
-            switcher.mtf_bull_entry_close = ec
-            switcher.mtf_bull_entry_low = el
-
+    # Precompute VA arrays (needed for SIDEWAYS MTF entry preprocessing too)
+    vahs, vals = [], []
     for i in range(len(rows)):
         vah, val, poc = compute_va_at_bar(highs, lows, closes, volumes, i,
             config.va_window, config.va_percentile_high, config.va_percentile_low)
+        vahs.append(vah); vals.append(val)
+
+    switcher = Switcher(config)
+
+    if bull_mtf_15m_entry or sideways_mtf_15m_entry:
+        rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
+        if rows_15m:
+            if bull_mtf_15m_entry:
+                ec, el = compute_mtf_bull_entry(rows, rows_15m)
+                switcher.mtf_bull_entry_close = ec
+                switcher.mtf_bull_entry_low = el
+            if sideways_mtf_15m_entry:
+                sc, sh, lc, ll = compute_mtf_sideways_entry(rows, rows_15m, vahs, vals)
+                switcher.mtf_sideways_short_entry_close = sc
+                switcher.mtf_sideways_short_entry_high = sh
+                switcher.mtf_sideways_long_entry_close = lc
+                switcher.mtf_sideways_long_entry_low = ll
+
+    for i in range(len(rows)):
+        vah, val = vahs[i], vals[i]
+        # POC not needed anywhere anymore (kept as arg for compat)
         switcher.process_candle(bar_idx=i, o=opens[i], h=highs[i], l=lows[i], c=closes[i], v=volumes[i],
-            ema20=ema20[i], vah=vah, val=val, poc=poc)
+            ema20=ema20[i], vah=vah, val=val, poc=None)
 
     trades = switcher.trades
     n = len(trades)
@@ -212,6 +266,7 @@ def backtest_mode3(
             "chop_blocked_count": switcher._chop_blocked_count,
             "bull_blocked_volume": switcher._bull_blocked_volume,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
+            "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
         },
         "per_tool": tool_stats,
         "trades": [
@@ -321,5 +376,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "1.4", "db_path": DB_PATH,
-            "features": ["chop_filter", "bull_volume", "bull_mtf_15m_entry", "sideways_tolerance"]}
+    return {"status": "ok", "module": "mode3", "version": "1.5", "db_path": DB_PATH}
