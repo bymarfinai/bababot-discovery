@@ -1,5 +1,5 @@
 """
-Mode3 Switcher v2.3 — added TRAP tool (HTF contrarian entries).
+Mode3 Switcher v2.4 — added BEAR min SL distance filter + 1h SL fallback.
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -82,12 +82,12 @@ class Switcher:
         self._bull_blocked_volume = 0
         self._bull_blocked_mtf = 0
         self._bear_blocked_mtf = 0
+        self._bear_blocked_min_sl = 0
         self._sideways_blocked_mtf = 0
         self._sideways_blocked_slope = 0
         self._trap_short_count = 0
         self._trap_long_count = 0
         self._ema_history = deque(maxlen=config.sideways_slope_window)
-        # MTF 15m entry data
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -96,12 +96,11 @@ class Switcher:
         self.mtf_sideways_short_entry_high = None
         self.mtf_sideways_long_entry_close = None
         self.mtf_sideways_long_entry_low = None
-        # HTF 4h data for TRAP tool (per 1h bar)
-        self.htf_4h_vah = None       # 4h VAH aligned to 1h bars
-        self.htf_4h_val = None       # 4h VAL aligned to 1h bars
-        self.htf_4h_ema20 = None     # 4h EMA20 aligned to 1h bars
-        self.htf_trap_short_recent = None  # bool[]: recent 4h reject at VAH
-        self.htf_trap_long_recent = None   # bool[]: recent 4h reject at VAL
+        self.htf_4h_vah = None
+        self.htf_4h_val = None
+        self.htf_4h_ema20 = None
+        self.htf_trap_short_recent = None
+        self.htf_trap_long_recent = None
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
         self._action_taken_this_bar = False
@@ -123,7 +122,6 @@ class Switcher:
             self._check_exit(bar_idx, o, h, l, c, ema20, vah, val)
 
         if self.position is None and not self._action_taken_this_bar:
-            # TRAP tool has priority (if enabled)
             if self.config.trap_enabled and self.config.trap_priority_over_state:
                 self._check_trap_entry(bar_idx, o, h, l, c, ema20, vah, val)
                 if self.position is not None:
@@ -132,7 +130,6 @@ class Switcher:
                 self._chop_blocked_count += 1
                 return
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val, poc)
-            # If TRAP enabled but not priority, check after regular
             if (self.position is None and self.config.trap_enabled
                     and not self.config.trap_priority_over_state):
                 self._check_trap_entry(bar_idx, o, h, l, c, ema20, vah, val)
@@ -269,43 +266,33 @@ class Switcher:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False
 
     def _exit_trap(self, bar_idx, c):
-        """TRAP exit — simple TP/SL, no state change."""
         pos = self.position
         if pos.side == 'SHORT':
             if c > pos.sl_level:
                 self._close_position(bar_idx, c, 'SL'); return
             if c <= pos.tp_level:
                 self._close_position(bar_idx, c, 'TP'); return
-        else:  # LONG
+        else:
             if c < pos.sl_level:
                 self._close_position(bar_idx, c, 'SL'); return
             if c >= pos.tp_level:
                 self._close_position(bar_idx, c, 'TP'); return
 
     def _check_trap_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
-        """TRAP tool — contrarian entry on 1h fake breakout + 4h HTF rejection."""
         if self.htf_4h_vah is None or bar_idx >= len(self.htf_4h_vah):
             return
-
         htf_vah = self.htf_4h_vah[bar_idx]
         htf_val = self.htf_4h_val[bar_idx]
         htf_ema = self.htf_4h_ema20[bar_idx]
         recent_short = self.htf_trap_short_recent[bar_idx] if self.htf_trap_short_recent else False
         recent_long = self.htf_trap_long_recent[bar_idx] if self.htf_trap_long_recent else False
-
         if htf_vah is None or htf_val is None or htf_ema is None:
             return
-
         tp_pct = self.config.trap_tp_pct
-
-        # TRAP_SHORT: 1h fake breakout up + 4h recently rejected at VAH + HTF bearish or at VAH zone
         if vah is not None and h >= vah and c <= vah:
-            # 1h fake breakout confirmed
-            # HTF condition: recent 4h reject VAH OR current close within tolerance of 4h VAH
             near_htf_vah = abs(c - htf_vah) / htf_vah <= self.config.trap_zone_tolerance
             if recent_short or near_htf_vah:
-                # HTF bearish confirmation (extra safety)
-                if c <= htf_ema:  # 1h close below 4h EMA20
+                if c <= htf_ema:
                     entry_price = c
                     sl_level = h
                     if self.config.trap_use_1h_va_tp and val is not None:
@@ -322,12 +309,10 @@ class Switcher:
                     )
                     self._trap_short_count += 1
                     return
-
-        # TRAP_LONG: 1h fake breakdown + 4h recently rejected at VAL + HTF bullish or at VAL zone
         if val is not None and l <= val and c >= val:
             near_htf_val = abs(c - htf_val) / htf_val <= self.config.trap_zone_tolerance
             if recent_long or near_htf_val:
-                if c >= htf_ema:  # 1h close above 4h EMA20
+                if c >= htf_ema:
                     entry_price = c
                     sl_level = l
                     if self.config.trap_use_1h_va_tp and vah is not None:
@@ -472,10 +457,32 @@ class Switcher:
                         return
                     entry_price = mtf_close
                     sl_level = mtf_high
+                    # v2.4: BEAR min SL distance filter
+                    if self.config.bear_min_sl_dist > 0:
+                        sl_dist = (sl_level - entry_price) / entry_price
+                        if sl_dist < self.config.bear_min_sl_dist:
+                            # Option A: fall back to 1h high (looser SL) if enabled
+                            if self.config.bear_use_1h_sl_fallback:
+                                sl_level_1h = h
+                                sl_dist_1h = (sl_level_1h - entry_price) / entry_price
+                                if sl_dist_1h >= self.config.bear_min_sl_dist:
+                                    sl_level = sl_level_1h
+                                else:
+                                    self._bear_blocked_min_sl += 1
+                                    return
+                            else:
+                                self._bear_blocked_min_sl += 1
+                                return
                     tp_level = entry_price * (1.0 - self.config.tp_pct)
                     self.position = Position(tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
                         entry_high=mtf_high, entry_low=l, sl_level=sl_level, tp_level=tp_level,
                         peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20)
+                    return
+            # Fallback: 1h entry
+            if self.config.bear_min_sl_dist > 0:
+                sl_dist = (h - c) / c
+                if sl_dist < self.config.bear_min_sl_dist:
+                    self._bear_blocked_min_sl += 1
                     return
             self.position = Position(tool='BEAR', side='SHORT', entry_price=c, entry_bar=bar_idx,
                 entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-self.config.tp_pct),
