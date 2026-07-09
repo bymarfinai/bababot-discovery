@@ -1,5 +1,6 @@
 """
 Mode4 Backtest Endpoint — Trend-Following.
+Auto-registers with app.py's FastAPI instance via delayed threading hack.
 """
 import os
 from dataclasses import asdict
@@ -113,3 +114,42 @@ def backtest_mode4(
 @router.get("/health")
 def mode4_health():
     return {"status": "ok", "module": "mode4", "version": "0.1", "type": "trend-following"}
+
+
+# ==================================================================
+# AUTO-REGISTRATION HACK
+# Since we can't modify app.py easily, this module registers itself
+# with the FastAPI app instance via delayed polling of sys.modules.
+# Triggered when mode3_backtest_endpoint imports us (see that file).
+# ==================================================================
+def _auto_register_with_app():
+    """Poll sys.modules for FastAPI app instance, then register mode4 router."""
+    import sys, time
+    for _ in range(120):  # try for 60 seconds
+        time.sleep(0.5)
+        for mod_name, mod in list(sys.modules.items()):
+            if mod is None: continue
+            try:
+                candidate = getattr(mod, 'app', None)
+            except Exception:
+                continue
+            if candidate is None: continue
+            if type(candidate).__name__ == 'FastAPI':
+                # Check if already registered
+                for r in candidate.routes:
+                    if hasattr(r, 'path') and r.path.startswith('/mode4/'):
+                        return  # already mounted
+                try:
+                    candidate.include_router(router)
+                    print(f"[INIT] Mode4 auto-registered via '{mod_name}' module")
+                    # Refresh OpenAPI schema
+                    if hasattr(candidate, 'openapi_schema'):
+                        candidate.openapi_schema = None
+                    return
+                except Exception as e:
+                    print(f"[WARN] Mode4 include_router failed: {e}")
+                    return
+
+
+import threading as _threading
+_threading.Thread(target=_auto_register_with_app, daemon=True).start()
