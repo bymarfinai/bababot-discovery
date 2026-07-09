@@ -1,5 +1,9 @@
 """
-Mode3 Switcher v1.2 — MTF 15m confirmation for SIDEWAYS invalidation.
+Mode3 Switcher v1.3 — MTF 15m early exit for SIDEWAYS invalidation.
+
+Instead of waiting for 1h close, monitor 15m candles inside the 1h.
+If reversal signal fires at 15m candle 0/1/2 (not 3 = 1h close),
+exit early at that 15m close price. Save adverse move time.
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -83,13 +87,17 @@ class Switcher:
         self._bull_blocked_mtf = 0
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
-        # v1.2: MTF 15m confirmation for SIDEWAYS invalidation
-        # Each list stores True/False/None per bar_idx
-        # True = 15m confirms invalidation
-        # False = 15m says price recovered (don't invalidate)
-        # None = no 15m data available
+        # v1.2: MTF 15m confirmation (proven useless, kept for compat)
         self.mtf_sideways_short_inv_ok = None
         self.mtf_sideways_long_inv_ok = None
+        # v1.3: MTF 15m EARLY EXIT
+        # Per-bar: (close_price, ema20_at_that_15m, offset_0_1_2) or (None, None, None)
+        # offset 0 = first 15m in the 1h, 1 = second, 2 = third
+        # (offset 3 = 1h close, handled by existing 1h logic)
+        self.mtf_sideways_short_early_close = None
+        self.mtf_sideways_short_early_ema = None
+        self.mtf_sideways_long_early_close = None
+        self.mtf_sideways_long_early_ema = None
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
         self._action_taken_this_bar = False
@@ -105,6 +113,10 @@ class Switcher:
             if vah is None or val is None: return
             self._startup_transition(c, ema20)
 
+        # v1.3: Check MTF 15m early exit BEFORE 1h close checks
+        if self.position is not None and self.position.tool == 'SIDEWAYS':
+            self._check_mtf_early_exit(bar_idx)
+
         if self.position is not None:
             self._update_position_tracking(h, l)
             self._check_exit(bar_idx, o, h, l, c, ema20, vah, val)
@@ -114,6 +126,57 @@ class Switcher:
                 self._chop_blocked_count += 1
                 return
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val, poc)
+
+    def _check_mtf_early_exit(self, bar_idx):
+        """v1.3: Exit position early if 15m shows reversal within the 1h."""
+        if not self.config.sideways_ema_invalidation_mtf_early_exit:
+            return
+        if not self.config.sideways_ema_invalidation:
+            return
+        pos = self.position
+        if pos.tool != 'SIDEWAYS':
+            return
+        # Don't allow early exit on the entry bar itself
+        if bar_idx == pos.entry_bar:
+            return
+
+        if pos.side == 'SHORT':
+            if self.mtf_sideways_short_early_close is None:
+                return
+            if bar_idx >= len(self.mtf_sideways_short_early_close):
+                return
+            early_close = self.mtf_sideways_short_early_close[bar_idx]
+            early_ema = self.mtf_sideways_short_early_ema[bar_idx]
+            if early_close is None or early_ema is None:
+                return
+            # Apply tolerance
+            tol = self.config.sideways_ema_invalidation_tolerance
+            if tol > 0 and early_ema > 0 and (early_close - early_ema) / early_ema < tol:
+                return
+            # Apply delay
+            bars_held = bar_idx - pos.entry_bar
+            if bars_held < self.config.sideways_ema_invalidation_delay:
+                return
+            # Exit at 15m close
+            self._close_position(bar_idx, early_close, 'MTF_EARLY_EXIT')
+            self._post_exit_sideways_short('EMA_INVALIDATION')
+        else:  # LONG
+            if self.mtf_sideways_long_early_close is None:
+                return
+            if bar_idx >= len(self.mtf_sideways_long_early_close):
+                return
+            early_close = self.mtf_sideways_long_early_close[bar_idx]
+            early_ema = self.mtf_sideways_long_early_ema[bar_idx]
+            if early_close is None or early_ema is None:
+                return
+            tol = self.config.sideways_ema_invalidation_tolerance
+            if tol > 0 and early_ema > 0 and (early_ema - early_close) / early_ema < tol:
+                return
+            bars_held = bar_idx - pos.entry_bar
+            if bars_held < self.config.sideways_ema_invalidation_delay:
+                return
+            self._close_position(bar_idx, early_close, 'MTF_EARLY_EXIT')
+            self._post_exit_sideways_long('EMA_INVALIDATION')
 
     def _is_choppy(self):
         if self.config.chop_max_crossings <= 0: return False
@@ -143,13 +206,11 @@ class Switcher:
         tol = self.config.sideways_ema_invalidation_tolerance
         if tol > 0 and (c - ema20) / ema20 < tol:
             return False
-        # v1.2: MTF 15m confirmation
         if self.config.sideways_ema_invalidation_mtf_15m and self.mtf_sideways_short_inv_ok is not None:
             if bar_idx < len(self.mtf_sideways_short_inv_ok):
                 mtf_ok = self.mtf_sideways_short_inv_ok[bar_idx]
-                if mtf_ok is False:  # 15m says recovered - don't invalidate
+                if mtf_ok is False:
                     return False
-                # None (no data) or True → proceed
         return True
 
     def _sideways_ema_inv_ok_long(self, bar_idx, pos, c, ema20):
@@ -161,7 +222,6 @@ class Switcher:
         tol = self.config.sideways_ema_invalidation_tolerance
         if tol > 0 and (ema20 - c) / ema20 < tol:
             return False
-        # v1.2: MTF 15m confirmation
         if self.config.sideways_ema_invalidation_mtf_15m and self.mtf_sideways_long_inv_ok is not None:
             if bar_idx < len(self.mtf_sideways_long_inv_ok):
                 mtf_ok = self.mtf_sideways_long_inv_ok[bar_idx]
