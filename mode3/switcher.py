@@ -1,10 +1,5 @@
 """
-Mode3 Switcher v1.1 — SIDEWAYS EMA_INVALIDATION controls added.
-
-Same as v1.0 plus:
-- config.sideways_ema_invalidation: turn on/off
-- config.sideways_ema_invalidation_tolerance: min close-break-EMA %
-- config.sideways_ema_invalidation_delay: min candles held
+Mode3 Switcher v1.2 — MTF 15m confirmation for SIDEWAYS invalidation.
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -88,6 +83,13 @@ class Switcher:
         self._bull_blocked_mtf = 0
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
+        # v1.2: MTF 15m confirmation for SIDEWAYS invalidation
+        # Each list stores True/False/None per bar_idx
+        # True = 15m confirms invalidation
+        # False = 15m says price recovered (don't invalidate)
+        # None = no 15m data available
+        self.mtf_sideways_short_inv_ok = None
+        self.mtf_sideways_long_inv_ok = None
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
         self._action_taken_this_bar = False
@@ -141,6 +143,13 @@ class Switcher:
         tol = self.config.sideways_ema_invalidation_tolerance
         if tol > 0 and (c - ema20) / ema20 < tol:
             return False
+        # v1.2: MTF 15m confirmation
+        if self.config.sideways_ema_invalidation_mtf_15m and self.mtf_sideways_short_inv_ok is not None:
+            if bar_idx < len(self.mtf_sideways_short_inv_ok):
+                mtf_ok = self.mtf_sideways_short_inv_ok[bar_idx]
+                if mtf_ok is False:  # 15m says recovered - don't invalidate
+                    return False
+                # None (no data) or True → proceed
         return True
 
     def _sideways_ema_inv_ok_long(self, bar_idx, pos, c, ema20):
@@ -152,6 +161,12 @@ class Switcher:
         tol = self.config.sideways_ema_invalidation_tolerance
         if tol > 0 and (ema20 - c) / ema20 < tol:
             return False
+        # v1.2: MTF 15m confirmation
+        if self.config.sideways_ema_invalidation_mtf_15m and self.mtf_sideways_long_inv_ok is not None:
+            if bar_idx < len(self.mtf_sideways_long_inv_ok):
+                mtf_ok = self.mtf_sideways_long_inv_ok[bar_idx]
+                if mtf_ok is False:
+                    return False
         return True
 
     def _startup_transition(self, close, ema20):
