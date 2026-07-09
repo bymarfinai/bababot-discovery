@@ -1,5 +1,11 @@
 """
-Mode3 Switcher v1.6 — SIDEWAYS volume + slope entry filters.
+Mode3 Switcher v2.0 — final champion, cleaned.
+
+Kept (all proven):
+- Global: chop filter
+- BULL: volume filter + MTF 15m entry
+- BEAR: pure 1h entry (no filter)
+- SIDEWAYS: MTF 15m entry + tolerance filter + slope filter
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -82,9 +88,7 @@ class Switcher:
         self._bull_blocked_volume = 0
         self._bull_blocked_mtf = 0
         self._sideways_blocked_mtf = 0
-        self._sideways_blocked_volume = 0
         self._sideways_blocked_slope = 0
-        # EMA slope history for SIDEWAYS filter
         self._ema_history = deque(maxlen=config.sideways_slope_window)
         # MTF 15m entry data
         self.mtf_bull_entry_close = None
@@ -138,17 +142,7 @@ class Switcher:
         if avg <= 0: return True
         return v >= avg * min_ratio
 
-    def _sideways_volume_ok(self, v):
-        """v1.6: SIDEWAYS volume filter."""
-        min_ratio = self.config.sideways_min_volume_ratio
-        if min_ratio <= 0: return True
-        if len(self._volume_history) < self.config.bull_volume_window: return True
-        avg = sum(self._volume_history) / len(self._volume_history)
-        if avg <= 0: return True
-        return v >= avg * min_ratio
-
     def _sideways_slope_ok(self):
-        """v1.6: SIDEWAYS slope filter — skip if trending too strongly."""
         max_slope = self.config.sideways_max_slope_pct
         if max_slope <= 0: return True
         if len(self._ema_history) < self.config.sideways_slope_window: return True
@@ -274,21 +268,11 @@ class Switcher:
         if ema <= 0: return True
         return abs(c - ema) / ema <= self.config.sideways_ema_distance_cap
 
-    def _sideways_entry_filters_ok(self):
-        """v1.6: Volume + slope filters for SIDEWAYS entry."""
-        if not self._sideways_volume_ok(self._volume_history[-1] if self._volume_history else 0):
-            self._sideways_blocked_volume += 1
-            return False
-        if not self._sideways_slope_ok():
-            self._sideways_blocked_slope += 1
-            return False
-        return True
-
     def _open_short_sideways(self, bar_idx, h, l, c):
         if not self._sideways_distance_ok(c):
             self._sideways_blocked_count += 1; return
-        if not self._sideways_entry_filters_ok():
-            return
+        if not self._sideways_slope_ok():
+            self._sideways_blocked_slope += 1; return
         tp_pct = self._sideways_tp_pct()
         if self.config.sideways_mtf_15m_entry and self.mtf_sideways_short_entry_close is not None:
             if bar_idx < len(self.mtf_sideways_short_entry_close):
@@ -310,8 +294,8 @@ class Switcher:
     def _open_long_sideways(self, bar_idx, h, l, c):
         if not self._sideways_distance_ok(c):
             self._sideways_blocked_count += 1; return
-        if not self._sideways_entry_filters_ok():
-            return
+        if not self._sideways_slope_ok():
+            self._sideways_blocked_slope += 1; return
         tp_pct = self._sideways_tp_pct()
         if self.config.sideways_mtf_15m_entry and self.mtf_sideways_long_entry_close is not None:
             if bar_idx < len(self.mtf_sideways_long_entry_close):
