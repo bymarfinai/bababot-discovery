@@ -1,5 +1,11 @@
 """
-Mode3 Backtest Endpoint v2.8 — Fix #5 counter-trend BULL enhancement exposed.
+Mode3 Backtest Endpoint v2.8 CHAMPION — Fix #5 B1 defaults enabled.
+
+Champion defaults (BTC 1h):
+- Fixed TP 1.2% (BULL/BEAR), 0.3% (SIDEWAYS)
+- Fix #2: BEAR streak → SIDEWAYS
+- Fix #3: Extreme low 5% → SIDEWAYS
+- Fix #5: Counter-trend BULL 2x size when 4h slope < -0.5%
 """
 import os
 import json as jsonlib
@@ -255,12 +261,12 @@ def backtest_mode3(
     sm_fix_3_extreme_pct: float = Query(0.05, ge=0.05, le=0.5),
     sm_fix_4_bull_confirm: bool = Query(False),
     sm_fix_4_bear_confirm: bool = Query(False),
-    # v2.8 Fix #5
-    bull_countertrend_enabled: bool = Query(False),
+    # v2.8 Fix #5 B1 CHAMPION defaults
+    bull_countertrend_enabled: bool = Query(True),
     bull_countertrend_slope_window: int = Query(20, ge=5, le=100),
-    bull_countertrend_slope_threshold: float = Query(-1.0, ge=-10.0, le=0.0),
-    bull_countertrend_tp_pct: float = Query(0.020, ge=0.005, le=0.10),
-    bull_countertrend_size_mult: float = Query(1.0, ge=0.5, le=5.0),
+    bull_countertrend_slope_threshold: float = Query(-0.5, ge=-10.0, le=0.0),
+    bull_countertrend_tp_pct: float = Query(0.012, ge=0.005, le=0.10),
+    bull_countertrend_size_mult: float = Query(2.0, ge=0.5, le=5.0),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -367,11 +373,8 @@ def backtest_mode3(
         switcher.htf_trap_long_recent = htf['trap_long']
         htf_ema_series = htf['ema']
         htf_close_series = htf['close']
-        # For counter-trend, use countertrend_slope_window; for output display use htf_slope_window
-        # We use the countertrend window for the switcher, display window for output
         countertrend_slope = compute_htf_4h_slope(htf['ema'], window_bars=bull_countertrend_slope_window)
         switcher.htf_4h_slope = countertrend_slope
-        # Display slope (may differ from countertrend for analysis)
         htf_slope_series = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
 
     for i in range(len(rows)):
