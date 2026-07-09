@@ -1,11 +1,5 @@
 """
-Mode3 Config v1.4 - final cleanup.
-
-All params below are proven defaults. Removed:
-- sideways_ema_invalidation_mtf_15m (proven useless — 15m close = 1h close at boundary)
-- sideways_ema_invalidation_mtf_early_exit (proven bad — 15m break mostly noise)
-- sideways_ema_invalidation_delay (proven bad — early SL hits when delayed)
-- sideways_early_exit_tolerance (dead code)
+Mode3 Config v1.5 - SIDEWAYS MTF 15m entry mode.
 """
 from dataclasses import dataclass
 
@@ -30,7 +24,11 @@ class Mode3Config:
     bull_min_volume_ratio: float = 1.5
     bull_mtf_15m_entry: bool = True
     sideways_ema_invalidation: bool = True
-    sideways_ema_invalidation_tolerance: float = 0.0015  # PROVEN: 0.15% sweet spot
+    sideways_ema_invalidation_tolerance: float = 0.0015
+    # v1.5: SIDEWAYS MTF 15m entry (mirror of BULL)
+    sideways_mtf_15m_entry: bool = False
+    # v1.5: SIDEWAYS TP percentage (separate from BULL/BEAR)
+    sideways_tp_pct: float = 0.0  # 0 = use tp_pct (same as before)
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
