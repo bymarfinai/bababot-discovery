@@ -1,5 +1,6 @@
 """
-Mode3 Switcher v2.4 — added BEAR min SL distance filter + 1h SL fallback.
+Mode3 Switcher v2.5 — State machine switching fixes.
+Prinsip: perbaiki tool selection, bukan filter signal.
 """
 from dataclasses import dataclass
 from typing import Optional, List
@@ -88,6 +89,14 @@ class Switcher:
         self._trap_short_count = 0
         self._trap_long_count = 0
         self._ema_history = deque(maxlen=config.sideways_slope_window)
+        # v2.5: state machine fix tracking
+        self._bear_loss_streak = 0
+        self._high_history = deque(maxlen=max(config.sm_fix_3_high_lookback, 10))
+        self._last_exit_bar = 0
+        self._sm_fix1_count = 0
+        self._sm_fix2_count = 0
+        self._sm_fix3_count = 0
+        # MTF 15m entry data
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -96,8 +105,10 @@ class Switcher:
         self.mtf_sideways_short_entry_high = None
         self.mtf_sideways_long_entry_close = None
         self.mtf_sideways_long_entry_low = None
+        # HTF 4h data
         self.htf_4h_vah = None
         self.htf_4h_val = None
+        self.htf_4h_close = None  # NEW v2.5
         self.htf_4h_ema20 = None
         self.htf_trap_short_recent = None
         self.htf_trap_long_recent = None
@@ -112,6 +123,7 @@ class Switcher:
             self._chop_history.append(sign)
             self._ema_history.append(ema20)
         self._volume_history.append(v)
+        self._high_history.append(h)  # for fix #3
 
         if self.state == 'STARTUP':
             if vah is None or val is None: return
@@ -188,6 +200,18 @@ class Switcher:
                 return entry_price + sl_distance * self.config.bull_rr_ratio
         return entry_price * (1.0 + self.config.tp_pct)
 
+    def _htf_is_bullish(self, bar_idx):
+        """v2.5 helper: check if 4h close > 4h EMA20 at bar_idx. Returns None if unknown."""
+        if self.htf_4h_close is None or self.htf_4h_ema20 is None:
+            return None
+        if bar_idx >= len(self.htf_4h_close) or bar_idx >= len(self.htf_4h_ema20):
+            return None
+        c = self.htf_4h_close[bar_idx]
+        e = self.htf_4h_ema20[bar_idx]
+        if c is None or e is None:
+            return None
+        return c > e
+
     def _startup_transition(self, close, ema20):
         if close > ema20: self.startup_bias = 'bullish'
         elif close < ema20: self.startup_bias = 'bearish'
@@ -225,15 +249,33 @@ class Switcher:
 
     def _post_exit_sideways_short(self, et):
         if et == 'SL':
-            self.state = 'BULL'; self.bull_stay_warmup = False; self.markers.hh_breach_case = 'none'
-        elif et == 'TP': self.state = 'SIDEWAYS'
-        else: self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'A'
+            # v2.5 Fix #1: HTF confirmation before flip to BULL
+            if self.config.sm_fix_1_htf_confirm:
+                htf_bullish = self._htf_is_bullish(self._last_exit_bar)
+                if htf_bullish is False:
+                    # HTF says bearish → stay SIDEWAYS instead of BULL
+                    self.state = 'SIDEWAYS'
+                    self._sm_fix1_count += 1
+                    return
+            self.state = 'BULL'
+            self.bull_stay_warmup = False
+            self.markers.hh_breach_case = 'none'
+        elif et == 'TP':
+            self.state = 'SIDEWAYS'
+        else:
+            self.state = 'WAIT_SEE_BULLISH'
+            self.markers.hh_breach_case = 'A'
 
     def _post_exit_sideways_long(self, et):
         if et == 'SL':
-            self.state = 'BEAR'; self.bear_stay_warmup = False; self.markers.ll_breach_case = 'none'
-        elif et == 'TP': self.state = 'SIDEWAYS'
-        else: self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'A'
+            self.state = 'BEAR'
+            self.bear_stay_warmup = False
+            self.markers.ll_breach_case = 'none'
+        elif et == 'TP':
+            self.state = 'SIDEWAYS'
+        else:
+            self.state = 'WAIT_SEE_BEARISH'
+            self.markers.ll_breach_case = 'A'
 
     def _exit_bull(self, bar_idx, c):
         pos = self.position
@@ -246,9 +288,12 @@ class Switcher:
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
         self.markers.peak_high_bull = last_peak
         if et == 'TP':
-            self.state = 'BULL'; self.bull_stay_warmup = True
+            self.state = 'BULL'
+            self.bull_stay_warmup = True
         else:
-            self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False
+            self.state = 'WAIT_SEE_BULLISH'
+            self.markers.hh_breach_case = 'B'
+            self.bull_stay_warmup = False
 
     def _exit_bear(self, bar_idx, c):
         pos = self.position
@@ -259,11 +304,37 @@ class Switcher:
 
     def _post_exit_bear(self, et):
         last_trough = self.position.trough_low if self.position else self.trades[-1].trough_low
+        last_entry = self.trades[-1].entry_price
         self.markers.trough_low_bear = last_trough
         if et == 'TP':
-            self.state = 'BEAR'; self.bear_stay_warmup = True
-        else:
-            self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False
+            # Reset streak on win
+            self._bear_loss_streak = 0
+            # v2.5 Fix #3: Extreme low check
+            if (self.config.sm_fix_3_extreme_low and len(self._high_history) >= 20):
+                recent_high = max(self._high_history)
+                if recent_high > 0:
+                    distance = (recent_high - last_entry) / recent_high
+                    if distance >= self.config.sm_fix_3_extreme_pct:
+                        # Price already deep — bounce risk, switch to SIDEWAYS
+                        self.state = 'SIDEWAYS'
+                        self.bear_stay_warmup = False
+                        self._sm_fix3_count += 1
+                        return
+            self.state = 'BEAR'
+            self.bear_stay_warmup = True
+        else:  # SL
+            self._bear_loss_streak += 1
+            # v2.5 Fix #2: BEAR losing streak → switch SIDEWAYS
+            if (self.config.sm_fix_2_bear_streak
+                    and self._bear_loss_streak >= self.config.sm_fix_2_streak_threshold):
+                self.state = 'SIDEWAYS'
+                self.bear_stay_warmup = False
+                self._bear_loss_streak = 0
+                self._sm_fix2_count += 1
+                return
+            self.state = 'WAIT_SEE_BEARISH'
+            self.markers.ll_breach_case = 'B'
+            self.bear_stay_warmup = False
 
     def _exit_trap(self, bar_idx, c):
         pos = self.position
@@ -369,11 +440,13 @@ class Switcher:
                 self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=mtf_close, entry_bar=bar_idx,
                     entry_high=mtf_high, entry_low=l, sl_level=mtf_high, tp_level=mtf_close*(1.0-tp_pct),
                     peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20)
+                self._bear_loss_streak = 0  # entry to different tool resets streak
                 return
         self.markers.marker_high_short = h; self.markers.marker_close_short = c
         self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-tp_pct),
             peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
+        self._bear_loss_streak = 0
 
     def _open_long_sideways(self, bar_idx, h, l, c):
         if not self._sideways_distance_ok(c):
@@ -392,11 +465,13 @@ class Switcher:
                 self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=mtf_close, entry_bar=bar_idx,
                     entry_high=h, entry_low=mtf_low, sl_level=mtf_low, tp_level=mtf_close*(1.0+tp_pct),
                     peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20)
+                self._bear_loss_streak = 0
                 return
         self.markers.marker_low_long = l; self.markers.marker_close_long = c
         self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=l, tp_level=c*(1.0+tp_pct),
             peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
+        self._bear_loss_streak = 0
 
     def _entry_wait_see_bullish(self, bar_idx, o, h, l, c, ema20, vah, val):
         hh_lvl = self.markers.hh_breach_level()
@@ -438,11 +513,13 @@ class Switcher:
                     self.position = Position(tool='BULL', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
                         entry_high=h, entry_low=mtf_low, sl_level=sl_level, tp_level=tp_level,
                         peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20)
+                    self._bear_loss_streak = 0  # BULL entry resets BEAR streak
                     return
             tp_level = self._bull_tp_level(c, l)
             self.position = Position(tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
                 entry_high=h, entry_low=l, sl_level=l, tp_level=tp_level,
                 peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
+            self._bear_loss_streak = 0
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bear_stay_warmup and c > ema20:
@@ -457,11 +534,9 @@ class Switcher:
                         return
                     entry_price = mtf_close
                     sl_level = mtf_high
-                    # v2.4: BEAR min SL distance filter
                     if self.config.bear_min_sl_dist > 0:
                         sl_dist = (sl_level - entry_price) / entry_price
                         if sl_dist < self.config.bear_min_sl_dist:
-                            # Option A: fall back to 1h high (looser SL) if enabled
                             if self.config.bear_use_1h_sl_fallback:
                                 sl_level_1h = h
                                 sl_dist_1h = (sl_level_1h - entry_price) / entry_price
@@ -478,7 +553,6 @@ class Switcher:
                         entry_high=mtf_high, entry_low=l, sl_level=sl_level, tp_level=tp_level,
                         peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20)
                     return
-            # Fallback: 1h entry
             if self.config.bear_min_sl_dist > 0:
                 sl_dist = (h - c) / c
                 if sl_dist < self.config.bear_min_sl_dist:
@@ -502,3 +576,4 @@ class Switcher:
             ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20))
         self.position = None
         self._action_taken_this_bar = True
+        self._last_exit_bar = bar_idx  # v2.5: for post-exit HTF checks
