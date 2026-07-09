@@ -1,5 +1,5 @@
 """
-Mode3 Config v1.1 - added SIDEWAYS EMA_INVALIDATION controls.
+Mode3 Config v1.2 - added MTF 15m confirmation for SIDEWAYS EMA_INVALIDATION.
 """
 from dataclasses import dataclass
 
@@ -23,10 +23,11 @@ class Mode3Config:
     bull_volume_window: int = 20
     bull_min_volume_ratio: float = 1.5
     bull_mtf_15m_entry: bool = True
-    # v1.1: SIDEWAYS EMA_INVALIDATION controls
-    sideways_ema_invalidation: bool = True     # False disables entirely
-    sideways_ema_invalidation_tolerance: float = 0.0  # min close-break-EMA %
-    sideways_ema_invalidation_delay: int = 0   # min candles held before allowed
+    sideways_ema_invalidation: bool = True
+    sideways_ema_invalidation_tolerance: float = 0.0
+    sideways_ema_invalidation_delay: int = 0
+    # v1.2: MTF 15m confirmation for SIDEWAYS invalidation
+    sideways_ema_invalidation_mtf_15m: bool = False
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
