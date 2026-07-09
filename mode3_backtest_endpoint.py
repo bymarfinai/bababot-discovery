@@ -1,11 +1,5 @@
 """
-Mode3 Backtest Endpoint v2.5 CHAMPION — champion defaults active.
-
-Champion config (BTC 1h):
-- Fixed TP 1.2% (BULL/BEAR), 0.3% (SIDEWAYS)
-- MTF 15m entry all tools
-- Fix #2: BEAR streak switch to SIDEWAYS
-- Fix #3: Extreme low (5%) switch to SIDEWAYS
+Mode3 Backtest Endpoint v2.6 — Fix #4 confirmation bar exposed.
 """
 import os
 import json as jsonlib
@@ -62,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '2.5', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '2.6', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -249,6 +243,9 @@ def backtest_mode3(
     sm_fix_3_extreme_low: bool = Query(True),
     sm_fix_3_high_lookback: int = Query(100, ge=20, le=500),
     sm_fix_3_extreme_pct: float = Query(0.05, ge=0.05, le=0.5),
+    # v2.6 Fix #4
+    sm_fix_4_bull_confirm: bool = Query(False),
+    sm_fix_4_bear_confirm: bool = Query(False),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -280,6 +277,8 @@ def backtest_mode3(
         sm_fix_3_extreme_low=sm_fix_3_extreme_low,
         sm_fix_3_high_lookback=sm_fix_3_high_lookback,
         sm_fix_3_extreme_pct=sm_fix_3_extreme_pct,
+        sm_fix_4_bull_confirm=sm_fix_4_bull_confirm,
+        sm_fix_4_bear_confirm=sm_fix_4_bear_confirm,
         trap_enabled=trap_enabled,
         trap_lookback_4h=trap_lookback_4h,
         trap_zone_tolerance=trap_zone_tolerance,
@@ -392,6 +391,10 @@ def backtest_mode3(
             "sm_fix1_count": switcher._sm_fix1_count,
             "sm_fix2_count": switcher._sm_fix2_count,
             "sm_fix3_count": switcher._sm_fix3_count,
+            "sm_fix4_bull_confirmed": switcher._sm_fix4_bull_confirmed,
+            "sm_fix4_bull_cancelled": switcher._sm_fix4_bull_cancelled,
+            "sm_fix4_bear_confirmed": switcher._sm_fix4_bear_confirmed,
+            "sm_fix4_bear_cancelled": switcher._sm_fix4_bear_cancelled,
         },
         "per_tool": tool_stats,
         "trades": [
@@ -501,4 +504,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "2.5", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "2.6", "db_path": DB_PATH}
