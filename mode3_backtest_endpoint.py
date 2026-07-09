@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v2.0 — final champion, defaults=proven.
+Mode3 Backtest Endpoint v2.1 — added BEAR MTF 15m entry option.
 Also triggers mode4 auto-registration on import.
 """
 import os
@@ -13,7 +13,6 @@ from datetime import datetime
 
 from mode3 import Mode3Config, Switcher, compute_ema_series, compute_va_at_bar
 
-# Trigger mode4 auto-registration (side effect via import)
 try:
     import mode4_backtest_endpoint  # noqa: F401
 except Exception as _e:
@@ -63,7 +62,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '2.0', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '2.1', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -118,6 +117,32 @@ def compute_mtf_bull_entry(rows_1h, rows_15m):
     return entry_closes, entry_lows
 
 
+def compute_mtf_bear_entry(rows_1h, rows_15m):
+    """BEAR MTF entry: find first 15m candle inside 1h with:
+    high >= EMA_15m AND close < EMA_15m AND close < open (bearish rejection).
+    Returns (entry_closes, entry_highs) aligned to rows_1h.
+    """
+    if not rows_15m: return [None]*len(rows_1h), [None]*len(rows_1h)
+    opens_15m = np.array([r[1] for r in rows_15m], dtype=float)
+    highs_15m = np.array([r[2] for r in rows_15m], dtype=float)
+    closes_15m = np.array([r[4] for r in rows_15m], dtype=float)
+    ema_15m = compute_ema_series(closes_15m, 20)
+    ts_to_idx = {r[0]: i for i, r in enumerate(rows_15m)}
+    ONE_15M_MS = 15 * 60 * 1000
+    entry_closes, entry_highs = [], []
+    for r in rows_1h:
+        t_1h = r[0]
+        fc, fh = None, None
+        for k in range(4):
+            j = ts_to_idx.get(t_1h + k * ONE_15M_MS)
+            if j is None: continue
+            if (highs_15m[j] >= ema_15m[j] and closes_15m[j] < ema_15m[j]
+                    and closes_15m[j] < opens_15m[j]):
+                fc = float(closes_15m[j]); fh = float(highs_15m[j]); break
+        entry_closes.append(fc); entry_highs.append(fh)
+    return entry_closes, entry_highs
+
+
 def compute_mtf_sideways_entry(rows_1h, rows_15m, vahs, vals):
     n = len(rows_1h)
     if not rows_15m:
@@ -161,6 +186,7 @@ def backtest_mode3(
     chop_max_crossings: int = Query(4, ge=0, le=20),
     bull_min_volume_ratio: float = Query(1.5, ge=0.0, le=5.0),
     bull_mtf_15m_entry: bool = Query(True),
+    bear_mtf_15m_entry: bool = Query(False),
     sideways_ema_invalidation: bool = Query(True),
     sideways_ema_invalidation_tolerance: float = Query(0.0015, ge=0.0, le=0.02),
     sideways_mtf_15m_entry: bool = Query(True),
@@ -179,6 +205,7 @@ def backtest_mode3(
         chop_max_crossings=chop_max_crossings,
         bull_min_volume_ratio=bull_min_volume_ratio,
         bull_mtf_15m_entry=bull_mtf_15m_entry,
+        bear_mtf_15m_entry=bear_mtf_15m_entry,
         sideways_ema_invalidation=sideways_ema_invalidation,
         sideways_ema_invalidation_tolerance=sideways_ema_invalidation_tolerance,
         sideways_mtf_15m_entry=sideways_mtf_15m_entry,
@@ -210,13 +237,17 @@ def backtest_mode3(
 
     switcher = Switcher(config)
 
-    if bull_mtf_15m_entry or sideways_mtf_15m_entry:
+    if bull_mtf_15m_entry or bear_mtf_15m_entry or sideways_mtf_15m_entry:
         rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
         if rows_15m:
             if bull_mtf_15m_entry:
                 ec, el = compute_mtf_bull_entry(rows, rows_15m)
                 switcher.mtf_bull_entry_close = ec
                 switcher.mtf_bull_entry_low = el
+            if bear_mtf_15m_entry:
+                ec, eh = compute_mtf_bear_entry(rows, rows_15m)
+                switcher.mtf_bear_entry_close = ec
+                switcher.mtf_bear_entry_high = eh
             if sideways_mtf_15m_entry:
                 sc, sh, lc, ll = compute_mtf_sideways_entry(rows, rows_15m, vahs, vals)
                 switcher.mtf_sideways_short_entry_close = sc
@@ -266,6 +297,7 @@ def backtest_mode3(
             "chop_blocked_count": switcher._chop_blocked_count,
             "bull_blocked_volume": switcher._bull_blocked_volume,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
+            "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
         },
         "per_tool": tool_stats,
@@ -376,4 +408,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "2.0", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "2.1", "db_path": DB_PATH}
