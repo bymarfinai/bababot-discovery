@@ -1,5 +1,5 @@
 """
-Mode3 Config v1.2 - added MTF 15m confirmation for SIDEWAYS EMA_INVALIDATION.
+Mode3 Config v1.3 - MTF 15m early exit for SIDEWAYS invalidation.
 """
 from dataclasses import dataclass
 
@@ -26,8 +26,9 @@ class Mode3Config:
     sideways_ema_invalidation: bool = True
     sideways_ema_invalidation_tolerance: float = 0.0
     sideways_ema_invalidation_delay: int = 0
-    # v1.2: MTF 15m confirmation for SIDEWAYS invalidation
-    sideways_ema_invalidation_mtf_15m: bool = False
+    sideways_ema_invalidation_mtf_15m: bool = False  # confirmation (proven useless)
+    # v1.3: MTF 15m EARLY EXIT (exit before 1h close if 15m shows reversal)
+    sideways_ema_invalidation_mtf_early_exit: bool = False
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
