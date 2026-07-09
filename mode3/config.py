@@ -1,5 +1,5 @@
 """
-Mode3 Config v1.5 - SIDEWAYS MTF 15m entry mode.
+Mode3 Config v1.6 - SIDEWAYS entry filters (volume + trend slope).
 """
 from dataclasses import dataclass
 
@@ -25,10 +25,12 @@ class Mode3Config:
     bull_mtf_15m_entry: bool = True
     sideways_ema_invalidation: bool = True
     sideways_ema_invalidation_tolerance: float = 0.0015
-    # v1.5: SIDEWAYS MTF 15m entry (mirror of BULL)
     sideways_mtf_15m_entry: bool = False
-    # v1.5: SIDEWAYS TP percentage (separate from BULL/BEAR)
-    sideways_tp_pct: float = 0.0  # 0 = use tp_pct (same as before)
+    sideways_tp_pct: float = 0.0
+    # v1.6: SIDEWAYS entry filters
+    sideways_min_volume_ratio: float = 0.0    # skip if vol < N*avg (drift market)
+    sideways_max_slope_pct: float = 0.0       # skip if |EMA slope| > N% (trending)
+    sideways_slope_window: int = 20            # bars for slope calc
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
