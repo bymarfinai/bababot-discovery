@@ -1,9 +1,9 @@
 """
-Mode3 Switcher v2.8 — Fix #5 counter-trend BULL enhancement.
+Mode3 Switcher v2.9 — Fix #7 position-based counter-trend BULL (replaces Fix #5 slope-based).
 
-Fix #5: When BULL setup detected + HTF 4h EMA slope strongly bearish (bounce from oversold):
-- Use bigger TP (default 2.0%) — bounces tend to run bigger
-- Optional bigger position size — higher confidence trades
+Fix #7: When BULL setup detected + 4h close position <= threshold vs 4h EMA20:
+- Use bigger position size (2x) — buying dip when 4h rejected below EMA20
+- Position-based check more robust than slope (larger sample, more persistent signal)
 """
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -44,7 +44,7 @@ class Position:
     peak_high: float = 0.0
     trough_low: float = 1e18
     ema_at_entry: float = 0.0
-    size_mult: float = 1.0  # v2.8: position size multiplier for enhanced trades
+    size_mult: float = 1.0
 
 
 @dataclass
@@ -106,9 +106,7 @@ class Switcher:
         self._sm_fix4_bull_cancelled = 0
         self._sm_fix4_bear_confirmed = 0
         self._sm_fix4_bear_cancelled = 0
-        # v2.8: counter-trend BULL tracking
         self._bull_countertrend_count = 0
-        # MTF data
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -121,7 +119,7 @@ class Switcher:
         self.htf_4h_val = None
         self.htf_4h_close = None
         self.htf_4h_ema20 = None
-        self.htf_4h_slope = None  # NEW v2.8: pre-computed slope array
+        self.htf_4h_slope = None
         self.htf_trap_short_recent = None
         self.htf_trap_long_recent = None
 
@@ -224,19 +222,32 @@ class Switcher:
         return c > e
 
     def _htf_slope_at(self, bar_idx):
-        """v2.8: Get 4h EMA slope at bar. Returns None if unavailable."""
         if self.htf_4h_slope is None or bar_idx >= len(self.htf_4h_slope):
             return None
         return self.htf_4h_slope[bar_idx]
 
     def _is_countertrend_bull(self, bar_idx):
-        """v2.8: Check if current BULL entry qualifies as counter-trend (HTF bearish bounce)."""
+        """v2.9 Fix #7: check 4h close position vs 4h EMA20 (default) or slope (legacy)."""
         if not self.config.bull_countertrend_enabled:
             return False
-        slope = self._htf_slope_at(bar_idx)
-        if slope is None:
-            return False
-        return slope < self.config.bull_countertrend_slope_threshold
+        if getattr(self.config, 'bull_countertrend_use_position', True):
+            # Fix #7: position-based check (4h close vs 4h EMA20)
+            if self.htf_4h_close is None or self.htf_4h_ema20 is None:
+                return False
+            if bar_idx >= len(self.htf_4h_close) or bar_idx >= len(self.htf_4h_ema20):
+                return False
+            c = self.htf_4h_close[bar_idx]
+            e = self.htf_4h_ema20[bar_idx]
+            if c is None or e is None or e <= 0:
+                return False
+            dist_pct = (c - e) / e * 100
+            return dist_pct < getattr(self.config, 'bull_countertrend_max_close_pct', 0.0)
+        else:
+            # Fix #5 legacy: slope-based
+            slope = self._htf_slope_at(bar_idx)
+            if slope is None:
+                return False
+            return slope < self.config.bull_countertrend_slope_threshold
 
     def _startup_transition(self, close, ema20):
         if close > ema20: self.startup_bias = 'bullish'
@@ -514,12 +525,10 @@ class Switcher:
             self._open_short_sideways(bar_idx, h, l, c); return
 
     def _execute_bull_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
-        """Execute BULL entry (immediate or confirmed path). v2.8: check counter-trend."""
         if not self._bull_volume_ok(self._volume_history[-1] if self._volume_history else 0):
             self._bull_blocked_volume += 1
             return
 
-        # v2.8: Check if this is a counter-trend BULL (HTF bearish)
         is_ct = self._is_countertrend_bull(bar_idx)
         size_mult = self.config.bull_countertrend_size_mult if is_ct else 1.0
 
@@ -532,7 +541,6 @@ class Switcher:
                     return
                 entry_price = mtf_close
                 sl_level = mtf_low
-                # v2.8: override TP if counter-trend
                 if is_ct:
                     tp_level = entry_price * (1.0 + self.config.bull_countertrend_tp_pct)
                     self._bull_countertrend_count += 1
@@ -544,7 +552,6 @@ class Switcher:
                     size_mult=size_mult)
                 self._bear_loss_streak = 0
                 return
-        # Fallback 1h entry
         if is_ct:
             tp_level = c * (1.0 + self.config.bull_countertrend_tp_pct)
             self._bull_countertrend_count += 1
@@ -649,7 +656,6 @@ class Switcher:
         else:
             pnl_pct = (pos.entry_price - exit_price) / pos.entry_price
         pnl_pct_net = pnl_pct - self.config.total_cost_pct()
-        # v2.8: apply size multiplier
         pnl_usd = pnl_pct_net * self.config.notional() * pos.size_mult
         self.trades.append(Trade(tool=pos.tool, side=pos.side, entry_price=pos.entry_price, exit_price=exit_price,
             entry_bar=pos.entry_bar, exit_bar=bar_idx, exit_type=exit_type, pnl_pct=pnl_pct_net, pnl_usd=pnl_usd,
