@@ -1,10 +1,18 @@
 """
-Mode3 Config v3.5 — Add Fix #15 SW SHORT HTF Alignment filter.
+Mode3 Config v3.6 — CLEAN CHAMPION.
 
-Data-driven discovery: SW SHORT loses in HTF BULL regime (14 trades, 36% WR, -$12 BTC 364d).
-Fix #15 skip SW SHORT when HTF slope > threshold (strong bullish).
+Removed proven-negative fixes:
+- Fix #10 HTF Flat Filter (-$5 portfolio)
+- Fix #11 Local Resistance (-$41 BTC)
+- Fix #12 HH/LH Structural (-$55 BTC)
+- Fix #13 Recent High (-$29 BTC)
+- Fix #15 SW HTF Alignment (-$410 portfolio)
 
-DOES NOT mirror to SW LONG — data shows LONG works in all regimes.
+Kept:
+- Fix #7 CT BULL (CHAMPION, +$314 at 3x)
+- Fix #8/#9 BEAR Trend Rider (CHAMPION)
+- Fix #14 BULL Trend Rider (opt-in, DOGE-only +$16)
+- Fix #2/#3 state resets (per-pair on/off recommended)
 """
 from dataclasses import dataclass
 
@@ -51,10 +59,10 @@ class Mode3Config:
     sm_fix_3_extreme_low: bool = True
     sm_fix_3_high_lookback: int = 100
     sm_fix_3_extreme_pct: float = 0.05
-
     sm_fix_4_bull_confirm: bool = False
     sm_fix_4_bear_confirm: bool = False
 
+    # Fix #7 CT BULL (CHAMPION — proven +$102 BTC at 2x, +$205 at 3x)
     bull_countertrend_enabled: bool = True
     bull_countertrend_use_position: bool = True
     bull_countertrend_max_close_pct: float = 0.0
@@ -63,6 +71,7 @@ class Mode3Config:
     bull_countertrend_tp_pct: float = 0.012
     bull_countertrend_size_mult: float = 2.0
 
+    # Fix #8/#9 BEAR Trend Rider (CHAMPION)
     bear_trend_rider_enabled: bool = True
     bear_trend_rider_regime_bars: int = 3
     bear_trend_rider_regime_slope_max: float = -0.3
@@ -71,31 +80,13 @@ class Mode3Config:
     bear_trend_rider_trailing_distance_pct: float = 0.008
     bear_trend_rider_disable_ct_bull: bool = False
 
+    # Fix #14 BULL Trend Rider (opt-in, DOGE-specific +$16)
     bull_trend_rider_enabled: bool = False
     bull_trend_rider_regime_bars: int = 3
     bull_trend_rider_regime_slope_min: float = 0.3
     bull_trend_rider_tp_pct: float = 0.030
     bull_trend_rider_trailing_activate_pct: float = 0.015
     bull_trend_rider_trailing_distance_pct: float = 0.008
-
-    # === v3.5 Fix #15: SW HTF ALIGNMENT ===
-    # Skip SW SHORT when HTF slope > threshold (bullish regime)
-    # ASYMMETRIC: data shows SW LONG works in all regimes, only SHORT needs filter
-    sideways_short_skip_htf_bull_enabled: bool = False  # opt-in
-    sideways_short_htf_bull_slope_threshold: float = 0.3  # skip if slope > 0.3%
-
-    # Deprecated
-    bull_htf_flat_filter_enabled: bool = False
-    bull_htf_flat_min_dist_pct: float = 0.0
-    bull_htf_flat_max_slope_pct: float = 0.15
-    bull_local_resistance_filter_enabled: bool = False
-    bull_local_resistance_zone_pct: float = 0.02
-    bull_hh_lh_filter_enabled: bool = False
-    bull_hh_lh_lookback_bars: int = 168
-    bull_hh_lh_min_hh_dist_pct: float = 0.005
-    bull_recent_high_filter_enabled: bool = False
-    bull_recent_high_lookback_bars: int = 720
-    bull_recent_high_max_ratio: float = 0.98
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
