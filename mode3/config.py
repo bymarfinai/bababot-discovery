@@ -1,10 +1,11 @@
 """
-Mode3 Config v3.0 — Fix #8/#9 BEAR Trend Rider (crash regime capture).
+Mode3 Config v3.0 CHAMPION FINAL — Fix #7 CT BULL + Fix #8/#9 BEAR Trend Rider.
 
-Champion + new crash-mode BEAR:
-- v2.9 CHAMPION baseline (all previous fixes)
-- Fix #8: 4h downtrend regime detector
-- Fix #9: BEAR Trend Rider with wider TP + trailing stop
+Champion defaults:
+- Fix #7 CT BULL (position-based, 2x size when 4h close < 4h EMA20)
+- Fix #8 4h downtrend regime detector
+- Fix #9 BEAR Trend Rider (wider TP + trailing stop for crash capture)
+- BOTH fixes coexist (disable_ct_bull=False) — no conflict
 """
 from dataclasses import dataclass
 
@@ -65,20 +66,15 @@ class Mode3Config:
     bull_countertrend_tp_pct: float = 0.012
     bull_countertrend_size_mult: float = 2.0
 
-    # === v3.0 Fix #8/#9: BEAR TREND RIDER (crash regime capture) ===
-    bear_trend_rider_enabled: bool = False
-    # Regime detection: N consecutive 4h bars close < 4h EMA20
+    # === v3.0 Fix #8/#9 CHAMPION FINAL: BEAR TREND RIDER ===
+    bear_trend_rider_enabled: bool = True            # ⭐ CHAMPION default ON
     bear_trend_rider_regime_bars: int = 3
-    # 4h slope must be at least this negative to confirm downtrend
     bear_trend_rider_regime_slope_max: float = -0.3
-    # Wider TP for trend rider entries
     bear_trend_rider_tp_pct: float = 0.030
-    # Trailing stop: activate when profit exceeds this
     bear_trend_rider_trailing_activate_pct: float = 0.015
-    # Trail SL by this distance from peak profit
     bear_trend_rider_trailing_distance_pct: float = 0.008
-    # Optional: block Fix #7 CT BULL when in trend rider regime
-    bear_trend_rider_disable_ct_bull: bool = True
+    # ⭐ CHAMPION default False → let Fix #7 & Fix #9 coexist
+    bear_trend_rider_disable_ct_bull: bool = False
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
