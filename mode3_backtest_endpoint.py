@@ -1,11 +1,10 @@
 """
-Mode3 Backtest Endpoint v2.9 CHAMPION — Fix #7 position-based counter-trend BULL.
+Mode3 Backtest Endpoint v3.0 — Fix #8/#9 BEAR Trend Rider.
 
-Champion defaults (BTC 1h):
-- Fixed TP 1.2% (BULL/BEAR), 0.3% (SIDEWAYS)
-- Fix #2: BEAR streak → SIDEWAYS
-- Fix #3: Extreme low 5% → SIDEWAYS
-- Fix #7: Counter-trend BULL 2x size when 4h close < 4h EMA20 (position-based)
+Champion defaults + optional Trend Rider:
+- v2.9 Fix #7 counter-trend BULL (position-based) — CHAMPION
+- v3.0 Fix #8 4h downtrend regime detector — opt-in
+- v3.0 Fix #9 BEAR Trend Rider with wider TP + trailing stop — opt-in
 """
 import os
 import json as jsonlib
@@ -62,7 +61,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '2.9', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '3.0', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -228,6 +227,32 @@ def compute_htf_4h_slope(ema_4h_series, window_bars=20):
     return slopes
 
 
+def compute_htf_4h_downtrend(close_series, ema_series, slope_series, regime_bars=3, slope_max=-0.3):
+    """
+    v3.0 Fix #8: Confirmed downtrend regime detector.
+    Returns True if last N consecutive bars had close < EMA AND current slope <= slope_max.
+    """
+    n = len(close_series)
+    downtrend = [False] * n
+    for i in range(regime_bars, n):
+        # Check last N bars all close < EMA
+        all_below = True
+        for k in range(regime_bars):
+            c = close_series[i - k]
+            e = ema_series[i - k]
+            if c is None or e is None or c >= e:
+                all_below = False
+                break
+        if not all_below:
+            continue
+        # Check slope
+        s = slope_series[i] if slope_series and i < len(slope_series) else None
+        if s is None or s > slope_max:
+            continue
+        downtrend[i] = True
+    return downtrend
+
+
 @router.get("/backtest")
 def backtest_mode3(
     symbol: str = Query("BTCUSDT"),
@@ -261,7 +286,7 @@ def backtest_mode3(
     sm_fix_3_extreme_pct: float = Query(0.05, ge=0.05, le=0.5),
     sm_fix_4_bull_confirm: bool = Query(False),
     sm_fix_4_bear_confirm: bool = Query(False),
-    # v2.9 Fix #7 CHAMPION defaults (position-based counter-trend BULL)
+    # v2.9 Fix #7 CHAMPION
     bull_countertrend_enabled: bool = Query(True),
     bull_countertrend_use_position: bool = Query(True),
     bull_countertrend_max_close_pct: float = Query(0.0, ge=-10.0, le=10.0),
@@ -269,6 +294,14 @@ def backtest_mode3(
     bull_countertrend_slope_threshold: float = Query(-0.5, ge=-10.0, le=0.0),
     bull_countertrend_tp_pct: float = Query(0.012, ge=0.005, le=0.10),
     bull_countertrend_size_mult: float = Query(2.0, ge=0.5, le=5.0),
+    # v3.0 Fix #8/#9 BEAR TREND RIDER
+    bear_trend_rider_enabled: bool = Query(False),
+    bear_trend_rider_regime_bars: int = Query(3, ge=1, le=10),
+    bear_trend_rider_regime_slope_max: float = Query(-0.3, ge=-10.0, le=0.0),
+    bear_trend_rider_tp_pct: float = Query(0.030, ge=0.005, le=0.20),
+    bear_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
+    bear_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
+    bear_trend_rider_disable_ct_bull: bool = Query(True),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -311,6 +344,13 @@ def backtest_mode3(
         bull_countertrend_slope_threshold=bull_countertrend_slope_threshold,
         bull_countertrend_tp_pct=bull_countertrend_tp_pct,
         bull_countertrend_size_mult=bull_countertrend_size_mult,
+        bear_trend_rider_enabled=bear_trend_rider_enabled,
+        bear_trend_rider_regime_bars=bear_trend_rider_regime_bars,
+        bear_trend_rider_regime_slope_max=bear_trend_rider_regime_slope_max,
+        bear_trend_rider_tp_pct=bear_trend_rider_tp_pct,
+        bear_trend_rider_trailing_activate_pct=bear_trend_rider_trailing_activate_pct,
+        bear_trend_rider_trailing_distance_pct=bear_trend_rider_trailing_distance_pct,
+        bear_trend_rider_disable_ct_bull=bear_trend_rider_disable_ct_bull,
         trap_enabled=trap_enabled,
         trap_lookback_4h=trap_lookback_4h,
         trap_zone_tolerance=trap_zone_tolerance,
@@ -364,7 +404,7 @@ def backtest_mode3(
     htf_ema_series = None
     htf_slope_series = None
     htf_close_series = None
-    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled:
+    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
         htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window,
@@ -380,6 +420,14 @@ def backtest_mode3(
         countertrend_slope = compute_htf_4h_slope(htf['ema'], window_bars=bull_countertrend_slope_window)
         switcher.htf_4h_slope = countertrend_slope
         htf_slope_series = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
+        # v3.0 Fix #8: Compute downtrend regime array
+        if bear_trend_rider_enabled:
+            regime_slope = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
+            switcher.htf_4h_downtrend = compute_htf_4h_downtrend(
+                htf['close'], htf['ema'], regime_slope,
+                regime_bars=bear_trend_rider_regime_bars,
+                slope_max=bear_trend_rider_regime_slope_max,
+            )
 
     for i in range(len(rows)):
         vah, val = vahs[i], vals[i]
@@ -429,6 +477,7 @@ def backtest_mode3(
             "ema_at_entry": round(t.ema_at_entry, 2), "ema_at_exit": round(t.ema_at_exit, 2),
             "peak_high": round(t.peak_high, 2), "trough_low": round(t.trough_low, 2),
             "size_mult": t.size_mult,
+            "is_trend_rider": t.is_trend_rider,
         }
         if htf_ema is not None:
             trade_dict["htf_4h_ema"] = htf_ema
@@ -466,6 +515,9 @@ def backtest_mode3(
             "sm_fix4_bear_confirmed": switcher._sm_fix4_bear_confirmed,
             "sm_fix4_bear_cancelled": switcher._sm_fix4_bear_cancelled,
             "bull_countertrend_count": switcher._bull_countertrend_count,
+            "bear_trend_rider_count": switcher._bear_trend_rider_count,
+            "bear_trend_rider_trailing_hits": switcher._bear_trend_rider_trailing_hits,
+            "bear_trend_rider_hard_exits": switcher._bear_trend_rider_hard_exits,
         },
         "per_tool": tool_stats,
         "trades": trade_list,
@@ -566,4 +618,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "2.9", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "3.0", "db_path": DB_PATH}
