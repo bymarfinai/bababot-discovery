@@ -1,11 +1,7 @@
 """
-Mode3 Backtest Endpoint v3.1 — Fix #10 HTF Flat Filter for BULL entries.
+Mode3 Backtest Endpoint v3.2 — Add Fix #11/#12/#13 BULL entry filters.
 
-Champion defaults (unchanged from v3.0-final-2):
-- Fix #7 CT BULL position-based (2x size)
-- Fix #8 4h downtrend regime detector
-- Fix #9 BEAR Trend Rider (wider TP + trailing stop)
-- Fix #10 HTF Flat Filter (opt-in default OFF for testing)
+Champion defaults unchanged. New filters opt-in default OFF for testing.
 """
 import os
 import json as jsonlib
@@ -62,7 +58,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '3.1', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '3.2', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -296,10 +292,20 @@ def backtest_mode3(
     bear_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
     bear_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
     bear_trend_rider_disable_ct_bull: bool = Query(False),
-    # v3.1 Fix #10 HTF Flat Filter (opt-in default OFF for testing)
     bull_htf_flat_filter_enabled: bool = Query(False),
     bull_htf_flat_min_dist_pct: float = Query(0.0, ge=-2.0, le=2.0),
     bull_htf_flat_max_slope_pct: float = Query(0.15, ge=0.01, le=2.0),
+    # v3.2 Fix #11 Local Resistance
+    bull_local_resistance_filter_enabled: bool = Query(False),
+    bull_local_resistance_zone_pct: float = Query(0.02, ge=0.001, le=0.10),
+    # v3.2 Fix #12 HH/LH Structural
+    bull_hh_lh_filter_enabled: bool = Query(False),
+    bull_hh_lh_lookback_bars: int = Query(168, ge=24, le=1000),
+    bull_hh_lh_min_hh_dist_pct: float = Query(0.005, ge=0.0, le=0.10),
+    # v3.2 Fix #13 Recent High Distance
+    bull_recent_high_filter_enabled: bool = Query(False),
+    bull_recent_high_lookback_bars: int = Query(720, ge=100, le=1500),
+    bull_recent_high_max_ratio: float = Query(0.98, ge=0.80, le=1.0),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -352,6 +358,14 @@ def backtest_mode3(
         bull_htf_flat_filter_enabled=bull_htf_flat_filter_enabled,
         bull_htf_flat_min_dist_pct=bull_htf_flat_min_dist_pct,
         bull_htf_flat_max_slope_pct=bull_htf_flat_max_slope_pct,
+        bull_local_resistance_filter_enabled=bull_local_resistance_filter_enabled,
+        bull_local_resistance_zone_pct=bull_local_resistance_zone_pct,
+        bull_hh_lh_filter_enabled=bull_hh_lh_filter_enabled,
+        bull_hh_lh_lookback_bars=bull_hh_lh_lookback_bars,
+        bull_hh_lh_min_hh_dist_pct=bull_hh_lh_min_hh_dist_pct,
+        bull_recent_high_filter_enabled=bull_recent_high_filter_enabled,
+        bull_recent_high_lookback_bars=bull_recent_high_lookback_bars,
+        bull_recent_high_max_ratio=bull_recent_high_max_ratio,
         trap_enabled=trap_enabled,
         trap_lookback_4h=trap_lookback_4h,
         trap_zone_tolerance=trap_zone_tolerance,
@@ -507,6 +521,9 @@ def backtest_mode3(
             "bull_blocked_volume": switcher._bull_blocked_volume,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
             "bull_blocked_htf_flat": switcher._bull_blocked_htf_flat,
+            "bull_blocked_local_res": switcher._bull_blocked_local_res,
+            "bull_blocked_hh_lh": switcher._bull_blocked_hh_lh,
+            "bull_blocked_recent_high": switcher._bull_blocked_recent_high,
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "bear_blocked_min_sl": switcher._bear_blocked_min_sl,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
@@ -623,4 +640,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "3.1", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "3.2", "db_path": DB_PATH}
