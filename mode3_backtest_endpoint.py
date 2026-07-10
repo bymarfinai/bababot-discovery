@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v3.6 CLEAN — Removed deprecated Fix #10/#11/#12/#13/#15 params.
+Mode3 Backtest Endpoint v3.7 — Add Fix #16 CRS (Confirmed Rejection Short).
 """
 import os
 import json as jsonlib
@@ -53,7 +53,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '3.6', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '3.7', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -244,6 +244,54 @@ def compute_htf_4h_uptrend(close_series, ema_series, slope_series, regime_bars=3
     return uptrend
 
 
+def compute_htf_4h_crs(rows_1h, rows_4h, lookback_bars=10):
+    """v3.7 Fix #16: Detect Confirmed Rejection Short pattern on 4h.
+    
+    CRS pattern per 4h bar N:
+      - high(N) > max(highs[N-lookback:N])  (broke above recent swing high)
+      - close(N) < max(highs[N-lookback:N]) (rejected back below)
+      - close(N) < open(N)                    (bearish body)
+    
+    Returns per-1h-bar (confirmed_flag, range_for_projection).
+    Range = high(N) - min(lows[N-lookback:N+1]) (full swing range).
+    """
+    n = len(rows_1h)
+    if not rows_4h or len(rows_4h) < lookback_bars + 1:
+        return [False]*n, [None]*n
+    opens_4h = np.array([r[1] for r in rows_4h], dtype=float)
+    highs_4h = np.array([r[2] for r in rows_4h], dtype=float)
+    lows_4h = np.array([r[3] for r in rows_4h], dtype=float)
+    closes_4h = np.array([r[4] for r in rows_4h], dtype=float)
+    ts_4h = [r[0] for r in rows_4h]
+    ONE_4H_MS = 4 * 60 * 60 * 1000
+
+    # Detect CRS on each 4h bar
+    crs_4h = [False] * len(rows_4h)
+    range_4h = [None] * len(rows_4h)
+    for i in range(lookback_bars, len(rows_4h)):
+        recent_high = float(np.max(highs_4h[i-lookback_bars:i]))
+        recent_low = float(np.min(lows_4h[i-lookback_bars:i+1]))
+        if (highs_4h[i] > recent_high 
+                and closes_4h[i] < recent_high 
+                and closes_4h[i] < opens_4h[i]):
+            crs_4h[i] = True
+            range_4h[i] = highs_4h[i] - recent_low
+
+    # Map to 1h bars — activate on the 1h bar where 4h bar just closed
+    crs_1h = [False] * n
+    range_1h = [None] * n
+    idx_4h = 0
+    for i, r in enumerate(rows_1h):
+        t_1h = r[0]
+        while idx_4h + 1 < len(ts_4h) and ts_4h[idx_4h + 1] + ONE_4H_MS <= t_1h:
+            idx_4h += 1
+        # CRS "just confirmed" on first 1h bar after 4h close
+        if ts_4h[idx_4h] + ONE_4H_MS == t_1h and crs_4h[idx_4h]:
+            crs_1h[i] = True
+            range_1h[i] = range_4h[idx_4h]
+    return crs_1h, range_1h
+
+
 @router.get("/backtest")
 def backtest_mode3(
     symbol: str = Query("BTCUSDT"),
@@ -298,6 +346,14 @@ def backtest_mode3(
     bull_trend_rider_tp_pct: float = Query(0.030, ge=0.005, le=0.20),
     bull_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
     bull_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
+    # v3.7 Fix #16 CRS
+    crs_enabled: bool = Query(False),
+    crs_lookback_4h_bars: int = Query(10, ge=3, le=50),
+    crs_active_hours: int = Query(8, ge=1, le=48),
+    crs_size_mult: float = Query(1.0, ge=0.5, le=5.0),
+    crs_use_projection_tp: bool = Query(False),
+    crs_projection_divisor: float = Query(2.6, ge=1.0, le=10.0),
+    crs_skip_bull_hours: int = Query(0, ge=0, le=72),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -353,6 +409,13 @@ def backtest_mode3(
         bull_trend_rider_tp_pct=bull_trend_rider_tp_pct,
         bull_trend_rider_trailing_activate_pct=bull_trend_rider_trailing_activate_pct,
         bull_trend_rider_trailing_distance_pct=bull_trend_rider_trailing_distance_pct,
+        crs_enabled=crs_enabled,
+        crs_lookback_4h_bars=crs_lookback_4h_bars,
+        crs_active_hours=crs_active_hours,
+        crs_size_mult=crs_size_mult,
+        crs_use_projection_tp=crs_use_projection_tp,
+        crs_projection_divisor=crs_projection_divisor,
+        crs_skip_bull_hours=crs_skip_bull_hours,
         trap_enabled=trap_enabled,
         trap_lookback_4h=trap_lookback_4h,
         trap_zone_tolerance=trap_zone_tolerance,
@@ -404,7 +467,7 @@ def backtest_mode3(
                 switcher.mtf_sideways_long_entry_low = ll
 
     htf_ema_series = None; htf_slope_series = None; htf_close_series = None
-    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled:
+    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled or crs_enabled:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
         htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window,
@@ -431,6 +494,10 @@ def backtest_mode3(
                 htf['close'], htf['ema'], regime_slope,
                 regime_bars=bull_trend_rider_regime_bars,
                 slope_min=bull_trend_rider_regime_slope_min)
+        if crs_enabled:
+            crs_flags, crs_ranges = compute_htf_4h_crs(rows, rows_4h, lookback_bars=crs_lookback_4h_bars)
+            switcher.htf_4h_crs_confirmed = crs_flags
+            switcher.htf_4h_crs_range = crs_ranges
 
     for i in range(len(rows)):
         vah, val = vahs[i], vals[i]
@@ -457,6 +524,17 @@ def backtest_mode3(
                 "pnl_pct": round(sum(t.pnl_pct for t in tt) * 100, 3),
             }
 
+    # CRS-specific stats
+    crs_trades = [t for t in trades if getattr(t, 'is_crs', False)]
+    crs_stats = None
+    if crs_trades:
+        crs_wins = [t for t in crs_trades if t.pnl_usd > 0]
+        crs_stats = {
+            "count": len(crs_trades),
+            "wr_pct": round(100.0 * len(crs_wins) / len(crs_trades), 2),
+            "pnl_usd": round(sum(t.pnl_usd for t in crs_trades), 2),
+        }
+
     def get_htf_at_bar(bar):
         if htf_ema_series is None or bar >= len(htf_ema_series):
             return None, None, None
@@ -482,6 +560,7 @@ def backtest_mode3(
             "size_mult": t.size_mult,
             "is_trend_rider": t.is_trend_rider,
             "is_bull_trend_rider": t.is_bull_trend_rider,
+            "is_crs": getattr(t, 'is_crs', False),
         }
         if htf_ema is not None:
             trade_dict["htf_4h_ema"] = htf_ema
@@ -508,6 +587,7 @@ def backtest_mode3(
             "chop_blocked_count": switcher._chop_blocked_count,
             "bull_blocked_volume": switcher._bull_blocked_volume,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
+            "bull_blocked_crs": switcher._bull_blocked_crs,
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "bear_blocked_min_sl": switcher._bear_blocked_min_sl,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
@@ -520,10 +600,11 @@ def backtest_mode3(
             "bear_trend_rider_trailing_hits": switcher._bear_trend_rider_trailing_hits,
             "bear_trend_rider_hard_exits": switcher._bear_trend_rider_hard_exits,
             "bull_trend_rider_count": switcher._bull_trend_rider_count,
-            "bull_trend_rider_trailing_hits": switcher._bull_trend_rider_trailing_hits,
-            "bull_trend_rider_hard_exits": switcher._bull_trend_rider_hard_exits,
+            "crs_confirmed_count": switcher._crs_confirmed_count,
+            "crs_trade_count": switcher._crs_trade_count,
         },
         "per_tool": tool_stats,
+        "crs_stats": crs_stats,
         "trades": trade_list,
         "final_state": switcher.state,
     }
@@ -536,4 +617,4 @@ def backtest_mode3(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "3.6", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "3.7", "db_path": DB_PATH}
