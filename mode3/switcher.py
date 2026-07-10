@@ -1,9 +1,11 @@
 """
-Mode3 Switcher v2.9 — Fix #7 position-based counter-trend BULL (replaces Fix #5 slope-based).
+Mode3 Switcher v3.0 — Fix #8 regime detector + Fix #9 BEAR Trend Rider.
 
-Fix #7: When BULL setup detected + 4h close position <= threshold vs 4h EMA20:
-- Use bigger position size (2x) — buying dip when 4h rejected below EMA20
-- Position-based check more robust than slope (larger sample, more persistent signal)
+Trend Rider mekanik:
+- Regime detected: 3+ consecutive 4h bars close < 4h EMA20 AND slope < threshold
+- BEAR entry saat regime + 1h close < EMA + bearish candle
+- Wider TP (3%) + trailing stop (activate at 1.5% profit, trail 0.8%)
+- Hard exit: 4h close breaks back above 4h EMA20
 """
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -45,6 +47,8 @@ class Position:
     trough_low: float = 1e18
     ema_at_entry: float = 0.0
     size_mult: float = 1.0
+    is_trend_rider: bool = False       # v3.0 Fix #9
+    trailing_active: bool = False      # v3.0 Fix #9
 
 
 @dataclass
@@ -65,6 +69,7 @@ class Trade:
     ema_at_entry: float = 0.0
     ema_at_exit: float = 0.0
     size_mult: float = 1.0
+    is_trend_rider: bool = False
 
 
 class Switcher:
@@ -107,6 +112,11 @@ class Switcher:
         self._sm_fix4_bear_confirmed = 0
         self._sm_fix4_bear_cancelled = 0
         self._bull_countertrend_count = 0
+        # v3.0 Fix #8/#9 counters
+        self._bear_trend_rider_count = 0
+        self._bear_trend_rider_trailing_hits = 0
+        self._bear_trend_rider_hard_exits = 0  # 4h EMA reclaim exits
+        # MTF data
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -120,6 +130,7 @@ class Switcher:
         self.htf_4h_close = None
         self.htf_4h_ema20 = None
         self.htf_4h_slope = None
+        self.htf_4h_downtrend = None  # v3.0 Fix #8: pre-computed regime array
         self.htf_trap_short_recent = None
         self.htf_trap_long_recent = None
 
@@ -226,12 +237,24 @@ class Switcher:
             return None
         return self.htf_4h_slope[bar_idx]
 
+    def _is_trend_rider_regime(self, bar_idx):
+        """v3.0 Fix #8: Check if we're in confirmed downtrend regime."""
+        if not self.config.bear_trend_rider_enabled:
+            return False
+        if self.htf_4h_downtrend is None or bar_idx >= len(self.htf_4h_downtrend):
+            return False
+        return bool(self.htf_4h_downtrend[bar_idx])
+
     def _is_countertrend_bull(self, bar_idx):
-        """v2.9 Fix #7: check 4h close position vs 4h EMA20 (default) or slope (legacy)."""
+        """v2.9 Fix #7 + v3.0 override: skip CT BULL if in trend rider regime."""
         if not self.config.bull_countertrend_enabled:
             return False
+        # v3.0: If in trend rider regime, disable CT BULL (don't buy dip during confirmed crash)
+        if (self.config.bear_trend_rider_enabled
+                and getattr(self.config, 'bear_trend_rider_disable_ct_bull', True)
+                and self._is_trend_rider_regime(bar_idx)):
+            return False
         if getattr(self.config, 'bull_countertrend_use_position', True):
-            # Fix #7: position-based check (4h close vs 4h EMA20)
             if self.htf_4h_close is None or self.htf_4h_ema20 is None:
                 return False
             if bar_idx >= len(self.htf_4h_close) or bar_idx >= len(self.htf_4h_ema20):
@@ -243,7 +266,6 @@ class Switcher:
             dist_pct = (c - e) / e * 100
             return dist_pct < getattr(self.config, 'bull_countertrend_max_close_pct', 0.0)
         else:
-            # Fix #5 legacy: slope-based
             slope = self._htf_slope_at(bar_idx)
             if slope is None:
                 return False
@@ -331,17 +353,65 @@ class Switcher:
             self.bull_stay_warmup = False
 
     def _exit_bear(self, bar_idx, c):
+        """v3.0: Handle trend rider trailing stop + hard exit."""
         pos = self.position
-        if c > pos.sl_level:
-            self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
-        if c <= pos.tp_level:
-            self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
+
+        # v3.0 Fix #9: Trend rider special exit logic
+        if pos.is_trend_rider:
+            # Hard exit: 4h close reclaims above 4h EMA20 (regime invalidated)
+            if (self.htf_4h_close is not None and self.htf_4h_ema20 is not None
+                    and bar_idx < len(self.htf_4h_close)):
+                htf_c = self.htf_4h_close[bar_idx]
+                htf_e = self.htf_4h_ema20[bar_idx]
+                if htf_c is not None and htf_e is not None and htf_c > htf_e:
+                    # 4h regained bullish, exit trend rider
+                    self._close_position(bar_idx, c, 'HTF_RECLAIM')
+                    self._bear_trend_rider_hard_exits += 1
+                    self._post_exit_bear('HTF_RECLAIM')
+                    return
+
+            # Trailing stop logic
+            profit_pct = (pos.entry_price - c) / pos.entry_price
+            activate_th = self.config.bear_trend_rider_trailing_activate_pct
+            trail_dist = self.config.bear_trend_rider_trailing_distance_pct
+
+            if not pos.trailing_active and profit_pct >= activate_th:
+                pos.trailing_active = True
+                # Set trailing SL at current profit - trail_dist
+                # For SHORT, SL is above entry. Trail_dist = distance above trough
+                pos.sl_level = pos.trough_low * (1.0 + trail_dist)
+
+            if pos.trailing_active:
+                # Update trailing SL as trough_low moves lower
+                new_sl = pos.trough_low * (1.0 + trail_dist)
+                if new_sl < pos.sl_level:
+                    pos.sl_level = new_sl
+
+                # Check trailing SL hit
+                if c > pos.sl_level:
+                    self._close_position(bar_idx, c, 'TRAILING_SL')
+                    self._bear_trend_rider_trailing_hits += 1
+                    self._post_exit_bear('TRAILING_SL')
+                    return
+
+            # Regular SL and TP still apply (hard SL from entry high)
+            if c > pos.sl_level:
+                self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
+            if c <= pos.tp_level:
+                self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
+        else:
+            # Standard BEAR exit
+            if c > pos.sl_level:
+                self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
+            if c <= pos.tp_level:
+                self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
 
     def _post_exit_bear(self, et):
         last_trough = self.position.trough_low if self.position else self.trades[-1].trough_low
         last_entry = self.trades[-1].entry_price
         self.markers.trough_low_bear = last_trough
-        if et == 'TP':
+        if et in ('TP', 'TRAILING_SL'):
+            # TP or trailing SL = positive/breakeven outcome
             self._bear_loss_streak = 0
             if self.config.sm_fix_3_extreme_low and len(self._high_history) >= 20:
                 recent_high = max(self._high_history)
@@ -355,14 +425,16 @@ class Switcher:
             self.state = 'BEAR'
             self.bear_stay_warmup = True
         else:
-            self._bear_loss_streak += 1
-            if (self.config.sm_fix_2_bear_streak
-                    and self._bear_loss_streak >= self.config.sm_fix_2_streak_threshold):
-                self.state = 'SIDEWAYS'
-                self.bear_stay_warmup = False
-                self._bear_loss_streak = 0
-                self._sm_fix2_count += 1
-                return
+            # SL or HTF_RECLAIM = negative outcome
+            if et == 'SL':
+                self._bear_loss_streak += 1
+                if (self.config.sm_fix_2_bear_streak
+                        and self._bear_loss_streak >= self.config.sm_fix_2_streak_threshold):
+                    self.state = 'SIDEWAYS'
+                    self.bear_stay_warmup = False
+                    self._bear_loss_streak = 0
+                    self._sm_fix2_count += 1
+                    return
             self.state = 'WAIT_SEE_BEARISH'
             self.markers.ll_breach_case = 'B'
             self.bear_stay_warmup = False
@@ -588,6 +660,9 @@ class Switcher:
             self._execute_bull_entry(bar_idx, o, h, l, c, ema20, vah, val)
 
     def _execute_bear_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
+        # v3.0 Fix #9: Trend rider mode when regime is confirmed downtrend
+        is_trend_rider = self._is_trend_rider_regime(bar_idx)
+
         if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
             if bar_idx < len(self.mtf_bear_entry_close):
                 mtf_close = self.mtf_bear_entry_close[bar_idx]
@@ -611,19 +686,31 @@ class Switcher:
                         else:
                             self._bear_blocked_min_sl += 1
                             return
-                tp_level = entry_price * (1.0 - self.config.tp_pct)
+                # v3.0: Wider TP for trend rider
+                if is_trend_rider:
+                    tp_level = entry_price * (1.0 - self.config.bear_trend_rider_tp_pct)
+                    self._bear_trend_rider_count += 1
+                else:
+                    tp_level = entry_price * (1.0 - self.config.tp_pct)
                 self.position = Position(tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
                     entry_high=mtf_high, entry_low=l, sl_level=sl_level, tp_level=tp_level,
-                    peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20)
+                    peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20,
+                    is_trend_rider=is_trend_rider)
                 return
         if self.config.bear_min_sl_dist > 0:
             sl_dist = (h - c) / c
             if sl_dist < self.config.bear_min_sl_dist:
                 self._bear_blocked_min_sl += 1
                 return
+        if is_trend_rider:
+            tp_level = c * (1.0 - self.config.bear_trend_rider_tp_pct)
+            self._bear_trend_rider_count += 1
+        else:
+            tp_level = c * (1.0 - self.config.tp_pct)
         self.position = Position(tool='BEAR', side='SHORT', entry_price=c, entry_bar=bar_idx,
-            entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-self.config.tp_pct),
-            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
+            entry_high=h, entry_low=l, sl_level=h, tp_level=tp_level,
+            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
+            is_trend_rider=is_trend_rider)
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bear_stay_warmup and c > ema20:
@@ -660,7 +747,8 @@ class Switcher:
         self.trades.append(Trade(tool=pos.tool, side=pos.side, entry_price=pos.entry_price, exit_price=exit_price,
             entry_bar=pos.entry_bar, exit_bar=bar_idx, exit_type=exit_type, pnl_pct=pnl_pct_net, pnl_usd=pnl_usd,
             peak_high=pos.peak_high, trough_low=pos.trough_low, sl_level=pos.sl_level, tp_level=pos.tp_level,
-            ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20, size_mult=pos.size_mult))
+            ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20, size_mult=pos.size_mult,
+            is_trend_rider=pos.is_trend_rider))
         self.position = None
         self._action_taken_this_bar = True
         self._last_exit_bar = bar_idx
