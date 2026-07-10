@@ -1,14 +1,10 @@
 """
-Mode3 Config v2.9 CHAMPION — Fix #7 position-based counter-trend BULL.
+Mode3 Config v3.0 — Fix #8/#9 BEAR Trend Rider (crash regime capture).
 
-Champion config (BTC 1h):
-- Fixed TP 1.2% (BULL/BEAR), 0.3% (SIDEWAYS)
-- Fix #2: BEAR streak → SIDEWAYS
-- Fix #3: Extreme low 5% → SIDEWAYS
-- Fix #7: Counter-trend BULL 2x size when 4h close < 4h EMA20
-   (replaces Fix #5 slope-based; position more robust with larger sample)
-
-Performance (BTC full year): estimated +$380 (vs +$285 v2.8)
+Champion + new crash-mode BEAR:
+- v2.9 CHAMPION baseline (all previous fixes)
+- Fix #8: 4h downtrend regime detector
+- Fix #9: BEAR Trend Rider with wider TP + trailing stop
 """
 from dataclasses import dataclass
 
@@ -49,7 +45,7 @@ class Mode3Config:
     bear_min_sl_dist: float = 0.0
     bear_use_1h_sl_fallback: bool = False
 
-    # v2.5 state machine fixes (CHAMPION)
+    # v2.5 state machine fixes
     sm_fix_1_htf_confirm: bool = False
     sm_fix_2_bear_streak: bool = True
     sm_fix_2_streak_threshold: int = 2
@@ -57,21 +53,32 @@ class Mode3Config:
     sm_fix_3_high_lookback: int = 100
     sm_fix_3_extreme_pct: float = 0.05
 
-    # v2.6 Fix #4 (kept off)
     sm_fix_4_bull_confirm: bool = False
     sm_fix_4_bear_confirm: bool = False
 
-    # === v2.9: FIX #7 POSITION-BASED COUNTER-TREND BULL (CHAMPION) ===
-    # BULL 2x size when 4h close position <= threshold vs 4h EMA20
+    # v2.9 Fix #7 Counter-trend BULL (CHAMPION)
     bull_countertrend_enabled: bool = True
-    bull_countertrend_use_position: bool = True   # NEW v2.9: True=Fix#7 (position), False=Fix#5 (slope)
-    bull_countertrend_max_close_pct: float = 0.0  # NEW v2.9: max % close above EMA (0 = must be below)
-    # Legacy Fix #5 slope params (retained if use_position=False)
+    bull_countertrend_use_position: bool = True
+    bull_countertrend_max_close_pct: float = 0.0
     bull_countertrend_slope_window: int = 20
     bull_countertrend_slope_threshold: float = -0.5
-    # Common
-    bull_countertrend_tp_pct: float = 0.012        # keep standard TP
-    bull_countertrend_size_mult: float = 2.0       # 2x amplify
+    bull_countertrend_tp_pct: float = 0.012
+    bull_countertrend_size_mult: float = 2.0
+
+    # === v3.0 Fix #8/#9: BEAR TREND RIDER (crash regime capture) ===
+    bear_trend_rider_enabled: bool = False
+    # Regime detection: N consecutive 4h bars close < 4h EMA20
+    bear_trend_rider_regime_bars: int = 3
+    # 4h slope must be at least this negative to confirm downtrend
+    bear_trend_rider_regime_slope_max: float = -0.3
+    # Wider TP for trend rider entries
+    bear_trend_rider_tp_pct: float = 0.030
+    # Trailing stop: activate when profit exceeds this
+    bear_trend_rider_trailing_activate_pct: float = 0.015
+    # Trail SL by this distance from peak profit
+    bear_trend_rider_trailing_distance_pct: float = 0.008
+    # Optional: block Fix #7 CT BULL when in trend rider regime
+    bear_trend_rider_disable_ct_bull: bool = True
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
