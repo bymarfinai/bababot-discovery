@@ -1,7 +1,5 @@
 """
-Mode3 Backtest Endpoint v3.2 — Add Fix #11/#12/#13 BULL entry filters.
-
-Champion defaults unchanged. New filters opt-in default OFF for testing.
+Mode3 Backtest Endpoint v3.4 — Add Fix #14 BULL Trend Rider (mirror of Fix #9).
 """
 import os
 import json as jsonlib
@@ -58,7 +56,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '3.2', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '3.4', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -244,6 +242,27 @@ def compute_htf_4h_downtrend(close_series, ema_series, slope_series, regime_bars
     return downtrend
 
 
+def compute_htf_4h_uptrend(close_series, ema_series, slope_series, regime_bars=3, slope_min=0.3):
+    """v3.4 Fix #14: mirror of downtrend detector — confirmed uptrend regime."""
+    n = len(close_series)
+    uptrend = [False] * n
+    for i in range(regime_bars, n):
+        all_above = True
+        for k in range(regime_bars):
+            c = close_series[i - k]
+            e = ema_series[i - k]
+            if c is None or e is None or c <= e:
+                all_above = False
+                break
+        if not all_above:
+            continue
+        s = slope_series[i] if slope_series and i < len(slope_series) else None
+        if s is None or s < slope_min:
+            continue
+        uptrend[i] = True
+    return uptrend
+
+
 @router.get("/backtest")
 def backtest_mode3(
     symbol: str = Query("BTCUSDT"),
@@ -292,17 +311,22 @@ def backtest_mode3(
     bear_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
     bear_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
     bear_trend_rider_disable_ct_bull: bool = Query(False),
+    # v3.4 Fix #14 BULL Trend Rider
+    bull_trend_rider_enabled: bool = Query(False),
+    bull_trend_rider_regime_bars: int = Query(3, ge=1, le=10),
+    bull_trend_rider_regime_slope_min: float = Query(0.3, ge=0.0, le=10.0),
+    bull_trend_rider_tp_pct: float = Query(0.030, ge=0.005, le=0.20),
+    bull_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
+    bull_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
+    # Deprecated
     bull_htf_flat_filter_enabled: bool = Query(False),
     bull_htf_flat_min_dist_pct: float = Query(0.0, ge=-2.0, le=2.0),
     bull_htf_flat_max_slope_pct: float = Query(0.15, ge=0.01, le=2.0),
-    # v3.2 Fix #11 Local Resistance
     bull_local_resistance_filter_enabled: bool = Query(False),
     bull_local_resistance_zone_pct: float = Query(0.02, ge=0.001, le=0.10),
-    # v3.2 Fix #12 HH/LH Structural
     bull_hh_lh_filter_enabled: bool = Query(False),
     bull_hh_lh_lookback_bars: int = Query(168, ge=24, le=1000),
     bull_hh_lh_min_hh_dist_pct: float = Query(0.005, ge=0.0, le=0.10),
-    # v3.2 Fix #13 Recent High Distance
     bull_recent_high_filter_enabled: bool = Query(False),
     bull_recent_high_lookback_bars: int = Query(720, ge=100, le=1500),
     bull_recent_high_max_ratio: float = Query(0.98, ge=0.80, le=1.0),
@@ -355,6 +379,12 @@ def backtest_mode3(
         bear_trend_rider_trailing_activate_pct=bear_trend_rider_trailing_activate_pct,
         bear_trend_rider_trailing_distance_pct=bear_trend_rider_trailing_distance_pct,
         bear_trend_rider_disable_ct_bull=bear_trend_rider_disable_ct_bull,
+        bull_trend_rider_enabled=bull_trend_rider_enabled,
+        bull_trend_rider_regime_bars=bull_trend_rider_regime_bars,
+        bull_trend_rider_regime_slope_min=bull_trend_rider_regime_slope_min,
+        bull_trend_rider_tp_pct=bull_trend_rider_tp_pct,
+        bull_trend_rider_trailing_activate_pct=bull_trend_rider_trailing_activate_pct,
+        bull_trend_rider_trailing_distance_pct=bull_trend_rider_trailing_distance_pct,
         bull_htf_flat_filter_enabled=bull_htf_flat_filter_enabled,
         bull_htf_flat_min_dist_pct=bull_htf_flat_min_dist_pct,
         bull_htf_flat_max_slope_pct=bull_htf_flat_max_slope_pct,
@@ -420,7 +450,7 @@ def backtest_mode3(
     htf_ema_series = None
     htf_slope_series = None
     htf_close_series = None
-    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_htf_flat_filter_enabled:
+    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled or bull_htf_flat_filter_enabled:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
         htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window,
@@ -442,6 +472,13 @@ def backtest_mode3(
                 htf['close'], htf['ema'], regime_slope,
                 regime_bars=bear_trend_rider_regime_bars,
                 slope_max=bear_trend_rider_regime_slope_max,
+            )
+        if bull_trend_rider_enabled:
+            regime_slope = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
+            switcher.htf_4h_uptrend = compute_htf_4h_uptrend(
+                htf['close'], htf['ema'], regime_slope,
+                regime_bars=bull_trend_rider_regime_bars,
+                slope_min=bull_trend_rider_regime_slope_min,
             )
 
     for i in range(len(rows)):
@@ -493,6 +530,7 @@ def backtest_mode3(
             "peak_high": round(t.peak_high, 2), "trough_low": round(t.trough_low, 2),
             "size_mult": t.size_mult,
             "is_trend_rider": t.is_trend_rider,
+            "is_bull_trend_rider": t.is_bull_trend_rider,
         }
         if htf_ema is not None:
             trade_dict["htf_4h_ema"] = htf_ema
@@ -520,26 +558,20 @@ def backtest_mode3(
             "chop_blocked_count": switcher._chop_blocked_count,
             "bull_blocked_volume": switcher._bull_blocked_volume,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
-            "bull_blocked_htf_flat": switcher._bull_blocked_htf_flat,
-            "bull_blocked_local_res": switcher._bull_blocked_local_res,
-            "bull_blocked_hh_lh": switcher._bull_blocked_hh_lh,
-            "bull_blocked_recent_high": switcher._bull_blocked_recent_high,
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "bear_blocked_min_sl": switcher._bear_blocked_min_sl,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
             "trap_short_count": switcher._trap_short_count,
             "trap_long_count": switcher._trap_long_count,
-            "sm_fix1_count": switcher._sm_fix1_count,
             "sm_fix2_count": switcher._sm_fix2_count,
             "sm_fix3_count": switcher._sm_fix3_count,
-            "sm_fix4_bull_confirmed": switcher._sm_fix4_bull_confirmed,
-            "sm_fix4_bull_cancelled": switcher._sm_fix4_bull_cancelled,
-            "sm_fix4_bear_confirmed": switcher._sm_fix4_bear_confirmed,
-            "sm_fix4_bear_cancelled": switcher._sm_fix4_bear_cancelled,
             "bull_countertrend_count": switcher._bull_countertrend_count,
             "bear_trend_rider_count": switcher._bear_trend_rider_count,
             "bear_trend_rider_trailing_hits": switcher._bear_trend_rider_trailing_hits,
             "bear_trend_rider_hard_exits": switcher._bear_trend_rider_hard_exits,
+            "bull_trend_rider_count": switcher._bull_trend_rider_count,
+            "bull_trend_rider_trailing_hits": switcher._bull_trend_rider_trailing_hits,
+            "bull_trend_rider_hard_exits": switcher._bull_trend_rider_hard_exits,
         },
         "per_tool": tool_stats,
         "trades": trade_list,
@@ -577,67 +609,9 @@ def list_experiments(
     params.append(limit)
     rows = conn.execute(q, params).fetchall()
     conn.close()
-    return {
-        "count": len(rows),
-        "experiments": [
-            {"id": r["id"],
-             "date": datetime.fromtimestamp(r["timestamp"]).strftime("%Y-%m-%d %H:%M UTC"),
-             "symbol": r["symbol"], "tf": r["timeframe"], "days": r["days"],
-             "cap%": round(r["cap_pct"]*100, 3), "tp%": round(r["tp_pct"]*100, 3),
-             "trades": r["total_trades"], "wr%": r["wr_pct"], "pnl$": r["pnl_usd"],
-             "sw": f"{r['sw_count']}/{r['sw_wr']}%/${r['sw_pnl']:.2f}",
-             "bull": f"{r['bull_count']}/{r['bull_wr']}%/${r['bull_pnl']:.2f}",
-             "bear": f"{r['bear_count']}/{r['bear_wr']}%/${r['bear_pnl']:.2f}",
-             "notes": r["notes"] or ""} for r in rows
-        ],
-    }
-
-
-@router.get("/experiments/summary")
-def experiments_summary():
-    _ensure_experiments_table()
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    total = conn.execute("SELECT COUNT(*) FROM mode3_experiments").fetchone()[0]
-    if total == 0:
-        conn.close()
-        return {"total_experiments": 0}
-    top = conn.execute("""
-        SELECT symbol, timeframe, days, cap_pct, tp_pct, total_trades, wr_pct, pnl_usd
-        FROM mode3_experiments ORDER BY pnl_usd DESC LIMIT 10
-    """).fetchall()
-    conn.close()
-    return {
-        "total_experiments": total,
-        "top_10_by_pnl": [
-            {"symbol": r["symbol"], "tf": r["timeframe"], "days": r["days"],
-             "cap%": round(r["cap_pct"]*100, 3), "tp%": round(r["tp_pct"]*100, 3),
-             "trades": r["total_trades"], "wr%": r["wr_pct"], "pnl$": r["pnl_usd"]}
-            for r in top
-        ],
-    }
-
-
-@router.post("/experiments/note")
-def add_note(id: int = Query(...), note: str = Body(...)):
-    _ensure_experiments_table()
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("UPDATE mode3_experiments SET notes = ? WHERE id = ?", (note, id))
-    conn.commit()
-    conn.close()
-    return {"ok": True, "id": id, "note": note}
-
-
-@router.delete("/experiments/{exp_id}")
-def delete_experiment(exp_id: int):
-    _ensure_experiments_table()
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("DELETE FROM mode3_experiments WHERE id = ?", (exp_id,))
-    conn.commit()
-    conn.close()
-    return {"ok": True, "deleted_id": exp_id}
+    return {"count": len(rows), "experiments": [dict(r) for r in rows]}
 
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "3.2", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "3.4", "db_path": DB_PATH}
