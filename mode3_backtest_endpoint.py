@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v3.5 — Add Fix #15 SW HTF alignment params.
+Mode3 Backtest Endpoint v3.6 CLEAN — Removed deprecated Fix #10/#11/#12/#13/#15 params.
 """
 import os
 import json as jsonlib
@@ -53,7 +53,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '3.5', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '3.6', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -298,21 +298,6 @@ def backtest_mode3(
     bull_trend_rider_tp_pct: float = Query(0.030, ge=0.005, le=0.20),
     bull_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
     bull_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
-    # v3.5 Fix #15 SW HTF alignment
-    sideways_short_skip_htf_bull_enabled: bool = Query(False),
-    sideways_short_htf_bull_slope_threshold: float = Query(0.3, ge=0.0, le=5.0),
-    # Deprecated
-    bull_htf_flat_filter_enabled: bool = Query(False),
-    bull_htf_flat_min_dist_pct: float = Query(0.0, ge=-2.0, le=2.0),
-    bull_htf_flat_max_slope_pct: float = Query(0.15, ge=0.01, le=2.0),
-    bull_local_resistance_filter_enabled: bool = Query(False),
-    bull_local_resistance_zone_pct: float = Query(0.02, ge=0.001, le=0.10),
-    bull_hh_lh_filter_enabled: bool = Query(False),
-    bull_hh_lh_lookback_bars: int = Query(168, ge=24, le=1000),
-    bull_hh_lh_min_hh_dist_pct: float = Query(0.005, ge=0.0, le=0.10),
-    bull_recent_high_filter_enabled: bool = Query(False),
-    bull_recent_high_lookback_bars: int = Query(720, ge=100, le=1500),
-    bull_recent_high_max_ratio: float = Query(0.98, ge=0.80, le=1.0),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -368,19 +353,6 @@ def backtest_mode3(
         bull_trend_rider_tp_pct=bull_trend_rider_tp_pct,
         bull_trend_rider_trailing_activate_pct=bull_trend_rider_trailing_activate_pct,
         bull_trend_rider_trailing_distance_pct=bull_trend_rider_trailing_distance_pct,
-        sideways_short_skip_htf_bull_enabled=sideways_short_skip_htf_bull_enabled,
-        sideways_short_htf_bull_slope_threshold=sideways_short_htf_bull_slope_threshold,
-        bull_htf_flat_filter_enabled=bull_htf_flat_filter_enabled,
-        bull_htf_flat_min_dist_pct=bull_htf_flat_min_dist_pct,
-        bull_htf_flat_max_slope_pct=bull_htf_flat_max_slope_pct,
-        bull_local_resistance_filter_enabled=bull_local_resistance_filter_enabled,
-        bull_local_resistance_zone_pct=bull_local_resistance_zone_pct,
-        bull_hh_lh_filter_enabled=bull_hh_lh_filter_enabled,
-        bull_hh_lh_lookback_bars=bull_hh_lh_lookback_bars,
-        bull_hh_lh_min_hh_dist_pct=bull_hh_lh_min_hh_dist_pct,
-        bull_recent_high_filter_enabled=bull_recent_high_filter_enabled,
-        bull_recent_high_lookback_bars=bull_recent_high_lookback_bars,
-        bull_recent_high_max_ratio=bull_recent_high_max_ratio,
         trap_enabled=trap_enabled,
         trap_lookback_4h=trap_lookback_4h,
         trap_zone_tolerance=trap_zone_tolerance,
@@ -432,7 +404,7 @@ def backtest_mode3(
                 switcher.mtf_sideways_long_entry_low = ll
 
     htf_ema_series = None; htf_slope_series = None; htf_close_series = None
-    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled or bull_htf_flat_filter_enabled or sideways_short_skip_htf_bull_enabled:
+    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
         htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window,
@@ -539,7 +511,6 @@ def backtest_mode3(
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "bear_blocked_min_sl": switcher._bear_blocked_min_sl,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
-            "sideways_short_blocked_htf": switcher._sideways_short_blocked_htf,
             "trap_short_count": switcher._trap_short_count,
             "trap_long_count": switcher._trap_long_count,
             "sm_fix2_count": switcher._sm_fix2_count,
@@ -565,4 +536,4 @@ def backtest_mode3(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "3.5", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "3.6", "db_path": DB_PATH}
