@@ -1,8 +1,7 @@
 """
-Mode3 Switcher v3.5 — Add Fix #15 SW HTF Alignment filter.
+Mode3 Switcher v3.6 CLEAN — Champion Fix #7 + #8/#9 + optional Fix #14.
 
-Fix #15: Skip SW SHORT when HTF slope > threshold (strong bullish regime).
-Asymmetric — data shows SW LONG works in all regimes, only SHORT needs filter.
+Removed deprecated methods and counters for Fix #10/#11/#12/#13/#15.
 """
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -91,25 +90,15 @@ class Switcher:
         self._volume_history = deque(maxlen=config.bull_volume_window)
         self._bull_blocked_volume = 0
         self._bull_blocked_mtf = 0
-        self._bull_blocked_htf_flat = 0
-        self._bull_blocked_local_res = 0
-        self._bull_blocked_hh_lh = 0
-        self._bull_blocked_recent_high = 0
         self._bear_blocked_mtf = 0
         self._bear_blocked_min_sl = 0
         self._sideways_blocked_mtf = 0
         self._sideways_blocked_slope = 0
-        self._sideways_short_blocked_htf = 0  # v3.5 Fix #15
         self._trap_short_count = 0
         self._trap_long_count = 0
         self._ema_history = deque(maxlen=config.sideways_slope_window)
         self._bear_loss_streak = 0
-        high_maxlen = max(config.sm_fix_3_high_lookback,
-                          getattr(config, 'bull_recent_high_lookback_bars', 100),
-                          getattr(config, 'bull_hh_lh_lookback_bars', 100),
-                          10)
-        self._high_history = deque(maxlen=high_maxlen)
-        self._recent_bull_peaks = deque(maxlen=10)
+        self._high_history = deque(maxlen=max(config.sm_fix_3_high_lookback, 10))
         self._last_exit_bar = 0
         self._sm_fix1_count = 0
         self._sm_fix2_count = 0
@@ -173,7 +162,6 @@ class Switcher:
             if self._is_choppy():
                 self._chop_blocked_count += 1
                 return
-            self._current_bar_idx = bar_idx  # v3.5: store for filter access
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val, poc)
             if (self.position is None and self.config.trap_enabled
                     and not self.config.trap_priority_over_state):
@@ -287,76 +275,6 @@ class Switcher:
                 return False
             return slope < self.config.bull_countertrend_slope_threshold
 
-    def _is_bull_htf_flat_blocked(self, bar_idx):
-        if not getattr(self.config, 'bull_htf_flat_filter_enabled', False):
-            return False
-        if self.htf_4h_close is None or self.htf_4h_ema20 is None:
-            return False
-        if bar_idx >= len(self.htf_4h_close) or bar_idx >= len(self.htf_4h_ema20):
-            return False
-        c = self.htf_4h_close[bar_idx]
-        e = self.htf_4h_ema20[bar_idx]
-        if c is None or e is None or e <= 0:
-            return False
-        dist_pct = (c - e) / e * 100
-        min_dist = getattr(self.config, 'bull_htf_flat_min_dist_pct', 0.0)
-        if dist_pct <= min_dist:
-            return False
-        slope = self._htf_slope_at(bar_idx)
-        if slope is None:
-            return False
-        max_slope = getattr(self.config, 'bull_htf_flat_max_slope_pct', 0.15)
-        return abs(slope) < max_slope
-
-    def _is_bull_local_resistance_blocked(self, close):
-        if not getattr(self.config, 'bull_local_resistance_filter_enabled', False):
-            return False
-        if not self._recent_bull_peaks:
-            return False
-        zone_pct = self.config.bull_local_resistance_zone_pct
-        for peak in self._recent_bull_peaks:
-            if peak <= 0: continue
-            dist = abs(close - peak) / peak
-            if dist < zone_pct:
-                return True
-        return False
-
-    def _is_bull_hh_lh_blocked(self, h):
-        if not getattr(self.config, 'bull_hh_lh_filter_enabled', False):
-            return False
-        lookback = self.config.bull_hh_lh_lookback_bars
-        if len(self._high_history) < min(lookback, 50):
-            return False
-        hist = list(self._high_history)[-lookback:]
-        recent_high = max(hist)
-        if recent_high <= 0:
-            return False
-        min_dist = self.config.bull_hh_lh_min_hh_dist_pct
-        return h < recent_high * (1 + min_dist)
-
-    def _is_bull_recent_high_blocked(self, close):
-        if not getattr(self.config, 'bull_recent_high_filter_enabled', False):
-            return False
-        lookback = self.config.bull_recent_high_lookback_bars
-        if len(self._high_history) < min(lookback, 100):
-            return False
-        hist = list(self._high_history)[-lookback:]
-        recent_high = max(hist)
-        if recent_high <= 0:
-            return False
-        max_ratio = self.config.bull_recent_high_max_ratio
-        return close / recent_high > max_ratio
-
-    def _is_sw_short_htf_bull_blocked(self, bar_idx):
-        """v3.5 Fix #15: Skip SW SHORT when HTF slope > threshold (bullish regime)."""
-        if not getattr(self.config, 'sideways_short_skip_htf_bull_enabled', False):
-            return False
-        slope = self._htf_slope_at(bar_idx)
-        if slope is None:
-            return False
-        threshold = getattr(self.config, 'sideways_short_htf_bull_slope_threshold', 0.3)
-        return slope > threshold
-
     def _startup_transition(self, close, ema20):
         if close > ema20: self.startup_bias = 'bullish'
         elif close < ema20: self.startup_bias = 'bearish'
@@ -460,8 +378,6 @@ class Switcher:
     def _post_exit_bull(self, et):
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
         self.markers.peak_high_bull = last_peak
-        if et in ('SL', 'HTF_LOSE'):
-            self._recent_bull_peaks.append(last_peak)
         if et in ('TP', 'TRAILING_SL'):
             self.state = 'BULL'
             self.bull_stay_warmup = True
@@ -626,10 +542,6 @@ class Switcher:
         return abs(c - ema) / ema <= self.config.sideways_ema_distance_cap
 
     def _open_short_sideways(self, bar_idx, h, l, c):
-        # v3.5 Fix #15: Block SW SHORT if HTF strongly bullish
-        if self._is_sw_short_htf_bull_blocked(bar_idx):
-            self._sideways_short_blocked_htf += 1
-            return
         if not self._sideways_distance_ok(c):
             self._sideways_blocked_count += 1; return
         if not self._sideways_slope_ok():
@@ -705,19 +617,6 @@ class Switcher:
             return
         is_ct = self._is_countertrend_bull(bar_idx)
         is_bull_tr = (not is_ct) and self._is_bull_trend_rider_regime(bar_idx)
-        if not is_ct and not is_bull_tr:
-            if self._is_bull_htf_flat_blocked(bar_idx):
-                self._bull_blocked_htf_flat += 1
-                return
-            if self._is_bull_local_resistance_blocked(c):
-                self._bull_blocked_local_res += 1
-                return
-            if self._is_bull_hh_lh_blocked(h):
-                self._bull_blocked_hh_lh += 1
-                return
-            if self._is_bull_recent_high_blocked(c):
-                self._bull_blocked_recent_high += 1
-                return
         size_mult = self.config.bull_countertrend_size_mult if is_ct else 1.0
         if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
             if bar_idx < len(self.mtf_bull_entry_close):
