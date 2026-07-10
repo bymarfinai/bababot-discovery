@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v3.4 — Add Fix #14 BULL Trend Rider (mirror of Fix #9).
+Mode3 Backtest Endpoint v3.5 — Add Fix #15 SW HTF alignment params.
 """
 import os
 import json as jsonlib
@@ -33,9 +33,6 @@ def _ensure_experiments_table():
             blocked_count INTEGER, final_state TEXT, config_json TEXT, notes TEXT
         )
     """)
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_exp_symbol_tf ON mode3_experiments(symbol, timeframe)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_exp_days_cap_tp ON mode3_experiments(days, cap_pct, tp_pct)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_exp_pnl ON mode3_experiments(pnl_usd)")
     conn.commit()
     conn.close()
 
@@ -56,7 +53,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '3.4', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '3.5', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -70,17 +67,14 @@ def _log_experiment(config, result, symbol, timeframe, days):
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"[WARN] Failed to log experiment: {e}")
+        print(f"[WARN] Failed to log: {e}")
 
 
-def load_candles_from_db(symbol, timeframe, start_ts, end_ts, db_path=None):
-    if db_path is None:
-        db_path = DB_PATH
-    conn = sqlite3.connect(db_path)
+def load_candles_from_db(symbol, timeframe, start_ts, end_ts):
+    conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("""
-        SELECT open_time, open, high, low, close, volume
-        FROM klines
+        SELECT open_time, open, high, low, close, volume FROM klines
         WHERE symbol = ? AND timeframe = ? AND open_time >= ? AND open_time < ?
         ORDER BY open_time ASC
     """, (symbol, timeframe, start_ts, end_ts))
@@ -164,10 +158,8 @@ def compute_mtf_sideways_entry(rows_1h, rows_15m, vahs, vals):
 def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
     n = len(rows_1h)
     if not rows_4h:
-        return {
-            'vah': [None]*n, 'val': [None]*n, 'ema': [None]*n, 'close': [None]*n,
-            'trap_short': [False]*n, 'trap_long': [False]*n,
-        }
+        return {'vah':[None]*n,'val':[None]*n,'ema':[None]*n,'close':[None]*n,
+                'trap_short':[False]*n,'trap_long':[False]*n}
     opens_4h = np.array([r[1] for r in rows_4h], dtype=float)
     highs_4h = np.array([r[2] for r in rows_4h], dtype=float)
     lows_4h = np.array([r[3] for r in rows_4h], dtype=float)
@@ -206,10 +198,8 @@ def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
         else:
             vah_out.append(None); val_out.append(None); ema_out.append(None); close_out.append(None)
             trap_short_out.append(False); trap_long_out.append(False)
-    return {
-        'vah': vah_out, 'val': val_out, 'ema': ema_out, 'close': close_out,
-        'trap_short': trap_short_out, 'trap_long': trap_long_out,
-    }
+    return {'vah':vah_out,'val':val_out,'ema':ema_out,'close':close_out,
+            'trap_short':trap_short_out,'trap_long':trap_long_out}
 
 
 def compute_htf_4h_slope(ema_4h_series, window_bars=20):
@@ -228,37 +218,28 @@ def compute_htf_4h_downtrend(close_series, ema_series, slope_series, regime_bars
     for i in range(regime_bars, n):
         all_below = True
         for k in range(regime_bars):
-            c = close_series[i - k]
-            e = ema_series[i - k]
+            c = close_series[i - k]; e = ema_series[i - k]
             if c is None or e is None or c >= e:
-                all_below = False
-                break
-        if not all_below:
-            continue
+                all_below = False; break
+        if not all_below: continue
         s = slope_series[i] if slope_series and i < len(slope_series) else None
-        if s is None or s > slope_max:
-            continue
+        if s is None or s > slope_max: continue
         downtrend[i] = True
     return downtrend
 
 
 def compute_htf_4h_uptrend(close_series, ema_series, slope_series, regime_bars=3, slope_min=0.3):
-    """v3.4 Fix #14: mirror of downtrend detector — confirmed uptrend regime."""
     n = len(close_series)
     uptrend = [False] * n
     for i in range(regime_bars, n):
         all_above = True
         for k in range(regime_bars):
-            c = close_series[i - k]
-            e = ema_series[i - k]
+            c = close_series[i - k]; e = ema_series[i - k]
             if c is None or e is None or c <= e:
-                all_above = False
-                break
-        if not all_above:
-            continue
+                all_above = False; break
+        if not all_above: continue
         s = slope_series[i] if slope_series and i < len(slope_series) else None
-        if s is None or s < slope_min:
-            continue
+        if s is None or s < slope_min: continue
         uptrend[i] = True
     return uptrend
 
@@ -311,13 +292,15 @@ def backtest_mode3(
     bear_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
     bear_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
     bear_trend_rider_disable_ct_bull: bool = Query(False),
-    # v3.4 Fix #14 BULL Trend Rider
     bull_trend_rider_enabled: bool = Query(False),
     bull_trend_rider_regime_bars: int = Query(3, ge=1, le=10),
     bull_trend_rider_regime_slope_min: float = Query(0.3, ge=0.0, le=10.0),
     bull_trend_rider_tp_pct: float = Query(0.030, ge=0.005, le=0.20),
     bull_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
     bull_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
+    # v3.5 Fix #15 SW HTF alignment
+    sideways_short_skip_htf_bull_enabled: bool = Query(False),
+    sideways_short_htf_bull_slope_threshold: float = Query(0.3, ge=0.0, le=5.0),
     # Deprecated
     bull_htf_flat_filter_enabled: bool = Query(False),
     bull_htf_flat_min_dist_pct: float = Query(0.0, ge=-2.0, le=2.0),
@@ -385,6 +368,8 @@ def backtest_mode3(
         bull_trend_rider_tp_pct=bull_trend_rider_tp_pct,
         bull_trend_rider_trailing_activate_pct=bull_trend_rider_trailing_activate_pct,
         bull_trend_rider_trailing_distance_pct=bull_trend_rider_trailing_distance_pct,
+        sideways_short_skip_htf_bull_enabled=sideways_short_skip_htf_bull_enabled,
+        sideways_short_htf_bull_slope_threshold=sideways_short_htf_bull_slope_threshold,
         bull_htf_flat_filter_enabled=bull_htf_flat_filter_enabled,
         bull_htf_flat_min_dist_pct=bull_htf_flat_min_dist_pct,
         bull_htf_flat_max_slope_pct=bull_htf_flat_max_slope_pct,
@@ -410,8 +395,7 @@ def backtest_mode3(
     rows = load_candles_from_db(symbol, timeframe, start_ts, end_ts)
 
     if len(rows) < config.startup_warmup_candles:
-        return {"error": f"Not enough candles: got {len(rows)}, need >= {config.startup_warmup_candles}",
-                "db_path_used": DB_PATH, "trades": []}
+        return {"error": f"Not enough candles: {len(rows)}", "trades": []}
 
     opens = np.array([r[1] for r in rows], dtype=float)
     highs = np.array([r[2] for r in rows], dtype=float)
@@ -447,10 +431,8 @@ def backtest_mode3(
                 switcher.mtf_sideways_long_entry_close = lc
                 switcher.mtf_sideways_long_entry_low = ll
 
-    htf_ema_series = None
-    htf_slope_series = None
-    htf_close_series = None
-    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled or bull_htf_flat_filter_enabled:
+    htf_ema_series = None; htf_slope_series = None; htf_close_series = None
+    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled or bull_htf_flat_filter_enabled or sideways_short_skip_htf_bull_enabled:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
         htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window,
@@ -461,8 +443,7 @@ def backtest_mode3(
         switcher.htf_4h_close = htf['close']
         switcher.htf_trap_short_recent = htf['trap_short']
         switcher.htf_trap_long_recent = htf['trap_long']
-        htf_ema_series = htf['ema']
-        htf_close_series = htf['close']
+        htf_ema_series = htf['ema']; htf_close_series = htf['close']
         countertrend_slope = compute_htf_4h_slope(htf['ema'], window_bars=bull_countertrend_slope_window)
         switcher.htf_4h_slope = countertrend_slope
         htf_slope_series = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
@@ -471,15 +452,13 @@ def backtest_mode3(
             switcher.htf_4h_downtrend = compute_htf_4h_downtrend(
                 htf['close'], htf['ema'], regime_slope,
                 regime_bars=bear_trend_rider_regime_bars,
-                slope_max=bear_trend_rider_regime_slope_max,
-            )
+                slope_max=bear_trend_rider_regime_slope_max)
         if bull_trend_rider_enabled:
             regime_slope = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
             switcher.htf_4h_uptrend = compute_htf_4h_uptrend(
                 htf['close'], htf['ema'], regime_slope,
                 regime_bars=bull_trend_rider_regime_bars,
-                slope_min=bull_trend_rider_regime_slope_min,
-            )
+                slope_min=bull_trend_rider_regime_slope_min)
 
     for i in range(len(rows)):
         vah, val = vahs[i], vals[i]
@@ -539,8 +518,7 @@ def backtest_mode3(
         trade_list.append(trade_dict)
 
     result = {
-        "symbol": symbol, "timeframe": timeframe, "days": days,
-        "end_days_ago": end_days_ago,
+        "symbol": symbol, "timeframe": timeframe, "days": days, "end_days_ago": end_days_ago,
         "candles_processed": len(rows),
         "period_start_utc": datetime.utcfromtimestamp(start_ts/1000).strftime('%Y-%m-%d'),
         "period_end_utc": datetime.utcfromtimestamp(end_ts/1000).strftime('%Y-%m-%d'),
@@ -561,6 +539,7 @@ def backtest_mode3(
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "bear_blocked_min_sl": switcher._bear_blocked_min_sl,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
+            "sideways_short_blocked_htf": switcher._sideways_short_blocked_htf,
             "trap_short_count": switcher._trap_short_count,
             "trap_long_count": switcher._trap_long_count,
             "sm_fix2_count": switcher._sm_fix2_count,
@@ -584,34 +563,6 @@ def backtest_mode3(
     return result
 
 
-@router.get("/experiments")
-def list_experiments(
-    symbol: Optional[str] = None,
-    timeframe: Optional[str] = None,
-    days: Optional[int] = None,
-    min_pnl: Optional[float] = None,
-    max_pnl: Optional[float] = None,
-    order_by: str = Query("pnl_usd", regex="^(pnl_usd|wr_pct|timestamp|total_trades)$"),
-    order: str = Query("desc", regex="^(asc|desc)$"),
-    limit: int = Query(50, ge=1, le=500),
-):
-    _ensure_experiments_table()
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    q = "SELECT * FROM mode3_experiments WHERE 1=1"
-    params = []
-    if symbol: q += " AND symbol = ?"; params.append(symbol)
-    if timeframe: q += " AND timeframe = ?"; params.append(timeframe)
-    if days is not None: q += " AND days = ?"; params.append(days)
-    if min_pnl is not None: q += " AND pnl_usd >= ?"; params.append(min_pnl)
-    if max_pnl is not None: q += " AND pnl_usd <= ?"; params.append(max_pnl)
-    q += f" ORDER BY {order_by} {order.upper()} LIMIT ?"
-    params.append(limit)
-    rows = conn.execute(q, params).fetchall()
-    conn.close()
-    return {"count": len(rows), "experiments": [dict(r) for r in rows]}
-
-
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "3.4", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "3.5", "db_path": DB_PATH}
