@@ -1,7 +1,9 @@
 """
-Mode3 Switcher v3.6 CLEAN — Champion Fix #7 + #8/#9 + optional Fix #14.
+Mode3 Switcher v3.7 — Add Fix #16 CRS (Confirmed Rejection Short).
 
-Removed deprecated methods and counters for Fix #10/#11/#12/#13/#15.
+A: Entry BEAR after 4h confirmed rejection (crs_enabled=True)
+B: TP projection = range / 2.6 (crs_use_projection_tp=True)
+C: Skip BULL for N hours after CRS (crs_skip_bull_hours>0)
 """
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -46,6 +48,7 @@ class Position:
     is_trend_rider: bool = False
     trailing_active: bool = False
     is_bull_trend_rider: bool = False
+    is_crs: bool = False  # v3.7 Fix #16
 
 
 @dataclass
@@ -68,6 +71,7 @@ class Trade:
     size_mult: float = 1.0
     is_trend_rider: bool = False
     is_bull_trend_rider: bool = False
+    is_crs: bool = False
 
 
 class Switcher:
@@ -90,6 +94,7 @@ class Switcher:
         self._volume_history = deque(maxlen=config.bull_volume_window)
         self._bull_blocked_volume = 0
         self._bull_blocked_mtf = 0
+        self._bull_blocked_crs = 0  # v3.7 Fix #16C
         self._bear_blocked_mtf = 0
         self._bear_blocked_min_sl = 0
         self._sideways_blocked_mtf = 0
@@ -116,6 +121,12 @@ class Switcher:
         self._bull_trend_rider_count = 0
         self._bull_trend_rider_trailing_hits = 0
         self._bull_trend_rider_hard_exits = 0
+        # v3.7 Fix #16 CRS state
+        self._crs_active_until_bar = -1     # A: allow BEAR entry until this bar
+        self._crs_current_range = None      # B: range for TP projection
+        self._crs_confirmed_count = 0
+        self._crs_trade_count = 0
+        self._crs_skip_bull_until_bar = -1  # C: skip BULL until this bar
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -131,6 +142,9 @@ class Switcher:
         self.htf_4h_slope = None
         self.htf_4h_downtrend = None
         self.htf_4h_uptrend = None
+        # v3.7 Fix #16 CRS arrays (per 1h bar)
+        self.htf_4h_crs_confirmed = None    # bool[]: True on 1h bar where CRS just confirmed
+        self.htf_4h_crs_range = None        # float[]: swing range for TP projection
         self.htf_trap_short_recent = None
         self.htf_trap_long_recent = None
 
@@ -145,6 +159,20 @@ class Switcher:
             self._ema_history.append(ema20)
         self._volume_history.append(v)
         self._high_history.append(h)
+
+        # v3.7 Fix #16: Check CRS activation on this 1h bar
+        if getattr(self.config, 'crs_enabled', False):
+            if (self.htf_4h_crs_confirmed is not None 
+                    and bar_idx < len(self.htf_4h_crs_confirmed)
+                    and self.htf_4h_crs_confirmed[bar_idx]):
+                active_hours = self.config.crs_active_hours
+                self._crs_active_until_bar = bar_idx + active_hours
+                if self.htf_4h_crs_range and bar_idx < len(self.htf_4h_crs_range):
+                    self._crs_current_range = self.htf_4h_crs_range[bar_idx]
+                skip_h = self.config.crs_skip_bull_hours
+                if skip_h > 0:
+                    self._crs_skip_bull_until_bar = bar_idx + skip_h
+                self._crs_confirmed_count += 1
 
         if self.state == 'STARTUP':
             if vah is None or val is None: return
@@ -162,10 +190,20 @@ class Switcher:
             if self._is_choppy():
                 self._chop_blocked_count += 1
                 return
+            # v3.7 Fix #16A: force state to BEAR when CRS active (to trigger BEAR entry check)
+            if (getattr(self.config, 'crs_enabled', False) 
+                    and bar_idx <= self._crs_active_until_bar
+                    and self.state not in ('BEAR', 'WAIT_SEE_BEARISH')):
+                self.state = 'BEAR'
+                self.bear_stay_warmup = False
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val, poc)
             if (self.position is None and self.config.trap_enabled
                     and not self.config.trap_priority_over_state):
                 self._check_trap_entry(bar_idx, o, h, l, c, ema20, vah, val)
+
+    def _is_crs_active(self, bar_idx):
+        return (getattr(self.config, 'crs_enabled', False)
+                and bar_idx <= self._crs_active_until_bar)
 
     def _is_choppy(self):
         if self.config.chop_max_crossings <= 0: return False
@@ -484,10 +522,7 @@ class Switcher:
                 if c <= htf_ema:
                     entry_price = c
                     sl_level = h
-                    if self.config.trap_use_1h_va_tp and val is not None:
-                        tp_level = min(entry_price * (1.0 - tp_pct), val)
-                    else:
-                        tp_level = entry_price * (1.0 - tp_pct)
+                    tp_level = entry_price * (1.0 - tp_pct)
                     self.position = Position(
                         tool='TRAP', side='SHORT',
                         entry_price=entry_price, entry_bar=bar_idx,
@@ -504,10 +539,7 @@ class Switcher:
                 if c >= htf_ema:
                     entry_price = c
                     sl_level = l
-                    if self.config.trap_use_1h_va_tp and vah is not None:
-                        tp_level = max(entry_price * (1.0 + tp_pct), vah)
-                    else:
-                        tp_level = entry_price * (1.0 + tp_pct)
+                    tp_level = entry_price * (1.0 + tp_pct)
                     self.position = Position(
                         tool='TRAP', side='LONG',
                         entry_price=entry_price, entry_bar=bar_idx,
@@ -612,6 +644,12 @@ class Switcher:
             self._open_short_sideways(bar_idx, h, l, c); return
 
     def _execute_bull_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
+        # v3.7 Fix #16C: Block BULL if within CRS skip window
+        if (getattr(self.config, 'crs_enabled', False)
+                and self.config.crs_skip_bull_hours > 0
+                and bar_idx <= self._crs_skip_bull_until_bar):
+            self._bull_blocked_crs += 1
+            return
         if not self._bull_volume_ok(self._volume_history[-1] if self._volume_history else 0):
             self._bull_blocked_volume += 1
             return
@@ -681,6 +719,10 @@ class Switcher:
 
     def _execute_bear_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
         is_trend_rider = self._is_trend_rider_regime(bar_idx)
+        # v3.7 Fix #16A: mark as CRS if active
+        is_crs = self._is_crs_active(bar_idx) and not is_trend_rider
+        size_mult = self.config.crs_size_mult if is_crs else 1.0
+
         if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
             if bar_idx < len(self.mtf_bear_entry_close):
                 mtf_close = self.mtf_bear_entry_close[bar_idx]
@@ -707,12 +749,21 @@ class Switcher:
                 if is_trend_rider:
                     tp_level = entry_price * (1.0 - self.config.bear_trend_rider_tp_pct)
                     self._bear_trend_rider_count += 1
+                elif is_crs and getattr(self.config, 'crs_use_projection_tp', False) and self._crs_current_range:
+                    # v3.7 Fix #16B: TP = range / 2.6 projected downward
+                    divisor = self.config.crs_projection_divisor
+                    projection = self._crs_current_range / divisor
+                    tp_level = entry_price - projection
+                    self._crs_trade_count += 1
+                elif is_crs:
+                    tp_level = entry_price * (1.0 - self.config.tp_pct)
+                    self._crs_trade_count += 1
                 else:
                     tp_level = entry_price * (1.0 - self.config.tp_pct)
                 self.position = Position(tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
                     entry_high=mtf_high, entry_low=l, sl_level=sl_level, tp_level=tp_level,
                     peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20,
-                    is_trend_rider=is_trend_rider)
+                    is_trend_rider=is_trend_rider, size_mult=size_mult, is_crs=is_crs)
                 return
         if self.config.bear_min_sl_dist > 0:
             sl_dist = (h - c) / c
@@ -722,12 +773,19 @@ class Switcher:
         if is_trend_rider:
             tp_level = c * (1.0 - self.config.bear_trend_rider_tp_pct)
             self._bear_trend_rider_count += 1
+        elif is_crs and getattr(self.config, 'crs_use_projection_tp', False) and self._crs_current_range:
+            projection = self._crs_current_range / self.config.crs_projection_divisor
+            tp_level = c - projection
+            self._crs_trade_count += 1
+        elif is_crs:
+            tp_level = c * (1.0 - self.config.tp_pct)
+            self._crs_trade_count += 1
         else:
             tp_level = c * (1.0 - self.config.tp_pct)
         self.position = Position(tool='BEAR', side='SHORT', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=h, tp_level=tp_level,
             peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
-            is_trend_rider=is_trend_rider)
+            is_trend_rider=is_trend_rider, size_mult=size_mult, is_crs=is_crs)
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bear_stay_warmup and c > ema20:
@@ -765,7 +823,8 @@ class Switcher:
             entry_bar=pos.entry_bar, exit_bar=bar_idx, exit_type=exit_type, pnl_pct=pnl_pct_net, pnl_usd=pnl_usd,
             peak_high=pos.peak_high, trough_low=pos.trough_low, sl_level=pos.sl_level, tp_level=pos.tp_level,
             ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20, size_mult=pos.size_mult,
-            is_trend_rider=pos.is_trend_rider, is_bull_trend_rider=pos.is_bull_trend_rider))
+            is_trend_rider=pos.is_trend_rider, is_bull_trend_rider=pos.is_bull_trend_rider,
+            is_crs=pos.is_crs))
         self.position = None
         self._action_taken_this_bar = True
         self._last_exit_bar = bar_idx
