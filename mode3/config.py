@@ -1,11 +1,8 @@
 """
-Mode3 Config v3.0 CHAMPION FINAL — Fix #7 CT BULL + Fix #8/#9 BEAR Trend Rider.
+Mode3 Config v3.1 — Add Fix #10 HTF Flat Filter for BULL entries.
 
-Champion defaults:
-- Fix #7 CT BULL (position-based, 2x size when 4h close < 4h EMA20)
-- Fix #8 4h downtrend regime detector
-- Fix #9 BEAR Trend Rider (wider TP + trailing stop for crash capture)
-- BOTH fixes coexist (disable_ct_bull=False) — no conflict
+Champion + new opt-in filter:
+- Fix #10: Block BULL entry when 4h close above EMA + slope flat (chop-zone)
 """
 from dataclasses import dataclass
 
@@ -57,7 +54,7 @@ class Mode3Config:
     sm_fix_4_bull_confirm: bool = False
     sm_fix_4_bear_confirm: bool = False
 
-    # v2.9 Fix #7 Counter-trend BULL (CHAMPION)
+    # v2.9 Fix #7 Counter-trend BULL
     bull_countertrend_enabled: bool = True
     bull_countertrend_use_position: bool = True
     bull_countertrend_max_close_pct: float = 0.0
@@ -66,15 +63,22 @@ class Mode3Config:
     bull_countertrend_tp_pct: float = 0.012
     bull_countertrend_size_mult: float = 2.0
 
-    # === v3.0 Fix #8/#9 CHAMPION FINAL: BEAR TREND RIDER ===
-    bear_trend_rider_enabled: bool = True            # ⭐ CHAMPION default ON
+    # v3.0 Fix #8/#9 BEAR Trend Rider
+    bear_trend_rider_enabled: bool = True
     bear_trend_rider_regime_bars: int = 3
     bear_trend_rider_regime_slope_max: float = -0.3
     bear_trend_rider_tp_pct: float = 0.030
     bear_trend_rider_trailing_activate_pct: float = 0.015
     bear_trend_rider_trailing_distance_pct: float = 0.008
-    # ⭐ CHAMPION default False → let Fix #7 & Fix #9 coexist
     bear_trend_rider_disable_ct_bull: bool = False
+
+    # === v3.1 Fix #10: HTF FLAT FILTER (BULL chop-zone protection) ===
+    # Skip BULL entry when 4h close above EMA + slope near flat = chop-zone at resistance
+    bull_htf_flat_filter_enabled: bool = False  # opt-in
+    # Skip if 4h dist > this threshold (default 0 = only skip when above EMA)
+    bull_htf_flat_min_dist_pct: float = 0.0
+    # Skip if |4h slope| < this threshold (default 0.15% = flat)
+    bull_htf_flat_max_slope_pct: float = 0.15
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
