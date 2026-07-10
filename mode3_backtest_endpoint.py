@@ -1,12 +1,11 @@
 """
-Mode3 Backtest Endpoint v3.0 CHAMPION FINAL — Fix #7 CT BULL + Fix #8/#9 BEAR Trend Rider.
+Mode3 Backtest Endpoint v3.1 — Fix #10 HTF Flat Filter for BULL entries.
 
-Champion defaults ALL ON:
+Champion defaults (unchanged from v3.0-final-2):
 - Fix #7 CT BULL position-based (2x size)
 - Fix #8 4h downtrend regime detector
 - Fix #9 BEAR Trend Rider (wider TP + trailing stop)
-- disable_ct_bull=False (both coexist)
-- Extended date range: days up to 1500 for multi-year backtests
+- Fix #10 HTF Flat Filter (opt-in default OFF for testing)
 """
 import os
 import json as jsonlib
@@ -63,7 +62,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '3.0', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '3.1', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -297,6 +296,10 @@ def backtest_mode3(
     bear_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
     bear_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
     bear_trend_rider_disable_ct_bull: bool = Query(False),
+    # v3.1 Fix #10 HTF Flat Filter (opt-in default OFF for testing)
+    bull_htf_flat_filter_enabled: bool = Query(False),
+    bull_htf_flat_min_dist_pct: float = Query(0.0, ge=-2.0, le=2.0),
+    bull_htf_flat_max_slope_pct: float = Query(0.15, ge=0.01, le=2.0),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -346,6 +349,9 @@ def backtest_mode3(
         bear_trend_rider_trailing_activate_pct=bear_trend_rider_trailing_activate_pct,
         bear_trend_rider_trailing_distance_pct=bear_trend_rider_trailing_distance_pct,
         bear_trend_rider_disable_ct_bull=bear_trend_rider_disable_ct_bull,
+        bull_htf_flat_filter_enabled=bull_htf_flat_filter_enabled,
+        bull_htf_flat_min_dist_pct=bull_htf_flat_min_dist_pct,
+        bull_htf_flat_max_slope_pct=bull_htf_flat_max_slope_pct,
         trap_enabled=trap_enabled,
         trap_lookback_4h=trap_lookback_4h,
         trap_zone_tolerance=trap_zone_tolerance,
@@ -354,7 +360,6 @@ def backtest_mode3(
         trap_priority_over_state=trap_priority_over_state,
     )
 
-    # v3.0-final-2: support end_days_ago to test historical windows
     now_ms = int(datetime.utcnow().timestamp() * 1000)
     end_ts = now_ms - (end_days_ago * 86400 * 1000)
     start_ts = end_ts - (days * 86400 * 1000)
@@ -401,7 +406,7 @@ def backtest_mode3(
     htf_ema_series = None
     htf_slope_series = None
     htf_close_series = None
-    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled:
+    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_htf_flat_filter_enabled:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
         htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window,
@@ -501,6 +506,7 @@ def backtest_mode3(
             "chop_blocked_count": switcher._chop_blocked_count,
             "bull_blocked_volume": switcher._bull_blocked_volume,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
+            "bull_blocked_htf_flat": switcher._bull_blocked_htf_flat,
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "bear_blocked_min_sl": switcher._bear_blocked_min_sl,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
@@ -617,4 +623,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "3.0-final-2", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "3.1", "db_path": DB_PATH}
