@@ -1,14 +1,9 @@
 """
-Mode3 Config v3.3 CHAMPION FINAL — Fix #7 CT BULL + Fix #8/#9 BEAR Trend Rider.
+Mode3 Config v3.4 — Add Fix #14 BULL Trend Rider (mirror of Fix #9 for LONG).
 
-Champion: Fix #7 + #8 + #9 all ON, coexist without conflict.
-
-DEPRECATED (kept for backward compat, but proved net-negative):
-- Fix #10 HTF Flat Filter (marginal +$1)
-- Fix #11 Local Resistance (-$41)
-- Fix #12 HH/LH Structural (-$55)
-- Fix #13 Recent High Distance (-$29)
-All default OFF. Do not enable.
+Champion + new opportunity:
+- Fix #14: BULL entry in confirmed uptrend regime → wider TP + trailing stop
+- Captures parabolic pumps (Aug 2025 ETH-style +$133 events)
 """
 from dataclasses import dataclass
 
@@ -59,8 +54,6 @@ class Mode3Config:
     sm_fix_4_bull_confirm: bool = False
     sm_fix_4_bear_confirm: bool = False
 
-    # === ACTIVE CHAMPION FIXES ===
-    # Fix #7: CT BULL position-based (2x size when 4h close < 4h EMA20)
     bull_countertrend_enabled: bool = True
     bull_countertrend_use_position: bool = True
     bull_countertrend_max_close_pct: float = 0.0
@@ -69,7 +62,6 @@ class Mode3Config:
     bull_countertrend_tp_pct: float = 0.012
     bull_countertrend_size_mult: float = 2.0
 
-    # Fix #8/#9: BEAR Trend Rider
     bear_trend_rider_enabled: bool = True
     bear_trend_rider_regime_bars: int = 3
     bear_trend_rider_regime_slope_max: float = -0.3
@@ -78,7 +70,15 @@ class Mode3Config:
     bear_trend_rider_trailing_distance_pct: float = 0.008
     bear_trend_rider_disable_ct_bull: bool = False
 
-    # === DEPRECATED FIXES (all default OFF, proved net-negative) ===
+    # === v3.4 Fix #14: BULL TREND RIDER (mirror of Fix #9) ===
+    bull_trend_rider_enabled: bool = False           # opt-in for testing
+    bull_trend_rider_regime_bars: int = 3
+    bull_trend_rider_regime_slope_min: float = 0.3
+    bull_trend_rider_tp_pct: float = 0.030
+    bull_trend_rider_trailing_activate_pct: float = 0.015
+    bull_trend_rider_trailing_distance_pct: float = 0.008
+
+    # Deprecated fixes (kept for backward compat)
     bull_htf_flat_filter_enabled: bool = False
     bull_htf_flat_min_dist_pct: float = 0.0
     bull_htf_flat_max_slope_pct: float = 0.15
