@@ -1,9 +1,10 @@
 """
-Mode3 Config v3.4 — Add Fix #14 BULL Trend Rider (mirror of Fix #9 for LONG).
+Mode3 Config v3.5 — Add Fix #15 SW SHORT HTF Alignment filter.
 
-Champion + new opportunity:
-- Fix #14: BULL entry in confirmed uptrend regime → wider TP + trailing stop
-- Captures parabolic pumps (Aug 2025 ETH-style +$133 events)
+Data-driven discovery: SW SHORT loses in HTF BULL regime (14 trades, 36% WR, -$12 BTC 364d).
+Fix #15 skip SW SHORT when HTF slope > threshold (strong bullish).
+
+DOES NOT mirror to SW LONG — data shows LONG works in all regimes.
 """
 from dataclasses import dataclass
 
@@ -70,15 +71,20 @@ class Mode3Config:
     bear_trend_rider_trailing_distance_pct: float = 0.008
     bear_trend_rider_disable_ct_bull: bool = False
 
-    # === v3.4 Fix #14: BULL TREND RIDER (mirror of Fix #9) ===
-    bull_trend_rider_enabled: bool = False           # opt-in for testing
+    bull_trend_rider_enabled: bool = False
     bull_trend_rider_regime_bars: int = 3
     bull_trend_rider_regime_slope_min: float = 0.3
     bull_trend_rider_tp_pct: float = 0.030
     bull_trend_rider_trailing_activate_pct: float = 0.015
     bull_trend_rider_trailing_distance_pct: float = 0.008
 
-    # Deprecated fixes (kept for backward compat)
+    # === v3.5 Fix #15: SW HTF ALIGNMENT ===
+    # Skip SW SHORT when HTF slope > threshold (bullish regime)
+    # ASYMMETRIC: data shows SW LONG works in all regimes, only SHORT needs filter
+    sideways_short_skip_htf_bull_enabled: bool = False  # opt-in
+    sideways_short_htf_bull_slope_threshold: float = 0.3  # skip if slope > 0.3%
+
+    # Deprecated
     bull_htf_flat_filter_enabled: bool = False
     bull_htf_flat_min_dist_pct: float = 0.0
     bull_htf_flat_max_slope_pct: float = 0.15
