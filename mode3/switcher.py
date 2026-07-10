@@ -1,10 +1,11 @@
 """
-Mode3 Switcher v3.1 — Fix #10 HTF Flat Filter for BULL entries.
+Mode3 Switcher v3.2 — Fix #11/#12/#13 BULL entry filters (opt-in).
 
-Fix #10 adds chop-zone protection:
-- Skip BULL entry when 4h close above EMA + slope near-flat
-- Prevents fake breakouts at ATH resistance during choppy consolidation
-- Fix #7 CT unaffected (fires when dist < 0)
+- Fix #11: Local Resistance (previous failed BULL peak within 2%)
+- Fix #12: HH/LH Structural (entry high must exceed recent high by 0.5%)
+- Fix #13: Recent High Distance (skip if close > 98% of 30-day high)
+
+All 3 filters skip if is_ct=True (respect Fix #7 CT BULL).
 """
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -91,7 +92,10 @@ class Switcher:
         self._volume_history = deque(maxlen=config.bull_volume_window)
         self._bull_blocked_volume = 0
         self._bull_blocked_mtf = 0
-        self._bull_blocked_htf_flat = 0  # v3.1 Fix #10
+        self._bull_blocked_htf_flat = 0
+        self._bull_blocked_local_res = 0     # v3.2 Fix #11
+        self._bull_blocked_hh_lh = 0         # v3.2 Fix #12
+        self._bull_blocked_recent_high = 0   # v3.2 Fix #13
         self._bear_blocked_mtf = 0
         self._bear_blocked_min_sl = 0
         self._sideways_blocked_mtf = 0
@@ -100,7 +104,14 @@ class Switcher:
         self._trap_long_count = 0
         self._ema_history = deque(maxlen=config.sideways_slope_window)
         self._bear_loss_streak = 0
-        self._high_history = deque(maxlen=max(config.sm_fix_3_high_lookback, 10))
+        # Expand high history for Fix #13 (recent high lookback)
+        high_maxlen = max(config.sm_fix_3_high_lookback,
+                          getattr(config, 'bull_recent_high_lookback_bars', 100),
+                          getattr(config, 'bull_hh_lh_lookback_bars', 100),
+                          10)
+        self._high_history = deque(maxlen=high_maxlen)
+        # Track recent failed BULL peaks for Fix #11
+        self._recent_bull_peaks = deque(maxlen=10)
         self._last_exit_bar = 0
         self._sm_fix1_count = 0
         self._sm_fix2_count = 0
@@ -267,7 +278,7 @@ class Switcher:
             return slope < self.config.bull_countertrend_slope_threshold
 
     def _is_bull_htf_flat_blocked(self, bar_idx):
-        """v3.1 Fix #10: Block BULL if 4h close above EMA + slope near flat (chop-zone)."""
+        """v3.1 Fix #10: Block BULL if 4h close above EMA + slope near flat."""
         if not getattr(self.config, 'bull_htf_flat_filter_enabled', False):
             return False
         if self.htf_4h_close is None or self.htf_4h_ema20 is None:
@@ -280,16 +291,56 @@ class Switcher:
             return False
         dist_pct = (c - e) / e * 100
         min_dist = getattr(self.config, 'bull_htf_flat_min_dist_pct', 0.0)
-        # Only block if above EMA (dist > min_dist)
         if dist_pct <= min_dist:
             return False
-        # Now check slope
         slope = self._htf_slope_at(bar_idx)
         if slope is None:
             return False
         max_slope = getattr(self.config, 'bull_htf_flat_max_slope_pct', 0.15)
-        # Block if slope is near flat (absolute value below threshold)
         return abs(slope) < max_slope
+
+    def _is_bull_local_resistance_blocked(self, close):
+        """v3.2 Fix #11: Skip BULL if close within X% of any recent failed BULL peak."""
+        if not getattr(self.config, 'bull_local_resistance_filter_enabled', False):
+            return False
+        if not self._recent_bull_peaks:
+            return False
+        zone_pct = self.config.bull_local_resistance_zone_pct
+        for peak in self._recent_bull_peaks:
+            if peak <= 0: continue
+            dist = abs(close - peak) / peak
+            if dist < zone_pct:
+                return True
+        return False
+
+    def _is_bull_hh_lh_blocked(self, h):
+        """v3.2 Fix #12: Skip BULL if entry high doesn't exceed recent high (LH pattern)."""
+        if not getattr(self.config, 'bull_hh_lh_filter_enabled', False):
+            return False
+        lookback = self.config.bull_hh_lh_lookback_bars
+        if len(self._high_history) < min(lookback, 50):
+            return False
+        hist = list(self._high_history)[-lookback:]
+        recent_high = max(hist)
+        if recent_high <= 0:
+            return False
+        min_dist = self.config.bull_hh_lh_min_hh_dist_pct
+        # BLOCK if entry high does NOT create a new HH (h < recent_high * (1 + min_dist))
+        return h < recent_high * (1 + min_dist)
+
+    def _is_bull_recent_high_blocked(self, close):
+        """v3.2 Fix #13: Skip BULL if close > threshold * 30-day high."""
+        if not getattr(self.config, 'bull_recent_high_filter_enabled', False):
+            return False
+        lookback = self.config.bull_recent_high_lookback_bars
+        if len(self._high_history) < min(lookback, 100):
+            return False
+        hist = list(self._high_history)[-lookback:]
+        recent_high = max(hist)
+        if recent_high <= 0:
+            return False
+        max_ratio = self.config.bull_recent_high_max_ratio
+        return close / recent_high > max_ratio
 
     def _startup_transition(self, close, ema20):
         if close > ema20: self.startup_bias = 'bullish'
@@ -364,6 +415,9 @@ class Switcher:
     def _post_exit_bull(self, et):
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
         self.markers.peak_high_bull = last_peak
+        # v3.2 Fix #11: Track failed BULL peaks for local resistance
+        if et != 'TP':  # SL exit = failed BULL
+            self._recent_bull_peaks.append(last_peak)
         if et == 'TP':
             self.state = 'BULL'
             self.bull_stay_warmup = True
@@ -609,10 +663,20 @@ class Switcher:
 
         is_ct = self._is_countertrend_bull(bar_idx)
 
-        # v3.1 Fix #10: HTF Flat Filter — block chop-zone entries (skip CT trades)
-        if not is_ct and self._is_bull_htf_flat_blocked(bar_idx):
-            self._bull_blocked_htf_flat += 1
-            return
+        # ALL bull filters (Fix #10/#11/#12/#13) skip if is_ct (respect Fix #7 CT)
+        if not is_ct:
+            if self._is_bull_htf_flat_blocked(bar_idx):
+                self._bull_blocked_htf_flat += 1
+                return
+            if self._is_bull_local_resistance_blocked(c):
+                self._bull_blocked_local_res += 1
+                return
+            if self._is_bull_hh_lh_blocked(h):
+                self._bull_blocked_hh_lh += 1
+                return
+            if self._is_bull_recent_high_blocked(c):
+                self._bull_blocked_recent_high += 1
+                return
 
         size_mult = self.config.bull_countertrend_size_mult if is_ct else 1.0
 
