@@ -1,18 +1,9 @@
 """
-Mode3 Config v3.6 — CLEAN CHAMPION.
+Mode3 Config v3.7 — Add Fix #16 CRS (Confirmed Rejection Short) A/B/C.
 
-Removed proven-negative fixes:
-- Fix #10 HTF Flat Filter (-$5 portfolio)
-- Fix #11 Local Resistance (-$41 BTC)
-- Fix #12 HH/LH Structural (-$55 BTC)
-- Fix #13 Recent High (-$29 BTC)
-- Fix #15 SW HTF Alignment (-$410 portfolio)
-
-Kept:
-- Fix #7 CT BULL (CHAMPION, +$314 at 3x)
-- Fix #8/#9 BEAR Trend Rider (CHAMPION)
-- Fix #14 BULL Trend Rider (opt-in, DOGE-only +$16)
-- Fix #2/#3 state resets (per-pair on/off recommended)
+A. Entry on 4h confirmed rejection → SHORT setup
+B. TP projection = swing range / 2.6 (Fibonacci φ² extension)
+C. Skip BULL for N hours after CRS confirmed (regime filter)
 """
 from dataclasses import dataclass
 
@@ -62,7 +53,6 @@ class Mode3Config:
     sm_fix_4_bull_confirm: bool = False
     sm_fix_4_bear_confirm: bool = False
 
-    # Fix #7 CT BULL (CHAMPION — proven +$102 BTC at 2x, +$205 at 3x)
     bull_countertrend_enabled: bool = True
     bull_countertrend_use_position: bool = True
     bull_countertrend_max_close_pct: float = 0.0
@@ -71,7 +61,6 @@ class Mode3Config:
     bull_countertrend_tp_pct: float = 0.012
     bull_countertrend_size_mult: float = 2.0
 
-    # Fix #8/#9 BEAR Trend Rider (CHAMPION)
     bear_trend_rider_enabled: bool = True
     bear_trend_rider_regime_bars: int = 3
     bear_trend_rider_regime_slope_max: float = -0.3
@@ -80,13 +69,24 @@ class Mode3Config:
     bear_trend_rider_trailing_distance_pct: float = 0.008
     bear_trend_rider_disable_ct_bull: bool = False
 
-    # Fix #14 BULL Trend Rider (opt-in, DOGE-specific +$16)
     bull_trend_rider_enabled: bool = False
     bull_trend_rider_regime_bars: int = 3
     bull_trend_rider_regime_slope_min: float = 0.3
     bull_trend_rider_tp_pct: float = 0.030
     bull_trend_rider_trailing_activate_pct: float = 0.015
     bull_trend_rider_trailing_distance_pct: float = 0.008
+
+    # === v3.7 Fix #16: CRS (Confirmed Rejection Short) ===
+    # A. Entry after 4h confirmed rejection
+    crs_enabled: bool = False
+    crs_lookback_4h_bars: int = 10       # swing high lookback on 4h
+    crs_active_hours: int = 8            # keep CRS active for X hours (allow BEAR entry)
+    crs_size_mult: float = 1.0           # size multiplier for CRS trades
+    # B. 2.6x projection TP
+    crs_use_projection_tp: bool = False  # opt-in for B
+    crs_projection_divisor: float = 2.6  # Fibonacci φ² extension
+    # C. Skip BULL after CRS
+    crs_skip_bull_hours: int = 0         # skip BULL for N hours after CRS (0 = disabled)
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
