@@ -1,8 +1,11 @@
 """
-Mode3 Config v3.1 — Add Fix #10 HTF Flat Filter for BULL entries.
+Mode3 Config v3.2 — Fix #11/#12/#13 BULL entry filters.
 
-Champion + new opt-in filter:
-- Fix #10: Block BULL entry when 4h close above EMA + slope flat (chop-zone)
+Champion + 3 new opt-in filters (all target BULL chop-zone problem):
+- Fix #11: Local Resistance (previous failed BULL peak)
+- Fix #12: HH/LH Structural (must create higher high)
+- Fix #13: Recent High Distance (skip near recent max)
+All skip if is_ct=True (respect Fix #7 CT BULL).
 """
 from dataclasses import dataclass
 
@@ -43,7 +46,6 @@ class Mode3Config:
     bear_min_sl_dist: float = 0.0
     bear_use_1h_sl_fallback: bool = False
 
-    # v2.5 state machine fixes
     sm_fix_1_htf_confirm: bool = False
     sm_fix_2_bear_streak: bool = True
     sm_fix_2_streak_threshold: int = 2
@@ -54,7 +56,7 @@ class Mode3Config:
     sm_fix_4_bull_confirm: bool = False
     sm_fix_4_bear_confirm: bool = False
 
-    # v2.9 Fix #7 Counter-trend BULL
+    # v2.9 Fix #7 CT BULL (CHAMPION)
     bull_countertrend_enabled: bool = True
     bull_countertrend_use_position: bool = True
     bull_countertrend_max_close_pct: float = 0.0
@@ -72,13 +74,24 @@ class Mode3Config:
     bear_trend_rider_trailing_distance_pct: float = 0.008
     bear_trend_rider_disable_ct_bull: bool = False
 
-    # === v3.1 Fix #10: HTF FLAT FILTER (BULL chop-zone protection) ===
-    # Skip BULL entry when 4h close above EMA + slope near flat = chop-zone at resistance
-    bull_htf_flat_filter_enabled: bool = False  # opt-in
-    # Skip if 4h dist > this threshold (default 0 = only skip when above EMA)
+    # v3.1 Fix #10 HTF Flat Filter
+    bull_htf_flat_filter_enabled: bool = False
     bull_htf_flat_min_dist_pct: float = 0.0
-    # Skip if |4h slope| < this threshold (default 0.15% = flat)
     bull_htf_flat_max_slope_pct: float = 0.15
+
+    # === v3.2 Fix #11: LOCAL RESISTANCE (previous failed peak) ===
+    bull_local_resistance_filter_enabled: bool = False
+    bull_local_resistance_zone_pct: float = 0.02  # skip if within 2% of prev peak
+
+    # === v3.2 Fix #12: HH/LH STRUCTURAL (must create higher high) ===
+    bull_hh_lh_filter_enabled: bool = False
+    bull_hh_lh_lookback_bars: int = 168  # ~1 week
+    bull_hh_lh_min_hh_dist_pct: float = 0.005  # 0.5% above recent high = HH
+
+    # === v3.2 Fix #13: RECENT HIGH DISTANCE (skip near recent max) ===
+    bull_recent_high_filter_enabled: bool = False
+    bull_recent_high_lookback_bars: int = 720  # ~30 days at 1h
+    bull_recent_high_max_ratio: float = 0.98  # skip if close > 98% of recent high
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
