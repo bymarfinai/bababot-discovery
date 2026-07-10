@@ -6,6 +6,7 @@ Champion defaults ALL ON:
 - Fix #8 4h downtrend regime detector
 - Fix #9 BEAR Trend Rider (wider TP + trailing stop)
 - disable_ct_bull=False (both coexist)
+- Extended date range: days up to 1500 for multi-year backtests
 """
 import os
 import json as jsonlib
@@ -252,7 +253,8 @@ def compute_htf_4h_downtrend(close_series, ema_series, slope_series, regime_bars
 def backtest_mode3(
     symbol: str = Query("BTCUSDT"),
     timeframe: str = Query("1h"),
-    days: int = Query(30, ge=1, le=365),
+    days: int = Query(30, ge=1, le=1500),
+    end_days_ago: int = Query(0, ge=0, le=1500),
     va_window: int = Query(50, ge=20, le=200),
     tp_pct: float = Query(0.012, ge=0.001, le=0.05),
     entry_usd: float = Query(10.0),
@@ -288,7 +290,6 @@ def backtest_mode3(
     bull_countertrend_slope_threshold: float = Query(-0.5, ge=-10.0, le=0.0),
     bull_countertrend_tp_pct: float = Query(0.012, ge=0.005, le=0.10),
     bull_countertrend_size_mult: float = Query(2.0, ge=0.5, le=5.0),
-    # v3.0 CHAMPION FINAL defaults
     bear_trend_rider_enabled: bool = Query(True),
     bear_trend_rider_regime_bars: int = Query(3, ge=1, le=10),
     bear_trend_rider_regime_slope_max: float = Query(-0.3, ge=-10.0, le=0.0),
@@ -353,7 +354,9 @@ def backtest_mode3(
         trap_priority_over_state=trap_priority_over_state,
     )
 
-    end_ts = int(datetime.utcnow().timestamp() * 1000)
+    # v3.0-final-2: support end_days_ago to test historical windows
+    now_ms = int(datetime.utcnow().timestamp() * 1000)
+    end_ts = now_ms - (end_days_ago * 86400 * 1000)
     start_ts = end_ts - (days * 86400 * 1000)
     rows = load_candles_from_db(symbol, timeframe, start_ts, end_ts)
 
@@ -480,7 +483,10 @@ def backtest_mode3(
 
     result = {
         "symbol": symbol, "timeframe": timeframe, "days": days,
+        "end_days_ago": end_days_ago,
         "candles_processed": len(rows),
+        "period_start_utc": datetime.utcfromtimestamp(start_ts/1000).strftime('%Y-%m-%d'),
+        "period_end_utc": datetime.utcfromtimestamp(end_ts/1000).strftime('%Y-%m-%d'),
         "config": asdict(config),
         "summary": {
             "total_trades": n,
@@ -611,4 +617,4 @@ def delete_experiment(exp_id: int):
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "3.0-final", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "3.0-final-2", "db_path": DB_PATH}
