@@ -1,11 +1,8 @@
 """
-Mode3 Config v3.2 — Fix #11/#12/#13 BULL entry filters.
+Mode3 Config v3.3 CHAMPION FINAL — Fix #7 CT BULL + Fix #8/#9 BEAR Trend Rider.
 
-Champion + 3 new opt-in filters (all target BULL chop-zone problem):
-- Fix #11: Local Resistance (previous failed BULL peak)
-- Fix #12: HH/LH Structural (must create higher high)
-- Fix #13: Recent High Distance (skip near recent max)
-All skip if is_ct=True (respect Fix #7 CT BULL).
+Champion: Fix #7 + #8 + #9 all ON, coexist without conflict.
+Removed: Fix #10/#11/#12/#13 (all proved net-negative on backtest).
 """
 from dataclasses import dataclass
 
@@ -56,7 +53,7 @@ class Mode3Config:
     sm_fix_4_bull_confirm: bool = False
     sm_fix_4_bear_confirm: bool = False
 
-    # v2.9 Fix #7 CT BULL (CHAMPION)
+    # Fix #7 CT BULL (CHAMPION)
     bull_countertrend_enabled: bool = True
     bull_countertrend_use_position: bool = True
     bull_countertrend_max_close_pct: float = 0.0
@@ -65,7 +62,7 @@ class Mode3Config:
     bull_countertrend_tp_pct: float = 0.012
     bull_countertrend_size_mult: float = 2.0
 
-    # v3.0 Fix #8/#9 BEAR Trend Rider
+    # Fix #8/#9 BEAR Trend Rider
     bear_trend_rider_enabled: bool = True
     bear_trend_rider_regime_bars: int = 3
     bear_trend_rider_regime_slope_max: float = -0.3
@@ -73,25 +70,6 @@ class Mode3Config:
     bear_trend_rider_trailing_activate_pct: float = 0.015
     bear_trend_rider_trailing_distance_pct: float = 0.008
     bear_trend_rider_disable_ct_bull: bool = False
-
-    # v3.1 Fix #10 HTF Flat Filter
-    bull_htf_flat_filter_enabled: bool = False
-    bull_htf_flat_min_dist_pct: float = 0.0
-    bull_htf_flat_max_slope_pct: float = 0.15
-
-    # === v3.2 Fix #11: LOCAL RESISTANCE (previous failed peak) ===
-    bull_local_resistance_filter_enabled: bool = False
-    bull_local_resistance_zone_pct: float = 0.02  # skip if within 2% of prev peak
-
-    # === v3.2 Fix #12: HH/LH STRUCTURAL (must create higher high) ===
-    bull_hh_lh_filter_enabled: bool = False
-    bull_hh_lh_lookback_bars: int = 168  # ~1 week
-    bull_hh_lh_min_hh_dist_pct: float = 0.005  # 0.5% above recent high = HH
-
-    # === v3.2 Fix #13: RECENT HIGH DISTANCE (skip near recent max) ===
-    bull_recent_high_filter_enabled: bool = False
-    bull_recent_high_lookback_bars: int = 720  # ~30 days at 1h
-    bull_recent_high_max_ratio: float = 0.98  # skip if close > 98% of recent high
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
