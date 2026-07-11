@@ -1,9 +1,10 @@
 """
-Mode3 Switcher v4.0 — Fix #17 AMT Position Modifier.
+Mode3 Switcher v4.1 — Fix #17.1 AMT Smart Levels.
 
-Modifiers based on HTF 4h VAH/VAL position:
-- Skip SW ABOVE, Skip BULL BELOW (block losers)
-- Amplify BULL NEAR_VAH (2x), Amplify BULL ABOVE (1.5x) — winners
+Uses HTF context to inform TP/SL of trades that already fire (not filter).
+- SW SHORT ABOVE → TP at HTF VAH
+- BULL NEAR_VAH → TP at entry + (HTF range / 2.6)
+- BULL BELOW → SL tightened to HTF VAL (higher = tighter for LONG)
 """
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -49,6 +50,7 @@ class Position:
     trailing_active: bool = False
     is_bull_trend_rider: bool = False
     is_crs: bool = False
+    amt_smart_applied: str = ''  # v4.1
 
 
 @dataclass
@@ -72,6 +74,7 @@ class Trade:
     is_trend_rider: bool = False
     is_bull_trend_rider: bool = False
     is_crs: bool = False
+    amt_smart_applied: str = ''
 
 
 class Switcher:
@@ -129,6 +132,10 @@ class Switcher:
         self._crs_trade_count = 0
         self._crs_skip_bull_until_bar = -1
         self._amt_bull_amplified = 0
+        # v4.1 counters
+        self._amt_sw_vah_tp_count = 0
+        self._amt_bull_projection_tp_count = 0
+        self._amt_bull_val_sl_count = 0
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -205,7 +212,6 @@ class Switcher:
                 and bar_idx <= self._crs_active_until_bar)
 
     def _get_balance_position(self, bar_idx, price):
-        """v4.0 Fix #17: Classify price position relative to HTF 4h VAH/VAL."""
         if self.htf_4h_vah is None or self.htf_4h_val is None:
             return 'UNKNOWN'
         if bar_idx >= len(self.htf_4h_vah) or bar_idx >= len(self.htf_4h_val):
@@ -224,6 +230,16 @@ class Switcher:
         if (price - val) / val < boundary:
             return 'NEAR_VAL'
         return 'INSIDE'
+
+    def _get_htf_vah(self, bar_idx):
+        if self.htf_4h_vah is None or bar_idx >= len(self.htf_4h_vah):
+            return None
+        return self.htf_4h_vah[bar_idx]
+
+    def _get_htf_val(self, bar_idx):
+        if self.htf_4h_val is None or bar_idx >= len(self.htf_4h_val):
+            return None
+        return self.htf_4h_val[bar_idx]
 
     def _is_choppy(self):
         if self.config.chop_max_crossings <= 0: return False
@@ -581,8 +597,29 @@ class Switcher:
         if ema <= 0: return True
         return abs(c - ema) / ema <= self.config.sideways_ema_distance_cap
 
+    def _apply_smart_tp_sw_short(self, bar_idx, entry_price, default_tp):
+        """v4.1 Fix #17.1A: If SW SHORT ABOVE HTF VAH, target VAH as natural resistance."""
+        if not (getattr(self.config, 'amt_smart_levels_enabled', False)
+                and getattr(self.config, 'amt_sw_above_use_vah_tp', True)):
+            return default_tp, False
+        pos = self._get_balance_position(bar_idx, entry_price)
+        if pos != 'ABOVE':
+            return default_tp, False
+        htf_vah = self._get_htf_vah(bar_idx)
+        if htf_vah is None or htf_vah >= entry_price:
+            return default_tp, False
+        # Use HTF VAH as TP (target reversion to natural resistance)
+        # Only if this is a REASONABLE improvement (VAH more ambitious than default)
+        # For SHORT, lower TP = more ambitious. Take min.
+        new_tp = min(default_tp, htf_vah)
+        # But guard: don't be TOO ambitious (skip if VAH > 2% below entry)
+        max_dist = 0.02
+        if (entry_price - htf_vah) / entry_price > max_dist:
+            new_tp = entry_price * (1.0 - max_dist)  # cap at 2%
+        self._amt_sw_vah_tp_count += 1
+        return new_tp, True
+
     def _open_short_sideways(self, bar_idx, h, l, c):
-        # v4.0 Fix #17: Skip SW ABOVE HTF VAH (proven -$10 loss)
         if getattr(self.config, 'amt_enabled', False) and getattr(self.config, 'amt_skip_sw_above', True):
             pos = self._get_balance_position(bar_idx, c)
             if pos == 'ABOVE':
@@ -600,20 +637,27 @@ class Switcher:
                 if mtf_close is None or mtf_high is None:
                     self._sideways_blocked_mtf += 1
                     return
+                default_tp = mtf_close*(1.0-tp_pct)
+                tp_level, smart_applied = self._apply_smart_tp_sw_short(bar_idx, mtf_close, default_tp)
+                smart_tag = 'SW_VAH_TP' if smart_applied else ''
                 self.markers.marker_high_short = mtf_high; self.markers.marker_close_short = mtf_close
                 self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=mtf_close, entry_bar=bar_idx,
-                    entry_high=mtf_high, entry_low=l, sl_level=mtf_high, tp_level=mtf_close*(1.0-tp_pct),
-                    peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20)
+                    entry_high=mtf_high, entry_low=l, sl_level=mtf_high, tp_level=tp_level,
+                    peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20,
+                    amt_smart_applied=smart_tag)
                 self._bear_loss_streak = 0
                 return
+        default_tp = c*(1.0-tp_pct)
+        tp_level, smart_applied = self._apply_smart_tp_sw_short(bar_idx, c, default_tp)
+        smart_tag = 'SW_VAH_TP' if smart_applied else ''
         self.markers.marker_high_short = h; self.markers.marker_close_short = c
         self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=c, entry_bar=bar_idx,
-            entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-tp_pct),
-            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
+            entry_high=h, entry_low=l, sl_level=h, tp_level=tp_level,
+            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
+            amt_smart_applied=smart_tag)
         self._bear_loss_streak = 0
 
     def _open_long_sideways(self, bar_idx, h, l, c):
-        # v4.0 Fix #17: Skip SW ABOVE HTF VAH
         if getattr(self.config, 'amt_enabled', False) and getattr(self.config, 'amt_skip_sw_above', True):
             pos = self._get_balance_position(bar_idx, c)
             if pos == 'ABOVE':
@@ -663,13 +707,64 @@ class Switcher:
         if (h >= vah) and (c <= vah):
             self._open_short_sideways(bar_idx, h, l, c); return
 
+    def _apply_smart_tp_bull(self, bar_idx, entry_price, default_tp):
+        """v4.1 Fix #17.1B: BULL NEAR_VAH → TP at entry + (range/divisor)."""
+        if not (getattr(self.config, 'amt_smart_levels_enabled', False)
+                and getattr(self.config, 'amt_bull_near_vah_use_projection_tp', True)):
+            return default_tp, False
+        pos = self._get_balance_position(bar_idx, entry_price)
+        if pos != 'NEAR_VAH':
+            return default_tp, False
+        htf_vah = self._get_htf_vah(bar_idx)
+        htf_val = self._get_htf_val(bar_idx)
+        if htf_vah is None or htf_val is None:
+            return default_tp, False
+        divisor = getattr(self.config, 'amt_projection_divisor', 2.6)
+        range_ = htf_vah - htf_val
+        if range_ <= 0:
+            return default_tp, False
+        projection = range_ / divisor
+        new_tp = entry_price + projection
+        # Take MAX for LONG (more ambitious = higher TP)
+        if new_tp <= default_tp:
+            return default_tp, False
+        # Guard: don't be TOO ambitious (cap at 3%)
+        max_tp = entry_price * (1.0 + 0.03)
+        if new_tp > max_tp:
+            new_tp = max_tp
+        self._amt_bull_projection_tp_count += 1
+        return new_tp, True
+
+    def _apply_smart_sl_bull(self, bar_idx, entry_price, default_sl):
+        """v4.1 Fix #17.1C: BULL BELOW → tighten SL to HTF VAL breach."""
+        if not (getattr(self.config, 'amt_smart_levels_enabled', False)
+                and getattr(self.config, 'amt_bull_below_use_val_sl', True)):
+            return default_sl, False
+        pos = self._get_balance_position(bar_idx, entry_price)
+        if pos != 'BELOW':
+            return default_sl, False
+        htf_val = self._get_htf_val(bar_idx)
+        if htf_val is None or htf_val >= entry_price:
+            return default_sl, False
+        # For LONG, higher SL = tighter (smaller risk)
+        # Only tighten (take max)
+        new_sl = max(default_sl, htf_val)
+        if new_sl == default_sl:
+            return default_sl, False
+        # Guard: don't be TOO tight (SL must be at least 0.3% below entry)
+        min_dist = 0.003
+        max_sl = entry_price * (1.0 - min_dist)
+        if new_sl > max_sl:
+            new_sl = max_sl
+        self._amt_bull_val_sl_count += 1
+        return new_sl, True
+
     def _execute_bull_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
         if (getattr(self.config, 'crs_enabled', False)
                 and self.config.crs_skip_bull_hours > 0
                 and bar_idx <= self._crs_skip_bull_until_bar):
             self._bull_blocked_crs += 1
             return
-        # v4.0 Fix #17: Skip BULL BELOW HTF VAL (proven -$31 loss)
         entry_price_for_pos = c
         if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
             if bar_idx < len(self.mtf_bull_entry_close):
@@ -687,13 +782,13 @@ class Switcher:
         is_ct = self._is_countertrend_bull(bar_idx)
         is_bull_tr = (not is_ct) and self._is_bull_trend_rider_regime(bar_idx)
         size_mult = self.config.bull_countertrend_size_mult if is_ct else 1.0
-        # v4.0 Fix #17: Amplify BULL near/above HTF VAH
         if getattr(self.config, 'amt_enabled', False) and amt_pos in ('NEAR_VAH', 'ABOVE'):
             amt_mult = (self.config.amt_bull_near_vah_mult if amt_pos == 'NEAR_VAH' 
                         else self.config.amt_bull_above_mult)
             if amt_mult > size_mult:
                 size_mult = amt_mult
                 self._amt_bull_amplified += 1
+        smart_tag = ''
         if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
             if bar_idx < len(self.mtf_bull_entry_close):
                 mtf_close = self.mtf_bull_entry_close[bar_idx]
@@ -711,10 +806,17 @@ class Switcher:
                     self._bull_trend_rider_count += 1
                 else:
                     tp_level = self._bull_tp_level(entry_price, sl_level)
+                # v4.1 smart TP override for NEAR_VAH
+                tp_level, tp_smart = self._apply_smart_tp_bull(bar_idx, entry_price, tp_level)
+                if tp_smart: smart_tag += 'BULL_PROJ_TP;'
+                # v4.1 smart SL override for BELOW
+                sl_level, sl_smart = self._apply_smart_sl_bull(bar_idx, entry_price, sl_level)
+                if sl_smart: smart_tag += 'BULL_VAL_SL;'
                 self.position = Position(tool='BULL', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
                     entry_high=h, entry_low=mtf_low, sl_level=sl_level, tp_level=tp_level,
                     peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20,
-                    size_mult=size_mult, is_bull_trend_rider=is_bull_tr)
+                    size_mult=size_mult, is_bull_trend_rider=is_bull_tr,
+                    amt_smart_applied=smart_tag)
                 self._bear_loss_streak = 0
                 return
         if is_ct:
@@ -725,10 +827,16 @@ class Switcher:
             self._bull_trend_rider_count += 1
         else:
             tp_level = self._bull_tp_level(c, l)
+        sl_level = l
+        tp_level, tp_smart = self._apply_smart_tp_bull(bar_idx, c, tp_level)
+        if tp_smart: smart_tag += 'BULL_PROJ_TP;'
+        sl_level, sl_smart = self._apply_smart_sl_bull(bar_idx, c, sl_level)
+        if sl_smart: smart_tag += 'BULL_VAL_SL;'
         self.position = Position(tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
-            entry_high=h, entry_low=l, sl_level=l, tp_level=tp_level,
+            entry_high=h, entry_low=l, sl_level=sl_level, tp_level=tp_level,
             peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
-            size_mult=size_mult, is_bull_trend_rider=is_bull_tr)
+            size_mult=size_mult, is_bull_trend_rider=is_bull_tr,
+            amt_smart_applied=smart_tag)
         self._bear_loss_streak = 0
 
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
@@ -859,7 +967,8 @@ class Switcher:
             peak_high=pos.peak_high, trough_low=pos.trough_low, sl_level=pos.sl_level, tp_level=pos.tp_level,
             ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20, size_mult=pos.size_mult,
             is_trend_rider=pos.is_trend_rider, is_bull_trend_rider=pos.is_bull_trend_rider,
-            is_crs=pos.is_crs))
+            is_crs=pos.is_crs,
+            amt_smart_applied=pos.amt_smart_applied))
         self.position = None
         self._action_taken_this_bar = True
         self._last_exit_bar = bar_idx
