@@ -1,5 +1,12 @@
 """
-Mode3 Backtest Endpoint v3.8 — Add CRS regime gate.
+Mode3 Backtest Endpoint v3.9 — Add HTF Balance Zone classification per trade.
+
+Classifies each trade's entry position relative to HTF 4h VAH/VAL:
+- INSIDE: entry_price between VAL and VAH (in balance)
+- NEAR_VAH: within 0.5% of VAH (upper boundary)
+- NEAR_VAL: within 0.5% of VAL (lower boundary)
+- ABOVE: entry_price > VAH (upward imbalance)
+- BELOW: entry_price < VAL (downward imbalance)
 """
 import os
 import json as jsonlib
@@ -53,7 +60,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '3.8', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '3.9', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -245,10 +252,6 @@ def compute_htf_4h_uptrend(close_series, ema_series, slope_series, regime_bars=3
 
 
 def compute_htf_4h_crs(rows_1h, rows_4h, lookback_bars=10, slope_series_1h=None, regime_gate=False, regime_max_slope=0.3):
-    """v3.8: CRS with optional regime gate.
-    
-    If regime_gate True: skip CRS activation if HTF slope > regime_max_slope (bullish regime).
-    """
     n = len(rows_1h)
     if not rows_4h or len(rows_4h) < lookback_bars + 1:
         return [False]*n, [None]*n
@@ -258,7 +261,6 @@ def compute_htf_4h_crs(rows_1h, rows_4h, lookback_bars=10, slope_series_1h=None,
     closes_4h = np.array([r[4] for r in rows_4h], dtype=float)
     ts_4h = [r[0] for r in rows_4h]
     ONE_4H_MS = 4 * 60 * 60 * 1000
-
     crs_4h = [False] * len(rows_4h)
     range_4h = [None] * len(rows_4h)
     for i in range(lookback_bars, len(rows_4h)):
@@ -269,7 +271,6 @@ def compute_htf_4h_crs(rows_1h, rows_4h, lookback_bars=10, slope_series_1h=None,
                 and closes_4h[i] < opens_4h[i]):
             crs_4h[i] = True
             range_4h[i] = highs_4h[i] - recent_low
-
     crs_1h = [False] * n
     range_1h = [None] * n
     idx_4h = 0
@@ -278,14 +279,39 @@ def compute_htf_4h_crs(rows_1h, rows_4h, lookback_bars=10, slope_series_1h=None,
         while idx_4h + 1 < len(ts_4h) and ts_4h[idx_4h + 1] + ONE_4H_MS <= t_1h:
             idx_4h += 1
         if ts_4h[idx_4h] + ONE_4H_MS == t_1h and crs_4h[idx_4h]:
-            # v3.8: regime gate check
             if regime_gate and slope_series_1h and i < len(slope_series_1h):
                 slope = slope_series_1h[i]
                 if slope is not None and slope > regime_max_slope:
-                    continue  # skip CRS in bullish regime
+                    continue
             crs_1h[i] = True
             range_1h[i] = range_4h[idx_4h]
     return crs_1h, range_1h
+
+
+def classify_balance_position(entry_price, vah, val, boundary_pct=0.005):
+    """v3.9: Classify price position relative to HTF 4h balance zone.
+    
+    Returns one of:
+    - INSIDE: entry between VAL and VAH
+    - NEAR_VAH: within boundary_pct of VAH (upper edge of balance)
+    - NEAR_VAL: within boundary_pct of VAL (lower edge of balance)
+    - ABOVE: entry > VAH (upward imbalance)
+    - BELOW: entry < VAL (downward imbalance)
+    """
+    if vah is None or val is None or entry_price is None:
+        return 'UNKNOWN'
+    if entry_price > vah:
+        return 'ABOVE'
+    if entry_price < val:
+        return 'BELOW'
+    # Inside balance — check boundary proximity
+    dist_to_vah = (vah - entry_price) / vah
+    dist_to_val = (entry_price - val) / val
+    if dist_to_vah < boundary_pct:
+        return 'NEAR_VAH'
+    if dist_to_val < boundary_pct:
+        return 'NEAR_VAL'
+    return 'INSIDE'
 
 
 @router.get("/backtest")
@@ -359,6 +385,7 @@ def backtest_mode3(
     trap_priority_over_state: bool = Query(True),
     include_htf: bool = Query(True),
     htf_slope_window: int = Query(20, ge=5, le=100),
+    balance_boundary_pct: float = Query(0.005, ge=0.001, le=0.05),
     log_result: bool = Query(True),
 ):
     config = Mode3Config(
@@ -466,6 +493,7 @@ def backtest_mode3(
                 switcher.mtf_sideways_long_entry_low = ll
 
     htf_ema_series = None; htf_slope_series = None; htf_close_series = None
+    htf_vah_series = None; htf_val_series = None
     if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled or crs_enabled:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
@@ -478,6 +506,7 @@ def backtest_mode3(
         switcher.htf_trap_short_recent = htf['trap_short']
         switcher.htf_trap_long_recent = htf['trap_long']
         htf_ema_series = htf['ema']; htf_close_series = htf['close']
+        htf_vah_series = htf['vah']; htf_val_series = htf['val']
         countertrend_slope = compute_htf_4h_slope(htf['ema'], window_bars=bull_countertrend_slope_window)
         switcher.htf_4h_slope = countertrend_slope
         htf_slope_series = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
@@ -539,17 +568,24 @@ def backtest_mode3(
 
     def get_htf_at_bar(bar):
         if htf_ema_series is None or bar >= len(htf_ema_series):
-            return None, None, None
+            return None, None, None, None, None
         ema_v = htf_ema_series[bar]
         slope_v = htf_slope_series[bar] if htf_slope_series else None
         close_v = htf_close_series[bar] if htf_close_series else None
+        vah_v = htf_vah_series[bar] if htf_vah_series else None
+        val_v = htf_val_series[bar] if htf_val_series else None
         return (round(ema_v, 2) if ema_v else None,
                 round(slope_v, 3) if slope_v is not None else None,
-                round(close_v, 2) if close_v else None)
+                round(close_v, 2) if close_v else None,
+                round(vah_v, 2) if vah_v else None,
+                round(val_v, 2) if val_v else None)
 
     trade_list = []
+    balance_stats = {'INSIDE':0, 'NEAR_VAH':0, 'NEAR_VAL':0, 'ABOVE':0, 'BELOW':0, 'UNKNOWN':0}
     for t in trades:
-        htf_ema, htf_slope, htf_close = get_htf_at_bar(t.entry_bar)
+        htf_ema, htf_slope, htf_close, htf_vah, htf_val = get_htf_at_bar(t.entry_bar)
+        pos = classify_balance_position(t.entry_price, htf_vah, htf_val, balance_boundary_pct)
+        balance_stats[pos] = balance_stats.get(pos, 0) + 1
         trade_dict = {
             "tool": t.tool, "side": t.side,
             "entry_price": round(t.entry_price, 2), "exit_price": round(t.exit_price, 2),
@@ -563,11 +599,14 @@ def backtest_mode3(
             "is_trend_rider": t.is_trend_rider,
             "is_bull_trend_rider": t.is_bull_trend_rider,
             "is_crs": getattr(t, 'is_crs', False),
+            "balance_position": pos,  # v3.9
         }
         if htf_ema is not None:
             trade_dict["htf_4h_ema"] = htf_ema
             trade_dict["htf_4h_close"] = htf_close
             trade_dict["htf_4h_slope_pct"] = htf_slope
+            trade_dict["htf_4h_vah"] = htf_vah
+            trade_dict["htf_4h_val"] = htf_val
         trade_list.append(trade_dict)
 
     result = {
@@ -604,6 +643,7 @@ def backtest_mode3(
             "bull_trend_rider_count": switcher._bull_trend_rider_count,
             "crs_confirmed_count": switcher._crs_confirmed_count,
             "crs_trade_count": switcher._crs_trade_count,
+            "balance_position_stats": balance_stats,
         },
         "per_tool": tool_stats,
         "crs_stats": crs_stats,
@@ -619,4 +659,4 @@ def backtest_mode3(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "3.8", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "3.9", "db_path": DB_PATH}
