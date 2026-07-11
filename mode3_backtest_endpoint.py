@@ -1,4 +1,4 @@
-"""Mode3 Backtest Endpoint v4.1 — AMT Smart Levels params."""
+"""Mode3 Backtest Endpoint v4.2 — Fix #19 wick SL + BULL BELOW VAL TP."""
 import os
 import json as jsonlib
 from dataclasses import asdict
@@ -42,7 +42,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 wr_pct, pnl_usd, pnl_pct, sw_count, sw_wr, sw_pnl, bull_count, bull_wr,
                 bull_pnl, bear_count, bear_wr, bear_pnl, blocked_count, final_state,
                 config_json) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)""", (
-            int(datetime.utcnow().timestamp()), '4.1', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '4.2', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -319,12 +319,15 @@ def backtest_mode3(
     amt_skip_bull_below: bool = Query(True),
     amt_bull_near_vah_mult: float = Query(2.0, ge=0.5, le=5.0),
     amt_bull_above_mult: float = Query(1.5, ge=0.5, le=5.0),
-    # v4.1 Fix #17.1 AMT Smart Levels
     amt_smart_levels_enabled: bool = Query(False),
     amt_sw_above_use_vah_tp: bool = Query(True),
     amt_bull_near_vah_use_projection_tp: bool = Query(True),
     amt_projection_divisor: float = Query(2.6, ge=1.0, le=10.0),
     amt_bull_below_use_val_sl: bool = Query(True),
+    # v4.2 Fix #19 Loss reducers
+    bull_wick_tolerance_enabled: bool = Query(False),
+    bull_wick_tolerance_pct: float = Query(0.002, ge=0.0, le=0.02),
+    bull_below_use_val_tp: bool = Query(False),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -386,6 +389,9 @@ def backtest_mode3(
         amt_bull_near_vah_use_projection_tp=amt_bull_near_vah_use_projection_tp,
         amt_projection_divisor=amt_projection_divisor,
         amt_bull_below_use_val_sl=amt_bull_below_use_val_sl,
+        bull_wick_tolerance_enabled=bull_wick_tolerance_enabled,
+        bull_wick_tolerance_pct=bull_wick_tolerance_pct,
+        bull_below_use_val_tp=bull_below_use_val_tp,
         trap_enabled=trap_enabled, trap_lookback_4h=trap_lookback_4h,
         trap_zone_tolerance=trap_zone_tolerance, trap_tp_pct=trap_tp_pct,
         trap_use_1h_va_tp=trap_use_1h_va_tp, trap_priority_over_state=trap_priority_over_state,
@@ -431,7 +437,7 @@ def backtest_mode3(
 
     htf_ema_series = None; htf_slope_series = None; htf_close_series = None
     htf_vah_series = None; htf_val_series = None
-    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled or crs_enabled or amt_enabled or amt_smart_levels_enabled:
+    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled or crs_enabled or amt_enabled or amt_smart_levels_enabled or bull_below_use_val_tp:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
         htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window, trap_lookback=config.trap_lookback_4h)
@@ -541,6 +547,8 @@ def backtest_mode3(
             "amt_sw_vah_tp_count": switcher._amt_sw_vah_tp_count,
             "amt_bull_projection_tp_count": switcher._amt_bull_projection_tp_count,
             "amt_bull_val_sl_count": switcher._amt_bull_val_sl_count,
+            "bull_wick_widened": switcher._bull_wick_widened,
+            "bull_below_val_tp_count": switcher._bull_below_val_tp,
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "bear_blocked_min_sl": switcher._bear_blocked_min_sl,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
@@ -563,4 +571,4 @@ def backtest_mode3(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "4.1", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "4.2", "db_path": DB_PATH}
