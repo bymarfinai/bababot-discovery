@@ -1,12 +1,5 @@
 """
-Mode3 Backtest Endpoint v3.9 — Add HTF Balance Zone classification per trade.
-
-Classifies each trade's entry position relative to HTF 4h VAH/VAL:
-- INSIDE: entry_price between VAL and VAH (in balance)
-- NEAR_VAH: within 0.5% of VAH (upper boundary)
-- NEAR_VAL: within 0.5% of VAL (lower boundary)
-- ABOVE: entry_price > VAH (upward imbalance)
-- BELOW: entry_price < VAL (downward imbalance)
+Mode3 Backtest Endpoint v4.0 — Add AMT Position Modifier params.
 """
 import os
 import json as jsonlib
@@ -60,7 +53,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '3.9', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '4.0', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -289,22 +282,12 @@ def compute_htf_4h_crs(rows_1h, rows_4h, lookback_bars=10, slope_series_1h=None,
 
 
 def classify_balance_position(entry_price, vah, val, boundary_pct=0.005):
-    """v3.9: Classify price position relative to HTF 4h balance zone.
-    
-    Returns one of:
-    - INSIDE: entry between VAL and VAH
-    - NEAR_VAH: within boundary_pct of VAH (upper edge of balance)
-    - NEAR_VAL: within boundary_pct of VAL (lower edge of balance)
-    - ABOVE: entry > VAH (upward imbalance)
-    - BELOW: entry < VAL (downward imbalance)
-    """
     if vah is None or val is None or entry_price is None:
         return 'UNKNOWN'
     if entry_price > vah:
         return 'ABOVE'
     if entry_price < val:
         return 'BELOW'
-    # Inside balance — check boundary proximity
     dist_to_vah = (vah - entry_price) / vah
     dist_to_val = (entry_price - val) / val
     if dist_to_vah < boundary_pct:
@@ -377,6 +360,13 @@ def backtest_mode3(
     crs_skip_bull_hours: int = Query(0, ge=0, le=72),
     crs_regime_gate: bool = Query(False),
     crs_regime_max_slope: float = Query(0.3, ge=-2.0, le=5.0),
+    # v4.0 Fix #17 AMT
+    amt_enabled: bool = Query(False),
+    amt_boundary_pct: float = Query(0.005, ge=0.001, le=0.05),
+    amt_skip_sw_above: bool = Query(True),
+    amt_skip_bull_below: bool = Query(True),
+    amt_bull_near_vah_mult: float = Query(2.0, ge=0.5, le=5.0),
+    amt_bull_above_mult: float = Query(1.5, ge=0.5, le=5.0),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -442,6 +432,12 @@ def backtest_mode3(
         crs_skip_bull_hours=crs_skip_bull_hours,
         crs_regime_gate=crs_regime_gate,
         crs_regime_max_slope=crs_regime_max_slope,
+        amt_enabled=amt_enabled,
+        amt_boundary_pct=amt_boundary_pct,
+        amt_skip_sw_above=amt_skip_sw_above,
+        amt_skip_bull_below=amt_skip_bull_below,
+        amt_bull_near_vah_mult=amt_bull_near_vah_mult,
+        amt_bull_above_mult=amt_bull_above_mult,
         trap_enabled=trap_enabled,
         trap_lookback_4h=trap_lookback_4h,
         trap_zone_tolerance=trap_zone_tolerance,
@@ -494,7 +490,7 @@ def backtest_mode3(
 
     htf_ema_series = None; htf_slope_series = None; htf_close_series = None
     htf_vah_series = None; htf_val_series = None
-    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled or crs_enabled:
+    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled or crs_enabled or amt_enabled:
         extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
         rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
         htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window,
@@ -599,7 +595,7 @@ def backtest_mode3(
             "is_trend_rider": t.is_trend_rider,
             "is_bull_trend_rider": t.is_bull_trend_rider,
             "is_crs": getattr(t, 'is_crs', False),
-            "balance_position": pos,  # v3.9
+            "balance_position": pos,
         }
         if htf_ema is not None:
             trade_dict["htf_4h_ema"] = htf_ema
@@ -625,10 +621,13 @@ def backtest_mode3(
             "capital_end": round(config.capital_usd + total_pnl_usd, 2),
             "sideways_blocked_count": switcher._sideways_blocked_count,
             "sideways_blocked_slope": switcher._sideways_blocked_slope,
+            "sideways_blocked_amt": switcher._sideways_blocked_amt,
             "chop_blocked_count": switcher._chop_blocked_count,
             "bull_blocked_volume": switcher._bull_blocked_volume,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
             "bull_blocked_crs": switcher._bull_blocked_crs,
+            "bull_blocked_amt": switcher._bull_blocked_amt,
+            "amt_bull_amplified": switcher._amt_bull_amplified,
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "bear_blocked_min_sl": switcher._bear_blocked_min_sl,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
@@ -659,4 +658,4 @@ def backtest_mode3(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "3.9", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "4.0", "db_path": DB_PATH}
