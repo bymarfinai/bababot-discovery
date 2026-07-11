@@ -1,10 +1,8 @@
 """
-Mode3 Config v4.1 — Fix #17.1 AMT Smart Levels (INFORM TP/SL, don't filter).
+Mode3 Config v4.2 — Fix #19 Loss reducers.
 
-Instead of skip losing trades, use HTF context to improve TP/SL:
-- SW SHORT ABOVE → TP at HTF VAH (natural resistance)
-- BULL NEAR_VAH → TP at 2.6x projection (extend beyond breakout)
-- BULL BELOW → SL tightened using HTF VAL (breach = full bear confirmed)
+A. Wick tolerance SL for BULL — SL slightly wider than 1h low
+B. BULL BELOW VAL TP — target reversion to HTF VAL as natural mean-rev level
 """
 from dataclasses import dataclass
 
@@ -87,7 +85,6 @@ class Mode3Config:
     crs_regime_gate: bool = False
     crs_regime_max_slope: float = 0.3
 
-    # v4.0 Fix #17 AMT (filter+amplify) — keep for comparison
     amt_enabled: bool = False
     amt_boundary_pct: float = 0.005
     amt_skip_sw_above: bool = True
@@ -95,15 +92,18 @@ class Mode3Config:
     amt_bull_near_vah_mult: float = 2.0
     amt_bull_above_mult: float = 1.5
 
-    # v4.1 Fix #17.1 AMT Smart Levels (informed TP/SL)
     amt_smart_levels_enabled: bool = False
-    # A: SW SHORT ABOVE → TP at HTF VAH (natural resistance)
     amt_sw_above_use_vah_tp: bool = True
-    # B: BULL NEAR_VAH → TP at 2.6x projection
     amt_bull_near_vah_use_projection_tp: bool = True
     amt_projection_divisor: float = 2.6
-    # C: BULL BELOW → SL informed by HTF VAL
     amt_bull_below_use_val_sl: bool = True
+
+    # v4.2 Fix #19 Loss reducers
+    # A: Wick tolerance SL — SL wider than 1h low by X% to avoid wick fills
+    bull_wick_tolerance_enabled: bool = False
+    bull_wick_tolerance_pct: float = 0.002  # 0.2% buffer below 1h low
+    # B: BULL BELOW → TP at HTF VAL (natural mean-rev target)
+    bull_below_use_val_tp: bool = False
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
