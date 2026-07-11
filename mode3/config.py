@@ -1,9 +1,9 @@
 """
-Mode3 Config v3.7 — Add Fix #16 CRS (Confirmed Rejection Short) A/B/C.
+Mode3 Config v3.8 — Add Fix #16 CRS regime gate.
 
-A. Entry on 4h confirmed rejection → SHORT setup
-B. TP projection = swing range / 2.6 (Fibonacci φ² extension)
-C. Skip BULL for N hours after CRS confirmed (regime filter)
+New:
+- crs_regime_gate: skip CRS if HTF 4h slope > threshold (bullish regime)
+- crs_regime_max_slope: threshold for gate
 """
 from dataclasses import dataclass
 
@@ -76,17 +76,17 @@ class Mode3Config:
     bull_trend_rider_trailing_activate_pct: float = 0.015
     bull_trend_rider_trailing_distance_pct: float = 0.008
 
-    # === v3.7 Fix #16: CRS (Confirmed Rejection Short) ===
-    # A. Entry after 4h confirmed rejection
+    # Fix #16 CRS
     crs_enabled: bool = False
-    crs_lookback_4h_bars: int = 10       # swing high lookback on 4h
-    crs_active_hours: int = 8            # keep CRS active for X hours (allow BEAR entry)
-    crs_size_mult: float = 1.0           # size multiplier for CRS trades
-    # B. 2.6x projection TP
-    crs_use_projection_tp: bool = False  # opt-in for B
-    crs_projection_divisor: float = 2.6  # Fibonacci φ² extension
-    # C. Skip BULL after CRS
-    crs_skip_bull_hours: int = 0         # skip BULL for N hours after CRS (0 = disabled)
+    crs_lookback_4h_bars: int = 10
+    crs_active_hours: int = 8
+    crs_size_mult: float = 1.0
+    crs_use_projection_tp: bool = False
+    crs_projection_divisor: float = 2.6
+    crs_skip_bull_hours: int = 0
+    # v3.8 NEW: regime gate — skip CRS if HTF slope > threshold (bullish regime)
+    crs_regime_gate: bool = False
+    crs_regime_max_slope: float = 0.3
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
