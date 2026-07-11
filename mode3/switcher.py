@@ -1,8 +1,9 @@
 """
-Mode3 Switcher v3.7.1 — Fix #16 CRS NON-INVASIVE mode.
+Mode3 Switcher v4.0 — Fix #17 AMT Position Modifier.
 
-Change: instead of forcing state to BEAR (which killed other entries),
-bypass state machine and execute BEAR entry ONLY IF 1h BEAR setup fires during CRS window.
+Modifiers based on HTF 4h VAH/VAL position:
+- Skip SW ABOVE, Skip BULL BELOW (block losers)
+- Amplify BULL NEAR_VAH (2x), Amplify BULL ABOVE (1.5x) — winners
 """
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -94,10 +95,12 @@ class Switcher:
         self._bull_blocked_volume = 0
         self._bull_blocked_mtf = 0
         self._bull_blocked_crs = 0
+        self._bull_blocked_amt = 0
         self._bear_blocked_mtf = 0
         self._bear_blocked_min_sl = 0
         self._sideways_blocked_mtf = 0
         self._sideways_blocked_slope = 0
+        self._sideways_blocked_amt = 0
         self._trap_short_count = 0
         self._trap_long_count = 0
         self._ema_history = deque(maxlen=config.sideways_slope_window)
@@ -125,6 +128,7 @@ class Switcher:
         self._crs_confirmed_count = 0
         self._crs_trade_count = 0
         self._crs_skip_bull_until_bar = -1
+        self._amt_bull_amplified = 0
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -157,7 +161,6 @@ class Switcher:
         self._volume_history.append(v)
         self._high_history.append(h)
 
-        # CRS activation from 4h signal
         if getattr(self.config, 'crs_enabled', False):
             if (self.htf_4h_crs_confirmed is not None 
                     and bar_idx < len(self.htf_4h_crs_confirmed)
@@ -187,8 +190,6 @@ class Switcher:
             if self._is_choppy():
                 self._chop_blocked_count += 1
                 return
-            # v3.7.1 Fix #16A NON-INVASIVE: bypass state machine, execute BEAR entry
-            # IF CRS active + standard 1h BEAR setup fires. Does not change state.
             if self._is_crs_active(bar_idx):
                 if (h >= ema20) and (c < ema20) and (c < o):
                     self._execute_bear_entry(bar_idx, o, h, l, c, ema20, vah, val)
@@ -202,6 +203,27 @@ class Switcher:
     def _is_crs_active(self, bar_idx):
         return (getattr(self.config, 'crs_enabled', False)
                 and bar_idx <= self._crs_active_until_bar)
+
+    def _get_balance_position(self, bar_idx, price):
+        """v4.0 Fix #17: Classify price position relative to HTF 4h VAH/VAL."""
+        if self.htf_4h_vah is None or self.htf_4h_val is None:
+            return 'UNKNOWN'
+        if bar_idx >= len(self.htf_4h_vah) or bar_idx >= len(self.htf_4h_val):
+            return 'UNKNOWN'
+        vah = self.htf_4h_vah[bar_idx]
+        val = self.htf_4h_val[bar_idx]
+        if vah is None or val is None or price is None:
+            return 'UNKNOWN'
+        if price > vah:
+            return 'ABOVE'
+        if price < val:
+            return 'BELOW'
+        boundary = getattr(self.config, 'amt_boundary_pct', 0.005)
+        if (vah - price) / vah < boundary:
+            return 'NEAR_VAH'
+        if (price - val) / val < boundary:
+            return 'NEAR_VAL'
+        return 'INSIDE'
 
     def _is_choppy(self):
         if self.config.chop_max_crossings <= 0: return False
@@ -518,34 +540,22 @@ class Switcher:
             near_htf_vah = abs(c - htf_vah) / htf_vah <= self.config.trap_zone_tolerance
             if recent_short or near_htf_vah:
                 if c <= htf_ema:
-                    entry_price = c
-                    sl_level = h
+                    entry_price = c; sl_level = h
                     tp_level = entry_price * (1.0 - tp_pct)
-                    self.position = Position(
-                        tool='TRAP', side='SHORT',
-                        entry_price=entry_price, entry_bar=bar_idx,
-                        entry_high=h, entry_low=l,
-                        sl_level=sl_level, tp_level=tp_level,
-                        peak_high=h, trough_low=l,
-                        ema_at_entry=self._current_ema20,
-                    )
+                    self.position = Position(tool='TRAP', side='SHORT', entry_price=entry_price,
+                        entry_bar=bar_idx, entry_high=h, entry_low=l, sl_level=sl_level,
+                        tp_level=tp_level, peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
                     self._trap_short_count += 1
                     return
         if val is not None and l <= val and c >= val:
             near_htf_val = abs(c - htf_val) / htf_val <= self.config.trap_zone_tolerance
             if recent_long or near_htf_val:
                 if c >= htf_ema:
-                    entry_price = c
-                    sl_level = l
+                    entry_price = c; sl_level = l
                     tp_level = entry_price * (1.0 + tp_pct)
-                    self.position = Position(
-                        tool='TRAP', side='LONG',
-                        entry_price=entry_price, entry_bar=bar_idx,
-                        entry_high=h, entry_low=l,
-                        sl_level=sl_level, tp_level=tp_level,
-                        peak_high=h, trough_low=l,
-                        ema_at_entry=self._current_ema20,
-                    )
+                    self.position = Position(tool='TRAP', side='LONG', entry_price=entry_price,
+                        entry_bar=bar_idx, entry_high=h, entry_low=l, sl_level=sl_level,
+                        tp_level=tp_level, peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
                     self._trap_long_count += 1
                     return
 
@@ -572,6 +582,12 @@ class Switcher:
         return abs(c - ema) / ema <= self.config.sideways_ema_distance_cap
 
     def _open_short_sideways(self, bar_idx, h, l, c):
+        # v4.0 Fix #17: Skip SW ABOVE HTF VAH (proven -$10 loss)
+        if getattr(self.config, 'amt_enabled', False) and getattr(self.config, 'amt_skip_sw_above', True):
+            pos = self._get_balance_position(bar_idx, c)
+            if pos == 'ABOVE':
+                self._sideways_blocked_amt += 1
+                return
         if not self._sideways_distance_ok(c):
             self._sideways_blocked_count += 1; return
         if not self._sideways_slope_ok():
@@ -597,6 +613,12 @@ class Switcher:
         self._bear_loss_streak = 0
 
     def _open_long_sideways(self, bar_idx, h, l, c):
+        # v4.0 Fix #17: Skip SW ABOVE HTF VAH
+        if getattr(self.config, 'amt_enabled', False) and getattr(self.config, 'amt_skip_sw_above', True):
+            pos = self._get_balance_position(bar_idx, c)
+            if pos == 'ABOVE':
+                self._sideways_blocked_amt += 1
+                return
         if not self._sideways_distance_ok(c):
             self._sideways_blocked_count += 1; return
         if not self._sideways_slope_ok():
@@ -647,12 +669,31 @@ class Switcher:
                 and bar_idx <= self._crs_skip_bull_until_bar):
             self._bull_blocked_crs += 1
             return
+        # v4.0 Fix #17: Skip BULL BELOW HTF VAL (proven -$31 loss)
+        entry_price_for_pos = c
+        if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
+            if bar_idx < len(self.mtf_bull_entry_close):
+                mtf_c = self.mtf_bull_entry_close[bar_idx]
+                if mtf_c is not None: entry_price_for_pos = mtf_c
+        amt_pos = None
+        if getattr(self.config, 'amt_enabled', False):
+            amt_pos = self._get_balance_position(bar_idx, entry_price_for_pos)
+            if getattr(self.config, 'amt_skip_bull_below', True) and amt_pos == 'BELOW':
+                self._bull_blocked_amt += 1
+                return
         if not self._bull_volume_ok(self._volume_history[-1] if self._volume_history else 0):
             self._bull_blocked_volume += 1
             return
         is_ct = self._is_countertrend_bull(bar_idx)
         is_bull_tr = (not is_ct) and self._is_bull_trend_rider_regime(bar_idx)
         size_mult = self.config.bull_countertrend_size_mult if is_ct else 1.0
+        # v4.0 Fix #17: Amplify BULL near/above HTF VAH
+        if getattr(self.config, 'amt_enabled', False) and amt_pos in ('NEAR_VAH', 'ABOVE'):
+            amt_mult = (self.config.amt_bull_near_vah_mult if amt_pos == 'NEAR_VAH' 
+                        else self.config.amt_bull_above_mult)
+            if amt_mult > size_mult:
+                size_mult = amt_mult
+                self._amt_bull_amplified += 1
         if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
             if bar_idx < len(self.mtf_bull_entry_close):
                 mtf_close = self.mtf_bull_entry_close[bar_idx]
@@ -718,7 +759,6 @@ class Switcher:
         is_trend_rider = self._is_trend_rider_regime(bar_idx)
         is_crs = self._is_crs_active(bar_idx) and not is_trend_rider
         size_mult = self.config.crs_size_mult if is_crs else 1.0
-
         if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
             if bar_idx < len(self.mtf_bear_entry_close):
                 mtf_close = self.mtf_bear_entry_close[bar_idx]
