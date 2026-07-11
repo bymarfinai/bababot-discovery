@@ -1,5 +1,5 @@
 """
-Mode3 Backtest Endpoint v3.7 — Add Fix #16 CRS (Confirmed Rejection Short).
+Mode3 Backtest Endpoint v3.8 — Add CRS regime gate.
 """
 import os
 import json as jsonlib
@@ -53,7 +53,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 blocked_count, final_state, config_json
             ) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)
         """, (
-            int(datetime.utcnow().timestamp()), '3.7', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '3.8', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -244,16 +244,10 @@ def compute_htf_4h_uptrend(close_series, ema_series, slope_series, regime_bars=3
     return uptrend
 
 
-def compute_htf_4h_crs(rows_1h, rows_4h, lookback_bars=10):
-    """v3.7 Fix #16: Detect Confirmed Rejection Short pattern on 4h.
+def compute_htf_4h_crs(rows_1h, rows_4h, lookback_bars=10, slope_series_1h=None, regime_gate=False, regime_max_slope=0.3):
+    """v3.8: CRS with optional regime gate.
     
-    CRS pattern per 4h bar N:
-      - high(N) > max(highs[N-lookback:N])  (broke above recent swing high)
-      - close(N) < max(highs[N-lookback:N]) (rejected back below)
-      - close(N) < open(N)                    (bearish body)
-    
-    Returns per-1h-bar (confirmed_flag, range_for_projection).
-    Range = high(N) - min(lows[N-lookback:N+1]) (full swing range).
+    If regime_gate True: skip CRS activation if HTF slope > regime_max_slope (bullish regime).
     """
     n = len(rows_1h)
     if not rows_4h or len(rows_4h) < lookback_bars + 1:
@@ -265,7 +259,6 @@ def compute_htf_4h_crs(rows_1h, rows_4h, lookback_bars=10):
     ts_4h = [r[0] for r in rows_4h]
     ONE_4H_MS = 4 * 60 * 60 * 1000
 
-    # Detect CRS on each 4h bar
     crs_4h = [False] * len(rows_4h)
     range_4h = [None] * len(rows_4h)
     for i in range(lookback_bars, len(rows_4h)):
@@ -277,7 +270,6 @@ def compute_htf_4h_crs(rows_1h, rows_4h, lookback_bars=10):
             crs_4h[i] = True
             range_4h[i] = highs_4h[i] - recent_low
 
-    # Map to 1h bars — activate on the 1h bar where 4h bar just closed
     crs_1h = [False] * n
     range_1h = [None] * n
     idx_4h = 0
@@ -285,8 +277,12 @@ def compute_htf_4h_crs(rows_1h, rows_4h, lookback_bars=10):
         t_1h = r[0]
         while idx_4h + 1 < len(ts_4h) and ts_4h[idx_4h + 1] + ONE_4H_MS <= t_1h:
             idx_4h += 1
-        # CRS "just confirmed" on first 1h bar after 4h close
         if ts_4h[idx_4h] + ONE_4H_MS == t_1h and crs_4h[idx_4h]:
+            # v3.8: regime gate check
+            if regime_gate and slope_series_1h and i < len(slope_series_1h):
+                slope = slope_series_1h[i]
+                if slope is not None and slope > regime_max_slope:
+                    continue  # skip CRS in bullish regime
             crs_1h[i] = True
             range_1h[i] = range_4h[idx_4h]
     return crs_1h, range_1h
@@ -346,7 +342,6 @@ def backtest_mode3(
     bull_trend_rider_tp_pct: float = Query(0.030, ge=0.005, le=0.20),
     bull_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
     bull_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
-    # v3.7 Fix #16 CRS
     crs_enabled: bool = Query(False),
     crs_lookback_4h_bars: int = Query(10, ge=3, le=50),
     crs_active_hours: int = Query(8, ge=1, le=48),
@@ -354,6 +349,8 @@ def backtest_mode3(
     crs_use_projection_tp: bool = Query(False),
     crs_projection_divisor: float = Query(2.6, ge=1.0, le=10.0),
     crs_skip_bull_hours: int = Query(0, ge=0, le=72),
+    crs_regime_gate: bool = Query(False),
+    crs_regime_max_slope: float = Query(0.3, ge=-2.0, le=5.0),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -416,6 +413,8 @@ def backtest_mode3(
         crs_use_projection_tp=crs_use_projection_tp,
         crs_projection_divisor=crs_projection_divisor,
         crs_skip_bull_hours=crs_skip_bull_hours,
+        crs_regime_gate=crs_regime_gate,
+        crs_regime_max_slope=crs_regime_max_slope,
         trap_enabled=trap_enabled,
         trap_lookback_4h=trap_lookback_4h,
         trap_zone_tolerance=trap_zone_tolerance,
@@ -495,7 +494,11 @@ def backtest_mode3(
                 regime_bars=bull_trend_rider_regime_bars,
                 slope_min=bull_trend_rider_regime_slope_min)
         if crs_enabled:
-            crs_flags, crs_ranges = compute_htf_4h_crs(rows, rows_4h, lookback_bars=crs_lookback_4h_bars)
+            crs_flags, crs_ranges = compute_htf_4h_crs(
+                rows, rows_4h, lookback_bars=crs_lookback_4h_bars,
+                slope_series_1h=htf_slope_series,
+                regime_gate=crs_regime_gate,
+                regime_max_slope=crs_regime_max_slope)
             switcher.htf_4h_crs_confirmed = crs_flags
             switcher.htf_4h_crs_range = crs_ranges
 
@@ -524,7 +527,6 @@ def backtest_mode3(
                 "pnl_pct": round(sum(t.pnl_pct for t in tt) * 100, 3),
             }
 
-    # CRS-specific stats
     crs_trades = [t for t in trades if getattr(t, 'is_crs', False)]
     crs_stats = None
     if crs_trades:
@@ -617,4 +619,4 @@ def backtest_mode3(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "3.7", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "3.8", "db_path": DB_PATH}
