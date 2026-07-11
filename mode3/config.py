@@ -1,9 +1,11 @@
 """
-Mode3 Config v3.8 — Add Fix #16 CRS regime gate.
+Mode3 Config v4.0 — Fix #17 AMT Position Modifier.
 
-New:
-- crs_regime_gate: skip CRS if HTF 4h slope > threshold (bullish regime)
-- crs_regime_max_slope: threshold for gate
+4 modifiers based on trade position relative to HTF 4h balance zone:
+1. Skip SW entries if price > HTF VAH (SW ABOVE = -$10 loss)
+2. Skip BULL entries if price < HTF VAL (BULL BELOW = -$31 loss)
+3. Amplify BULL entries NEAR VAH (80% WR = A+ setup)
+4. Amplify BULL entries ABOVE VAH (70% WR = ride imbalance)
 """
 from dataclasses import dataclass
 
@@ -76,7 +78,6 @@ class Mode3Config:
     bull_trend_rider_trailing_activate_pct: float = 0.015
     bull_trend_rider_trailing_distance_pct: float = 0.008
 
-    # Fix #16 CRS
     crs_enabled: bool = False
     crs_lookback_4h_bars: int = 10
     crs_active_hours: int = 8
@@ -84,9 +85,16 @@ class Mode3Config:
     crs_use_projection_tp: bool = False
     crs_projection_divisor: float = 2.6
     crs_skip_bull_hours: int = 0
-    # v3.8 NEW: regime gate — skip CRS if HTF slope > threshold (bullish regime)
     crs_regime_gate: bool = False
     crs_regime_max_slope: float = 0.3
+
+    # v4.0 Fix #17: AMT Position Modifier
+    amt_enabled: bool = False              # master switch
+    amt_boundary_pct: float = 0.005        # near = within 0.5% of VAH/VAL
+    amt_skip_sw_above: bool = True         # skip SW entry if price > HTF VAH
+    amt_skip_bull_below: bool = True       # skip BULL entry if price < HTF VAL
+    amt_bull_near_vah_mult: float = 2.0    # amplify BULL when NEAR_VAH (80% WR bucket)
+    amt_bull_above_mult: float = 1.5       # amplify BULL when ABOVE (70% WR bucket)
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
