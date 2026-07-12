@@ -1,6 +1,21 @@
-"""Mode3 Switcher v4.4 — Break-Even SL for BULL LONG + SIDEWAYS."""
-from dataclasses import dataclass, field
-from typing import Optional, List
+"""
+Mode3 Switcher v5.0 — Cleaned up. Champion Option A only.
+
+Kept:
+- State machine (STARTUP/SIDEWAYS/BULL/BEAR/WAIT_SEE_*)
+- CT Bull 3x + AMT amplify
+- BEAR Trend Rider (trailing)
+- SM Fix 2 (bear streak) + Fix 3 (extreme low)
+- MTF 15m entry
+- Chop + volume filter
+
+Removed (see mode3/_legacy/README.md):
+- Trap, CRS, Bull Trend Rider
+- AMT Smart Levels, Wick tolerance, BULL BELOW VAL TP
+- Sweep, BE SL, SM Fix 1 & 4
+"""
+from dataclasses import dataclass
+from typing import Optional
 from collections import deque
 from .config import Mode3Config
 
@@ -39,13 +54,10 @@ class Position:
     trough_low: float = 1e18
     ema_at_entry: float = 0.0
     size_mult: float = 1.0
-    is_trend_rider: bool = False
+    is_trend_rider: bool = False       # BEAR trend rider
     trailing_active: bool = False
-    is_bull_trend_rider: bool = False
-    is_crs: bool = False
-    amt_smart_applied: str = ''
-    sweep_applied: bool = False
-    be_activated: bool = False
+    is_countertrend: bool = False      # CT Bull
+    amt_position: str = ''             # INSIDE/NEAR_VAH/ABOVE/BELOW/NEAR_VAL
 
 
 @dataclass
@@ -67,11 +79,8 @@ class Trade:
     ema_at_exit: float = 0.0
     size_mult: float = 1.0
     is_trend_rider: bool = False
-    is_bull_trend_rider: bool = False
-    is_crs: bool = False
-    amt_smart_applied: str = ''
-    sweep_applied: bool = False
-    be_activated: bool = False
+    is_countertrend: bool = False
+    amt_position: str = ''
 
 
 class Switcher:
@@ -88,58 +97,35 @@ class Switcher:
         self._current_ema20 = 0.0
         self._current_vah = None
         self._current_val = None
-        self._sideways_blocked_count = 0
+        # Filters
         self._chop_history = deque(maxlen=config.chop_window)
-        self._chop_blocked_count = 0
+        self._ema_history = deque(maxlen=config.sideways_slope_window)
         self._volume_history = deque(maxlen=config.bull_volume_window)
+        self._high_history = deque(maxlen=max(config.sm_fix_3_high_lookback, 10))
+        # Blocked counters
+        self._sideways_blocked_count = 0
+        self._sideways_blocked_slope = 0
+        self._sideways_blocked_mtf = 0
+        self._chop_blocked_count = 0
         self._bull_blocked_volume = 0
         self._bull_blocked_mtf = 0
-        self._bull_blocked_crs = 0
-        self._bull_blocked_amt = 0
         self._bear_blocked_mtf = 0
         self._bear_blocked_min_sl = 0
-        self._sideways_blocked_mtf = 0
-        self._sideways_blocked_slope = 0
-        self._sideways_blocked_amt = 0
-        self._trap_short_count = 0
-        self._trap_long_count = 0
-        self._ema_history = deque(maxlen=config.sideways_slope_window)
+        # BEAR streak
         self._bear_loss_streak = 0
-        self._high_history = deque(maxlen=max(config.sm_fix_3_high_lookback, 10))
         self._last_exit_bar = 0
-        self._sm_fix1_count = 0
+        # SM Fix counters
         self._sm_fix2_count = 0
         self._sm_fix3_count = 0
-        self._bull_setup_bar = -1
-        self._bear_setup_bar = -1
-        self._sm_fix4_bull_confirmed = 0
-        self._sm_fix4_bull_cancelled = 0
-        self._sm_fix4_bear_confirmed = 0
-        self._sm_fix4_bear_cancelled = 0
+        # CT Bull counter
         self._bull_countertrend_count = 0
+        # BEAR Trend Rider counters
         self._bear_trend_rider_count = 0
         self._bear_trend_rider_trailing_hits = 0
         self._bear_trend_rider_hard_exits = 0
-        self._bull_trend_rider_count = 0
-        self._bull_trend_rider_trailing_hits = 0
-        self._bull_trend_rider_hard_exits = 0
-        self._crs_active_until_bar = -1
-        self._crs_current_range = None
-        self._crs_confirmed_count = 0
-        self._crs_trade_count = 0
-        self._crs_skip_bull_until_bar = -1
+        # AMT counter
         self._amt_bull_amplified = 0
-        self._amt_sw_vah_tp_count = 0
-        self._amt_bull_projection_tp_count = 0
-        self._amt_bull_val_sl_count = 0
-        self._bull_wick_widened = 0
-        self._bull_below_val_tp = 0
-        self._sweep_bull_amplified = 0
-        self._sweep_sw_amplified = 0
-        # v4.4 BE SL counters
-        self._be_sl_activated = 0   # BE moved to entry (SL relocated)
-        self._be_sl_hit = 0          # actual BE_SL exit (protected loss)
-        self._ohlc_buffer = deque(maxlen=10)
+        # MTF 15m entry data (populated externally)
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -148,17 +134,13 @@ class Switcher:
         self.mtf_sideways_short_entry_high = None
         self.mtf_sideways_long_entry_close = None
         self.mtf_sideways_long_entry_low = None
+        # HTF context (populated externally)
         self.htf_4h_vah = None
         self.htf_4h_val = None
         self.htf_4h_close = None
         self.htf_4h_ema20 = None
         self.htf_4h_slope = None
         self.htf_4h_downtrend = None
-        self.htf_4h_uptrend = None
-        self.htf_4h_crs_confirmed = None
-        self.htf_4h_crs_range = None
-        self.htf_trap_short_recent = None
-        self.htf_trap_long_recent = None
 
     def process_candle(self, bar_idx, o, h, l, c, v, ema20, vah, val, poc):
         self._action_taken_this_bar = False
@@ -172,19 +154,6 @@ class Switcher:
         self._volume_history.append(v)
         self._high_history.append(h)
 
-        if getattr(self.config, 'crs_enabled', False):
-            if (self.htf_4h_crs_confirmed is not None 
-                    and bar_idx < len(self.htf_4h_crs_confirmed)
-                    and self.htf_4h_crs_confirmed[bar_idx]):
-                active_hours = self.config.crs_active_hours
-                self._crs_active_until_bar = bar_idx + active_hours
-                if self.htf_4h_crs_range and bar_idx < len(self.htf_4h_crs_range):
-                    self._crs_current_range = self.htf_4h_crs_range[bar_idx]
-                skip_h = self.config.crs_skip_bull_hours
-                if skip_h > 0:
-                    self._crs_skip_bull_until_bar = bar_idx + skip_h
-                self._crs_confirmed_count += 1
-
         if self.state == 'STARTUP':
             if vah is None or val is None: return
             self._startup_transition(c, ema20)
@@ -194,30 +163,10 @@ class Switcher:
             self._check_exit(bar_idx, o, h, l, c, ema20, vah, val)
 
         if self.position is None and not self._action_taken_this_bar:
-            if self.config.trap_enabled and self.config.trap_priority_over_state:
-                self._check_trap_entry(bar_idx, o, h, l, c, ema20, vah, val)
-                if self.position is not None:
-                    self._ohlc_buffer.append((h, l, c, o, bar_idx))
-                    return
             if self._is_choppy():
                 self._chop_blocked_count += 1
-                self._ohlc_buffer.append((h, l, c, o, bar_idx))
                 return
-            if self._is_crs_active(bar_idx):
-                if (h >= ema20) and (c < ema20) and (c < o):
-                    self._execute_bear_entry(bar_idx, o, h, l, c, ema20, vah, val)
-                    if self.position is not None:
-                        self._ohlc_buffer.append((h, l, c, o, bar_idx))
-                        return
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val, poc)
-            if (self.position is None and self.config.trap_enabled
-                    and not self.config.trap_priority_over_state):
-                self._check_trap_entry(bar_idx, o, h, l, c, ema20, vah, val)
-        self._ohlc_buffer.append((h, l, c, o, bar_idx))
-
-    def _is_crs_active(self, bar_idx):
-        return (getattr(self.config, 'crs_enabled', False)
-                and bar_idx <= self._crs_active_until_bar)
 
     def _get_balance_position(self, bar_idx, price):
         if self.htf_4h_vah is None or self.htf_4h_val is None: return 'UNKNOWN'
@@ -226,46 +175,10 @@ class Switcher:
         if vah is None or val is None or price is None: return 'UNKNOWN'
         if price > vah: return 'ABOVE'
         if price < val: return 'BELOW'
-        boundary = getattr(self.config, 'amt_boundary_pct', 0.005)
+        boundary = self.config.amt_boundary_pct
         if (vah - price) / vah < boundary: return 'NEAR_VAH'
         if (price - val) / val < boundary: return 'NEAR_VAL'
         return 'INSIDE'
-
-    def _get_htf_vah(self, bar_idx):
-        if self.htf_4h_vah is None or bar_idx >= len(self.htf_4h_vah): return None
-        return self.htf_4h_vah[bar_idx]
-
-    def _get_htf_val(self, bar_idx):
-        if self.htf_4h_val is None or bar_idx >= len(self.htf_4h_val): return None
-        return self.htf_4h_val[bar_idx]
-
-    def _detect_sweep_down(self, bar_idx):
-        if not getattr(self.config, 'sweep_enabled', False):
-            return False
-        lookback = getattr(self.config, 'sweep_lookback_bars', 1)
-        buffer_list = list(self._ohlc_buffer)
-        for i in range(1, min(lookback+1, len(buffer_list)+1)):
-            entry = buffer_list[-i]
-            prev_h, prev_l, prev_c, prev_o, prev_bar = entry
-            prev_val = self._get_htf_val(prev_bar)
-            if prev_val is None: continue
-            if prev_l < prev_val and prev_c > prev_val:
-                return True
-        return False
-
-    def _detect_sweep_up(self, bar_idx):
-        if not getattr(self.config, 'sweep_enabled', False):
-            return False
-        lookback = getattr(self.config, 'sweep_lookback_bars', 1)
-        buffer_list = list(self._ohlc_buffer)
-        for i in range(1, min(lookback+1, len(buffer_list)+1)):
-            entry = buffer_list[-i]
-            prev_h, prev_l, prev_c, prev_o, prev_bar = entry
-            prev_vah = self._get_htf_vah(prev_bar)
-            if prev_vah is None: continue
-            if prev_h > prev_vah and prev_c < prev_vah:
-                return True
-        return False
 
     def _is_choppy(self):
         if self.config.chop_max_crossings <= 0: return False
@@ -314,41 +227,26 @@ class Switcher:
                 return entry_price + sl_distance * self.config.bull_rr_ratio
         return entry_price * (1.0 + self.config.tp_pct)
 
-    def _htf_is_bullish(self, bar_idx):
-        if self.htf_4h_close is None or self.htf_4h_ema20 is None: return None
-        if bar_idx >= len(self.htf_4h_close) or bar_idx >= len(self.htf_4h_ema20): return None
-        c = self.htf_4h_close[bar_idx]; e = self.htf_4h_ema20[bar_idx]
-        if c is None or e is None: return None
-        return c > e
-
-    def _htf_slope_at(self, bar_idx):
-        if self.htf_4h_slope is None or bar_idx >= len(self.htf_4h_slope): return None
-        return self.htf_4h_slope[bar_idx]
-
-    def _is_trend_rider_regime(self, bar_idx):
+    def _is_bear_trend_rider_regime(self, bar_idx):
         if not self.config.bear_trend_rider_enabled: return False
         if self.htf_4h_downtrend is None or bar_idx >= len(self.htf_4h_downtrend): return False
         return bool(self.htf_4h_downtrend[bar_idx])
 
-    def _is_bull_trend_rider_regime(self, bar_idx):
-        if not getattr(self.config, 'bull_trend_rider_enabled', False): return False
-        if self.htf_4h_uptrend is None or bar_idx >= len(self.htf_4h_uptrend): return False
-        return bool(self.htf_4h_uptrend[bar_idx])
-
     def _is_countertrend_bull(self, bar_idx):
         if not self.config.bull_countertrend_enabled: return False
         if (self.config.bear_trend_rider_enabled
-                and getattr(self.config, 'bear_trend_rider_disable_ct_bull', True)
-                and self._is_trend_rider_regime(bar_idx)): return False
-        if getattr(self.config, 'bull_countertrend_use_position', True):
+                and self.config.bear_trend_rider_disable_ct_bull
+                and self._is_bear_trend_rider_regime(bar_idx)): return False
+        if self.config.bull_countertrend_use_position:
             if self.htf_4h_close is None or self.htf_4h_ema20 is None: return False
             if bar_idx >= len(self.htf_4h_close) or bar_idx >= len(self.htf_4h_ema20): return False
             c = self.htf_4h_close[bar_idx]; e = self.htf_4h_ema20[bar_idx]
             if c is None or e is None or e <= 0: return False
             dist_pct = (c - e) / e * 100
-            return dist_pct < getattr(self.config, 'bull_countertrend_max_close_pct', 0.0)
+            return dist_pct < self.config.bull_countertrend_max_close_pct
         else:
-            slope = self._htf_slope_at(bar_idx)
+            if self.htf_4h_slope is None or bar_idx >= len(self.htf_4h_slope): return False
+            slope = self.htf_4h_slope[bar_idx]
             if slope is None: return False
             return slope < self.config.bull_countertrend_slope_threshold
 
@@ -361,65 +259,25 @@ class Switcher:
         self.position.peak_high = max(self.position.peak_high, h)
         self.position.trough_low = min(self.position.trough_low, l)
 
-    def _apply_be_sl_long(self, pos, current_price):
-        """v4.4: For LONG (BULL LONG or SIDEWAYS LONG), move SL to entry when profit >= activation."""
-        if pos.be_activated: return
-        if not getattr(self.config, 'be_sl_enabled', False): return
-        if pos.tool == 'BULL' and not getattr(self.config, 'be_sl_apply_bull', True): return
-        if pos.tool == 'SIDEWAYS' and not getattr(self.config, 'be_sl_apply_sw', True): return
-        activation = self.config.be_activation_pct
-        if activation <= 0: return
-        profit_pct = (current_price - pos.entry_price) / pos.entry_price
-        if profit_pct >= activation:
-            # Move SL to entry (breakeven). Only if new SL is higher than current SL.
-            if pos.entry_price > pos.sl_level:
-                pos.sl_level = pos.entry_price
-                pos.be_activated = True
-                self._be_sl_activated += 1
-
-    def _apply_be_sl_short(self, pos, current_price):
-        """v4.4: For SIDEWAYS SHORT, move SL to entry when profit >= activation."""
-        if pos.be_activated: return
-        if not getattr(self.config, 'be_sl_enabled', False): return
-        if pos.tool == 'SIDEWAYS' and not getattr(self.config, 'be_sl_apply_sw', True): return
-        activation = self.config.be_activation_pct
-        if activation <= 0: return
-        profit_pct = (pos.entry_price - current_price) / pos.entry_price
-        if profit_pct >= activation:
-            # Move SL to entry (breakeven). Only if new SL is lower than current SL (for SHORT).
-            if pos.entry_price < pos.sl_level:
-                pos.sl_level = pos.entry_price
-                pos.be_activated = True
-                self._be_sl_activated += 1
-
     def _check_exit(self, bar_idx, o, h, l, c, ema20, vah, val):
         pos = self.position
         if pos.tool == 'SIDEWAYS': self._exit_sideways(bar_idx, c, ema20, l=l, h=h)
         elif pos.tool == 'BULL': self._exit_bull(bar_idx, c)
         elif pos.tool == 'BEAR': self._exit_bear(bar_idx, c)
-        elif pos.tool == 'TRAP': self._exit_trap(bar_idx, c)
 
     def _exit_sideways(self, bar_idx, c, ema20, l=None, h=None):
         pos = self.position
         if pos.side == 'SHORT':
-            # v4.4: BE SL check
-            self._apply_be_sl_short(pos, c)
             if c > pos.sl_level:
-                exit_type = 'BE_SL' if pos.be_activated else 'SL'
-                if pos.be_activated: self._be_sl_hit += 1
-                self._close_position(bar_idx, c, exit_type); self._post_exit_sideways_short('SL'); return
+                self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_short('SL'); return
             if c <= pos.tp_level:
                 self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_short('TP'); return
             if l is not None and l <= ema20 and c > ema20:
                 if self._sideways_ema_inv_ok_short(c, ema20):
                     self._close_position(bar_idx, c, 'EMA_INVALIDATION'); self._post_exit_sideways_short('EMA_INVALIDATION'); return
         else:
-            # v4.4: BE SL check
-            self._apply_be_sl_long(pos, c)
             if c < pos.sl_level:
-                exit_type = 'BE_SL' if pos.be_activated else 'SL'
-                if pos.be_activated: self._be_sl_hit += 1
-                self._close_position(bar_idx, c, exit_type); self._post_exit_sideways_long('SL'); return
+                self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_long('SL'); return
             if c >= pos.tp_level:
                 self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_long('TP'); return
             if h is not None and h >= ema20 and c < ema20:
@@ -428,55 +286,31 @@ class Switcher:
 
     def _post_exit_sideways_short(self, et):
         if et == 'SL':
-            if self.config.sm_fix_1_htf_confirm:
-                htf_bullish = self._htf_is_bullish(self._last_exit_bar)
-                if htf_bullish is False:
-                    self.state = 'SIDEWAYS'; self._sm_fix1_count += 1; return
             self.state = 'BULL'; self.bull_stay_warmup = False; self.markers.hh_breach_case = 'none'
-        elif et == 'TP': self.state = 'SIDEWAYS'
-        else: self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'A'
+        elif et == 'TP':
+            self.state = 'SIDEWAYS'
+        else:
+            self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'A'
 
     def _post_exit_sideways_long(self, et):
         if et == 'SL':
             self.state = 'BEAR'; self.bear_stay_warmup = False; self.markers.ll_breach_case = 'none'
-        elif et == 'TP': self.state = 'SIDEWAYS'
-        else: self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'A'
+        elif et == 'TP':
+            self.state = 'SIDEWAYS'
+        else:
+            self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'A'
 
     def _exit_bull(self, bar_idx, c):
         pos = self.position
-        if pos.is_bull_trend_rider:
-            if (self.htf_4h_close is not None and self.htf_4h_ema20 is not None
-                    and bar_idx < len(self.htf_4h_close)):
-                htf_c = self.htf_4h_close[bar_idx]; htf_e = self.htf_4h_ema20[bar_idx]
-                if htf_c is not None and htf_e is not None and htf_c < htf_e:
-                    self._close_position(bar_idx, c, 'HTF_LOSE'); self._bull_trend_rider_hard_exits += 1
-                    self._post_exit_bull('HTF_LOSE'); return
-            profit_pct = (c - pos.entry_price) / pos.entry_price
-            activate_th = self.config.bull_trend_rider_trailing_activate_pct
-            trail_dist = self.config.bull_trend_rider_trailing_distance_pct
-            if not pos.trailing_active and profit_pct >= activate_th:
-                pos.trailing_active = True; pos.sl_level = pos.peak_high * (1.0 - trail_dist)
-            if pos.trailing_active:
-                new_sl = pos.peak_high * (1.0 - trail_dist)
-                if new_sl > pos.sl_level: pos.sl_level = new_sl
-                if c < pos.sl_level:
-                    self._close_position(bar_idx, c, 'TRAILING_SL'); self._bull_trend_rider_trailing_hits += 1
-                    self._post_exit_bull('TRAILING_SL'); return
-            if c < pos.sl_level: self._close_position(bar_idx, c, 'SL'); self._post_exit_bull('SL'); return
-            if c >= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_bull('TP'); return
-        else:
-            # v4.4: BE SL check for regular BULL LONG
-            self._apply_be_sl_long(pos, c)
-            if c < pos.sl_level:
-                exit_type = 'BE_SL' if pos.be_activated else 'SL'
-                if pos.be_activated: self._be_sl_hit += 1
-                self._close_position(bar_idx, c, exit_type); self._post_exit_bull('SL'); return
-            if c >= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_bull('TP'); return
+        if c < pos.sl_level:
+            self._close_position(bar_idx, c, 'SL'); self._post_exit_bull('SL'); return
+        if c >= pos.tp_level:
+            self._close_position(bar_idx, c, 'TP'); self._post_exit_bull('TP'); return
 
     def _post_exit_bull(self, et):
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
         self.markers.peak_high_bull = last_peak
-        if et in ('TP', 'TRAILING_SL'):
+        if et == 'TP':
             self.state = 'BULL'; self.bull_stay_warmup = True
         else:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False
@@ -484,12 +318,14 @@ class Switcher:
     def _exit_bear(self, bar_idx, c):
         pos = self.position
         if pos.is_trend_rider:
+            # BEAR trend rider: HTF reclaim exit
             if (self.htf_4h_close is not None and self.htf_4h_ema20 is not None
                     and bar_idx < len(self.htf_4h_close)):
                 htf_c = self.htf_4h_close[bar_idx]; htf_e = self.htf_4h_ema20[bar_idx]
                 if htf_c is not None and htf_e is not None and htf_c > htf_e:
                     self._close_position(bar_idx, c, 'HTF_RECLAIM'); self._bear_trend_rider_hard_exits += 1
                     self._post_exit_bear('HTF_RECLAIM'); return
+            # Trailing SL
             profit_pct = (pos.entry_price - c) / pos.entry_price
             activate_th = self.config.bear_trend_rider_trailing_activate_pct
             trail_dist = self.config.bear_trend_rider_trailing_distance_pct
@@ -501,11 +337,9 @@ class Switcher:
                 if c > pos.sl_level:
                     self._close_position(bar_idx, c, 'TRAILING_SL'); self._bear_trend_rider_trailing_hits += 1
                     self._post_exit_bear('TRAILING_SL'); return
-            if c > pos.sl_level: self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
-            if c <= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
-        else:
-            if c > pos.sl_level: self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
-            if c <= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
+        # Standard SL/TP
+        if c > pos.sl_level: self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
+        if c <= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
 
     def _post_exit_bear(self, et):
         last_trough = self.position.trough_low if self.position else self.trades[-1].trough_low
@@ -513,6 +347,7 @@ class Switcher:
         self.markers.trough_low_bear = last_trough
         if et in ('TP', 'TRAILING_SL'):
             self._bear_loss_streak = 0
+            # SM Fix 3: bear win at extreme low → sideways
             if self.config.sm_fix_3_extreme_low and len(self._high_history) >= 20:
                 recent_high = max(self._high_history)
                 if recent_high > 0:
@@ -523,46 +358,12 @@ class Switcher:
         else:
             if et == 'SL':
                 self._bear_loss_streak += 1
+                # SM Fix 2: bear loss streak → sideways
                 if (self.config.sm_fix_2_bear_streak
                         and self._bear_loss_streak >= self.config.sm_fix_2_streak_threshold):
                     self.state = 'SIDEWAYS'; self.bear_stay_warmup = False
                     self._bear_loss_streak = 0; self._sm_fix2_count += 1; return
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False
-
-    def _exit_trap(self, bar_idx, c):
-        pos = self.position
-        if pos.side == 'SHORT':
-            if c > pos.sl_level: self._close_position(bar_idx, c, 'SL'); return
-            if c <= pos.tp_level: self._close_position(bar_idx, c, 'TP'); return
-        else:
-            if c < pos.sl_level: self._close_position(bar_idx, c, 'SL'); return
-            if c >= pos.tp_level: self._close_position(bar_idx, c, 'TP'); return
-
-    def _check_trap_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
-        if self.htf_4h_vah is None or bar_idx >= len(self.htf_4h_vah): return
-        htf_vah = self.htf_4h_vah[bar_idx]; htf_val = self.htf_4h_val[bar_idx]; htf_ema = self.htf_4h_ema20[bar_idx]
-        recent_short = self.htf_trap_short_recent[bar_idx] if self.htf_trap_short_recent else False
-        recent_long = self.htf_trap_long_recent[bar_idx] if self.htf_trap_long_recent else False
-        if htf_vah is None or htf_val is None or htf_ema is None: return
-        tp_pct = self.config.trap_tp_pct
-        if vah is not None and h >= vah and c <= vah:
-            near_htf_vah = abs(c - htf_vah) / htf_vah <= self.config.trap_zone_tolerance
-            if recent_short or near_htf_vah:
-                if c <= htf_ema:
-                    entry_price = c; sl_level = h; tp_level = entry_price * (1.0 - tp_pct)
-                    self.position = Position(tool='TRAP', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
-                        entry_high=h, entry_low=l, sl_level=sl_level, tp_level=tp_level,
-                        peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
-                    self._trap_short_count += 1; return
-        if val is not None and l <= val and c >= val:
-            near_htf_val = abs(c - htf_val) / htf_val <= self.config.trap_zone_tolerance
-            if recent_long or near_htf_val:
-                if c >= htf_ema:
-                    entry_price = c; sl_level = l; tp_level = entry_price * (1.0 + tp_pct)
-                    self.position = Position(tool='TRAP', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
-                        entry_high=h, entry_low=l, sl_level=sl_level, tp_level=tp_level,
-                        peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
-                    self._trap_long_count += 1; return
 
     def _check_entry(self, bar_idx, o, h, l, c, ema20, vah, val, poc):
         if vah is None or val is None: return
@@ -585,63 +386,28 @@ class Switcher:
         if ema <= 0: return True
         return abs(c - ema) / ema <= self.config.sideways_ema_distance_cap
 
-    def _apply_smart_tp_sw_short(self, bar_idx, entry_price, default_tp):
-        if not (getattr(self.config, 'amt_smart_levels_enabled', False)
-                and getattr(self.config, 'amt_sw_above_use_vah_tp', True)):
-            return default_tp, False
-        pos = self._get_balance_position(bar_idx, entry_price)
-        if pos != 'ABOVE': return default_tp, False
-        htf_vah = self._get_htf_vah(bar_idx)
-        if htf_vah is None or htf_vah >= entry_price: return default_tp, False
-        new_tp = min(default_tp, htf_vah)
-        max_dist = 0.02
-        if (entry_price - htf_vah) / entry_price > max_dist:
-            new_tp = entry_price * (1.0 - max_dist)
-        self._amt_sw_vah_tp_count += 1
-        return new_tp, True
-
     def _open_short_sideways(self, bar_idx, h, l, c):
-        if getattr(self.config, 'amt_enabled', False) and getattr(self.config, 'amt_skip_sw_above', True):
-            pos = self._get_balance_position(bar_idx, c)
-            if pos == 'ABOVE': self._sideways_blocked_amt += 1; return
         if not self._sideways_distance_ok(c): self._sideways_blocked_count += 1; return
         if not self._sideways_slope_ok(): self._sideways_blocked_slope += 1; return
         tp_pct = self._sideways_tp_pct()
-        sweep_applied = False
-        size_mult = 1.0
-        if self._detect_sweep_up(bar_idx):
-            size_mult = getattr(self.config, 'sweep_sw_short_mult', 2.0)
-            sweep_applied = True
-            self._sweep_sw_amplified += 1
         if self.config.sideways_mtf_15m_entry and self.mtf_sideways_short_entry_close is not None:
             if bar_idx < len(self.mtf_sideways_short_entry_close):
                 mtf_close = self.mtf_sideways_short_entry_close[bar_idx]
                 mtf_high = self.mtf_sideways_short_entry_high[bar_idx]
                 if mtf_close is None or mtf_high is None:
                     self._sideways_blocked_mtf += 1; return
-                default_tp = mtf_close*(1.0-tp_pct)
-                tp_level, smart_applied = self._apply_smart_tp_sw_short(bar_idx, mtf_close, default_tp)
-                smart_tag = 'SW_VAH_TP' if smart_applied else ''
                 self.markers.marker_high_short = mtf_high; self.markers.marker_close_short = mtf_close
                 self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=mtf_close, entry_bar=bar_idx,
-                    entry_high=mtf_high, entry_low=l, sl_level=mtf_high, tp_level=tp_level,
-                    peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20,
-                    size_mult=size_mult, amt_smart_applied=smart_tag, sweep_applied=sweep_applied)
+                    entry_high=mtf_high, entry_low=l, sl_level=mtf_high, tp_level=mtf_close*(1.0-tp_pct),
+                    peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20)
                 self._bear_loss_streak = 0; return
-        default_tp = c*(1.0-tp_pct)
-        tp_level, smart_applied = self._apply_smart_tp_sw_short(bar_idx, c, default_tp)
-        smart_tag = 'SW_VAH_TP' if smart_applied else ''
         self.markers.marker_high_short = h; self.markers.marker_close_short = c
         self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=c, entry_bar=bar_idx,
-            entry_high=h, entry_low=l, sl_level=h, tp_level=tp_level,
-            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
-            size_mult=size_mult, amt_smart_applied=smart_tag, sweep_applied=sweep_applied)
+            entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-tp_pct),
+            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
         self._bear_loss_streak = 0
 
     def _open_long_sideways(self, bar_idx, h, l, c):
-        if getattr(self.config, 'amt_enabled', False) and getattr(self.config, 'amt_skip_sw_above', True):
-            pos = self._get_balance_position(bar_idx, c)
-            if pos == 'ABOVE': self._sideways_blocked_amt += 1; return
         if not self._sideways_distance_ok(c): self._sideways_blocked_count += 1; return
         if not self._sideways_slope_ok(): self._sideways_blocked_slope += 1; return
         tp_pct = self._sideways_tp_pct()
@@ -682,96 +448,33 @@ class Switcher:
         if (h >= vah) and (c <= vah):
             self._open_short_sideways(bar_idx, h, l, c); return
 
-    def _apply_smart_tp_bull(self, bar_idx, entry_price, default_tp):
-        if not (getattr(self.config, 'amt_smart_levels_enabled', False)
-                and getattr(self.config, 'amt_bull_near_vah_use_projection_tp', True)):
-            return default_tp, False
-        pos = self._get_balance_position(bar_idx, entry_price)
-        if pos != 'NEAR_VAH': return default_tp, False
-        htf_vah = self._get_htf_vah(bar_idx); htf_val = self._get_htf_val(bar_idx)
-        if htf_vah is None or htf_val is None: return default_tp, False
-        divisor = getattr(self.config, 'amt_projection_divisor', 2.6)
-        range_ = htf_vah - htf_val
-        if range_ <= 0: return default_tp, False
-        projection = range_ / divisor
-        new_tp = entry_price + projection
-        if new_tp <= default_tp: return default_tp, False
-        max_tp = entry_price * (1.0 + 0.03)
-        if new_tp > max_tp: new_tp = max_tp
-        self._amt_bull_projection_tp_count += 1
-        return new_tp, True
-
-    def _apply_smart_sl_bull(self, bar_idx, entry_price, default_sl):
-        if not (getattr(self.config, 'amt_smart_levels_enabled', False)
-                and getattr(self.config, 'amt_bull_below_use_val_sl', True)):
-            return default_sl, False
-        pos = self._get_balance_position(bar_idx, entry_price)
-        if pos != 'BELOW': return default_sl, False
-        htf_val = self._get_htf_val(bar_idx)
-        if htf_val is None or htf_val >= entry_price: return default_sl, False
-        new_sl = max(default_sl, htf_val)
-        if new_sl == default_sl: return default_sl, False
-        min_dist = 0.003
-        max_sl = entry_price * (1.0 - min_dist)
-        if new_sl > max_sl: new_sl = max_sl
-        self._amt_bull_val_sl_count += 1
-        return new_sl, True
-
-    def _apply_bull_below_val_tp(self, bar_idx, entry_price, default_tp):
-        if not getattr(self.config, 'bull_below_use_val_tp', False):
-            return default_tp, False
-        pos = self._get_balance_position(bar_idx, entry_price)
-        if pos != 'BELOW': return default_tp, False
-        htf_val = self._get_htf_val(bar_idx)
-        if htf_val is None or htf_val <= entry_price: return default_tp, False
-        max_tp = entry_price * 1.03
-        new_tp = min(htf_val, max_tp)
-        self._bull_below_val_tp += 1
-        return new_tp, True
-
-    def _apply_wick_tolerance_sl(self, sl_level):
-        if not getattr(self.config, 'bull_wick_tolerance_enabled', False):
-            return sl_level, False
-        tolerance = self.config.bull_wick_tolerance_pct
-        if tolerance <= 0: return sl_level, False
-        new_sl = sl_level * (1.0 - tolerance)
-        self._bull_wick_widened += 1
-        return new_sl, True
-
     def _execute_bull_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
-        if (getattr(self.config, 'crs_enabled', False)
-                and self.config.crs_skip_bull_hours > 0
-                and bar_idx <= self._crs_skip_bull_until_bar):
-            self._bull_blocked_crs += 1; return
+        # Determine entry price for AMT position check
         entry_price_for_pos = c
         if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
             if bar_idx < len(self.mtf_bull_entry_close):
                 mtf_c = self.mtf_bull_entry_close[bar_idx]
                 if mtf_c is not None: entry_price_for_pos = mtf_c
-        amt_pos = None
-        if getattr(self.config, 'amt_enabled', False):
+        # AMT position (for amplify)
+        amt_pos = ''
+        if self.config.amt_enabled:
             amt_pos = self._get_balance_position(bar_idx, entry_price_for_pos)
-            if getattr(self.config, 'amt_skip_bull_below', True) and amt_pos == 'BELOW':
-                self._bull_blocked_amt += 1; return
+            # amt_skip_bull_below/above filter (default false = allow all, amplify only)
+            if self.config.amt_skip_bull_below and amt_pos == 'BELOW':
+                return
+        # Volume filter
         if not self._bull_volume_ok(self._volume_history[-1] if self._volume_history else 0):
             self._bull_blocked_volume += 1; return
+        # Sizing: CT Bull > AMT amplify
         is_ct = self._is_countertrend_bull(bar_idx)
-        is_bull_tr = (not is_ct) and self._is_bull_trend_rider_regime(bar_idx)
         size_mult = self.config.bull_countertrend_size_mult if is_ct else 1.0
-        if getattr(self.config, 'amt_enabled', False) and amt_pos in ('NEAR_VAH', 'ABOVE'):
+        if self.config.amt_enabled and amt_pos in ('NEAR_VAH', 'ABOVE'):
             amt_mult = (self.config.amt_bull_near_vah_mult if amt_pos == 'NEAR_VAH' 
                         else self.config.amt_bull_above_mult)
             if amt_mult > size_mult:
                 size_mult = amt_mult
                 self._amt_bull_amplified += 1
-        sweep_applied = False
-        if self._detect_sweep_down(bar_idx):
-            sweep_mult = getattr(self.config, 'sweep_bull_mult', 2.0)
-            if sweep_mult > size_mult:
-                size_mult = sweep_mult
-            sweep_applied = True
-            self._sweep_bull_amplified += 1
-        smart_tag = ''
+        # Execute
         if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
             if bar_idx < len(self.mtf_bull_entry_close):
                 mtf_close = self.mtf_bull_entry_close[bar_idx]
@@ -782,71 +485,35 @@ class Switcher:
                 if is_ct:
                     tp_level = entry_price * (1.0 + self.config.bull_countertrend_tp_pct)
                     self._bull_countertrend_count += 1
-                elif is_bull_tr:
-                    tp_level = entry_price * (1.0 + self.config.bull_trend_rider_tp_pct)
-                    self._bull_trend_rider_count += 1
                 else:
                     tp_level = self._bull_tp_level(entry_price, sl_level)
-                tp_level, tp_smart = self._apply_smart_tp_bull(bar_idx, entry_price, tp_level)
-                if tp_smart: smart_tag += 'BULL_PROJ_TP;'
-                sl_level, sl_smart = self._apply_smart_sl_bull(bar_idx, entry_price, sl_level)
-                if sl_smart: smart_tag += 'BULL_VAL_SL;'
-                tp_level, val_tp_applied = self._apply_bull_below_val_tp(bar_idx, entry_price, tp_level)
-                if val_tp_applied: smart_tag += 'BULL_VAL_TP;'
-                sl_level, wick_applied = self._apply_wick_tolerance_sl(sl_level)
-                if wick_applied: smart_tag += 'WICK_TOL;'
                 self.position = Position(tool='BULL', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
                     entry_high=h, entry_low=mtf_low, sl_level=sl_level, tp_level=tp_level,
                     peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20,
-                    size_mult=size_mult, is_bull_trend_rider=is_bull_tr,
-                    amt_smart_applied=smart_tag, sweep_applied=sweep_applied)
+                    size_mult=size_mult, is_countertrend=is_ct, amt_position=amt_pos)
                 self._bear_loss_streak = 0; return
         if is_ct:
             tp_level = c * (1.0 + self.config.bull_countertrend_tp_pct)
             self._bull_countertrend_count += 1
-        elif is_bull_tr:
-            tp_level = c * (1.0 + self.config.bull_trend_rider_tp_pct)
-            self._bull_trend_rider_count += 1
         else:
             tp_level = self._bull_tp_level(c, l)
-        sl_level = l
-        tp_level, tp_smart = self._apply_smart_tp_bull(bar_idx, c, tp_level)
-        if tp_smart: smart_tag += 'BULL_PROJ_TP;'
-        sl_level, sl_smart = self._apply_smart_sl_bull(bar_idx, c, sl_level)
-        if sl_smart: smart_tag += 'BULL_VAL_SL;'
-        tp_level, val_tp_applied = self._apply_bull_below_val_tp(bar_idx, c, tp_level)
-        if val_tp_applied: smart_tag += 'BULL_VAL_TP;'
-        sl_level, wick_applied = self._apply_wick_tolerance_sl(sl_level)
-        if wick_applied: smart_tag += 'WICK_TOL;'
         self.position = Position(tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
-            entry_high=h, entry_low=l, sl_level=sl_level, tp_level=tp_level,
+            entry_high=h, entry_low=l, sl_level=l, tp_level=tp_level,
             peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
-            size_mult=size_mult, is_bull_trend_rider=is_bull_tr,
-            amt_smart_applied=smart_tag, sweep_applied=sweep_applied)
+            size_mult=size_mult, is_countertrend=is_ct, amt_position=amt_pos)
         self._bear_loss_streak = 0
 
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bull_stay_warmup and c < ema20:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False
-            self._bull_setup_bar = -1; return
-        if self.config.sm_fix_4_bull_confirm and self._bull_setup_bar == bar_idx - 1:
-            if c > ema20 and c > o:
-                self._bull_setup_bar = -1; self._sm_fix4_bull_confirmed += 1
-                self._execute_bull_entry(bar_idx, o, h, l, c, ema20, vah, val); return
-            else:
-                self._bull_setup_bar = -1; self._sm_fix4_bull_cancelled += 1
-                self.state = 'SIDEWAYS'; return
-        if self.config.sm_fix_4_bull_confirm and self._bull_setup_bar != -1 and self._bull_setup_bar < bar_idx - 1:
-            self._bull_setup_bar = -1
+            return
+        # 1h EMA20 reclaim setup + bullish body
         if (l <= ema20) and (c > ema20) and (c > o):
-            if self.config.sm_fix_4_bull_confirm:
-                self._bull_setup_bar = bar_idx; return
             self._execute_bull_entry(bar_idx, o, h, l, c, ema20, vah, val)
 
     def _execute_bear_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
-        is_trend_rider = self._is_trend_rider_regime(bar_idx)
-        is_crs = self._is_crs_active(bar_idx) and not is_trend_rider
-        size_mult = self.config.crs_size_mult if is_crs else 1.0
+        is_trend_rider = self._is_bear_trend_rider_regime(bar_idx)
+        size_mult = 1.0
         if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
             if bar_idx < len(self.mtf_bear_entry_close):
                 mtf_close = self.mtf_bear_entry_close[bar_idx]
@@ -869,18 +536,12 @@ class Switcher:
                 if is_trend_rider:
                     tp_level = entry_price * (1.0 - self.config.bear_trend_rider_tp_pct)
                     self._bear_trend_rider_count += 1
-                elif is_crs and getattr(self.config, 'crs_use_projection_tp', False) and self._crs_current_range:
-                    divisor = self.config.crs_projection_divisor
-                    projection = self._crs_current_range / divisor
-                    tp_level = entry_price - projection; self._crs_trade_count += 1
-                elif is_crs:
-                    tp_level = entry_price * (1.0 - self.config.tp_pct); self._crs_trade_count += 1
                 else:
                     tp_level = entry_price * (1.0 - self.config.tp_pct)
                 self.position = Position(tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
                     entry_high=mtf_high, entry_low=l, sl_level=sl_level, tp_level=tp_level,
                     peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20,
-                    is_trend_rider=is_trend_rider, size_mult=size_mult, is_crs=is_crs)
+                    is_trend_rider=is_trend_rider, size_mult=size_mult)
                 return
         if self.config.bear_min_sl_dist > 0:
             sl_dist = (h - c) / c
@@ -889,34 +550,18 @@ class Switcher:
         if is_trend_rider:
             tp_level = c * (1.0 - self.config.bear_trend_rider_tp_pct)
             self._bear_trend_rider_count += 1
-        elif is_crs and getattr(self.config, 'crs_use_projection_tp', False) and self._crs_current_range:
-            projection = self._crs_current_range / self.config.crs_projection_divisor
-            tp_level = c - projection; self._crs_trade_count += 1
-        elif is_crs:
-            tp_level = c * (1.0 - self.config.tp_pct); self._crs_trade_count += 1
         else:
             tp_level = c * (1.0 - self.config.tp_pct)
         self.position = Position(tool='BEAR', side='SHORT', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=h, tp_level=tp_level,
             peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
-            is_trend_rider=is_trend_rider, size_mult=size_mult, is_crs=is_crs)
+            is_trend_rider=is_trend_rider, size_mult=size_mult)
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bear_stay_warmup and c > ema20:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False
-            self._bear_setup_bar = -1; return
-        if self.config.sm_fix_4_bear_confirm and self._bear_setup_bar == bar_idx - 1:
-            if c < ema20 and c < o:
-                self._bear_setup_bar = -1; self._sm_fix4_bear_confirmed += 1
-                self._execute_bear_entry(bar_idx, o, h, l, c, ema20, vah, val); return
-            else:
-                self._bear_setup_bar = -1; self._sm_fix4_bear_cancelled += 1
-                self.state = 'SIDEWAYS'; return
-        if self.config.sm_fix_4_bear_confirm and self._bear_setup_bar != -1 and self._bear_setup_bar < bar_idx - 1:
-            self._bear_setup_bar = -1
+            return
         if (h >= ema20) and (c < ema20) and (c < o):
-            if self.config.sm_fix_4_bear_confirm:
-                self._bear_setup_bar = bar_idx; return
             self._execute_bear_entry(bar_idx, o, h, l, c, ema20, vah, val)
 
     def _close_position(self, bar_idx, exit_price, exit_type):
@@ -931,9 +576,8 @@ class Switcher:
             entry_bar=pos.entry_bar, exit_bar=bar_idx, exit_type=exit_type, pnl_pct=pnl_pct_net, pnl_usd=pnl_usd,
             peak_high=pos.peak_high, trough_low=pos.trough_low, sl_level=pos.sl_level, tp_level=pos.tp_level,
             ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20, size_mult=pos.size_mult,
-            is_trend_rider=pos.is_trend_rider, is_bull_trend_rider=pos.is_bull_trend_rider,
-            is_crs=pos.is_crs, amt_smart_applied=pos.amt_smart_applied,
-            sweep_applied=pos.sweep_applied, be_activated=pos.be_activated))
+            is_trend_rider=pos.is_trend_rider, is_countertrend=pos.is_countertrend,
+            amt_position=pos.amt_position))
         self.position = None
         self._action_taken_this_bar = True
         self._last_exit_bar = bar_idx
