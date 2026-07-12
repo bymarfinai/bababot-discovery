@@ -1,22 +1,34 @@
 """
-Mode3 Config v4.4 — Break-Even SL.
+Mode3 Config v5.0 — Cleaned up. Champion Option A only.
 
-Move SL to entry price once trade reaches be_activation_pct profit.
-Turns losing trades that were momentarily profitable into breakeven exits.
-Applied to BULL LONG (non-trend-rider) and SIDEWAYS LONG/SHORT.
-BEAR skipped (has own trailing SL via trend rider).
+Removed features (see mode3/_legacy/README.md):
+- CRS, Trap, Bull Trend Rider, SM Fix 1 & 4
+- AMT Smart Levels, Wick tolerance, BULL BELOW VAL TP
+- Sweep Detector, Break-Even SL
+
+Champion config:
+- CT Bull 3x sizing
+- AMT Amplify (NEAR_VAH 2x, ABOVE 1.5x)
+- Per-pair TP via Query
+- BEAR Trend Rider (trailing)
+- SM Fix 2 (bear streak → sideways)
+- SM Fix 3 (extreme low → sideways)
+
+Performance: +$1,796/year, 359% ROI
 """
 from dataclasses import dataclass
 
 
 @dataclass
 class Mode3Config:
+    # Base
     va_window: int = 50
     va_percentile_high: float = 85.0
     va_percentile_low: float = 15.0
     ema_period: int = 20
     startup_warmup_candles: int = 51
 
+    # Position sizing
     tp_pct: float = 0.012
     capital_usd: float = 100.0
     entry_usd: float = 10.0
@@ -24,6 +36,7 @@ class Mode3Config:
     fee_pct_roundtrip: float = 0.001
     slippage_pct: float = 0.0005
 
+    # Sideways
     sideways_ema_distance_cap: float = 0.003
     sideways_ema_invalidation: bool = True
     sideways_ema_invalidation_tolerance: float = 0.0015
@@ -32,36 +45,41 @@ class Mode3Config:
     sideways_max_slope_pct: float = 0.018
     sideways_slope_window: int = 20
 
+    # Chop filter
     chop_window: int = 20
     chop_max_crossings: int = 4
 
+    # Bull
     bull_volume_window: int = 20
     bull_min_volume_ratio: float = 1.5
     bull_mtf_15m_entry: bool = True
     bull_use_rr_tp: bool = False
     bull_rr_ratio: float = 1.0
 
+    # Bear
     bear_mtf_15m_entry: bool = True
     bear_min_sl_dist: float = 0.0
     bear_use_1h_sl_fallback: bool = False
 
-    sm_fix_1_htf_confirm: bool = False
+    # SM Fix 2 (bear streak → sideways)
     sm_fix_2_bear_streak: bool = True
     sm_fix_2_streak_threshold: int = 2
+
+    # SM Fix 3 (bear extreme low → sideways)
     sm_fix_3_extreme_low: bool = True
     sm_fix_3_high_lookback: int = 100
     sm_fix_3_extreme_pct: float = 0.05
-    sm_fix_4_bull_confirm: bool = False
-    sm_fix_4_bear_confirm: bool = False
 
+    # CT Bull (dip buy in bearish HTF)
     bull_countertrend_enabled: bool = True
     bull_countertrend_use_position: bool = True
     bull_countertrend_max_close_pct: float = 0.0
     bull_countertrend_slope_window: int = 20
     bull_countertrend_slope_threshold: float = -0.5
     bull_countertrend_tp_pct: float = 0.012
-    bull_countertrend_size_mult: float = 2.0
+    bull_countertrend_size_mult: float = 3.0  # champion 3x
 
+    # BEAR Trend Rider (trailing SL, extended TP in bearish regime)
     bear_trend_rider_enabled: bool = True
     bear_trend_rider_regime_bars: int = 3
     bear_trend_rider_regime_slope_max: float = -0.3
@@ -70,57 +88,13 @@ class Mode3Config:
     bear_trend_rider_trailing_distance_pct: float = 0.008
     bear_trend_rider_disable_ct_bull: bool = False
 
-    bull_trend_rider_enabled: bool = False
-    bull_trend_rider_regime_bars: int = 3
-    bull_trend_rider_regime_slope_min: float = 0.3
-    bull_trend_rider_tp_pct: float = 0.030
-    bull_trend_rider_trailing_activate_pct: float = 0.015
-    bull_trend_rider_trailing_distance_pct: float = 0.008
-
-    crs_enabled: bool = False
-    crs_lookback_4h_bars: int = 10
-    crs_active_hours: int = 8
-    crs_size_mult: float = 1.0
-    crs_use_projection_tp: bool = False
-    crs_projection_divisor: float = 2.6
-    crs_skip_bull_hours: int = 0
-    crs_regime_gate: bool = False
-    crs_regime_max_slope: float = 0.3
-
-    amt_enabled: bool = False
+    # AMT (Auction Market Theory) — Amplify only
+    amt_enabled: bool = True
     amt_boundary_pct: float = 0.005
-    amt_skip_sw_above: bool = True
-    amt_skip_bull_below: bool = True
+    amt_skip_sw_above: bool = False    # champion: allow, amplify only
+    amt_skip_bull_below: bool = False  # champion: allow, amplify only
     amt_bull_near_vah_mult: float = 2.0
     amt_bull_above_mult: float = 1.5
-
-    amt_smart_levels_enabled: bool = False
-    amt_sw_above_use_vah_tp: bool = True
-    amt_bull_near_vah_use_projection_tp: bool = True
-    amt_projection_divisor: float = 2.6
-    amt_bull_below_use_val_sl: bool = True
-
-    bull_wick_tolerance_enabled: bool = False
-    bull_wick_tolerance_pct: float = 0.002
-    bull_below_use_val_tp: bool = False
-
-    sweep_enabled: bool = False
-    sweep_bull_mult: float = 2.0
-    sweep_sw_short_mult: float = 2.0
-    sweep_lookback_bars: int = 1
-
-    # v4.4 Break-Even SL
-    be_sl_enabled: bool = False
-    be_activation_pct: float = 0.005   # 0.5% profit to activate
-    be_sl_apply_bull: bool = True       # apply to BULL LONG (non-TR)
-    be_sl_apply_sw: bool = True         # apply to SIDEWAYS LONG/SHORT
-
-    trap_enabled: bool = False
-    trap_lookback_4h: int = 3
-    trap_zone_tolerance: float = 0.002
-    trap_tp_pct: float = 0.012
-    trap_use_1h_va_tp: bool = False
-    trap_priority_over_state: bool = True
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
