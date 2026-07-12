@@ -1,4 +1,4 @@
-"""Mode3 Switcher v4.2 — Fix #19 wick SL + BULL BELOW VAL TP."""
+"""Mode3 Switcher v4.3 — Fix #20 Liquidity Sweep Detector."""
 from dataclasses import dataclass, field
 from typing import Optional, List
 from collections import deque
@@ -44,6 +44,7 @@ class Position:
     is_bull_trend_rider: bool = False
     is_crs: bool = False
     amt_smart_applied: str = ''
+    sweep_applied: bool = False
 
 
 @dataclass
@@ -68,6 +69,7 @@ class Trade:
     is_bull_trend_rider: bool = False
     is_crs: bool = False
     amt_smart_applied: str = ''
+    sweep_applied: bool = False
 
 
 class Switcher:
@@ -128,9 +130,13 @@ class Switcher:
         self._amt_sw_vah_tp_count = 0
         self._amt_bull_projection_tp_count = 0
         self._amt_bull_val_sl_count = 0
-        # v4.2 counters
         self._bull_wick_widened = 0
         self._bull_below_val_tp = 0
+        # v4.3 Sweep counters
+        self._sweep_bull_amplified = 0
+        self._sweep_sw_amplified = 0
+        # v4.3 OHLC buffer for sweep detection
+        self._ohlc_buffer = deque(maxlen=10)  # (high, low, close, open)
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -188,19 +194,25 @@ class Switcher:
             if self.config.trap_enabled and self.config.trap_priority_over_state:
                 self._check_trap_entry(bar_idx, o, h, l, c, ema20, vah, val)
                 if self.position is not None:
+                    # append OHLC after processing
+                    self._ohlc_buffer.append((h, l, c, o, bar_idx))
                     return
             if self._is_choppy():
                 self._chop_blocked_count += 1
+                self._ohlc_buffer.append((h, l, c, o, bar_idx))
                 return
             if self._is_crs_active(bar_idx):
                 if (h >= ema20) and (c < ema20) and (c < o):
                     self._execute_bear_entry(bar_idx, o, h, l, c, ema20, vah, val)
                     if self.position is not None:
+                        self._ohlc_buffer.append((h, l, c, o, bar_idx))
                         return
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val, poc)
             if (self.position is None and self.config.trap_enabled
                     and not self.config.trap_priority_over_state):
                 self._check_trap_entry(bar_idx, o, h, l, c, ema20, vah, val)
+        # Append current OHLC to buffer AFTER processing entry (so entry logic sees only prior bars)
+        self._ohlc_buffer.append((h, l, c, o, bar_idx))
 
     def _is_crs_active(self, bar_idx):
         return (getattr(self.config, 'crs_enabled', False)
@@ -225,6 +237,43 @@ class Switcher:
     def _get_htf_val(self, bar_idx):
         if self.htf_4h_val is None or bar_idx >= len(self.htf_4h_val): return None
         return self.htf_4h_val[bar_idx]
+
+    def _detect_sweep_down(self, bar_idx):
+        """v4.3: Detect wick sweep DOWN pattern in last N 1h bars.
+        Pattern: low < HTF VAL, close > HTF VAL (wick pierced, close back above).
+        Returns True if sweep detected in lookback window.
+        """
+        if not getattr(self.config, 'sweep_enabled', False):
+            return False
+        lookback = getattr(self.config, 'sweep_lookback_bars', 1)
+        buffer_list = list(self._ohlc_buffer)
+        # Check last N bars in buffer
+        for i in range(1, min(lookback+1, len(buffer_list)+1)):
+            entry = buffer_list[-i]
+            prev_h, prev_l, prev_c, prev_o, prev_bar = entry
+            prev_val = self._get_htf_val(prev_bar)
+            if prev_val is None: continue
+            # Sweep: low pierced below VAL, close back above VAL
+            if prev_l < prev_val and prev_c > prev_val:
+                return True
+        return False
+
+    def _detect_sweep_up(self, bar_idx):
+        """v4.3: Detect wick sweep UP pattern in last N 1h bars.
+        Pattern: high > HTF VAH, close < HTF VAH (wick pierced, close back below).
+        """
+        if not getattr(self.config, 'sweep_enabled', False):
+            return False
+        lookback = getattr(self.config, 'sweep_lookback_bars', 1)
+        buffer_list = list(self._ohlc_buffer)
+        for i in range(1, min(lookback+1, len(buffer_list)+1)):
+            entry = buffer_list[-i]
+            prev_h, prev_l, prev_c, prev_o, prev_bar = entry
+            prev_vah = self._get_htf_vah(prev_bar)
+            if prev_vah is None: continue
+            if prev_h > prev_vah and prev_c < prev_vah:
+                return True
+        return False
 
     def _is_choppy(self):
         if self.config.chop_max_crossings <= 0: return False
@@ -522,6 +571,13 @@ class Switcher:
         if not self._sideways_distance_ok(c): self._sideways_blocked_count += 1; return
         if not self._sideways_slope_ok(): self._sideways_blocked_slope += 1; return
         tp_pct = self._sideways_tp_pct()
+        # v4.3: Sweep amplifier for SW SHORT (bearish signal from prior wick sweep UP)
+        sweep_applied = False
+        size_mult = 1.0
+        if self._detect_sweep_up(bar_idx):
+            size_mult = getattr(self.config, 'sweep_sw_short_mult', 2.0)
+            sweep_applied = True
+            self._sweep_sw_amplified += 1
         if self.config.sideways_mtf_15m_entry and self.mtf_sideways_short_entry_close is not None:
             if bar_idx < len(self.mtf_sideways_short_entry_close):
                 mtf_close = self.mtf_sideways_short_entry_close[bar_idx]
@@ -535,7 +591,7 @@ class Switcher:
                 self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=mtf_close, entry_bar=bar_idx,
                     entry_high=mtf_high, entry_low=l, sl_level=mtf_high, tp_level=tp_level,
                     peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20,
-                    amt_smart_applied=smart_tag)
+                    size_mult=size_mult, amt_smart_applied=smart_tag, sweep_applied=sweep_applied)
                 self._bear_loss_streak = 0; return
         default_tp = c*(1.0-tp_pct)
         tp_level, smart_applied = self._apply_smart_tp_sw_short(bar_idx, c, default_tp)
@@ -544,7 +600,7 @@ class Switcher:
         self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=h, tp_level=tp_level,
             peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
-            amt_smart_applied=smart_tag)
+            size_mult=size_mult, amt_smart_applied=smart_tag, sweep_applied=sweep_applied)
         self._bear_loss_streak = 0
 
     def _open_long_sideways(self, bar_idx, h, l, c):
@@ -627,29 +683,23 @@ class Switcher:
         return new_sl, True
 
     def _apply_bull_below_val_tp(self, bar_idx, entry_price, default_tp):
-        """v4.2 Fix #19B: BULL BELOW HTF VAL → TP at VAL as reversion target."""
         if not getattr(self.config, 'bull_below_use_val_tp', False):
             return default_tp, False
         pos = self._get_balance_position(bar_idx, entry_price)
         if pos != 'BELOW': return default_tp, False
         htf_val = self._get_htf_val(bar_idx)
         if htf_val is None or htf_val <= entry_price: return default_tp, False
-        # Cap at 3% max TP
         max_tp = entry_price * 1.03
         new_tp = min(htf_val, max_tp)
-        # Only use if it's a MORE ambitious target (higher) than default
-        # Actually take the closer of the two (either could work)
-        # Use VAL directly — it's the natural mean-reversion target
         self._bull_below_val_tp += 1
         return new_tp, True
 
     def _apply_wick_tolerance_sl(self, sl_level):
-        """v4.2 Fix #19A: Widen SL by tolerance_pct to avoid wick fills."""
         if not getattr(self.config, 'bull_wick_tolerance_enabled', False):
             return sl_level, False
         tolerance = self.config.bull_wick_tolerance_pct
         if tolerance <= 0: return sl_level, False
-        new_sl = sl_level * (1.0 - tolerance)  # Lower SL = wider for LONG
+        new_sl = sl_level * (1.0 - tolerance)
         self._bull_wick_widened += 1
         return new_sl, True
 
@@ -679,6 +729,14 @@ class Switcher:
             if amt_mult > size_mult:
                 size_mult = amt_mult
                 self._amt_bull_amplified += 1
+        # v4.3: Sweep amplifier for BULL (bullish signal from prior wick sweep DOWN)
+        sweep_applied = False
+        if self._detect_sweep_down(bar_idx):
+            sweep_mult = getattr(self.config, 'sweep_bull_mult', 2.0)
+            if sweep_mult > size_mult:
+                size_mult = sweep_mult
+            sweep_applied = True
+            self._sweep_bull_amplified += 1
         smart_tag = ''
         if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
             if bar_idx < len(self.mtf_bull_entry_close):
@@ -699,17 +757,15 @@ class Switcher:
                 if tp_smart: smart_tag += 'BULL_PROJ_TP;'
                 sl_level, sl_smart = self._apply_smart_sl_bull(bar_idx, entry_price, sl_level)
                 if sl_smart: smart_tag += 'BULL_VAL_SL;'
-                # v4.2 Fix #19B: BULL BELOW → TP at VAL
                 tp_level, val_tp_applied = self._apply_bull_below_val_tp(bar_idx, entry_price, tp_level)
                 if val_tp_applied: smart_tag += 'BULL_VAL_TP;'
-                # v4.2 Fix #19A: Wick tolerance SL
                 sl_level, wick_applied = self._apply_wick_tolerance_sl(sl_level)
                 if wick_applied: smart_tag += 'WICK_TOL;'
                 self.position = Position(tool='BULL', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
                     entry_high=h, entry_low=mtf_low, sl_level=sl_level, tp_level=tp_level,
                     peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20,
                     size_mult=size_mult, is_bull_trend_rider=is_bull_tr,
-                    amt_smart_applied=smart_tag)
+                    amt_smart_applied=smart_tag, sweep_applied=sweep_applied)
                 self._bear_loss_streak = 0; return
         if is_ct:
             tp_level = c * (1.0 + self.config.bull_countertrend_tp_pct)
@@ -732,7 +788,7 @@ class Switcher:
             entry_high=h, entry_low=l, sl_level=sl_level, tp_level=tp_level,
             peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
             size_mult=size_mult, is_bull_trend_rider=is_bull_tr,
-            amt_smart_applied=smart_tag)
+            amt_smart_applied=smart_tag, sweep_applied=sweep_applied)
         self._bear_loss_streak = 0
 
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
@@ -842,7 +898,8 @@ class Switcher:
             peak_high=pos.peak_high, trough_low=pos.trough_low, sl_level=pos.sl_level, tp_level=pos.tp_level,
             ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20, size_mult=pos.size_mult,
             is_trend_rider=pos.is_trend_rider, is_bull_trend_rider=pos.is_bull_trend_rider,
-            is_crs=pos.is_crs, amt_smart_applied=pos.amt_smart_applied))
+            is_crs=pos.is_crs, amt_smart_applied=pos.amt_smart_applied,
+            sweep_applied=pos.sweep_applied))
         self.position = None
         self._action_taken_this_bar = True
         self._last_exit_bar = bar_idx
