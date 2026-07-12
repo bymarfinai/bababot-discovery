@@ -1,8 +1,10 @@
 """
-Mode3 Config v4.2 — Fix #19 Loss reducers.
+Mode3 Config v4.3 — Fix #20 Liquidity Sweep Detector.
 
-A. Wick tolerance SL for BULL — SL slightly wider than 1h low
-B. BULL BELOW VAL TP — target reversion to HTF VAL as natural mean-rev level
+Sweep DOWN (bullish signal): prev bar wick pierced HTF VAL then closed back above.
+Sweep UP (bearish signal): prev bar wick pierced HTF VAH then closed back below.
+
+Applied as SIZING AMPLIFIER for BULL LONG (sweep down) and SW SHORT (sweep up).
 """
 from dataclasses import dataclass
 
@@ -98,12 +100,15 @@ class Mode3Config:
     amt_projection_divisor: float = 2.6
     amt_bull_below_use_val_sl: bool = True
 
-    # v4.2 Fix #19 Loss reducers
-    # A: Wick tolerance SL — SL wider than 1h low by X% to avoid wick fills
     bull_wick_tolerance_enabled: bool = False
-    bull_wick_tolerance_pct: float = 0.002  # 0.2% buffer below 1h low
-    # B: BULL BELOW → TP at HTF VAL (natural mean-rev target)
+    bull_wick_tolerance_pct: float = 0.002
     bull_below_use_val_tp: bool = False
+
+    # v4.3 Fix #20 Liquidity Sweep Detector
+    sweep_enabled: bool = False
+    sweep_bull_mult: float = 2.0        # amplify BULL entry after sweep down
+    sweep_sw_short_mult: float = 2.0    # amplify SW SHORT entry after sweep up
+    sweep_lookback_bars: int = 1        # check N prior 1h bars for sweep pattern
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
