@@ -1,10 +1,10 @@
 """
-Mode3 Config v4.3 — Fix #20 Liquidity Sweep Detector.
+Mode3 Config v4.4 — Break-Even SL.
 
-Sweep DOWN (bullish signal): prev bar wick pierced HTF VAL then closed back above.
-Sweep UP (bearish signal): prev bar wick pierced HTF VAH then closed back below.
-
-Applied as SIZING AMPLIFIER for BULL LONG (sweep down) and SW SHORT (sweep up).
+Move SL to entry price once trade reaches be_activation_pct profit.
+Turns losing trades that were momentarily profitable into breakeven exits.
+Applied to BULL LONG (non-trend-rider) and SIDEWAYS LONG/SHORT.
+BEAR skipped (has own trailing SL via trend rider).
 """
 from dataclasses import dataclass
 
@@ -104,11 +104,16 @@ class Mode3Config:
     bull_wick_tolerance_pct: float = 0.002
     bull_below_use_val_tp: bool = False
 
-    # v4.3 Fix #20 Liquidity Sweep Detector
     sweep_enabled: bool = False
-    sweep_bull_mult: float = 2.0        # amplify BULL entry after sweep down
-    sweep_sw_short_mult: float = 2.0    # amplify SW SHORT entry after sweep up
-    sweep_lookback_bars: int = 1        # check N prior 1h bars for sweep pattern
+    sweep_bull_mult: float = 2.0
+    sweep_sw_short_mult: float = 2.0
+    sweep_lookback_bars: int = 1
+
+    # v4.4 Break-Even SL
+    be_sl_enabled: bool = False
+    be_activation_pct: float = 0.005   # 0.5% profit to activate
+    be_sl_apply_bull: bool = True       # apply to BULL LONG (non-TR)
+    be_sl_apply_sw: bool = True         # apply to SIDEWAYS LONG/SHORT
 
     trap_enabled: bool = False
     trap_lookback_4h: int = 3
