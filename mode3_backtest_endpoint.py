@@ -1,4 +1,4 @@
-"""Mode3 Backtest Endpoint v4.3 — Fix #20 Liquidity Sweep Detector."""
+"""Mode3 Backtest Endpoint v4.4 — Break-Even SL."""
 import os
 import json as jsonlib
 from dataclasses import asdict
@@ -42,7 +42,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 wr_pct, pnl_usd, pnl_pct, sw_count, sw_wr, sw_pnl, bull_count, bull_wr,
                 bull_pnl, bear_count, bear_wr, bear_pnl, blocked_count, final_state,
                 config_json) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)""", (
-            int(datetime.utcnow().timestamp()), '4.3', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '4.4', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -327,11 +327,15 @@ def backtest_mode3(
     bull_wick_tolerance_enabled: bool = Query(False),
     bull_wick_tolerance_pct: float = Query(0.002, ge=0.0, le=0.02),
     bull_below_use_val_tp: bool = Query(False),
-    # v4.3 Fix #20 Sweep
     sweep_enabled: bool = Query(False),
     sweep_bull_mult: float = Query(2.0, ge=0.5, le=5.0),
     sweep_sw_short_mult: float = Query(2.0, ge=0.5, le=5.0),
     sweep_lookback_bars: int = Query(1, ge=1, le=5),
+    # v4.4 Break-Even SL
+    be_sl_enabled: bool = Query(False),
+    be_activation_pct: float = Query(0.005, ge=0.001, le=0.05),
+    be_sl_apply_bull: bool = Query(True),
+    be_sl_apply_sw: bool = Query(True),
     trap_enabled: bool = Query(False),
     trap_lookback_4h: int = Query(3, ge=1, le=10),
     trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
@@ -398,6 +402,8 @@ def backtest_mode3(
         bull_below_use_val_tp=bull_below_use_val_tp,
         sweep_enabled=sweep_enabled, sweep_bull_mult=sweep_bull_mult,
         sweep_sw_short_mult=sweep_sw_short_mult, sweep_lookback_bars=sweep_lookback_bars,
+        be_sl_enabled=be_sl_enabled, be_activation_pct=be_activation_pct,
+        be_sl_apply_bull=be_sl_apply_bull, be_sl_apply_sw=be_sl_apply_sw,
         trap_enabled=trap_enabled, trap_lookback_4h=trap_lookback_4h,
         trap_zone_tolerance=trap_zone_tolerance, trap_tp_pct=trap_tp_pct,
         trap_use_1h_va_tp=trap_use_1h_va_tp, trap_priority_over_state=trap_priority_over_state,
@@ -497,7 +503,6 @@ def backtest_mode3(
         crs_stats = {"count": len(crs_trades), "wr_pct": round(100.0 * len(crs_wins) / len(crs_trades), 2),
             "pnl_usd": round(sum(t.pnl_usd for t in crs_trades), 2)}
 
-    # v4.3 Sweep stats
     sweep_trades = [t for t in trades if getattr(t, 'sweep_applied', False)]
     sweep_stats = None
     if sweep_trades:
@@ -507,6 +512,17 @@ def backtest_mode3(
             "pnl_usd": round(sum(t.pnl_usd for t in sweep_trades), 2),
             "bull_count": sum(1 for t in sweep_trades if t.tool == 'BULL'),
             "sw_count": sum(1 for t in sweep_trades if t.tool == 'SIDEWAYS')}
+
+    # v4.4 BE stats
+    be_trades = [t for t in trades if getattr(t, 'be_activated', False)]
+    be_stats = None
+    if be_trades:
+        be_wins = [t for t in be_trades if t.pnl_usd > 0]
+        be_protected = [t for t in be_trades if t.exit_type == 'BE_SL']
+        be_stats = {"activated_count": len(be_trades), "be_sl_hit_count": len(be_protected),
+            "tp_after_be_count": sum(1 for t in be_trades if t.exit_type == 'TP'),
+            "wr_pct": round(100.0 * len(be_wins) / len(be_trades), 2),
+            "pnl_usd": round(sum(t.pnl_usd for t in be_trades), 2)}
 
     def get_htf_at_bar(bar):
         if htf_ema_series is None or bar >= len(htf_ema_series): return None, None, None, None, None
@@ -537,6 +553,7 @@ def backtest_mode3(
             "is_bull_trend_rider": t.is_bull_trend_rider, "is_crs": getattr(t, 'is_crs', False),
             "amt_smart_applied": getattr(t, 'amt_smart_applied', ''),
             "sweep_applied": getattr(t, 'sweep_applied', False),
+            "be_activated": getattr(t, 'be_activated', False),
             "balance_position": pos}
         if htf_ema is not None:
             trade_dict["htf_4h_ema"] = htf_ema; trade_dict["htf_4h_close"] = htf_close
@@ -569,6 +586,8 @@ def backtest_mode3(
             "bull_below_val_tp_count": switcher._bull_below_val_tp,
             "sweep_bull_amplified": switcher._sweep_bull_amplified,
             "sweep_sw_amplified": switcher._sweep_sw_amplified,
+            "be_sl_activated": switcher._be_sl_activated,
+            "be_sl_hit": switcher._be_sl_hit,
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "bear_blocked_min_sl": switcher._bear_blocked_min_sl,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
@@ -582,7 +601,7 @@ def backtest_mode3(
             "crs_confirmed_count": switcher._crs_confirmed_count,
             "crs_trade_count": switcher._crs_trade_count,
             "balance_position_stats": balance_stats},
-        "per_tool": tool_stats, "crs_stats": crs_stats, "sweep_stats": sweep_stats,
+        "per_tool": tool_stats, "crs_stats": crs_stats, "sweep_stats": sweep_stats, "be_stats": be_stats,
         "trades": trade_list, "final_state": switcher.state}
 
     if log_result: _log_experiment(config, result, symbol, timeframe, days)
@@ -591,4 +610,4 @@ def backtest_mode3(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "4.3", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "4.4", "db_path": DB_PATH}
