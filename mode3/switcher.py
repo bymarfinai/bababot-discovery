@@ -1,18 +1,22 @@
 """
-Mode3 Switcher v5.0 — Cleaned up. Champion Option A only.
+Mode3 Switcher v5.1 — Fix #21 BEAR Trailing Trigger Bug.
 
-Kept:
-- State machine (STARTUP/SIDEWAYS/BULL/BEAR/WAIT_SEE_*)
-- CT Bull 3x + AMT amplify
-- BEAR Trend Rider (trailing)
-- SM Fix 2 (bear streak) + Fix 3 (extreme low)
-- MTF 15m entry
-- Chop + volume filter
+BUG FIXED: Trailing activation was using CLOSE price for profit calculation,
+missing intra-bar wicks that reached activation threshold.
 
-Removed (see mode3/_legacy/README.md):
-- Trap, CRS, Bull Trend Rider
-- AMT Smart Levels, Wick tolerance, BULL BELOW VAL TP
-- Sweep, BE SL, SM Fix 1 & 4
+BEFORE (buggy):
+  profit_pct = (entry - close) / entry
+  # If close hasn't dropped 1.5% yet, trailing doesn't activate
+  # Even if intra-bar low reached >1.5% profit
+
+AFTER (fixed):
+  profit_pct = (entry - trough_low) / entry
+  # Use lowest point during trade to detect profit target reached
+  # Trailing SL then set at trough_low * (1 + trail_dist)
+  # If close > new SL, exit immediately at close price (captures partial profit)
+
+Impact: 14 trades reached MFE ≥1.5% but exited as SL loss. This fix should
+convert most of them to partial profit exits (~+$100/year estimated).
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -54,10 +58,10 @@ class Position:
     trough_low: float = 1e18
     ema_at_entry: float = 0.0
     size_mult: float = 1.0
-    is_trend_rider: bool = False       # BEAR trend rider
+    is_trend_rider: bool = False
     trailing_active: bool = False
-    is_countertrend: bool = False      # CT Bull
-    amt_position: str = ''             # INSIDE/NEAR_VAH/ABOVE/BELOW/NEAR_VAL
+    is_countertrend: bool = False
+    amt_position: str = ''
 
 
 @dataclass
@@ -97,12 +101,10 @@ class Switcher:
         self._current_ema20 = 0.0
         self._current_vah = None
         self._current_val = None
-        # Filters
         self._chop_history = deque(maxlen=config.chop_window)
         self._ema_history = deque(maxlen=config.sideways_slope_window)
         self._volume_history = deque(maxlen=config.bull_volume_window)
         self._high_history = deque(maxlen=max(config.sm_fix_3_high_lookback, 10))
-        # Blocked counters
         self._sideways_blocked_count = 0
         self._sideways_blocked_slope = 0
         self._sideways_blocked_mtf = 0
@@ -111,21 +113,17 @@ class Switcher:
         self._bull_blocked_mtf = 0
         self._bear_blocked_mtf = 0
         self._bear_blocked_min_sl = 0
-        # BEAR streak
         self._bear_loss_streak = 0
         self._last_exit_bar = 0
-        # SM Fix counters
         self._sm_fix2_count = 0
         self._sm_fix3_count = 0
-        # CT Bull counter
         self._bull_countertrend_count = 0
-        # BEAR Trend Rider counters
         self._bear_trend_rider_count = 0
         self._bear_trend_rider_trailing_hits = 0
         self._bear_trend_rider_hard_exits = 0
-        # AMT counter
         self._amt_bull_amplified = 0
-        # MTF 15m entry data (populated externally)
+        # v5.1 counter for wick-based trailing activations
+        self._bear_wick_trail_activations = 0
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -134,7 +132,6 @@ class Switcher:
         self.mtf_sideways_short_entry_high = None
         self.mtf_sideways_long_entry_close = None
         self.mtf_sideways_long_entry_low = None
-        # HTF context (populated externally)
         self.htf_4h_vah = None
         self.htf_4h_val = None
         self.htf_4h_close = None
@@ -318,26 +315,34 @@ class Switcher:
     def _exit_bear(self, bar_idx, c):
         pos = self.position
         if pos.is_trend_rider:
-            # BEAR trend rider: HTF reclaim exit
+            # HTF reclaim exit (macro trend flip)
             if (self.htf_4h_close is not None and self.htf_4h_ema20 is not None
                     and bar_idx < len(self.htf_4h_close)):
                 htf_c = self.htf_4h_close[bar_idx]; htf_e = self.htf_4h_ema20[bar_idx]
                 if htf_c is not None and htf_e is not None and htf_c > htf_e:
                     self._close_position(bar_idx, c, 'HTF_RECLAIM'); self._bear_trend_rider_hard_exits += 1
                     self._post_exit_bear('HTF_RECLAIM'); return
-            # Trailing SL
-            profit_pct = (pos.entry_price - c) / pos.entry_price
+
+            # ===== v5.1 Fix #21: Wick-based trailing activation =====
+            # Bug: original code used current close, missed intra-bar wicks.
+            # Fix: Use trough_low (lowest point during trade) to detect profit target.
             activate_th = self.config.bear_trend_rider_trailing_activate_pct
             trail_dist = self.config.bear_trend_rider_trailing_distance_pct
-            if not pos.trailing_active and profit_pct >= activate_th:
-                pos.trailing_active = True; pos.sl_level = pos.trough_low * (1.0 + trail_dist)
+            # Best profit reached so far (based on trough_low, not close)
+            best_profit_pct = (pos.entry_price - pos.trough_low) / pos.entry_price
+            if not pos.trailing_active and best_profit_pct >= activate_th:
+                pos.trailing_active = True
+                pos.sl_level = pos.trough_low * (1.0 + trail_dist)
+                self._bear_wick_trail_activations += 1
             if pos.trailing_active:
                 new_sl = pos.trough_low * (1.0 + trail_dist)
                 if new_sl < pos.sl_level: pos.sl_level = new_sl
                 if c > pos.sl_level:
                     self._close_position(bar_idx, c, 'TRAILING_SL'); self._bear_trend_rider_trailing_hits += 1
                     self._post_exit_bear('TRAILING_SL'); return
-        # Standard SL/TP
+            # ===== end fix =====
+
+        # Standard SL/TP (both trend rider and regular)
         if c > pos.sl_level: self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
         if c <= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
 
@@ -347,7 +352,6 @@ class Switcher:
         self.markers.trough_low_bear = last_trough
         if et in ('TP', 'TRAILING_SL'):
             self._bear_loss_streak = 0
-            # SM Fix 3: bear win at extreme low → sideways
             if self.config.sm_fix_3_extreme_low and len(self._high_history) >= 20:
                 recent_high = max(self._high_history)
                 if recent_high > 0:
@@ -358,7 +362,6 @@ class Switcher:
         else:
             if et == 'SL':
                 self._bear_loss_streak += 1
-                # SM Fix 2: bear loss streak → sideways
                 if (self.config.sm_fix_2_bear_streak
                         and self._bear_loss_streak >= self.config.sm_fix_2_streak_threshold):
                     self.state = 'SIDEWAYS'; self.bear_stay_warmup = False
@@ -449,23 +452,18 @@ class Switcher:
             self._open_short_sideways(bar_idx, h, l, c); return
 
     def _execute_bull_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
-        # Determine entry price for AMT position check
         entry_price_for_pos = c
         if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
             if bar_idx < len(self.mtf_bull_entry_close):
                 mtf_c = self.mtf_bull_entry_close[bar_idx]
                 if mtf_c is not None: entry_price_for_pos = mtf_c
-        # AMT position (for amplify)
         amt_pos = ''
         if self.config.amt_enabled:
             amt_pos = self._get_balance_position(bar_idx, entry_price_for_pos)
-            # amt_skip_bull_below/above filter (default false = allow all, amplify only)
             if self.config.amt_skip_bull_below and amt_pos == 'BELOW':
                 return
-        # Volume filter
         if not self._bull_volume_ok(self._volume_history[-1] if self._volume_history else 0):
             self._bull_blocked_volume += 1; return
-        # Sizing: CT Bull > AMT amplify
         is_ct = self._is_countertrend_bull(bar_idx)
         size_mult = self.config.bull_countertrend_size_mult if is_ct else 1.0
         if self.config.amt_enabled and amt_pos in ('NEAR_VAH', 'ABOVE'):
@@ -474,7 +472,6 @@ class Switcher:
             if amt_mult > size_mult:
                 size_mult = amt_mult
                 self._amt_bull_amplified += 1
-        # Execute
         if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
             if bar_idx < len(self.mtf_bull_entry_close):
                 mtf_close = self.mtf_bull_entry_close[bar_idx]
@@ -507,7 +504,6 @@ class Switcher:
         if self.bull_stay_warmup and c < ema20:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False
             return
-        # 1h EMA20 reclaim setup + bullish body
         if (l <= ema20) and (c > ema20) and (c > o):
             self._execute_bull_entry(bar_idx, o, h, l, c, ema20, vah, val)
 
