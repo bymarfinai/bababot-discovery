@@ -1,4 +1,4 @@
-"""Mode3 Switcher v4.3 — Fix #20 Liquidity Sweep Detector."""
+"""Mode3 Switcher v4.4 — Break-Even SL for BULL LONG + SIDEWAYS."""
 from dataclasses import dataclass, field
 from typing import Optional, List
 from collections import deque
@@ -45,6 +45,7 @@ class Position:
     is_crs: bool = False
     amt_smart_applied: str = ''
     sweep_applied: bool = False
+    be_activated: bool = False
 
 
 @dataclass
@@ -70,6 +71,7 @@ class Trade:
     is_crs: bool = False
     amt_smart_applied: str = ''
     sweep_applied: bool = False
+    be_activated: bool = False
 
 
 class Switcher:
@@ -132,11 +134,12 @@ class Switcher:
         self._amt_bull_val_sl_count = 0
         self._bull_wick_widened = 0
         self._bull_below_val_tp = 0
-        # v4.3 Sweep counters
         self._sweep_bull_amplified = 0
         self._sweep_sw_amplified = 0
-        # v4.3 OHLC buffer for sweep detection
-        self._ohlc_buffer = deque(maxlen=10)  # (high, low, close, open)
+        # v4.4 BE SL counters
+        self._be_sl_activated = 0   # BE moved to entry (SL relocated)
+        self._be_sl_hit = 0          # actual BE_SL exit (protected loss)
+        self._ohlc_buffer = deque(maxlen=10)
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -194,7 +197,6 @@ class Switcher:
             if self.config.trap_enabled and self.config.trap_priority_over_state:
                 self._check_trap_entry(bar_idx, o, h, l, c, ema20, vah, val)
                 if self.position is not None:
-                    # append OHLC after processing
                     self._ohlc_buffer.append((h, l, c, o, bar_idx))
                     return
             if self._is_choppy():
@@ -211,7 +213,6 @@ class Switcher:
             if (self.position is None and self.config.trap_enabled
                     and not self.config.trap_priority_over_state):
                 self._check_trap_entry(bar_idx, o, h, l, c, ema20, vah, val)
-        # Append current OHLC to buffer AFTER processing entry (so entry logic sees only prior bars)
         self._ohlc_buffer.append((h, l, c, o, bar_idx))
 
     def _is_crs_active(self, bar_idx):
@@ -239,29 +240,20 @@ class Switcher:
         return self.htf_4h_val[bar_idx]
 
     def _detect_sweep_down(self, bar_idx):
-        """v4.3: Detect wick sweep DOWN pattern in last N 1h bars.
-        Pattern: low < HTF VAL, close > HTF VAL (wick pierced, close back above).
-        Returns True if sweep detected in lookback window.
-        """
         if not getattr(self.config, 'sweep_enabled', False):
             return False
         lookback = getattr(self.config, 'sweep_lookback_bars', 1)
         buffer_list = list(self._ohlc_buffer)
-        # Check last N bars in buffer
         for i in range(1, min(lookback+1, len(buffer_list)+1)):
             entry = buffer_list[-i]
             prev_h, prev_l, prev_c, prev_o, prev_bar = entry
             prev_val = self._get_htf_val(prev_bar)
             if prev_val is None: continue
-            # Sweep: low pierced below VAL, close back above VAL
             if prev_l < prev_val and prev_c > prev_val:
                 return True
         return False
 
     def _detect_sweep_up(self, bar_idx):
-        """v4.3: Detect wick sweep UP pattern in last N 1h bars.
-        Pattern: high > HTF VAH, close < HTF VAH (wick pierced, close back below).
-        """
         if not getattr(self.config, 'sweep_enabled', False):
             return False
         lookback = getattr(self.config, 'sweep_lookback_bars', 1)
@@ -369,6 +361,37 @@ class Switcher:
         self.position.peak_high = max(self.position.peak_high, h)
         self.position.trough_low = min(self.position.trough_low, l)
 
+    def _apply_be_sl_long(self, pos, current_price):
+        """v4.4: For LONG (BULL LONG or SIDEWAYS LONG), move SL to entry when profit >= activation."""
+        if pos.be_activated: return
+        if not getattr(self.config, 'be_sl_enabled', False): return
+        if pos.tool == 'BULL' and not getattr(self.config, 'be_sl_apply_bull', True): return
+        if pos.tool == 'SIDEWAYS' and not getattr(self.config, 'be_sl_apply_sw', True): return
+        activation = self.config.be_activation_pct
+        if activation <= 0: return
+        profit_pct = (current_price - pos.entry_price) / pos.entry_price
+        if profit_pct >= activation:
+            # Move SL to entry (breakeven). Only if new SL is higher than current SL.
+            if pos.entry_price > pos.sl_level:
+                pos.sl_level = pos.entry_price
+                pos.be_activated = True
+                self._be_sl_activated += 1
+
+    def _apply_be_sl_short(self, pos, current_price):
+        """v4.4: For SIDEWAYS SHORT, move SL to entry when profit >= activation."""
+        if pos.be_activated: return
+        if not getattr(self.config, 'be_sl_enabled', False): return
+        if pos.tool == 'SIDEWAYS' and not getattr(self.config, 'be_sl_apply_sw', True): return
+        activation = self.config.be_activation_pct
+        if activation <= 0: return
+        profit_pct = (pos.entry_price - current_price) / pos.entry_price
+        if profit_pct >= activation:
+            # Move SL to entry (breakeven). Only if new SL is lower than current SL (for SHORT).
+            if pos.entry_price < pos.sl_level:
+                pos.sl_level = pos.entry_price
+                pos.be_activated = True
+                self._be_sl_activated += 1
+
     def _check_exit(self, bar_idx, o, h, l, c, ema20, vah, val):
         pos = self.position
         if pos.tool == 'SIDEWAYS': self._exit_sideways(bar_idx, c, ema20, l=l, h=h)
@@ -379,16 +402,24 @@ class Switcher:
     def _exit_sideways(self, bar_idx, c, ema20, l=None, h=None):
         pos = self.position
         if pos.side == 'SHORT':
+            # v4.4: BE SL check
+            self._apply_be_sl_short(pos, c)
             if c > pos.sl_level:
-                self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_short('SL'); return
+                exit_type = 'BE_SL' if pos.be_activated else 'SL'
+                if pos.be_activated: self._be_sl_hit += 1
+                self._close_position(bar_idx, c, exit_type); self._post_exit_sideways_short('SL'); return
             if c <= pos.tp_level:
                 self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_short('TP'); return
             if l is not None and l <= ema20 and c > ema20:
                 if self._sideways_ema_inv_ok_short(c, ema20):
                     self._close_position(bar_idx, c, 'EMA_INVALIDATION'); self._post_exit_sideways_short('EMA_INVALIDATION'); return
         else:
+            # v4.4: BE SL check
+            self._apply_be_sl_long(pos, c)
             if c < pos.sl_level:
-                self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_long('SL'); return
+                exit_type = 'BE_SL' if pos.be_activated else 'SL'
+                if pos.be_activated: self._be_sl_hit += 1
+                self._close_position(bar_idx, c, exit_type); self._post_exit_sideways_long('SL'); return
             if c >= pos.tp_level:
                 self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_long('TP'); return
             if h is not None and h >= ema20 and c < ema20:
@@ -434,7 +465,12 @@ class Switcher:
             if c < pos.sl_level: self._close_position(bar_idx, c, 'SL'); self._post_exit_bull('SL'); return
             if c >= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_bull('TP'); return
         else:
-            if c < pos.sl_level: self._close_position(bar_idx, c, 'SL'); self._post_exit_bull('SL'); return
+            # v4.4: BE SL check for regular BULL LONG
+            self._apply_be_sl_long(pos, c)
+            if c < pos.sl_level:
+                exit_type = 'BE_SL' if pos.be_activated else 'SL'
+                if pos.be_activated: self._be_sl_hit += 1
+                self._close_position(bar_idx, c, exit_type); self._post_exit_bull('SL'); return
             if c >= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_bull('TP'); return
 
     def _post_exit_bull(self, et):
@@ -571,7 +607,6 @@ class Switcher:
         if not self._sideways_distance_ok(c): self._sideways_blocked_count += 1; return
         if not self._sideways_slope_ok(): self._sideways_blocked_slope += 1; return
         tp_pct = self._sideways_tp_pct()
-        # v4.3: Sweep amplifier for SW SHORT (bearish signal from prior wick sweep UP)
         sweep_applied = False
         size_mult = 1.0
         if self._detect_sweep_up(bar_idx):
@@ -729,7 +764,6 @@ class Switcher:
             if amt_mult > size_mult:
                 size_mult = amt_mult
                 self._amt_bull_amplified += 1
-        # v4.3: Sweep amplifier for BULL (bullish signal from prior wick sweep DOWN)
         sweep_applied = False
         if self._detect_sweep_down(bar_idx):
             sweep_mult = getattr(self.config, 'sweep_bull_mult', 2.0)
@@ -899,7 +933,7 @@ class Switcher:
             ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20, size_mult=pos.size_mult,
             is_trend_rider=pos.is_trend_rider, is_bull_trend_rider=pos.is_bull_trend_rider,
             is_crs=pos.is_crs, amt_smart_applied=pos.amt_smart_applied,
-            sweep_applied=pos.sweep_applied))
+            sweep_applied=pos.sweep_applied, be_activated=pos.be_activated))
         self.position = None
         self._action_taken_this_bar = True
         self._last_exit_bar = bar_idx
