@@ -1,9 +1,8 @@
-"""Mode3 Backtest Endpoint v4.4 — Break-Even SL."""
+"""Mode3 Backtest Endpoint v5.0 — Cleaned. Champion Option A only."""
 import os
 import json as jsonlib
 from dataclasses import asdict
-from fastapi import APIRouter, Query, Body
-from typing import Optional
+from fastapi import APIRouter, Query
 import sqlite3
 import numpy as np
 from datetime import datetime
@@ -42,7 +41,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 wr_pct, pnl_usd, pnl_pct, sw_count, sw_wr, sw_pnl, bull_count, bull_wr,
                 bull_pnl, bear_count, bear_wr, bear_pnl, blocked_count, final_state,
                 config_json) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)""", (
-            int(datetime.utcnow().timestamp()), '4.4', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '5.0', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -131,11 +130,10 @@ def compute_mtf_sideways_entry(rows_1h, rows_15m, vahs, vals):
     return short_c, short_h, long_c, long_l
 
 
-def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
+def compute_htf_4h_context(rows_1h, rows_4h, va_window=50):
     n = len(rows_1h)
     if not rows_4h:
-        return {'vah':[None]*n,'val':[None]*n,'ema':[None]*n,'close':[None]*n,'trap_short':[False]*n,'trap_long':[False]*n}
-    opens_4h = np.array([r[1] for r in rows_4h], dtype=float)
+        return {'vah':[None]*n,'val':[None]*n,'ema':[None]*n,'close':[None]*n}
     highs_4h = np.array([r[2] for r in rows_4h], dtype=float)
     lows_4h = np.array([r[3] for r in rows_4h], dtype=float)
     closes_4h = np.array([r[4] for r in rows_4h], dtype=float)
@@ -147,15 +145,7 @@ def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
     for i in range(len(rows_4h)):
         v, l_, _ = compute_va_at_bar(highs_4h, lows_4h, closes_4h, volumes_4h, i, va_window, 85.0, 15.0)
         vahs_4h.append(v); vals_4h.append(l_)
-    reject_short_4h = [False]*len(rows_4h); reject_long_4h = [False]*len(rows_4h)
-    for i in range(len(rows_4h)):
-        v = vahs_4h[i]; l_ = vals_4h[i]
-        if v is not None and highs_4h[i] >= v and closes_4h[i] < v and closes_4h[i] < opens_4h[i]:
-            reject_short_4h[i] = True
-        if l_ is not None and lows_4h[i] <= l_ and closes_4h[i] > l_ and closes_4h[i] > opens_4h[i]:
-            reject_long_4h[i] = True
     vah_out, val_out, ema_out, close_out = [], [], [], []
-    trap_short_out, trap_long_out = [], []
     idx_4h = 0
     for r in rows_1h:
         t_1h = r[0]
@@ -164,13 +154,9 @@ def compute_htf_4h_context(rows_1h, rows_4h, va_window=50, trap_lookback=3):
         if ts_4h[idx_4h] + ONE_4H_MS <= t_1h:
             vah_out.append(vahs_4h[idx_4h]); val_out.append(vals_4h[idx_4h])
             ema_out.append(float(ema_4h[idx_4h])); close_out.append(float(closes_4h[idx_4h]))
-            start = max(0, idx_4h - trap_lookback + 1)
-            trap_short_out.append(any(reject_short_4h[start:idx_4h+1]))
-            trap_long_out.append(any(reject_long_4h[start:idx_4h+1]))
         else:
             vah_out.append(None); val_out.append(None); ema_out.append(None); close_out.append(None)
-            trap_short_out.append(False); trap_long_out.append(False)
-    return {'vah':vah_out,'val':val_out,'ema':ema_out,'close':close_out,'trap_short':trap_short_out,'trap_long':trap_long_out}
+    return {'vah':vah_out,'val':val_out,'ema':ema_out,'close':close_out}
 
 
 def compute_htf_4h_slope(ema_4h_series, window_bars=20):
@@ -194,49 +180,6 @@ def compute_htf_4h_downtrend(close_series, ema_series, slope_series, regime_bars
         if s is None or s > slope_max: continue
         downtrend[i] = True
     return downtrend
-
-
-def compute_htf_4h_uptrend(close_series, ema_series, slope_series, regime_bars=3, slope_min=0.3):
-    n = len(close_series); uptrend = [False] * n
-    for i in range(regime_bars, n):
-        all_above = True
-        for k in range(regime_bars):
-            c = close_series[i - k]; e = ema_series[i - k]
-            if c is None or e is None or c <= e: all_above = False; break
-        if not all_above: continue
-        s = slope_series[i] if slope_series and i < len(slope_series) else None
-        if s is None or s < slope_min: continue
-        uptrend[i] = True
-    return uptrend
-
-
-def compute_htf_4h_crs(rows_1h, rows_4h, lookback_bars=10, slope_series_1h=None, regime_gate=False, regime_max_slope=0.3):
-    n = len(rows_1h)
-    if not rows_4h or len(rows_4h) < lookback_bars + 1:
-        return [False]*n, [None]*n
-    opens_4h = np.array([r[1] for r in rows_4h], dtype=float)
-    highs_4h = np.array([r[2] for r in rows_4h], dtype=float)
-    lows_4h = np.array([r[3] for r in rows_4h], dtype=float)
-    closes_4h = np.array([r[4] for r in rows_4h], dtype=float)
-    ts_4h = [r[0] for r in rows_4h]
-    ONE_4H_MS = 4 * 60 * 60 * 1000
-    crs_4h = [False] * len(rows_4h); range_4h = [None] * len(rows_4h)
-    for i in range(lookback_bars, len(rows_4h)):
-        recent_high = float(np.max(highs_4h[i-lookback_bars:i]))
-        recent_low = float(np.min(lows_4h[i-lookback_bars:i+1]))
-        if (highs_4h[i] > recent_high and closes_4h[i] < recent_high and closes_4h[i] < opens_4h[i]):
-            crs_4h[i] = True; range_4h[i] = highs_4h[i] - recent_low
-    crs_1h = [False] * n; range_1h = [None] * n; idx_4h = 0
-    for i, r in enumerate(rows_1h):
-        t_1h = r[0]
-        while idx_4h + 1 < len(ts_4h) and ts_4h[idx_4h + 1] + ONE_4H_MS <= t_1h:
-            idx_4h += 1
-        if ts_4h[idx_4h] + ONE_4H_MS == t_1h and crs_4h[idx_4h]:
-            if regime_gate and slope_series_1h and i < len(slope_series_1h):
-                slope = slope_series_1h[i]
-                if slope is not None and slope > regime_max_slope: continue
-            crs_1h[i] = True; range_1h[i] = range_4h[idx_4h]
-    return crs_1h, range_1h
 
 
 def classify_balance_position(entry_price, vah, val, boundary_pct=0.005):
@@ -266,83 +209,35 @@ def backtest_mode3(
     chop_max_crossings: int = Query(4, ge=0, le=20),
     bull_min_volume_ratio: float = Query(1.5, ge=0.0, le=5.0),
     bull_mtf_15m_entry: bool = Query(True),
-    bull_use_rr_tp: bool = Query(False),
-    bull_rr_ratio: float = Query(1.0, ge=0.5, le=5.0),
     bear_mtf_15m_entry: bool = Query(True),
-    bear_min_sl_dist: float = Query(0.0, ge=0.0, le=0.01),
-    bear_use_1h_sl_fallback: bool = Query(False),
     sideways_ema_invalidation: bool = Query(True),
     sideways_ema_invalidation_tolerance: float = Query(0.0015, ge=0.0, le=0.02),
     sideways_mtf_15m_entry: bool = Query(True),
     sideways_tp_pct: float = Query(0.003, ge=0.0, le=0.05),
     sideways_max_slope_pct: float = Query(0.018, ge=0.0, le=0.1),
-    sm_fix_1_htf_confirm: bool = Query(False),
     sm_fix_2_bear_streak: bool = Query(True),
     sm_fix_2_streak_threshold: int = Query(2, ge=2, le=5),
     sm_fix_3_extreme_low: bool = Query(True),
     sm_fix_3_high_lookback: int = Query(100, ge=20, le=500),
     sm_fix_3_extreme_pct: float = Query(0.05, ge=0.05, le=0.5),
-    sm_fix_4_bull_confirm: bool = Query(False),
-    sm_fix_4_bear_confirm: bool = Query(False),
     bull_countertrend_enabled: bool = Query(True),
     bull_countertrend_use_position: bool = Query(True),
     bull_countertrend_max_close_pct: float = Query(0.0, ge=-10.0, le=10.0),
     bull_countertrend_slope_window: int = Query(20, ge=5, le=100),
-    bull_countertrend_slope_threshold: float = Query(-0.5, ge=-10.0, le=0.0),
     bull_countertrend_tp_pct: float = Query(0.012, ge=0.005, le=0.10),
-    bull_countertrend_size_mult: float = Query(2.0, ge=0.5, le=5.0),
+    bull_countertrend_size_mult: float = Query(3.0, ge=0.5, le=5.0),
     bear_trend_rider_enabled: bool = Query(True),
     bear_trend_rider_regime_bars: int = Query(3, ge=1, le=10),
     bear_trend_rider_regime_slope_max: float = Query(-0.3, ge=-10.0, le=0.0),
     bear_trend_rider_tp_pct: float = Query(0.030, ge=0.005, le=0.20),
     bear_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
     bear_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
-    bear_trend_rider_disable_ct_bull: bool = Query(False),
-    bull_trend_rider_enabled: bool = Query(False),
-    bull_trend_rider_regime_bars: int = Query(3, ge=1, le=10),
-    bull_trend_rider_regime_slope_min: float = Query(0.3, ge=0.0, le=10.0),
-    bull_trend_rider_tp_pct: float = Query(0.030, ge=0.005, le=0.20),
-    bull_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
-    bull_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
-    crs_enabled: bool = Query(False),
-    crs_lookback_4h_bars: int = Query(10, ge=3, le=50),
-    crs_active_hours: int = Query(8, ge=1, le=48),
-    crs_size_mult: float = Query(1.0, ge=0.5, le=5.0),
-    crs_use_projection_tp: bool = Query(False),
-    crs_projection_divisor: float = Query(2.6, ge=1.0, le=10.0),
-    crs_skip_bull_hours: int = Query(0, ge=0, le=72),
-    crs_regime_gate: bool = Query(False),
-    crs_regime_max_slope: float = Query(0.3, ge=-2.0, le=5.0),
-    amt_enabled: bool = Query(False),
+    amt_enabled: bool = Query(True),
     amt_boundary_pct: float = Query(0.005, ge=0.001, le=0.05),
-    amt_skip_sw_above: bool = Query(True),
-    amt_skip_bull_below: bool = Query(True),
+    amt_skip_sw_above: bool = Query(False),
+    amt_skip_bull_below: bool = Query(False),
     amt_bull_near_vah_mult: float = Query(2.0, ge=0.5, le=5.0),
     amt_bull_above_mult: float = Query(1.5, ge=0.5, le=5.0),
-    amt_smart_levels_enabled: bool = Query(False),
-    amt_sw_above_use_vah_tp: bool = Query(True),
-    amt_bull_near_vah_use_projection_tp: bool = Query(True),
-    amt_projection_divisor: float = Query(2.6, ge=1.0, le=10.0),
-    amt_bull_below_use_val_sl: bool = Query(True),
-    bull_wick_tolerance_enabled: bool = Query(False),
-    bull_wick_tolerance_pct: float = Query(0.002, ge=0.0, le=0.02),
-    bull_below_use_val_tp: bool = Query(False),
-    sweep_enabled: bool = Query(False),
-    sweep_bull_mult: float = Query(2.0, ge=0.5, le=5.0),
-    sweep_sw_short_mult: float = Query(2.0, ge=0.5, le=5.0),
-    sweep_lookback_bars: int = Query(1, ge=1, le=5),
-    # v4.4 Break-Even SL
-    be_sl_enabled: bool = Query(False),
-    be_activation_pct: float = Query(0.005, ge=0.001, le=0.05),
-    be_sl_apply_bull: bool = Query(True),
-    be_sl_apply_sw: bool = Query(True),
-    trap_enabled: bool = Query(False),
-    trap_lookback_4h: int = Query(3, ge=1, le=10),
-    trap_zone_tolerance: float = Query(0.002, ge=0.0, le=0.02),
-    trap_tp_pct: float = Query(0.012, ge=0.001, le=0.05),
-    trap_use_1h_va_tp: bool = Query(False),
-    trap_priority_over_state: bool = Query(True),
-    include_htf: bool = Query(True),
     htf_slope_window: int = Query(20, ge=5, le=100),
     balance_boundary_pct: float = Query(0.005, ge=0.001, le=0.05),
     log_result: bool = Query(True),
@@ -352,23 +247,19 @@ def backtest_mode3(
         fee_pct_roundtrip=fee_pct, slippage_pct=slippage_pct,
         sideways_ema_distance_cap=sideways_ema_dist_cap, chop_max_crossings=chop_max_crossings,
         bull_min_volume_ratio=bull_min_volume_ratio, bull_mtf_15m_entry=bull_mtf_15m_entry,
-        bull_use_rr_tp=bull_use_rr_tp, bull_rr_ratio=bull_rr_ratio,
-        bear_mtf_15m_entry=bear_mtf_15m_entry, bear_min_sl_dist=bear_min_sl_dist,
-        bear_use_1h_sl_fallback=bear_use_1h_sl_fallback,
+        bear_mtf_15m_entry=bear_mtf_15m_entry,
         sideways_ema_invalidation=sideways_ema_invalidation,
         sideways_ema_invalidation_tolerance=sideways_ema_invalidation_tolerance,
         sideways_mtf_15m_entry=sideways_mtf_15m_entry, sideways_tp_pct=sideways_tp_pct,
         sideways_max_slope_pct=sideways_max_slope_pct,
-        sm_fix_1_htf_confirm=sm_fix_1_htf_confirm, sm_fix_2_bear_streak=sm_fix_2_bear_streak,
+        sm_fix_2_bear_streak=sm_fix_2_bear_streak,
         sm_fix_2_streak_threshold=sm_fix_2_streak_threshold,
         sm_fix_3_extreme_low=sm_fix_3_extreme_low, sm_fix_3_high_lookback=sm_fix_3_high_lookback,
         sm_fix_3_extreme_pct=sm_fix_3_extreme_pct,
-        sm_fix_4_bull_confirm=sm_fix_4_bull_confirm, sm_fix_4_bear_confirm=sm_fix_4_bear_confirm,
         bull_countertrend_enabled=bull_countertrend_enabled,
         bull_countertrend_use_position=bull_countertrend_use_position,
         bull_countertrend_max_close_pct=bull_countertrend_max_close_pct,
         bull_countertrend_slope_window=bull_countertrend_slope_window,
-        bull_countertrend_slope_threshold=bull_countertrend_slope_threshold,
         bull_countertrend_tp_pct=bull_countertrend_tp_pct,
         bull_countertrend_size_mult=bull_countertrend_size_mult,
         bear_trend_rider_enabled=bear_trend_rider_enabled,
@@ -377,36 +268,9 @@ def backtest_mode3(
         bear_trend_rider_tp_pct=bear_trend_rider_tp_pct,
         bear_trend_rider_trailing_activate_pct=bear_trend_rider_trailing_activate_pct,
         bear_trend_rider_trailing_distance_pct=bear_trend_rider_trailing_distance_pct,
-        bear_trend_rider_disable_ct_bull=bear_trend_rider_disable_ct_bull,
-        bull_trend_rider_enabled=bull_trend_rider_enabled,
-        bull_trend_rider_regime_bars=bull_trend_rider_regime_bars,
-        bull_trend_rider_regime_slope_min=bull_trend_rider_regime_slope_min,
-        bull_trend_rider_tp_pct=bull_trend_rider_tp_pct,
-        bull_trend_rider_trailing_activate_pct=bull_trend_rider_trailing_activate_pct,
-        bull_trend_rider_trailing_distance_pct=bull_trend_rider_trailing_distance_pct,
-        crs_enabled=crs_enabled, crs_lookback_4h_bars=crs_lookback_4h_bars,
-        crs_active_hours=crs_active_hours, crs_size_mult=crs_size_mult,
-        crs_use_projection_tp=crs_use_projection_tp, crs_projection_divisor=crs_projection_divisor,
-        crs_skip_bull_hours=crs_skip_bull_hours, crs_regime_gate=crs_regime_gate,
-        crs_regime_max_slope=crs_regime_max_slope,
         amt_enabled=amt_enabled, amt_boundary_pct=amt_boundary_pct,
         amt_skip_sw_above=amt_skip_sw_above, amt_skip_bull_below=amt_skip_bull_below,
         amt_bull_near_vah_mult=amt_bull_near_vah_mult, amt_bull_above_mult=amt_bull_above_mult,
-        amt_smart_levels_enabled=amt_smart_levels_enabled,
-        amt_sw_above_use_vah_tp=amt_sw_above_use_vah_tp,
-        amt_bull_near_vah_use_projection_tp=amt_bull_near_vah_use_projection_tp,
-        amt_projection_divisor=amt_projection_divisor,
-        amt_bull_below_use_val_sl=amt_bull_below_use_val_sl,
-        bull_wick_tolerance_enabled=bull_wick_tolerance_enabled,
-        bull_wick_tolerance_pct=bull_wick_tolerance_pct,
-        bull_below_use_val_tp=bull_below_use_val_tp,
-        sweep_enabled=sweep_enabled, sweep_bull_mult=sweep_bull_mult,
-        sweep_sw_short_mult=sweep_sw_short_mult, sweep_lookback_bars=sweep_lookback_bars,
-        be_sl_enabled=be_sl_enabled, be_activation_pct=be_activation_pct,
-        be_sl_apply_bull=be_sl_apply_bull, be_sl_apply_sw=be_sl_apply_sw,
-        trap_enabled=trap_enabled, trap_lookback_4h=trap_lookback_4h,
-        trap_zone_tolerance=trap_zone_tolerance, trap_tp_pct=trap_tp_pct,
-        trap_use_1h_va_tp=trap_use_1h_va_tp, trap_priority_over_state=trap_priority_over_state,
     )
 
     now_ms = int(datetime.utcnow().timestamp() * 1000)
@@ -433,6 +297,7 @@ def backtest_mode3(
 
     switcher = Switcher(config)
 
+    # MTF 15m data
     if bull_mtf_15m_entry or bear_mtf_15m_entry or sideways_mtf_15m_entry:
         rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
         if rows_15m:
@@ -447,32 +312,23 @@ def backtest_mode3(
                 switcher.mtf_sideways_short_entry_close = sc; switcher.mtf_sideways_short_entry_high = sh
                 switcher.mtf_sideways_long_entry_close = lc; switcher.mtf_sideways_long_entry_low = ll
 
+    # HTF 4h context (for AMT + BEAR Trend Rider + CT Bull)
     htf_ema_series = None; htf_slope_series = None; htf_close_series = None
     htf_vah_series = None; htf_val_series = None
-    if trap_enabled or sm_fix_1_htf_confirm or include_htf or bull_countertrend_enabled or bear_trend_rider_enabled or bull_trend_rider_enabled or crs_enabled or amt_enabled or amt_smart_levels_enabled or bull_below_use_val_tp or sweep_enabled:
-        extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
-        rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
-        htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window, trap_lookback=config.trap_lookback_4h)
-        switcher.htf_4h_vah = htf['vah']; switcher.htf_4h_val = htf['val']
-        switcher.htf_4h_ema20 = htf['ema']; switcher.htf_4h_close = htf['close']
-        switcher.htf_trap_short_recent = htf['trap_short']; switcher.htf_trap_long_recent = htf['trap_long']
-        htf_ema_series = htf['ema']; htf_close_series = htf['close']
-        htf_vah_series = htf['vah']; htf_val_series = htf['val']
-        countertrend_slope = compute_htf_4h_slope(htf['ema'], window_bars=bull_countertrend_slope_window)
-        switcher.htf_4h_slope = countertrend_slope
-        htf_slope_series = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
-        if bear_trend_rider_enabled:
-            regime_slope = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
-            switcher.htf_4h_downtrend = compute_htf_4h_downtrend(htf['close'], htf['ema'], regime_slope,
-                regime_bars=bear_trend_rider_regime_bars, slope_max=bear_trend_rider_regime_slope_max)
-        if bull_trend_rider_enabled:
-            regime_slope = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
-            switcher.htf_4h_uptrend = compute_htf_4h_uptrend(htf['close'], htf['ema'], regime_slope,
-                regime_bars=bull_trend_rider_regime_bars, slope_min=bull_trend_rider_regime_slope_min)
-        if crs_enabled:
-            crs_flags, crs_ranges = compute_htf_4h_crs(rows, rows_4h, lookback_bars=crs_lookback_4h_bars,
-                slope_series_1h=htf_slope_series, regime_gate=crs_regime_gate, regime_max_slope=crs_regime_max_slope)
-            switcher.htf_4h_crs_confirmed = crs_flags; switcher.htf_4h_crs_range = crs_ranges
+    extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
+    rows_4h = load_candles_from_db(symbol, '4h', extended_start, end_ts)
+    htf = compute_htf_4h_context(rows, rows_4h, va_window=config.va_window)
+    switcher.htf_4h_vah = htf['vah']; switcher.htf_4h_val = htf['val']
+    switcher.htf_4h_ema20 = htf['ema']; switcher.htf_4h_close = htf['close']
+    htf_ema_series = htf['ema']; htf_close_series = htf['close']
+    htf_vah_series = htf['vah']; htf_val_series = htf['val']
+    countertrend_slope = compute_htf_4h_slope(htf['ema'], window_bars=bull_countertrend_slope_window)
+    switcher.htf_4h_slope = countertrend_slope
+    htf_slope_series = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
+    if bear_trend_rider_enabled:
+        regime_slope = compute_htf_4h_slope(htf['ema'], window_bars=htf_slope_window)
+        switcher.htf_4h_downtrend = compute_htf_4h_downtrend(htf['close'], htf['ema'], regime_slope,
+            regime_bars=bear_trend_rider_regime_bars, slope_max=bear_trend_rider_regime_slope_max)
 
     for i in range(len(rows)):
         vah, val = vahs[i], vals[i]
@@ -488,41 +344,13 @@ def backtest_mode3(
     wr = 100.0 * len(wins) / n if n > 0 else 0
 
     tool_stats = {}
-    for tool in ['SIDEWAYS', 'BULL', 'BEAR', 'TRAP']:
+    for tool in ['SIDEWAYS', 'BULL', 'BEAR']:
         tt = [t for t in trades if t.tool == tool]
         if tt:
             tw = [t for t in tt if t.pnl_usd > 0]
             tool_stats[tool] = {"count": len(tt), "wr_pct": round(100.0 * len(tw) / len(tt), 2),
                 "pnl_usd": round(sum(t.pnl_usd for t in tt), 2),
                 "pnl_pct": round(sum(t.pnl_pct for t in tt) * 100, 3)}
-
-    crs_trades = [t for t in trades if getattr(t, 'is_crs', False)]
-    crs_stats = None
-    if crs_trades:
-        crs_wins = [t for t in crs_trades if t.pnl_usd > 0]
-        crs_stats = {"count": len(crs_trades), "wr_pct": round(100.0 * len(crs_wins) / len(crs_trades), 2),
-            "pnl_usd": round(sum(t.pnl_usd for t in crs_trades), 2)}
-
-    sweep_trades = [t for t in trades if getattr(t, 'sweep_applied', False)]
-    sweep_stats = None
-    if sweep_trades:
-        sweep_wins = [t for t in sweep_trades if t.pnl_usd > 0]
-        sweep_stats = {"count": len(sweep_trades),
-            "wr_pct": round(100.0 * len(sweep_wins) / len(sweep_trades), 2),
-            "pnl_usd": round(sum(t.pnl_usd for t in sweep_trades), 2),
-            "bull_count": sum(1 for t in sweep_trades if t.tool == 'BULL'),
-            "sw_count": sum(1 for t in sweep_trades if t.tool == 'SIDEWAYS')}
-
-    # v4.4 BE stats
-    be_trades = [t for t in trades if getattr(t, 'be_activated', False)]
-    be_stats = None
-    if be_trades:
-        be_wins = [t for t in be_trades if t.pnl_usd > 0]
-        be_protected = [t for t in be_trades if t.exit_type == 'BE_SL']
-        be_stats = {"activated_count": len(be_trades), "be_sl_hit_count": len(be_protected),
-            "tp_after_be_count": sum(1 for t in be_trades if t.exit_type == 'TP'),
-            "wr_pct": round(100.0 * len(be_wins) / len(be_trades), 2),
-            "pnl_usd": round(sum(t.pnl_usd for t in be_trades), 2)}
 
     def get_htf_at_bar(bar):
         if htf_ema_series is None or bar >= len(htf_ema_series): return None, None, None, None, None
@@ -550,10 +378,8 @@ def backtest_mode3(
             "ema_at_entry": round(t.ema_at_entry, 2), "ema_at_exit": round(t.ema_at_exit, 2),
             "peak_high": round(t.peak_high, 2), "trough_low": round(t.trough_low, 2),
             "size_mult": t.size_mult, "is_trend_rider": t.is_trend_rider,
-            "is_bull_trend_rider": t.is_bull_trend_rider, "is_crs": getattr(t, 'is_crs', False),
-            "amt_smart_applied": getattr(t, 'amt_smart_applied', ''),
-            "sweep_applied": getattr(t, 'sweep_applied', False),
-            "be_activated": getattr(t, 'be_activated', False),
+            "is_countertrend": getattr(t, 'is_countertrend', False),
+            "amt_position": getattr(t, 'amt_position', ''),
             "balance_position": pos}
         if htf_ema is not None:
             trade_dict["htf_4h_ema"] = htf_ema; trade_dict["htf_4h_close"] = htf_close
@@ -572,37 +398,21 @@ def backtest_mode3(
             "capital_start": config.capital_usd, "capital_end": round(config.capital_usd + total_pnl_usd, 2),
             "sideways_blocked_count": switcher._sideways_blocked_count,
             "sideways_blocked_slope": switcher._sideways_blocked_slope,
-            "sideways_blocked_amt": switcher._sideways_blocked_amt,
+            "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
             "chop_blocked_count": switcher._chop_blocked_count,
             "bull_blocked_volume": switcher._bull_blocked_volume,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
-            "bull_blocked_crs": switcher._bull_blocked_crs,
-            "bull_blocked_amt": switcher._bull_blocked_amt,
             "amt_bull_amplified": switcher._amt_bull_amplified,
-            "amt_sw_vah_tp_count": switcher._amt_sw_vah_tp_count,
-            "amt_bull_projection_tp_count": switcher._amt_bull_projection_tp_count,
-            "amt_bull_val_sl_count": switcher._amt_bull_val_sl_count,
-            "bull_wick_widened": switcher._bull_wick_widened,
-            "bull_below_val_tp_count": switcher._bull_below_val_tp,
-            "sweep_bull_amplified": switcher._sweep_bull_amplified,
-            "sweep_sw_amplified": switcher._sweep_sw_amplified,
-            "be_sl_activated": switcher._be_sl_activated,
-            "be_sl_hit": switcher._be_sl_hit,
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "bear_blocked_min_sl": switcher._bear_blocked_min_sl,
-            "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
-            "trap_short_count": switcher._trap_short_count, "trap_long_count": switcher._trap_long_count,
-            "sm_fix2_count": switcher._sm_fix2_count, "sm_fix3_count": switcher._sm_fix3_count,
+            "sm_fix2_count": switcher._sm_fix2_count,
+            "sm_fix3_count": switcher._sm_fix3_count,
             "bull_countertrend_count": switcher._bull_countertrend_count,
             "bear_trend_rider_count": switcher._bear_trend_rider_count,
             "bear_trend_rider_trailing_hits": switcher._bear_trend_rider_trailing_hits,
             "bear_trend_rider_hard_exits": switcher._bear_trend_rider_hard_exits,
-            "bull_trend_rider_count": switcher._bull_trend_rider_count,
-            "crs_confirmed_count": switcher._crs_confirmed_count,
-            "crs_trade_count": switcher._crs_trade_count,
             "balance_position_stats": balance_stats},
-        "per_tool": tool_stats, "crs_stats": crs_stats, "sweep_stats": sweep_stats, "be_stats": be_stats,
-        "trades": trade_list, "final_state": switcher.state}
+        "per_tool": tool_stats, "trades": trade_list, "final_state": switcher.state}
 
     if log_result: _log_experiment(config, result, symbol, timeframe, days)
     return result
@@ -610,4 +420,4 @@ def backtest_mode3(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "4.4", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "5.0", "db_path": DB_PATH}
