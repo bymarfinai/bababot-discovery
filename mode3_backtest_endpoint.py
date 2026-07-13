@@ -1,4 +1,4 @@
-"""Mode3 Backtest Endpoint v5.0 — Cleaned. Champion Option A only."""
+"""Mode3 Backtest Endpoint v5.1 — Fix #21 BEAR wick trailing bug."""
 import os
 import json as jsonlib
 from dataclasses import asdict
@@ -41,7 +41,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 wr_pct, pnl_usd, pnl_pct, sw_count, sw_wr, sw_pnl, bull_count, bull_wr,
                 bull_pnl, bear_count, bear_wr, bear_pnl, blocked_count, final_state,
                 config_json) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)""", (
-            int(datetime.utcnow().timestamp()), '5.0', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '5.1', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -297,7 +297,6 @@ def backtest_mode3(
 
     switcher = Switcher(config)
 
-    # MTF 15m data
     if bull_mtf_15m_entry or bear_mtf_15m_entry or sideways_mtf_15m_entry:
         rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
         if rows_15m:
@@ -312,7 +311,6 @@ def backtest_mode3(
                 switcher.mtf_sideways_short_entry_close = sc; switcher.mtf_sideways_short_entry_high = sh
                 switcher.mtf_sideways_long_entry_close = lc; switcher.mtf_sideways_long_entry_low = ll
 
-    # HTF 4h context (for AMT + BEAR Trend Rider + CT Bull)
     htf_ema_series = None; htf_slope_series = None; htf_close_series = None
     htf_vah_series = None; htf_val_series = None
     extended_start = start_ts - (config.va_window * 4 * 3600 * 1000)
@@ -411,6 +409,7 @@ def backtest_mode3(
             "bear_trend_rider_count": switcher._bear_trend_rider_count,
             "bear_trend_rider_trailing_hits": switcher._bear_trend_rider_trailing_hits,
             "bear_trend_rider_hard_exits": switcher._bear_trend_rider_hard_exits,
+            "bear_wick_trail_activations": getattr(switcher, '_bear_wick_trail_activations', 0),
             "balance_position_stats": balance_stats},
         "per_tool": tool_stats, "trades": trade_list, "final_state": switcher.state}
 
@@ -420,4 +419,4 @@ def backtest_mode3(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "5.0", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "5.1", "db_path": DB_PATH}
