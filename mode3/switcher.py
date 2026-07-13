@@ -1,23 +1,4 @@
-"""
-Mode3 Switcher v5.1 — Fix #21 BEAR Trailing Trigger Bug.
-
-BUG FIXED: Trailing activation was using CLOSE price for profit calculation,
-missing intra-bar wicks that reached activation threshold.
-
-BEFORE (buggy):
-  profit_pct = (entry - close) / entry
-  # If close hasn't dropped 1.5% yet, trailing doesn't activate
-  # Even if intra-bar low reached >1.5% profit
-
-AFTER (fixed):
-  profit_pct = (entry - trough_low) / entry
-  # Use lowest point during trade to detect profit target reached
-  # Trailing SL then set at trough_low * (1 + trail_dist)
-  # If close > new SL, exit immediately at close price (captures partial profit)
-
-Impact: 14 trades reached MFE ≥1.5% but exited as SL loss. This fix should
-convert most of them to partial profit exits (~+$100/year estimated).
-"""
+"""Mode3 Switcher v5.2 — Fix #21 wick trailing + Fix #22 deep-bear filter."""
 from dataclasses import dataclass
 from typing import Optional
 from collections import deque
@@ -113,6 +94,7 @@ class Switcher:
         self._bull_blocked_mtf = 0
         self._bear_blocked_mtf = 0
         self._bear_blocked_min_sl = 0
+        self._bear_blocked_deep_bear = 0
         self._bear_loss_streak = 0
         self._last_exit_bar = 0
         self._sm_fix2_count = 0
@@ -122,7 +104,6 @@ class Switcher:
         self._bear_trend_rider_trailing_hits = 0
         self._bear_trend_rider_hard_exits = 0
         self._amt_bull_amplified = 0
-        # v5.1 counter for wick-based trailing activations
         self._bear_wick_trail_activations = 0
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
@@ -176,6 +157,14 @@ class Switcher:
         if (vah - price) / vah < boundary: return 'NEAR_VAH'
         if (price - val) / val < boundary: return 'NEAR_VAL'
         return 'INSIDE'
+
+    def _get_htf_close_ema_gap(self, bar_idx):
+        """v5.2: HTF 4h close-EMA gap as % (negative = below EMA)."""
+        if self.htf_4h_close is None or self.htf_4h_ema20 is None: return None
+        if bar_idx >= len(self.htf_4h_close) or bar_idx >= len(self.htf_4h_ema20): return None
+        c = self.htf_4h_close[bar_idx]; e = self.htf_4h_ema20[bar_idx]
+        if c is None or e is None or e <= 0: return None
+        return (c - e) / e
 
     def _is_choppy(self):
         if self.config.chop_max_crossings <= 0: return False
@@ -315,20 +304,14 @@ class Switcher:
     def _exit_bear(self, bar_idx, c):
         pos = self.position
         if pos.is_trend_rider:
-            # HTF reclaim exit (macro trend flip)
             if (self.htf_4h_close is not None and self.htf_4h_ema20 is not None
                     and bar_idx < len(self.htf_4h_close)):
                 htf_c = self.htf_4h_close[bar_idx]; htf_e = self.htf_4h_ema20[bar_idx]
                 if htf_c is not None and htf_e is not None and htf_c > htf_e:
                     self._close_position(bar_idx, c, 'HTF_RECLAIM'); self._bear_trend_rider_hard_exits += 1
                     self._post_exit_bear('HTF_RECLAIM'); return
-
-            # ===== v5.1 Fix #21: Wick-based trailing activation =====
-            # Bug: original code used current close, missed intra-bar wicks.
-            # Fix: Use trough_low (lowest point during trade) to detect profit target.
             activate_th = self.config.bear_trend_rider_trailing_activate_pct
             trail_dist = self.config.bear_trend_rider_trailing_distance_pct
-            # Best profit reached so far (based on trough_low, not close)
             best_profit_pct = (pos.entry_price - pos.trough_low) / pos.entry_price
             if not pos.trailing_active and best_profit_pct >= activate_th:
                 pos.trailing_active = True
@@ -340,9 +323,7 @@ class Switcher:
                 if c > pos.sl_level:
                     self._close_position(bar_idx, c, 'TRAILING_SL'); self._bear_trend_rider_trailing_hits += 1
                     self._post_exit_bear('TRAILING_SL'); return
-            # ===== end fix =====
 
-        # Standard SL/TP (both trend rider and regular)
         if c > pos.sl_level: self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
         if c <= pos.tp_level: self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
 
@@ -508,6 +489,13 @@ class Switcher:
             self._execute_bull_entry(bar_idx, o, h, l, c, ema20, vah, val)
 
     def _execute_bear_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
+        # v5.2 Fix #22: skip BEAR if HTF is deep bearish (CT Bull dominates there)
+        if self.config.bear_skip_deep_bear:
+            gap = self._get_htf_close_ema_gap(bar_idx)
+            if gap is not None and gap < self.config.bear_skip_deep_bear_threshold:
+                self._bear_blocked_deep_bear += 1
+                return
+
         is_trend_rider = self._is_bear_trend_rider_regime(bar_idx)
         size_mult = 1.0
         if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
