@@ -1,4 +1,4 @@
-"""Mode3 Backtest Endpoint v5.2 — Fix #21 wick + Fix #22 deep bear filter."""
+"""Mode3 Backtest Endpoint v5.4 — Champion clean (Fix #21 wick trailing)."""
 import os
 import json as jsonlib
 from dataclasses import asdict
@@ -41,7 +41,7 @@ def _log_experiment(config, result, symbol, timeframe, days):
                 wr_pct, pnl_usd, pnl_pct, sw_count, sw_wr, sw_pnl, bull_count, bull_wr,
                 bull_pnl, bear_count, bear_wr, bear_pnl, blocked_count, final_state,
                 config_json) VALUES (?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?)""", (
-            int(datetime.utcnow().timestamp()), '5.2', symbol, timeframe, days,
+            int(datetime.utcnow().timestamp()), '5.4', symbol, timeframe, days,
             config.sideways_ema_distance_cap, config.tp_pct, config.va_window,
             config.entry_usd, config.leverage, config.fee_pct_roundtrip, config.slippage_pct,
             s['total_trades'], s['wins'], s['losses'], s['win_rate_pct'],
@@ -232,9 +232,6 @@ def backtest_mode3(
     bear_trend_rider_tp_pct: float = Query(0.030, ge=0.005, le=0.20),
     bear_trend_rider_trailing_activate_pct: float = Query(0.015, ge=0.001, le=0.10),
     bear_trend_rider_trailing_distance_pct: float = Query(0.008, ge=0.001, le=0.05),
-    # v5.2 Fix #22
-    bear_skip_deep_bear: bool = Query(False),
-    bear_skip_deep_bear_threshold: float = Query(-0.03, ge=-0.20, le=0.0),
     amt_enabled: bool = Query(True),
     amt_boundary_pct: float = Query(0.005, ge=0.001, le=0.05),
     amt_skip_sw_above: bool = Query(False),
@@ -271,8 +268,6 @@ def backtest_mode3(
         bear_trend_rider_tp_pct=bear_trend_rider_tp_pct,
         bear_trend_rider_trailing_activate_pct=bear_trend_rider_trailing_activate_pct,
         bear_trend_rider_trailing_distance_pct=bear_trend_rider_trailing_distance_pct,
-        bear_skip_deep_bear=bear_skip_deep_bear,
-        bear_skip_deep_bear_threshold=bear_skip_deep_bear_threshold,
         amt_enabled=amt_enabled, amt_boundary_pct=amt_boundary_pct,
         amt_skip_sw_above=amt_skip_sw_above, amt_skip_bull_below=amt_skip_bull_below,
         amt_bull_near_vah_mult=amt_bull_near_vah_mult, amt_bull_above_mult=amt_bull_above_mult,
@@ -408,7 +403,6 @@ def backtest_mode3(
             "amt_bull_amplified": switcher._amt_bull_amplified,
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "bear_blocked_min_sl": switcher._bear_blocked_min_sl,
-            "bear_blocked_deep_bear": getattr(switcher, '_bear_blocked_deep_bear', 0),
             "sm_fix2_count": switcher._sm_fix2_count,
             "sm_fix3_count": switcher._sm_fix3_count,
             "bull_countertrend_count": switcher._bull_countertrend_count,
@@ -425,4 +419,4 @@ def backtest_mode3(
 
 @router.get("/health")
 def mode3_health():
-    return {"status": "ok", "module": "mode3", "version": "5.2", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3", "version": "5.4", "db_path": DB_PATH}
