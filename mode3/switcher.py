@@ -1,4 +1,4 @@
-"""Mode3 Switcher v5.3 — Fix #22b: skip BEAR + transition state to SIDEWAYS."""
+"""Mode3 Switcher v5.4 — Champion clean. Fix #21 wick-based BEAR trailing."""
 from dataclasses import dataclass
 from typing import Optional
 from collections import deque
@@ -94,7 +94,6 @@ class Switcher:
         self._bull_blocked_mtf = 0
         self._bear_blocked_mtf = 0
         self._bear_blocked_min_sl = 0
-        self._bear_blocked_deep_bear = 0
         self._bear_loss_streak = 0
         self._last_exit_bar = 0
         self._sm_fix2_count = 0
@@ -157,13 +156,6 @@ class Switcher:
         if (vah - price) / vah < boundary: return 'NEAR_VAH'
         if (price - val) / val < boundary: return 'NEAR_VAL'
         return 'INSIDE'
-
-    def _get_htf_close_ema_gap(self, bar_idx):
-        if self.htf_4h_close is None or self.htf_4h_ema20 is None: return None
-        if bar_idx >= len(self.htf_4h_close) or bar_idx >= len(self.htf_4h_ema20): return None
-        c = self.htf_4h_close[bar_idx]; e = self.htf_4h_ema20[bar_idx]
-        if c is None or e is None or e <= 0: return None
-        return (c - e) / e
 
     def _is_choppy(self):
         if self.config.chop_max_crossings <= 0: return False
@@ -309,6 +301,7 @@ class Switcher:
                 if htf_c is not None and htf_e is not None and htf_c > htf_e:
                     self._close_position(bar_idx, c, 'HTF_RECLAIM'); self._bear_trend_rider_hard_exits += 1
                     self._post_exit_bear('HTF_RECLAIM'); return
+            # Fix #21: wick-based trailing activation (use trough_low, not close)
             activate_th = self.config.bear_trend_rider_trailing_activate_pct
             trail_dist = self.config.bear_trend_rider_trailing_distance_pct
             best_profit_pct = (pos.entry_price - pos.trough_low) / pos.entry_price
@@ -488,17 +481,6 @@ class Switcher:
             self._execute_bull_entry(bar_idx, o, h, l, c, ema20, vah, val)
 
     def _execute_bear_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
-        # v5.3 Fix #22b: skip BEAR di deep bear zone + transition ke SIDEWAYS
-        # supaya bar berikutnya bisa cari CT Bull / SW LONG di zona diskon
-        if self.config.bear_skip_deep_bear:
-            gap = self._get_htf_close_ema_gap(bar_idx)
-            if gap is not None and gap < self.config.bear_skip_deep_bear_threshold:
-                self._bear_blocked_deep_bear += 1
-                self.state = 'SIDEWAYS'
-                self.bear_stay_warmup = False
-                self._bear_loss_streak = 0
-                return
-
         is_trend_rider = self._is_bear_trend_rider_regime(bar_idx)
         size_mult = 1.0
         if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
