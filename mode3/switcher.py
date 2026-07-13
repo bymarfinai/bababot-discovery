@@ -1,4 +1,4 @@
-"""Mode3 Switcher v5.2 — Fix #21 wick trailing + Fix #22 deep-bear filter."""
+"""Mode3 Switcher v5.3 — Fix #22b: skip BEAR + transition state to SIDEWAYS."""
 from dataclasses import dataclass
 from typing import Optional
 from collections import deque
@@ -159,7 +159,6 @@ class Switcher:
         return 'INSIDE'
 
     def _get_htf_close_ema_gap(self, bar_idx):
-        """v5.2: HTF 4h close-EMA gap as % (negative = below EMA)."""
         if self.htf_4h_close is None or self.htf_4h_ema20 is None: return None
         if bar_idx >= len(self.htf_4h_close) or bar_idx >= len(self.htf_4h_ema20): return None
         c = self.htf_4h_close[bar_idx]; e = self.htf_4h_ema20[bar_idx]
@@ -489,11 +488,15 @@ class Switcher:
             self._execute_bull_entry(bar_idx, o, h, l, c, ema20, vah, val)
 
     def _execute_bear_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
-        # v5.2 Fix #22: skip BEAR if HTF is deep bearish (CT Bull dominates there)
+        # v5.3 Fix #22b: skip BEAR di deep bear zone + transition ke SIDEWAYS
+        # supaya bar berikutnya bisa cari CT Bull / SW LONG di zona diskon
         if self.config.bear_skip_deep_bear:
             gap = self._get_htf_close_ema_gap(bar_idx)
             if gap is not None and gap < self.config.bear_skip_deep_bear_threshold:
                 self._bear_blocked_deep_bear += 1
+                self.state = 'SIDEWAYS'
+                self.bear_stay_warmup = False
+                self._bear_loss_streak = 0
                 return
 
         is_trend_rider = self._is_bear_trend_rider_regime(bar_idx)
