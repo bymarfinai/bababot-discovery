@@ -1,4 +1,4 @@
-"""Mode3 Config v5.2 — BEAR deep bear filter (skip if HTF close-EMA gap < threshold)."""
+"""Mode3 Config v5.4 — Champion clean (Fix #21 wick trailing, no dormant code)."""
 from dataclasses import dataclass
 
 
@@ -37,10 +37,6 @@ class Mode3Config:
     bear_mtf_15m_entry: bool = True
     bear_min_sl_dist: float = 0.0
     bear_use_1h_sl_fallback: bool = False
-
-    # v5.2 Fix #22: skip BEAR entry when HTF is deep bear (CT Bull dominates there)
-    bear_skip_deep_bear: bool = False
-    bear_skip_deep_bear_threshold: float = -0.03  # skip if (close-EMA)/EMA < this
 
     sm_fix_2_bear_streak: bool = True
     sm_fix_2_streak_threshold: int = 2
