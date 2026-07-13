@@ -5,6 +5,9 @@ Fixes:
 1. Proper partial TP accounting — realized PnL tracked per tier
 2. Percentage-based TP option (TP1 = X% from entry, dsb)
 3. TP scheme parameter for easy testing
+
+Diagnostics (Tahap A):
+- skipped_tp_invalid counter: tracks signals dropped by TP-invalid safety check
 """
 
 from __future__ import annotations
@@ -109,6 +112,11 @@ class BacktestStats:
     tp2_hit_rate: float = 0.0
     tp3_hit_rate: float = 0.0
 
+    # Diagnostic counters (Tahap A)
+    total_signals: int = 0
+    skipped_tp_invalid: int = 0
+    skipped_tp_invalid_pct: float = 0.0
+
     exit_by_reason: dict = field(default_factory=dict)
     by_regime: dict = field(default_factory=dict)
     by_mode: dict = field(default_factory=dict)
@@ -180,6 +188,9 @@ def run_backtest(
     print(f"[BT] Generating signals...")
     signals = generate_entry_signals(highs, lows, closes, regime_states, events, biases, entry_cfg)
     print(f"[BT] {len(signals)} signals generated")
+
+    # Diagnostic counter (Tahap A)
+    skipped_tp_invalid = 0
 
     atr_arr = atr(highs, lows, closes, 14)
 
@@ -356,10 +367,12 @@ def run_backtest(
                 rs = regime_states[i]
                 tp1, tp2, tp3 = _compute_tp_prices(entry_price, side_str, rs, cfg)
 
-                # Safety check
+                # Safety check — Tahap A: count how many signals dropped here
                 if sig.side == EntrySide.LONG and tp1 <= entry_price:
+                    skipped_tp_invalid += 1
                     continue
                 if sig.side == EntrySide.SHORT and tp1 >= entry_price:
+                    skipped_tp_invalid += 1
                     continue
 
                 active_pos = {
@@ -413,6 +426,11 @@ def run_backtest(
     stats.total_candles = n
     stats.runtime_sec = time.time() - t0
 
+    # Diagnostic (Tahap A)
+    stats.total_signals = len(signals)
+    stats.skipped_tp_invalid = skipped_tp_invalid
+    stats.skipped_tp_invalid_pct = (skipped_tp_invalid / len(signals)) if len(signals) > 0 else 0.0
+
     wins_pnl, losses_pnl = [], []
     tp1_hits, tp2_hits, tp3_hits = 0, 0, 0
     for t in trades:
@@ -452,6 +470,12 @@ def run_backtest(
 
     days = (n * cfg.candle_hours) / 24.0
     stats.trades_per_day = stats.total_trades / days if days > 0 else 0.0
+
+    # Diagnostic summary print (Tahap A)
+    print(f"[BT] === DIAGNOSTIC ===")
+    print(f"[BT] Total signals generated: {stats.total_signals}")
+    print(f"[BT] Skipped by TP-invalid safety check: {stats.skipped_tp_invalid} ({stats.skipped_tp_invalid_pct*100:.1f}%)")
+    print(f"[BT] Trades executed: {stats.total_trades}")
 
     return BacktestResult(stats=stats, trades=trades)
 
