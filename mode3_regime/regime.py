@@ -11,6 +11,13 @@ Approach: layered detection
 1. Check range vs trend (dari VAH/VAL width + ATR contraction)
 2. Kalau range → discriminate accumulation vs distribution by prior context
 3. Kalau trend → discriminate bull vs bear by direction
+
+--- Fix #3 (2026-07-13) ---
+Relaxed trend detection to reduce UNKNOWN regime frequency:
+- trend_ema_distance: 0.003 → 0.0015 (0.15% jarak EMA cukup buat qualify trend)
+- trend_min_slope_pct: 0.005 → 0.003
+- is_trending: (ema_diff >= threshold) AND slope > 0 → (ema_diff >= threshold) OR (steep slope)
+  → Early trend (EMA baru cross, jarak masih tipis, tapi slope momentum kuat) sekarang ke-catch
 """
 
 from __future__ import annotations
@@ -41,12 +48,12 @@ class RegimeConfig:
     atr_contraction_ratio: float = 0.7        # ATR < 70% median = contracted (range)
     atr_median_lookback: int = 100            # median ATR over 100 bars
 
-    # Trend detection
+    # Trend detection (Fix #3: relaxed 2026-07-13)
     ema_fast_period: int = 20
     ema_slow_period: int = 50
-    trend_ema_distance: float = 0.003         # EMA jarak ≥ 0.3% untuk qualify as trend
+    trend_ema_distance: float = 0.0015        # was 0.003 — 0.15% EMA distance cukup
     trend_slope_lookback: int = 20            # cek slope EMA over 20 bars
-    trend_min_slope_pct: float = 0.005        # slope ≥ 0.5% dalam 20 candle
+    trend_min_slope_pct: float = 0.003        # was 0.005 — slope threshold lebih sensitif
 
     # Accumulation vs Distribution discrimination
     range_position_low_threshold: float = 0.35   # < 35% dari swing = low position (accumulation)
@@ -138,15 +145,19 @@ def classify_regime_series(
         range_narrow = 0 < range_width_pct < cfg.range_max_width_pct
         is_range = range_narrow and atr_contracted
 
-        # Trend detection
+        # Trend detection (Fix #3: OR condition — catch early trend)
         ema_f = float(ema_fast_arr[i])
         ema_s = float(ema_slow_arr[i])
         ema_diff_pct = abs(ema_f - ema_s) / ema_s if ema_s > 0 else 0.0
         ema_fast_slope = float(ema_fast_slope_arr[i])
 
-        is_trending = ema_diff_pct >= cfg.trend_ema_distance
-        trend_up = is_trending and ema_f > ema_s and ema_fast_slope > 0
-        trend_down = is_trending and ema_f < ema_s and ema_fast_slope < 0
+        # NEW: trend qualifies if EITHER EMA jarak lebar OR slope momentum kuat
+        is_trending = (
+            ema_diff_pct >= cfg.trend_ema_distance
+            or abs(ema_fast_slope) >= cfg.trend_min_slope_pct
+        )
+        trend_up = is_trending and ema_f > ema_s and ema_fast_slope >= 0
+        trend_down = is_trending and ema_f < ema_s and ema_fast_slope <= 0
 
         # Determine regime
         regime = Regime.UNKNOWN
@@ -180,13 +191,14 @@ def classify_regime_series(
 
         elif trend_up:
             regime = Regime.BULL_MARKUP
-            confidence = min(0.85, 0.5 + ema_diff_pct * 20)
-            reason = f"trend_up_ema_diff_{ema_diff_pct:.4f}"
+            # Confidence scale: wide EMA distance = high confidence
+            confidence = min(0.85, 0.5 + ema_diff_pct * 20 + abs(ema_fast_slope) * 10)
+            reason = f"trend_up_ema_diff_{ema_diff_pct:.4f}_slope_{ema_fast_slope:.4f}"
 
         elif trend_down:
             regime = Regime.BEAR_MARKDOWN
-            confidence = min(0.85, 0.5 + ema_diff_pct * 20)
-            reason = f"trend_down_ema_diff_{ema_diff_pct:.4f}"
+            confidence = min(0.85, 0.5 + ema_diff_pct * 20 + abs(ema_fast_slope) * 10)
+            reason = f"trend_down_ema_diff_{ema_diff_pct:.4f}_slope_{ema_fast_slope:.4f}"
 
         else:
             # Ambiguous: neither clear range nor clear trend
