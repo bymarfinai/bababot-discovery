@@ -1,6 +1,5 @@
-"""Mode3 BBC Switcher — Basic state machine with opt-in signal quality options.
-BULL: MTF 15m, body filter, POC bounce, retest, swing break, 2.6 support.
-BEAR: MTF 15m, body filter, independent TP.
+"""Mode3 BBC Switcher — state machine with opt-in signal quality options.
+BULL/BEAR/SIDEWAYS all support MTF 15m precision.
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -79,16 +78,23 @@ class Switcher:
         self._current_vah = None
         self._current_val = None
         self._current_poc = None
+        # MTF arrays
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
         self.mtf_bear_entry_high = None
+        self.mtf_sideways_short_entry_close = None
+        self.mtf_sideways_short_entry_high = None
+        self.mtf_sideways_long_entry_close = None
+        self.mtf_sideways_long_entry_low = None
         self._high_deque = deque(maxlen=200)
         self._low_deque = deque(maxlen=200)
         self._bull_retest_pending = False
         self._bull_retest_bar_count = 0
         self._bull_broken_level = None
+        # Counters
         self._sideways_entries = 0
+        self._sideways_blocked_mtf = 0
         self._bull_entries = 0
         self._bear_entries = 0
         self._bull_ema_reclaim_entries = 0
@@ -230,25 +236,59 @@ class Switcher:
         elif long_ok:
             self._open_long_sideways(bar_idx, h, l, c)
 
+    def _get_mtf_sideways_short(self, bar_idx):
+        if self.mtf_sideways_short_entry_close is None:
+            return None, None
+        if bar_idx >= len(self.mtf_sideways_short_entry_close):
+            return None, None
+        return self.mtf_sideways_short_entry_close[bar_idx], self.mtf_sideways_short_entry_high[bar_idx]
+
+    def _get_mtf_sideways_long(self, bar_idx):
+        if self.mtf_sideways_long_entry_close is None:
+            return None, None
+        if bar_idx >= len(self.mtf_sideways_long_entry_close):
+            return None, None
+        return self.mtf_sideways_long_entry_close[bar_idx], self.mtf_sideways_long_entry_low[bar_idx]
+
     def _open_short_sideways(self, bar_idx, h, l, c):
         tp_pct = self.config.sideways_tp_pct if self.config.sideways_tp_pct > 0 else self.config.tp_pct
-        self.markers.marker_high_short = h
-        self.markers.marker_close_short = c
+        entry_price = c
+        sl_price = h
+        if self.config.sideways_mtf_15m_enabled:
+            mtf_c, mtf_h = self._get_mtf_sideways_short(bar_idx)
+            if mtf_c is None or mtf_h is None:
+                self._sideways_blocked_mtf += 1
+                return
+            entry_price = mtf_c
+            sl_price = mtf_h
+        self.markers.marker_high_short = sl_price
+        self.markers.marker_close_short = entry_price
         self.position = Position(
-            tool='SIDEWAYS', side='SHORT', entry_price=c, entry_bar=bar_idx,
-            entry_high=h, entry_low=l, sl_level=h, tp_level=c * (1.0 - tp_pct),
-            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
+            tool='SIDEWAYS', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
+            entry_high=sl_price, entry_low=l, sl_level=sl_price,
+            tp_level=entry_price * (1.0 - tp_pct),
+            peak_high=sl_price, trough_low=l, ema_at_entry=self._current_ema20,
         )
         self._sideways_entries += 1
 
     def _open_long_sideways(self, bar_idx, h, l, c):
         tp_pct = self.config.sideways_tp_pct if self.config.sideways_tp_pct > 0 else self.config.tp_pct
-        self.markers.marker_low_long = l
-        self.markers.marker_close_long = c
+        entry_price = c
+        sl_price = l
+        if self.config.sideways_mtf_15m_enabled:
+            mtf_c, mtf_l = self._get_mtf_sideways_long(bar_idx)
+            if mtf_c is None or mtf_l is None:
+                self._sideways_blocked_mtf += 1
+                return
+            entry_price = mtf_c
+            sl_price = mtf_l
+        self.markers.marker_low_long = sl_price
+        self.markers.marker_close_long = entry_price
         self.position = Position(
-            tool='SIDEWAYS', side='LONG', entry_price=c, entry_bar=bar_idx,
-            entry_high=h, entry_low=l, sl_level=l, tp_level=c * (1.0 + tp_pct),
-            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
+            tool='SIDEWAYS', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
+            entry_high=h, entry_low=sl_price, sl_level=sl_price,
+            tp_level=entry_price * (1.0 + tp_pct),
+            peak_high=h, trough_low=sl_price, ema_at_entry=self._current_ema20,
         )
         self._sideways_entries += 1
 
@@ -502,7 +542,6 @@ class Switcher:
         self._open_bear(bar_idx, h, l, sl_price, entry_price)
 
     def _open_bear(self, bar_idx, entry_high, entry_low, sl_level, entry_price):
-        # Use independent bear_tp_pct if set, else fall back to tp_pct
         tp_level = entry_price * (1.0 - self.config.get_bear_tp_pct())
         self.position = Position(
             tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
