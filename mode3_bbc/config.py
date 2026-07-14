@@ -20,38 +20,29 @@ class Mode3BBCConfig:
     fee_pct_roundtrip: float = 0.001
     slippage_pct: float = 0.0005
 
-    # ---- BULL ----
     bull_poc_entry_enabled: bool = False
     bull_poc_max_distance_pct: float = 0.02
-
     bull_mtf_15m_enabled: bool = False
     bull_body_ratio_min: float = 0.0
-
     bull_wait_retest_enabled: bool = False
     bull_retest_swing_lookback: int = 20
     bull_retest_tolerance_pct: float = 0.003
     bull_retest_max_bars: int = 5
     bull_retest_max_ema_dist_pct: float = 0.003
-
     bull_use_swing_break: bool = False
     bull_swing_lookback: int = 20
-
     bull_use_26_support: bool = False
     bull_26_lookback: int = 50
     bull_26_ratio: float = 2.6
     bull_26_tolerance_pct: float = 0.003
 
-    # ---- BEAR ----
     bear_mtf_15m_enabled: bool = False
     bear_body_ratio_min: float = 0.0
 
-    # ---- SIDEWAYS ----
-    # MTF 15m precision for SIDEWAYS entries.
-    # SHORT: scan 4 sub-15m for h>=vah AND c<=vah pattern.
-    # LONG:  scan 4 sub-15m for l<=val AND c>=val pattern.
-    # If found: use 15m close as entry, 15m high/low as SL.
-    # If not: BLOCK entry.
     sideways_mtf_15m_enabled: bool = False
+    # SIDEWAYS body ratio filter — mirrors BULL/BEAR pattern
+    # Filter wicky sweep candles at VAH/VAL entries (real BoS has strong body)
+    sideways_body_ratio_min: float = 0.0
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
