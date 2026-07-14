@@ -1,5 +1,6 @@
 """Mode3 BBC Backtest Endpoint — /mode3_bbc/backtest.
-BULL + BEAR both with MTF 15m precision and body ratio filter support.
+BULL + BEAR both with MTF 15m precision and body ratio filter.
+Independent BEAR TP via bear_tp_pct.
 """
 import os
 from dataclasses import asdict
@@ -52,8 +53,6 @@ def compute_mtf_bull_entry(rows_1h, rows_15m):
 
 
 def compute_mtf_bear_entry(rows_1h, rows_15m):
-    """Mirror of BULL MTF: find first 15m sub-bar with EMA rejection.
-    Returns (entry_closes, entry_highs) — None if no match."""
     if not rows_15m:
         return [None] * len(rows_1h), [None] * len(rows_1h)
     opens_15m = np.array([r[1] for r in rows_15m], dtype=float)
@@ -89,11 +88,11 @@ def backtest_mode3_bbc(
     ema_period: int = Query(20, ge=5, le=100),
     tp_pct: float = Query(0.012, ge=0.001, le=0.05),
     sideways_tp_pct: float = Query(0.003, ge=0.0, le=0.05),
+    bear_tp_pct: float = Query(0.0, ge=0.0, le=0.05),
     entry_usd: float = Query(10.0),
     leverage: float = Query(50.0),
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
-    # BULL params
     bull_poc_entry_enabled: bool = Query(False),
     bull_poc_max_distance_pct: float = Query(0.02, ge=0.001, le=0.10),
     bull_mtf_15m_enabled: bool = Query(False),
@@ -108,13 +107,13 @@ def backtest_mode3_bbc(
     bull_26_lookback: int = Query(50, ge=10, le=200),
     bull_26_ratio: float = Query(2.6, ge=1.5, le=5.0),
     bull_26_tolerance_pct: float = Query(0.003, ge=0.0, le=0.05),
-    # BEAR params (mirror BULL)
     bear_mtf_15m_enabled: bool = Query(False),
     bear_body_ratio_min: float = Query(0.0, ge=0.0, le=1.0),
 ):
     config = Mode3BBCConfig(
         va_window=va_window, ema_period=ema_period,
         tp_pct=tp_pct, sideways_tp_pct=sideways_tp_pct,
+        bear_tp_pct=bear_tp_pct,
         entry_usd=entry_usd, leverage=leverage,
         fee_pct_roundtrip=fee_pct, slippage_pct=slippage_pct,
         bull_poc_entry_enabled=bull_poc_entry_enabled,
@@ -161,7 +160,6 @@ def backtest_mode3_bbc(
 
     switcher = Switcher(config)
 
-    # Preload 15m data if either MTF flag enabled (share fetch)
     if bull_mtf_15m_enabled or bear_mtf_15m_enabled:
         rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
         if rows_15m:
@@ -264,4 +262,4 @@ def backtest_mode3_bbc(
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status": "ok", "module": "mode3_bbc", "version": "0.7", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3_bbc", "version": "0.8", "db_path": DB_PATH}
