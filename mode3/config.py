@@ -25,6 +25,11 @@ class Mode3Config:
     sideways_max_slope_pct: float = 0.018
     sideways_slope_window: int = 20
 
+    # Idea A: use POC as dynamic TP for SIDEWAYS trades (opt-in via query param)
+    sideways_use_poc_tp: bool = False
+    sideways_poc_min_distance_pct: float = 0.001  # POC must be >=0.1% from entry
+    sideways_poc_max_distance_pct: float = 0.015  # POC must be <=1.5% from entry (else cap)
+
     chop_window: int = 20
     chop_max_crossings: int = 4
 
