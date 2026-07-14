@@ -1,6 +1,7 @@
 """Mode3 Switcher v5.4 — Champion clean. Fix #21 wick-based BEAR trailing.
 Idea A (2026-07-14): POC-based dynamic TP for SIDEWAYS trades (opt-in).
 Idea B (2026-07-14): POC confluence amplification for BULL entries (opt-in).
+Bear-only-rider (2026-07-14): skip mean-reversion bear entries (opt-in).
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -85,7 +86,7 @@ class Switcher:
         self._current_ema20 = 0.0
         self._current_vah = None
         self._current_val = None
-        self._current_poc = None  # Idea A
+        self._current_poc = None
         self._chop_history = deque(maxlen=config.chop_window)
         self._ema_history = deque(maxlen=config.sideways_slope_window)
         self._volume_history = deque(maxlen=config.bull_volume_window)
@@ -98,6 +99,7 @@ class Switcher:
         self._bull_blocked_mtf = 0
         self._bear_blocked_mtf = 0
         self._bear_blocked_min_sl = 0
+        self._bear_blocked_no_rider = 0  # bear_only_rider filter
         self._bear_loss_streak = 0
         self._last_exit_bar = 0
         self._sm_fix2_count = 0
@@ -108,10 +110,8 @@ class Switcher:
         self._bear_trend_rider_hard_exits = 0
         self._amt_bull_amplified = 0
         self._bear_wick_trail_activations = 0
-        # Idea A counters
         self._sideways_poc_tp_used = 0
         self._sideways_poc_tp_fallback = 0
-        # Idea B counter
         self._bull_poc_confluence_amplified = 0
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
@@ -133,7 +133,7 @@ class Switcher:
         self._current_ema20 = ema20
         self._current_vah = vah
         self._current_val = val
-        self._current_poc = poc  # Idea A
+        self._current_poc = poc
         if ema20 > 0:
             sign = 1 if c > ema20 else (-1 if c < ema20 else 0)
             self._chop_history.append(sign)
@@ -208,21 +208,17 @@ class Switcher:
         return self.config.sideways_tp_pct if self.config.sideways_tp_pct > 0 else self.config.tp_pct
 
     def _sideways_tp_level(self, entry_price, side):
-        """Idea A: POC-based dynamic TP for SIDEWAYS trades (opt-in via sideways_use_poc_tp)."""
         tp_pct = self._sideways_tp_pct()
         if not self.config.sideways_use_poc_tp:
             if side == 'LONG': return entry_price * (1.0 + tp_pct)
             return entry_price * (1.0 - tp_pct)
-
         poc = self._current_poc
         if poc is None or poc <= 0 or entry_price <= 0:
             self._sideways_poc_tp_fallback += 1
             if side == 'LONG': return entry_price * (1.0 + tp_pct)
             return entry_price * (1.0 - tp_pct)
-
         min_dist = self.config.sideways_poc_min_distance_pct
         max_dist = self.config.sideways_poc_max_distance_pct
-
         if side == 'LONG':
             if poc <= entry_price:
                 self._sideways_poc_tp_fallback += 1
@@ -233,7 +229,7 @@ class Switcher:
                 return entry_price * (1.0 + tp_pct)
             self._sideways_poc_tp_used += 1
             return poc
-        else:  # SHORT
+        else:
             if poc >= entry_price:
                 self._sideways_poc_tp_fallback += 1
                 return entry_price * (1.0 - tp_pct)
@@ -252,10 +248,6 @@ class Switcher:
         return entry_price * (1.0 + self.config.tp_pct)
 
     def _check_bull_poc_confluence(self, bar_low, bar_close, entry_price):
-        """Idea B: Detect POC confluence for BULL entry.
-        Confluence = bar wick touched POC (low <= poc) AND close reclaimed (close >= poc)
-                     AND POC within safe distance from entry price.
-        """
         if not self.config.bull_poc_confluence_enabled: return False
         poc = self._current_poc
         if poc is None or poc <= 0 or entry_price <= 0: return False
@@ -506,7 +498,6 @@ class Switcher:
             if amt_mult > size_mult:
                 size_mult = amt_mult
                 self._amt_bull_amplified += 1
-        # Idea B: POC confluence amplification
         if self._check_bull_poc_confluence(l, c, entry_price_for_pos):
             poc_mult = self.config.bull_poc_confluence_size_mult
             if poc_mult > size_mult:
@@ -549,6 +540,10 @@ class Switcher:
 
     def _execute_bear_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
         is_trend_rider = self._is_bear_trend_rider_regime(bar_idx)
+        # Bear only rider: skip mean-reversion bear entries (against HTF trend)
+        if self.config.bear_only_rider and not is_trend_rider:
+            self._bear_blocked_no_rider += 1
+            return
         size_mult = 1.0
         if self.config.bear_mtf_15m_entry and self.mtf_bear_entry_close is not None:
             if bar_idx < len(self.mtf_bear_entry_close):
