@@ -1,5 +1,5 @@
 """Mode3 BBC Backtest Endpoint — /mode3_bbc/backtest.
-BULL/BEAR/SIDEWAYS all support MTF 15m precision.
+BULL/BEAR/SIDEWAYS all support MTF 15m precision and body ratio filter.
 """
 import os
 from dataclasses import asdict
@@ -78,7 +78,6 @@ def compute_mtf_bear_entry(rows_1h, rows_15m):
 
 
 def compute_mtf_sideways_entry(rows_1h, rows_15m, vahs, vals):
-    """SIDEWAYS MTF: scan 4 sub-15m for VAH/VAL touch pattern (uses 1h VAH/VAL levels)."""
     n = len(rows_1h)
     if not rows_15m:
         return [None]*n, [None]*n, [None]*n, [None]*n
@@ -100,11 +99,9 @@ def compute_mtf_sideways_entry(rows_1h, rows_15m, vahs, vals):
             j = ts_to_idx.get(t_1h + k * ONE_15M_MS)
             if j is None:
                 continue
-            # SHORT: 15m high >= vah AND 15m close <= vah
             if sc is None and highs_15m[j] >= vah and closes_15m[j] <= vah:
                 sc = float(closes_15m[j])
                 sh = float(highs_15m[j])
-            # LONG: 15m low <= val AND 15m close >= val
             if lc is None and lows_15m[j] <= val and closes_15m[j] >= val:
                 lc = float(closes_15m[j])
                 ll = float(lows_15m[j])
@@ -147,6 +144,7 @@ def backtest_mode3_bbc(
     bear_mtf_15m_enabled: bool = Query(False),
     bear_body_ratio_min: float = Query(0.0, ge=0.0, le=1.0),
     sideways_mtf_15m_enabled: bool = Query(False),
+    sideways_body_ratio_min: float = Query(0.0, ge=0.0, le=1.0),
 ):
     config = Mode3BBCConfig(
         va_window=va_window, ema_period=ema_period,
@@ -171,6 +169,7 @@ def backtest_mode3_bbc(
         bear_mtf_15m_enabled=bear_mtf_15m_enabled,
         bear_body_ratio_min=bear_body_ratio_min,
         sideways_mtf_15m_enabled=sideways_mtf_15m_enabled,
+        sideways_body_ratio_min=sideways_body_ratio_min,
     )
 
     now_ms = int(datetime.utcnow().timestamp() * 1000)
@@ -285,12 +284,9 @@ def backtest_mode3_bbc(
             "capital_end": round(config.capital_usd + total_pnl_usd, 2),
             "sideways_entries": switcher._sideways_entries,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
+            "sideways_blocked_body": switcher._sideways_blocked_body,
             "bull_entries_attempted": switcher._bull_entries,
             "bull_ema_reclaim_entries": switcher._bull_ema_reclaim_entries,
-            "bull_poc_bounce_entries": switcher._bull_poc_bounce_entries,
-            "bull_swing_break_entries": switcher._bull_swing_break_entries,
-            "bull_retest_entries": switcher._bull_retest_entries,
-            "bull_26_bounce_entries": switcher._bull_26_bounce_entries,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
             "bull_blocked_body": switcher._bull_blocked_body,
             "bear_entries_attempted": switcher._bear_entries,
@@ -307,4 +303,4 @@ def backtest_mode3_bbc(
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status": "ok", "module": "mode3_bbc", "version": "0.9", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3_bbc", "version": "1.0", "db_path": DB_PATH}
