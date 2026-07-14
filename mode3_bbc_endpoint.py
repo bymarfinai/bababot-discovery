@@ -1,6 +1,5 @@
 """Mode3 BBC Backtest Endpoint — /mode3_bbc/backtest.
-BULL + BEAR both with MTF 15m precision and body ratio filter.
-Independent BEAR TP via bear_tp_pct.
+BULL/BEAR/SIDEWAYS all support MTF 15m precision.
 """
 import os
 from dataclasses import asdict
@@ -78,6 +77,44 @@ def compute_mtf_bear_entry(rows_1h, rows_15m):
     return entry_closes, entry_highs
 
 
+def compute_mtf_sideways_entry(rows_1h, rows_15m, vahs, vals):
+    """SIDEWAYS MTF: scan 4 sub-15m for VAH/VAL touch pattern (uses 1h VAH/VAL levels)."""
+    n = len(rows_1h)
+    if not rows_15m:
+        return [None]*n, [None]*n, [None]*n, [None]*n
+    highs_15m = np.array([r[2] for r in rows_15m], dtype=float)
+    lows_15m = np.array([r[3] for r in rows_15m], dtype=float)
+    closes_15m = np.array([r[4] for r in rows_15m], dtype=float)
+    ts_to_idx = {r[0]: i for i, r in enumerate(rows_15m)}
+    ONE_15M_MS = 15 * 60 * 1000
+    short_c, short_h, long_c, long_l = [], [], [], []
+    for i, r in enumerate(rows_1h):
+        t_1h = r[0]
+        vah = vahs[i]; val = vals[i]
+        sc, sh, lc, ll = None, None, None, None
+        if vah is None or val is None:
+            short_c.append(None); short_h.append(None)
+            long_c.append(None); long_l.append(None)
+            continue
+        for k in range(4):
+            j = ts_to_idx.get(t_1h + k * ONE_15M_MS)
+            if j is None:
+                continue
+            # SHORT: 15m high >= vah AND 15m close <= vah
+            if sc is None and highs_15m[j] >= vah and closes_15m[j] <= vah:
+                sc = float(closes_15m[j])
+                sh = float(highs_15m[j])
+            # LONG: 15m low <= val AND 15m close >= val
+            if lc is None and lows_15m[j] <= val and closes_15m[j] >= val:
+                lc = float(closes_15m[j])
+                ll = float(lows_15m[j])
+            if sc is not None and lc is not None:
+                break
+        short_c.append(sc); short_h.append(sh)
+        long_c.append(lc); long_l.append(ll)
+    return short_c, short_h, long_c, long_l
+
+
 @router.get("/backtest")
 def backtest_mode3_bbc(
     symbol: str = Query("BTCUSDT"),
@@ -109,6 +146,7 @@ def backtest_mode3_bbc(
     bull_26_tolerance_pct: float = Query(0.003, ge=0.0, le=0.05),
     bear_mtf_15m_enabled: bool = Query(False),
     bear_body_ratio_min: float = Query(0.0, ge=0.0, le=1.0),
+    sideways_mtf_15m_enabled: bool = Query(False),
 ):
     config = Mode3BBCConfig(
         va_window=va_window, ema_period=ema_period,
@@ -132,6 +170,7 @@ def backtest_mode3_bbc(
         bull_26_tolerance_pct=bull_26_tolerance_pct,
         bear_mtf_15m_enabled=bear_mtf_15m_enabled,
         bear_body_ratio_min=bear_body_ratio_min,
+        sideways_mtf_15m_enabled=sideways_mtf_15m_enabled,
     )
 
     now_ms = int(datetime.utcnow().timestamp() * 1000)
@@ -160,7 +199,7 @@ def backtest_mode3_bbc(
 
     switcher = Switcher(config)
 
-    if bull_mtf_15m_enabled or bear_mtf_15m_enabled:
+    if bull_mtf_15m_enabled or bear_mtf_15m_enabled or sideways_mtf_15m_enabled:
         rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
         if rows_15m:
             if bull_mtf_15m_enabled:
@@ -171,6 +210,12 @@ def backtest_mode3_bbc(
                 ec, eh = compute_mtf_bear_entry(rows, rows_15m)
                 switcher.mtf_bear_entry_close = ec
                 switcher.mtf_bear_entry_high = eh
+            if sideways_mtf_15m_enabled:
+                sc, sh, lc, ll = compute_mtf_sideways_entry(rows, rows_15m, vahs, vals)
+                switcher.mtf_sideways_short_entry_close = sc
+                switcher.mtf_sideways_short_entry_high = sh
+                switcher.mtf_sideways_long_entry_close = lc
+                switcher.mtf_sideways_long_entry_low = ll
 
     for i in range(len(rows)):
         switcher.process_candle(
@@ -238,6 +283,8 @@ def backtest_mode3_bbc(
             "total_pnl_pct": round(total_pnl_pct, 3),
             "capital_start": config.capital_usd,
             "capital_end": round(config.capital_usd + total_pnl_usd, 2),
+            "sideways_entries": switcher._sideways_entries,
+            "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
             "bull_entries_attempted": switcher._bull_entries,
             "bull_ema_reclaim_entries": switcher._bull_ema_reclaim_entries,
             "bull_poc_bounce_entries": switcher._bull_poc_bounce_entries,
@@ -246,8 +293,6 @@ def backtest_mode3_bbc(
             "bull_26_bounce_entries": switcher._bull_26_bounce_entries,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
             "bull_blocked_body": switcher._bull_blocked_body,
-            "bull_blocked_retest_timeout": switcher._bull_blocked_retest_timeout,
-            "bull_blocked_retest_invalidated": switcher._bull_blocked_retest_invalidated,
             "bear_entries_attempted": switcher._bear_entries,
             "bear_blocked_mtf": switcher._bear_blocked_mtf,
             "bear_blocked_body": switcher._bear_blocked_body,
@@ -262,4 +307,4 @@ def backtest_mode3_bbc(
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status": "ok", "module": "mode3_bbc", "version": "0.8", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3_bbc", "version": "0.9", "db_path": DB_PATH}
