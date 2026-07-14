@@ -1,5 +1,6 @@
 """Mode3 BBC Switcher — Basic state machine with opt-in signal quality options.
-Opsi D: 2.6 support bounce (video-inspired shallow retracement zone).
+BULL: MTF 15m, body filter, POC bounce, retest, swing break, 2.6 support.
+BEAR: MTF 15m, body filter.
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -78,10 +79,14 @@ class Switcher:
         self._current_vah = None
         self._current_val = None
         self._current_poc = None
+        # MTF arrays
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
+        self.mtf_bear_entry_close = None
+        self.mtf_bear_entry_high = None
+        # Deques
         self._high_deque = deque(maxlen=200)
-        self._low_deque = deque(maxlen=200)  # NEW: for 2.6 support calc
+        self._low_deque = deque(maxlen=200)
         # Retest state
         self._bull_retest_pending = False
         self._bull_retest_bar_count = 0
@@ -100,6 +105,9 @@ class Switcher:
         self._bull_blocked_retest_timeout = 0
         self._bull_blocked_retest_invalidated = 0
         self._bull_blocked_no_swing_history = 0
+        # BEAR counters
+        self._bear_blocked_mtf = 0
+        self._bear_blocked_body = 0
 
     def process_candle(self, bar_idx, o, h, l, c, ema20, vah, val, poc=None):
         self._action_taken_this_bar = False
@@ -332,9 +340,6 @@ class Switcher:
         return c > swing_high and c > o
 
     def _get_26_support_level(self):
-        """Opsi D: compute 2.6 support level from past N bars.
-        Level = swing_low + (range / ratio) — shallow retracement zone.
-        """
         lookback = self.config.bull_26_lookback
         if len(self._high_deque) < lookback or len(self._low_deque) < lookback:
             return None
@@ -351,23 +356,18 @@ class Switcher:
         return swing_low + range_ / ratio
 
     def _check_26_bounce(self, o, h, l, c):
-        """Opsi D: 2.6 support bounce — bar wick touches level, close reclaims, bullish."""
         if not self.config.bull_use_26_support:
             return False
         level = self._get_26_support_level()
         if level is None or level <= 0:
             return False
         tolerance = self.config.bull_26_tolerance_pct
-        # Bar low must touch level from above (within tolerance)
-        # Reject if bar low completely above level (no touch) or way below (deep break)
         if l > level:
-            return False  # no touch
+            return False
         if l < level * (1 - tolerance * 2):
-            return False  # too deep penetration
-        # Close reclaims above level
+            return False
         if c <= level:
             return False
-        # Bullish
         if c <= o:
             return False
         return True
@@ -429,7 +429,6 @@ class Switcher:
             self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger=trigger_name)
             return
 
-        # OR-triggers (POC bounce, 26 bounce)
         if self._check_poc_bounce(o, h, l, c):
             self._open_bull(bar_idx, h, l, c, 'poc_bounce')
             return
@@ -466,21 +465,60 @@ class Switcher:
         elif trigger == '26_bounce':
             self._bull_26_bounce_entries += 1
 
+    # ---- BEAR helpers ----
+    def _check_bear_body_ratio(self, o, h, l, c):
+        bar_range = h - l
+        if bar_range <= 0:
+            return False
+        body = abs(c - o)
+        return (body / bar_range) >= self.config.bear_body_ratio_min
+
+    def _get_mtf_bear_entry(self, bar_idx):
+        if self.mtf_bear_entry_close is None:
+            return None, None
+        if bar_idx >= len(self.mtf_bear_entry_close):
+            return None, None
+        return self.mtf_bear_entry_close[bar_idx], self.mtf_bear_entry_high[bar_idx]
+
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bear_stay_warmup and c > ema20:
             self.state = 'WAIT_SEE_BEARISH'
             self.markers.ll_breach_case = 'B'
             self.bear_stay_warmup = False
             return
-        if (h >= ema20) and (c < ema20) and (c < o):
-            self._open_bear(bar_idx, h, l, c)
 
-    def _open_bear(self, bar_idx, h, l, c):
-        tp_level = c * (1.0 - self.config.tp_pct)
+        # Primary trigger: EMA rejection (mirror of ema_reclaim)
+        ema_reject = (h >= ema20) and (c < ema20) and (c < o)
+        if not ema_reject:
+            return
+
+        # Body ratio filter (mirror BULL A)
+        if self.config.bear_body_ratio_min > 0:
+            if not self._check_bear_body_ratio(o, h, l, c):
+                self._bear_blocked_body += 1
+                return
+
+        # MTF 15m precision (mirror BULL MTF)
+        entry_price = c
+        sl_price = h
+        if self.config.bear_mtf_15m_enabled:
+            mtf_c, mtf_h = self._get_mtf_bear_entry(bar_idx)
+            if mtf_c is None or mtf_h is None:
+                self._bear_blocked_mtf += 1
+                return
+            entry_price = mtf_c
+            sl_price = mtf_h
+
+        self._open_bear(bar_idx, h, l, sl_price, entry_price)
+
+    def _open_bear(self, bar_idx, entry_high, entry_low, sl_level, entry_price):
+        tp_level = entry_price * (1.0 - self.config.tp_pct)
         self.position = Position(
-            tool='BEAR', side='SHORT', entry_price=c, entry_bar=bar_idx,
-            entry_high=h, entry_low=l, sl_level=h, tp_level=tp_level,
-            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
+            tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
+            entry_high=entry_high, entry_low=entry_low,
+            sl_level=sl_level, tp_level=tp_level,
+            peak_high=entry_high, trough_low=entry_low,
+            ema_at_entry=self._current_ema20,
         )
         self._bear_entries += 1
 
