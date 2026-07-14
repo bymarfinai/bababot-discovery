@@ -1,5 +1,5 @@
 """Mode3 BBC Switcher — state machine with opt-in signal quality options.
-BULL/BEAR/SIDEWAYS all support MTF 15m precision.
+BULL/BEAR/SIDEWAYS all support MTF 15m precision and body ratio filter.
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -78,7 +78,6 @@ class Switcher:
         self._current_vah = None
         self._current_val = None
         self._current_poc = None
-        # MTF arrays
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -92,9 +91,9 @@ class Switcher:
         self._bull_retest_pending = False
         self._bull_retest_bar_count = 0
         self._bull_broken_level = None
-        # Counters
         self._sideways_entries = 0
         self._sideways_blocked_mtf = 0
+        self._sideways_blocked_body = 0
         self._bull_entries = 0
         self._bear_entries = 0
         self._bull_ema_reclaim_entries = 0
@@ -225,12 +224,25 @@ class Switcher:
         elif self.state == 'BEAR':
             self._entry_bear(bar_idx, o, h, l, c, ema20, vah, val)
 
+    def _check_sideways_body_ratio(self, o, h, l, c):
+        """Body/range ratio check for SIDEWAYS entries."""
+        bar_range = h - l
+        if bar_range <= 0:
+            return False
+        body = abs(c - o)
+        return (body / bar_range) >= self.config.sideways_body_ratio_min
+
     def _entry_sideways(self, bar_idx, o, h, l, c, ema20, vah, val):
         short_ok = (h >= vah) and (c <= vah)
         long_ok = (l <= val) and (c >= val)
         if short_ok and long_ok:
             if c > ema20: short_ok = False
             else: long_ok = False
+        # Body ratio filter (opt-in)
+        if (short_ok or long_ok) and self.config.sideways_body_ratio_min > 0:
+            if not self._check_sideways_body_ratio(o, h, l, c):
+                self._sideways_blocked_body += 1
+                return
         if short_ok:
             self._open_short_sideways(bar_idx, h, l, c)
         elif long_ok:
