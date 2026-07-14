@@ -1,5 +1,6 @@
 """Mode3 Switcher v5.4 — Champion clean. Fix #21 wick-based BEAR trailing.
 Idea A (2026-07-14): POC-based dynamic TP for SIDEWAYS trades (opt-in).
+Idea B (2026-07-14): POC confluence amplification for BULL entries (opt-in).
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -110,6 +111,8 @@ class Switcher:
         # Idea A counters
         self._sideways_poc_tp_used = 0
         self._sideways_poc_tp_fallback = 0
+        # Idea B counter
+        self._bull_poc_confluence_amplified = 0
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -205,13 +208,7 @@ class Switcher:
         return self.config.sideways_tp_pct if self.config.sideways_tp_pct > 0 else self.config.tp_pct
 
     def _sideways_tp_level(self, entry_price, side):
-        """Idea A: POC-based dynamic TP for SIDEWAYS trades (opt-in via sideways_use_poc_tp).
-        Rules:
-          - If flag off, use fixed sideways_tp_pct (backward compat)
-          - LONG: TP = POC if POC > entry AND min_dist <= (POC-entry)/entry <= max_dist
-          - SHORT: TP = POC if POC < entry AND min_dist <= (entry-POC)/entry <= max_dist
-          - Fallback to fixed sideways_tp_pct if POC missing or out of range
-        """
+        """Idea A: POC-based dynamic TP for SIDEWAYS trades (opt-in via sideways_use_poc_tp)."""
         tp_pct = self._sideways_tp_pct()
         if not self.config.sideways_use_poc_tp:
             if side == 'LONG': return entry_price * (1.0 + tp_pct)
@@ -253,6 +250,19 @@ class Switcher:
             if sl_distance > 0:
                 return entry_price + sl_distance * self.config.bull_rr_ratio
         return entry_price * (1.0 + self.config.tp_pct)
+
+    def _check_bull_poc_confluence(self, bar_low, bar_close, entry_price):
+        """Idea B: Detect POC confluence for BULL entry.
+        Confluence = bar wick touched POC (low <= poc) AND close reclaimed (close >= poc)
+                     AND POC within safe distance from entry price.
+        """
+        if not self.config.bull_poc_confluence_enabled: return False
+        poc = self._current_poc
+        if poc is None or poc <= 0 or entry_price <= 0: return False
+        if not (bar_low <= poc and bar_close >= poc): return False
+        dist_pct = abs(poc - entry_price) / entry_price
+        if dist_pct > self.config.bull_poc_max_distance_pct: return False
+        return True
 
     def _is_bear_trend_rider_regime(self, bar_idx):
         if not self.config.bear_trend_rider_enabled: return False
@@ -351,7 +361,6 @@ class Switcher:
                 if htf_c is not None and htf_e is not None and htf_c > htf_e:
                     self._close_position(bar_idx, c, 'HTF_RECLAIM'); self._bear_trend_rider_hard_exits += 1
                     self._post_exit_bear('HTF_RECLAIM'); return
-            # Fix #21: wick-based trailing activation (use trough_low, not close)
             activate_th = self.config.bear_trend_rider_trailing_activate_pct
             trail_dist = self.config.bear_trend_rider_trailing_distance_pct
             best_profit_pct = (pos.entry_price - pos.trough_low) / pos.entry_price
@@ -497,6 +506,12 @@ class Switcher:
             if amt_mult > size_mult:
                 size_mult = amt_mult
                 self._amt_bull_amplified += 1
+        # Idea B: POC confluence amplification
+        if self._check_bull_poc_confluence(l, c, entry_price_for_pos):
+            poc_mult = self.config.bull_poc_confluence_size_mult
+            if poc_mult > size_mult:
+                size_mult = poc_mult
+                self._bull_poc_confluence_amplified += 1
         if self.config.bull_mtf_15m_entry and self.mtf_bull_entry_close is not None:
             if bar_idx < len(self.mtf_bull_entry_close):
                 mtf_close = self.mtf_bull_entry_close[bar_idx]
