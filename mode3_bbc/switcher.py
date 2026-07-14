@@ -2,6 +2,9 @@
 State flow: STARTUP -> SIDEWAYS -> BULL/BEAR (with WAIT_SEE for re-entry).
 No chop, no distance/slope/volume filters, no MTF, no AMT, no countertrend, no trend rider.
 Just raw state machine + EMA entry rules.
+
+BULL entry can be strengthened via POC bounce (opt-in bull_poc_entry_enabled):
+  BULL entry triggers if: EMA reclaim OR POC bounce (l<=poc AND c>=poc AND c>o AND poc within X% of price).
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -41,6 +44,7 @@ class Position:
     peak_high: float = 0.0
     trough_low: float = 1e18
     ema_at_entry: float = 0.0
+    entry_trigger: str = ''  # 'ema_reclaim' or 'poc_bounce'
 
 
 @dataclass
@@ -60,6 +64,7 @@ class Trade:
     tp_level: float = 0.0
     ema_at_entry: float = 0.0
     ema_at_exit: float = 0.0
+    entry_trigger: str = ''
 
 
 class Switcher:
@@ -76,16 +81,20 @@ class Switcher:
         self._current_ema20 = 0.0
         self._current_vah = None
         self._current_val = None
-        # Simple counters for observability (no filter counters since no filters)
+        self._current_poc = None
+        # Counters
         self._sideways_entries = 0
         self._bull_entries = 0
         self._bear_entries = 0
+        self._bull_ema_reclaim_entries = 0
+        self._bull_poc_bounce_entries = 0
 
-    def process_candle(self, bar_idx, o, h, l, c, ema20, vah, val):
+    def process_candle(self, bar_idx, o, h, l, c, ema20, vah, val, poc=None):
         self._action_taken_this_bar = False
         self._current_ema20 = ema20
         self._current_vah = vah
         self._current_val = val
+        self._current_poc = poc
 
         if self.state == 'STARTUP':
             if vah is None or val is None:
@@ -143,20 +152,18 @@ class Switcher:
 
     def _post_exit_sideways_short(self, et):
         if et == 'SL':
-            # Bullish breakout — transition to BULL
             self.state = 'BULL'
             self.bull_stay_warmup = False
             self.markers.hh_breach_case = 'none'
-        else:  # TP
+        else:
             self.state = 'SIDEWAYS'
 
     def _post_exit_sideways_long(self, et):
         if et == 'SL':
-            # Bearish breakdown — transition to BEAR
             self.state = 'BEAR'
             self.bear_stay_warmup = False
             self.markers.ll_breach_case = 'none'
-        else:  # TP
+        else:
             self.state = 'SIDEWAYS'
 
     def _exit_bull(self, bar_idx, c):
@@ -174,10 +181,9 @@ class Switcher:
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
         self.markers.peak_high_bull = last_peak
         if et == 'TP':
-            # Continuation — stay in BULL with warmup
             self.state = 'BULL'
             self.bull_stay_warmup = True
-        else:  # SL — wait for HH breach to re-enter
+        else:
             self.state = 'WAIT_SEE_BULLISH'
             self.markers.hh_breach_case = 'B'
             self.bull_stay_warmup = False
@@ -197,10 +203,9 @@ class Switcher:
         last_trough = self.position.trough_low if self.position else self.trades[-1].trough_low
         self.markers.trough_low_bear = last_trough
         if et == 'TP':
-            # Continuation — stay in BEAR with warmup
             self.state = 'BEAR'
             self.bear_stay_warmup = True
-        else:  # SL — wait for LL breach to re-enter
+        else:
             self.state = 'WAIT_SEE_BEARISH'
             self.markers.ll_breach_case = 'B'
             self.bear_stay_warmup = False
@@ -224,7 +229,6 @@ class Switcher:
         short_ok = (h >= vah) and (c <= vah)
         long_ok = (l <= val) and (c >= val)
         if short_ok and long_ok:
-            # Both triggered same bar; pick side based on EMA position
             if c > ema20:
                 short_ok = False
             else:
@@ -262,7 +266,6 @@ class Switcher:
             self.state = 'BULL'
             self.bull_stay_warmup = False
             return
-        # Alternative fallback: SIDEWAYS re-entry
         if self.markers.marker_close_short is not None:
             if (h >= vah) and (c <= self.markers.marker_close_short):
                 self._open_short_sideways(bar_idx, h, l, c)
@@ -285,25 +288,49 @@ class Switcher:
             self._open_short_sideways(bar_idx, h, l, c)
             return
 
+    def _check_poc_bounce(self, o, h, l, c):
+        """POC bounce = wick touches POC AND close reclaims AND bullish bar AND POC close to price."""
+        if not self.config.bull_poc_entry_enabled:
+            return False
+        poc = self._current_poc
+        if poc is None or poc <= 0 or c <= 0:
+            return False
+        # Bar wick touched POC, close reclaimed, bullish candle
+        if not ((l <= poc) and (c >= poc) and (c > o)):
+            return False
+        # POC must be within safe distance from close
+        dist_pct = abs(poc - c) / c
+        if dist_pct > self.config.bull_poc_max_distance_pct:
+            return False
+        return True
+
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
-        # Warmup exit condition: if close below EMA, wait for breach confirmation
+        # Warmup exit: if close below EMA, wait for breach confirmation
         if self.bull_stay_warmup and c < ema20:
             self.state = 'WAIT_SEE_BULLISH'
             self.markers.hh_breach_case = 'B'
             self.bull_stay_warmup = False
             return
-        # BULL entry rule: bar wick touches EMA, close above EMA, bullish candle
-        if (l <= ema20) and (c > ema20) and (c > o):
-            self._open_bull(bar_idx, h, l, c)
+        # Entry triggers (OR — expand, not filter)
+        ema_reclaim = (l <= ema20) and (c > ema20) and (c > o)
+        poc_bounce = self._check_poc_bounce(o, h, l, c)
+        if ema_reclaim or poc_bounce:
+            trigger = 'ema_reclaim' if ema_reclaim else 'poc_bounce'
+            self._open_bull(bar_idx, h, l, c, trigger)
 
-    def _open_bull(self, bar_idx, h, l, c):
+    def _open_bull(self, bar_idx, h, l, c, trigger='ema_reclaim'):
         tp_level = c * (1.0 + self.config.tp_pct)
         self.position = Position(
             tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
             entry_high=h, entry_low=l, sl_level=l, tp_level=tp_level,
             peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
+            entry_trigger=trigger,
         )
         self._bull_entries += 1
+        if trigger == 'ema_reclaim':
+            self._bull_ema_reclaim_entries += 1
+        elif trigger == 'poc_bounce':
+            self._bull_poc_bounce_entries += 1
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bear_stay_warmup and c > ema20:
@@ -311,7 +338,6 @@ class Switcher:
             self.markers.ll_breach_case = 'B'
             self.bear_stay_warmup = False
             return
-        # BEAR entry rule: bar wick touches EMA, close below EMA, bearish candle
         if (h >= ema20) and (c < ema20) and (c < o):
             self._open_bear(bar_idx, h, l, c)
 
@@ -339,6 +365,7 @@ class Switcher:
             peak_high=pos.peak_high, trough_low=pos.trough_low,
             sl_level=pos.sl_level, tp_level=pos.tp_level,
             ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20,
+            entry_trigger=pos.entry_trigger,
         ))
         self.position = None
         self._action_taken_this_bar = True
