@@ -10,8 +10,9 @@ class Mode3BBCConfig:
     ema_period: int = 20
     startup_warmup_candles: int = 51
 
-    tp_pct: float = 0.012
+    tp_pct: float = 0.012  # BULL/BEAR TP if bear_tp_pct is 0
     sideways_tp_pct: float = 0.003
+    bear_tp_pct: float = 0.0  # if > 0, overrides tp_pct for BEAR only
 
     capital_usd: float = 100.0
     entry_usd: float = 10.0
@@ -40,14 +41,8 @@ class Mode3BBCConfig:
     bull_26_ratio: float = 2.6
     bull_26_tolerance_pct: float = 0.003
 
-    # ---- BEAR entry options (mirror BULL) ----
-    # BEAR MTF 15m precision (opt-in)
-    # Scans 4 sub-15m bars for EMA rejection: h>=ema, c<ema, c<o
-    # If found: use 15m close as entry, 15m high as SL. If not found: BLOCK entry.
+    # ---- BEAR entry options ----
     bear_mtf_15m_enabled: bool = False
-
-    # BEAR body ratio filter (mirror bull_body_ratio_min)
-    # Filters wicky sweep short candles vs strong-body BoS
     bear_body_ratio_min: float = 0.0
 
     def notional(self) -> float:
@@ -55,3 +50,6 @@ class Mode3BBCConfig:
 
     def total_cost_pct(self) -> float:
         return self.fee_pct_roundtrip + self.slippage_pct
+
+    def get_bear_tp_pct(self) -> float:
+        return self.bear_tp_pct if self.bear_tp_pct > 0 else self.tp_pct
