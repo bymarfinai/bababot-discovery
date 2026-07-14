@@ -1,10 +1,6 @@
 """Mode3 BBC Switcher — Basic state machine WITHOUT filters.
-State flow: STARTUP -> SIDEWAYS -> BULL/BEAR (with WAIT_SEE for re-entry).
-No chop, no distance/slope/volume filters, no MTF, no AMT, no countertrend, no trend rider.
-Just raw state machine + EMA entry rules.
-
-BULL entry can be strengthened via POC bounce (opt-in bull_poc_entry_enabled):
-  BULL entry triggers if: EMA reclaim OR POC bounce (l<=poc AND c>=poc AND c>o AND poc within X% of price).
+BULL entry can be strengthened via POC bounce (bull_poc_entry_enabled)
+and refined via 15m MTF precision (bull_mtf_15m_enabled).
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -44,7 +40,7 @@ class Position:
     peak_high: float = 0.0
     trough_low: float = 1e18
     ema_at_entry: float = 0.0
-    entry_trigger: str = ''  # 'ema_reclaim' or 'poc_bounce'
+    entry_trigger: str = ''
 
 
 @dataclass
@@ -82,12 +78,16 @@ class Switcher:
         self._current_vah = None
         self._current_val = None
         self._current_poc = None
+        # MTF 15m arrays (set by endpoint before backtest)
+        self.mtf_bull_entry_close = None
+        self.mtf_bull_entry_low = None
         # Counters
         self._sideways_entries = 0
         self._bull_entries = 0
         self._bear_entries = 0
         self._bull_ema_reclaim_entries = 0
         self._bull_poc_bounce_entries = 0
+        self._bull_blocked_mtf = 0
 
     def process_candle(self, bar_idx, o, h, l, c, ema20, vah, val, poc=None):
         self._action_taken_this_bar = False
@@ -109,17 +109,14 @@ class Switcher:
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val)
 
     def _startup_transition(self, close, ema20):
-        if close > ema20:
-            self.startup_bias = 'bullish'
-        elif close < ema20:
-            self.startup_bias = 'bearish'
+        if close > ema20: self.startup_bias = 'bullish'
+        elif close < ema20: self.startup_bias = 'bearish'
         self.state = 'SIDEWAYS'
 
     def _update_position_tracking(self, h, l):
         self.position.peak_high = max(self.position.peak_high, h)
         self.position.trough_low = min(self.position.trough_low, l)
 
-    # ---- Exit logic ----
     def _check_exit(self, bar_idx, o, h, l, c, ema20, vah, val):
         pos = self.position
         if pos.tool == 'SIDEWAYS':
@@ -133,84 +130,57 @@ class Switcher:
         pos = self.position
         if pos.side == 'SHORT':
             if c > pos.sl_level:
-                self._close_position(bar_idx, c, 'SL')
-                self._post_exit_sideways_short('SL')
-                return
+                self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_short('SL'); return
             if c <= pos.tp_level:
-                self._close_position(bar_idx, c, 'TP')
-                self._post_exit_sideways_short('TP')
-                return
+                self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_short('TP'); return
         else:
             if c < pos.sl_level:
-                self._close_position(bar_idx, c, 'SL')
-                self._post_exit_sideways_long('SL')
-                return
+                self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_long('SL'); return
             if c >= pos.tp_level:
-                self._close_position(bar_idx, c, 'TP')
-                self._post_exit_sideways_long('TP')
-                return
+                self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_long('TP'); return
 
     def _post_exit_sideways_short(self, et):
         if et == 'SL':
-            self.state = 'BULL'
-            self.bull_stay_warmup = False
-            self.markers.hh_breach_case = 'none'
+            self.state = 'BULL'; self.bull_stay_warmup = False; self.markers.hh_breach_case = 'none'
         else:
             self.state = 'SIDEWAYS'
 
     def _post_exit_sideways_long(self, et):
         if et == 'SL':
-            self.state = 'BEAR'
-            self.bear_stay_warmup = False
-            self.markers.ll_breach_case = 'none'
+            self.state = 'BEAR'; self.bear_stay_warmup = False; self.markers.ll_breach_case = 'none'
         else:
             self.state = 'SIDEWAYS'
 
     def _exit_bull(self, bar_idx, c):
         pos = self.position
         if c < pos.sl_level:
-            self._close_position(bar_idx, c, 'SL')
-            self._post_exit_bull('SL')
-            return
+            self._close_position(bar_idx, c, 'SL'); self._post_exit_bull('SL'); return
         if c >= pos.tp_level:
-            self._close_position(bar_idx, c, 'TP')
-            self._post_exit_bull('TP')
-            return
+            self._close_position(bar_idx, c, 'TP'); self._post_exit_bull('TP'); return
 
     def _post_exit_bull(self, et):
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
         self.markers.peak_high_bull = last_peak
         if et == 'TP':
-            self.state = 'BULL'
-            self.bull_stay_warmup = True
+            self.state = 'BULL'; self.bull_stay_warmup = True
         else:
-            self.state = 'WAIT_SEE_BULLISH'
-            self.markers.hh_breach_case = 'B'
-            self.bull_stay_warmup = False
+            self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False
 
     def _exit_bear(self, bar_idx, c):
         pos = self.position
         if c > pos.sl_level:
-            self._close_position(bar_idx, c, 'SL')
-            self._post_exit_bear('SL')
-            return
+            self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
         if c <= pos.tp_level:
-            self._close_position(bar_idx, c, 'TP')
-            self._post_exit_bear('TP')
-            return
+            self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
 
     def _post_exit_bear(self, et):
         last_trough = self.position.trough_low if self.position else self.trades[-1].trough_low
         self.markers.trough_low_bear = last_trough
         if et == 'TP':
-            self.state = 'BEAR'
-            self.bear_stay_warmup = True
+            self.state = 'BEAR'; self.bear_stay_warmup = True
         else:
-            self.state = 'WAIT_SEE_BEARISH'
-            self.markers.ll_breach_case = 'B'
-            self.bear_stay_warmup = False
+            self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False
 
-    # ---- Entry logic ----
     def _check_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
         if vah is None or val is None:
             return
@@ -229,10 +199,8 @@ class Switcher:
         short_ok = (h >= vah) and (c <= vah)
         long_ok = (l <= val) and (c >= val)
         if short_ok and long_ok:
-            if c > ema20:
-                short_ok = False
-            else:
-                long_ok = False
+            if c > ema20: short_ok = False
+            else: long_ok = False
         if short_ok:
             self._open_short_sideways(bar_idx, h, l, c)
         elif long_ok:
@@ -263,67 +231,82 @@ class Switcher:
     def _entry_wait_see_bullish(self, bar_idx, o, h, l, c, ema20, vah, val):
         hh_lvl = self.markers.hh_breach_level()
         if hh_lvl is not None and c > hh_lvl:
-            self.state = 'BULL'
-            self.bull_stay_warmup = False
-            return
+            self.state = 'BULL'; self.bull_stay_warmup = False; return
         if self.markers.marker_close_short is not None:
             if (h >= vah) and (c <= self.markers.marker_close_short):
-                self._open_short_sideways(bar_idx, h, l, c)
-                return
+                self._open_short_sideways(bar_idx, h, l, c); return
         if (l <= val) and (c >= val):
-            self._open_long_sideways(bar_idx, h, l, c)
-            return
+            self._open_long_sideways(bar_idx, h, l, c); return
 
     def _entry_wait_see_bearish(self, bar_idx, o, h, l, c, ema20, vah, val):
         ll_lvl = self.markers.ll_breach_level()
         if ll_lvl is not None and c < ll_lvl:
-            self.state = 'BEAR'
-            self.bear_stay_warmup = False
-            return
+            self.state = 'BEAR'; self.bear_stay_warmup = False; return
         if self.markers.marker_close_long is not None:
             if (l <= val) and (c >= self.markers.marker_close_long):
-                self._open_long_sideways(bar_idx, h, l, c)
-                return
+                self._open_long_sideways(bar_idx, h, l, c); return
         if (h >= vah) and (c <= vah):
-            self._open_short_sideways(bar_idx, h, l, c)
-            return
+            self._open_short_sideways(bar_idx, h, l, c); return
 
     def _check_poc_bounce(self, o, h, l, c):
-        """POC bounce = wick touches POC AND close reclaims AND bullish bar AND POC close to price."""
         if not self.config.bull_poc_entry_enabled:
             return False
         poc = self._current_poc
         if poc is None or poc <= 0 or c <= 0:
             return False
-        # Bar wick touched POC, close reclaimed, bullish candle
         if not ((l <= poc) and (c >= poc) and (c > o)):
             return False
-        # POC must be within safe distance from close
         dist_pct = abs(poc - c) / c
         if dist_pct > self.config.bull_poc_max_distance_pct:
             return False
         return True
 
+    def _get_mtf_bull_entry(self, bar_idx):
+        """Return (close, low) from 15m EMA reclaim, or (None, None) if none."""
+        if self.mtf_bull_entry_close is None:
+            return None, None
+        if bar_idx >= len(self.mtf_bull_entry_close):
+            return None, None
+        return self.mtf_bull_entry_close[bar_idx], self.mtf_bull_entry_low[bar_idx]
+
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
-        # Warmup exit: if close below EMA, wait for breach confirmation
+        # Warmup exit
         if self.bull_stay_warmup and c < ema20:
             self.state = 'WAIT_SEE_BULLISH'
             self.markers.hh_breach_case = 'B'
             self.bull_stay_warmup = False
             return
-        # Entry triggers (OR — expand, not filter)
+
         ema_reclaim = (l <= ema20) and (c > ema20) and (c > o)
         poc_bounce = self._check_poc_bounce(o, h, l, c)
-        if ema_reclaim or poc_bounce:
-            trigger = 'ema_reclaim' if ema_reclaim else 'poc_bounce'
-            self._open_bull(bar_idx, h, l, c, trigger)
 
-    def _open_bull(self, bar_idx, h, l, c, trigger='ema_reclaim'):
-        tp_level = c * (1.0 + self.config.tp_pct)
+        # ema_reclaim path (may use MTF)
+        if ema_reclaim:
+            entry_price = c
+            sl_price = l
+            if self.config.bull_mtf_15m_enabled:
+                mtf_c, mtf_l = self._get_mtf_bull_entry(bar_idx)
+                if mtf_c is None or mtf_l is None:
+                    # No 15m confirmation — blocked
+                    self._bull_blocked_mtf += 1
+                    ema_reclaim = False  # fall through to poc_bounce check
+                else:
+                    entry_price = mtf_c
+                    sl_price = mtf_l
+            if ema_reclaim:
+                self._open_bull(bar_idx, h, sl_price, entry_price, 'ema_reclaim')
+                return
+
+        # POC bounce path (always uses 1h prices, independent from MTF)
+        if poc_bounce:
+            self._open_bull(bar_idx, h, l, c, 'poc_bounce')
+
+    def _open_bull(self, bar_idx, entry_high, sl_level, entry_price, trigger='ema_reclaim'):
+        tp_level = entry_price * (1.0 + self.config.tp_pct)
         self.position = Position(
-            tool='BULL', side='LONG', entry_price=c, entry_bar=bar_idx,
-            entry_high=h, entry_low=l, sl_level=l, tp_level=tp_level,
-            peak_high=h, trough_low=l, ema_at_entry=self._current_ema20,
+            tool='BULL', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
+            entry_high=entry_high, entry_low=sl_level, sl_level=sl_level, tp_level=tp_level,
+            peak_high=entry_high, trough_low=sl_level, ema_at_entry=self._current_ema20,
             entry_trigger=trigger,
         )
         self._bull_entries += 1
