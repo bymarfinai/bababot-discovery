@@ -1,5 +1,6 @@
 """Mode3 Backtest Endpoint v5.4 — Champion clean (Fix #21 wick trailing).
-Idea A (2026-07-14): pass POC to switcher + expose sideways_use_poc_tp query params.
+Idea A (2026-07-14): POC-based dynamic TP for SIDEWAYS trades (opt-in).
+Idea B (2026-07-14): POC confluence amplification for BULL entries (opt-in).
 """
 import os
 import json as jsonlib
@@ -221,6 +222,10 @@ def backtest_mode3(
     sideways_use_poc_tp: bool = Query(False),
     sideways_poc_min_distance_pct: float = Query(0.001, ge=0.0, le=0.05),
     sideways_poc_max_distance_pct: float = Query(0.015, ge=0.001, le=0.10),
+    # Idea B: POC confluence amplification for BULL (opt-in)
+    bull_poc_confluence_enabled: bool = Query(False),
+    bull_poc_confluence_size_mult: float = Query(2.0, ge=1.0, le=5.0),
+    bull_poc_max_distance_pct: float = Query(0.02, ge=0.001, le=0.10),
     sm_fix_2_bear_streak: bool = Query(True),
     sm_fix_2_streak_threshold: int = Query(2, ge=2, le=5),
     sm_fix_3_extreme_low: bool = Query(True),
@@ -261,6 +266,9 @@ def backtest_mode3(
         sideways_use_poc_tp=sideways_use_poc_tp,
         sideways_poc_min_distance_pct=sideways_poc_min_distance_pct,
         sideways_poc_max_distance_pct=sideways_poc_max_distance_pct,
+        bull_poc_confluence_enabled=bull_poc_confluence_enabled,
+        bull_poc_confluence_size_mult=bull_poc_confluence_size_mult,
+        bull_poc_max_distance_pct=bull_poc_max_distance_pct,
         sm_fix_2_bear_streak=sm_fix_2_bear_streak,
         sm_fix_2_streak_threshold=sm_fix_2_streak_threshold,
         sm_fix_3_extreme_low=sm_fix_3_extreme_low, sm_fix_3_high_lookback=sm_fix_3_high_lookback,
@@ -298,7 +306,6 @@ def backtest_mode3(
 
     ema20 = compute_ema_series(closes, config.ema_period)
 
-    # Idea A: keep POC list (previously discarded)
     vahs, vals, pocs = [], [], []
     for i in range(len(rows)):
         vah, val, poc = compute_va_at_bar(highs, lows, closes, volumes, i,
@@ -423,6 +430,8 @@ def backtest_mode3(
             # Idea A counters
             "sideways_poc_tp_used": getattr(switcher, '_sideways_poc_tp_used', 0),
             "sideways_poc_tp_fallback": getattr(switcher, '_sideways_poc_tp_fallback', 0),
+            # Idea B counter
+            "bull_poc_confluence_amplified": getattr(switcher, '_bull_poc_confluence_amplified', 0),
             "balance_position_stats": balance_stats},
         "per_tool": tool_stats, "trades": trade_list, "final_state": switcher.state}
 
