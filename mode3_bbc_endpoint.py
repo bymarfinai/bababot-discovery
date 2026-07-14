@@ -1,10 +1,5 @@
 """Mode3 BBC Backtest Endpoint — /mode3_bbc/backtest.
-Filter-free variant with opt-in BULL signal quality options:
-  - POC bounce entry
-  - 15m MTF precision
-  - Opsi A: body ratio filter
-  - Opsi B: wait-for-retest 2-bar pattern
-  - Opsi C: swing high break trigger
+Opsi B v2: structural retest to broken swing high (not EMA).
 """
 import os
 from dataclasses import asdict
@@ -70,18 +65,16 @@ def backtest_mode3_bbc(
     leverage: float = Query(50.0),
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
-    # POC bounce entry
     bull_poc_entry_enabled: bool = Query(False),
     bull_poc_max_distance_pct: float = Query(0.02, ge=0.001, le=0.10),
-    # 15m MTF precision
     bull_mtf_15m_enabled: bool = Query(False),
-    # Opsi A: body ratio filter
     bull_body_ratio_min: float = Query(0.0, ge=0.0, le=1.0),
-    # Opsi B: wait for retest
+    # Opsi B v2: structural retest to broken swing high
     bull_wait_retest_enabled: bool = Query(False),
-    bull_retest_max_ema_dist_pct: float = Query(0.003, ge=0.0, le=0.05),
-    bull_retest_max_bars: int = Query(3, ge=1, le=10),
-    # Opsi C: swing high break
+    bull_retest_swing_lookback: int = Query(20, ge=5, le=200),
+    bull_retest_tolerance_pct: float = Query(0.003, ge=0.0, le=0.05),
+    bull_retest_max_bars: int = Query(5, ge=1, le=20),
+    # Opsi C
     bull_use_swing_break: bool = Query(False),
     bull_swing_lookback: int = Query(20, ge=5, le=200),
 ):
@@ -99,7 +92,8 @@ def backtest_mode3_bbc(
         bull_mtf_15m_enabled=bull_mtf_15m_enabled,
         bull_body_ratio_min=bull_body_ratio_min,
         bull_wait_retest_enabled=bull_wait_retest_enabled,
-        bull_retest_max_ema_dist_pct=bull_retest_max_ema_dist_pct,
+        bull_retest_swing_lookback=bull_retest_swing_lookback,
+        bull_retest_tolerance_pct=bull_retest_tolerance_pct,
         bull_retest_max_bars=bull_retest_max_bars,
         bull_use_swing_break=bull_use_swing_break,
         bull_swing_lookback=bull_swing_lookback,
@@ -166,7 +160,6 @@ def backtest_mode3_bbc(
                 "pnl_pct": round(sum(t.pnl_pct for t in tt) * 100, 3),
             }
 
-    # BULL trigger breakdown
     bull_trigger_stats = {}
     for trig in ['ema_reclaim', 'poc_bounce', 'swing_break', 'retest_entry']:
         tt = [t for t in trades if t.tool == 'BULL' and t.entry_trigger == trig]
@@ -221,6 +214,7 @@ def backtest_mode3_bbc(
             "bull_blocked_body": switcher._bull_blocked_body,
             "bull_blocked_retest_timeout": switcher._bull_blocked_retest_timeout,
             "bull_blocked_retest_invalidated": switcher._bull_blocked_retest_invalidated,
+            "bull_blocked_no_swing_history": getattr(switcher, '_bull_blocked_no_swing_history', 0),
             "exit_type_breakdown": exit_type_breakdown,
         },
         "per_tool": tool_stats,
@@ -232,4 +226,4 @@ def backtest_mode3_bbc(
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status": "ok", "module": "mode3_bbc", "version": "0.4", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3_bbc", "version": "0.5", "db_path": DB_PATH}
