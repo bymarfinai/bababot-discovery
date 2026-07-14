@@ -39,6 +39,12 @@ class Mode3Config:
     bull_use_rr_tp: bool = False
     bull_rr_ratio: float = 1.0
 
+    # Idea B: POC confluence amplification for BULL entries (opt-in)
+    # If bar low touches POC AND close reclaims POC during BULL entry, boost size_mult
+    bull_poc_confluence_enabled: bool = False
+    bull_poc_confluence_size_mult: float = 2.0  # target mult if confluence detected
+    bull_poc_max_distance_pct: float = 0.02  # POC must be within 2% of entry price
+
     bear_mtf_15m_entry: bool = True
     bear_min_sl_dist: float = 0.0
     bear_use_1h_sl_fallback: bool = False
