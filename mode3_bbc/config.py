@@ -25,9 +25,14 @@ class Mode3BBCConfig:
     slippage_pct: float = 0.0005
 
     # POC-strengthened BULL entry (opt-in, expands entry count with POC bounce trigger)
-    # BULL entry taken if: EMA reclaim OR POC bounce (l<=poc AND c>=poc AND c>o AND poc close to price)
     bull_poc_entry_enabled: bool = False
-    bull_poc_max_distance_pct: float = 0.02  # POC must be within 2% of current close
+    bull_poc_max_distance_pct: float = 0.02
+
+    # MTF 15m entry precision for BULL (opt-in, better entry price + tighter SL)
+    # When enabled, ema_reclaim 1h trigger is refined by scanning 4 sub-15m bars
+    # for 15m EMA reclaim. If found, use 15m close as entry and 15m low as SL.
+    # If not found, BLOCK entry (implicit filter).
+    bull_mtf_15m_enabled: bool = False
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
