@@ -75,7 +75,15 @@ except Exception as _e:
     print(f"[WARN] mode3_backtest_endpoint not available: {_e}")
     _MODE3_CLEAN_AVAILABLE = False
 # ────────────────────────────────────────────────────────────────
-
+# ── Mode3 BBC (Bull Bear Continuation) ──────────────────────────
+try:
+    from mode3_bbc_endpoint import router as mode3_bbc_router
+    _MODE3_BBC_AVAILABLE = True
+    print("[INIT] Mode3 BBC module loaded")
+except Exception as _e:
+    print(f"[WARN] mode3_bbc_endpoint not available: {_e}")
+    _MODE3_BBC_AVAILABLE = False
+# ────────────────────────────────────────────────────────────────
 app = FastAPI(title="BabaBot Backtesting API", version="1.3.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -104,6 +112,11 @@ if _MODE3_CLEAN_AVAILABLE:
     print("[INIT] Mode3 Clean mounted at /mode3/backtest, /mode3/health")
 
 # ────────────────────────────────────────────────────────────────
+# ── Mount Mode3 BBC router ─────────────────────────────────────
+if _MODE3_BBC_AVAILABLE:
+    app.include_router(mode3_bbc_router)
+    print("[INIT] Mode3 BBC mounted at /mode3_bbc/backtest, /mode3_bbc/health")
+      
 security = HTTPBearer(auto_error=False)
 
 API_TOKEN = os.environ.get("BACKTEST_API_TOKEN", "")
