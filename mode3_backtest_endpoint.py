@@ -1,8 +1,4 @@
-"""Mode3 Backtest Endpoint v5.4 — Champion clean (Fix #21 wick trailing).
-Idea A (2026-07-14): POC-based dynamic TP for SIDEWAYS trades (opt-in).
-Idea B (2026-07-14): POC confluence amplification for BULL entries (opt-in).
-bear_only_rider (2026-07-14): skip mean-reversion bear entries (opt-in).
-"""
+"""Mode3 Backtest Endpoint v5.4 — Champion clean (Fix #21 wick trailing)."""
 import os
 import json as jsonlib
 from dataclasses import asdict
@@ -219,14 +215,6 @@ def backtest_mode3(
     sideways_mtf_15m_entry: bool = Query(True),
     sideways_tp_pct: float = Query(0.003, ge=0.0, le=0.05),
     sideways_max_slope_pct: float = Query(0.018, ge=0.0, le=0.1),
-    sideways_use_poc_tp: bool = Query(False),
-    sideways_poc_min_distance_pct: float = Query(0.001, ge=0.0, le=0.05),
-    sideways_poc_max_distance_pct: float = Query(0.015, ge=0.001, le=0.10),
-    bull_poc_confluence_enabled: bool = Query(False),
-    bull_poc_confluence_size_mult: float = Query(2.0, ge=1.0, le=5.0),
-    bull_poc_max_distance_pct: float = Query(0.02, ge=0.001, le=0.10),
-    # Bear-only-rider filter (opt-in)
-    bear_only_rider: bool = Query(False),
     sm_fix_2_bear_streak: bool = Query(True),
     sm_fix_2_streak_threshold: int = Query(2, ge=2, le=5),
     sm_fix_3_extreme_low: bool = Query(True),
@@ -264,13 +252,6 @@ def backtest_mode3(
         sideways_ema_invalidation_tolerance=sideways_ema_invalidation_tolerance,
         sideways_mtf_15m_entry=sideways_mtf_15m_entry, sideways_tp_pct=sideways_tp_pct,
         sideways_max_slope_pct=sideways_max_slope_pct,
-        sideways_use_poc_tp=sideways_use_poc_tp,
-        sideways_poc_min_distance_pct=sideways_poc_min_distance_pct,
-        sideways_poc_max_distance_pct=sideways_poc_max_distance_pct,
-        bull_poc_confluence_enabled=bull_poc_confluence_enabled,
-        bull_poc_confluence_size_mult=bull_poc_confluence_size_mult,
-        bull_poc_max_distance_pct=bull_poc_max_distance_pct,
-        bear_only_rider=bear_only_rider,
         sm_fix_2_bear_streak=sm_fix_2_bear_streak,
         sm_fix_2_streak_threshold=sm_fix_2_streak_threshold,
         sm_fix_3_extreme_low=sm_fix_3_extreme_low, sm_fix_3_high_lookback=sm_fix_3_high_lookback,
@@ -308,11 +289,11 @@ def backtest_mode3(
 
     ema20 = compute_ema_series(closes, config.ema_period)
 
-    vahs, vals, pocs = [], [], []
+    vahs, vals = [], []
     for i in range(len(rows)):
         vah, val, poc = compute_va_at_bar(highs, lows, closes, volumes, i,
             config.va_window, config.va_percentile_high, config.va_percentile_low)
-        vahs.append(vah); vals.append(val); pocs.append(poc)
+        vahs.append(vah); vals.append(val)
 
     switcher = Switcher(config)
 
@@ -348,9 +329,9 @@ def backtest_mode3(
             regime_bars=bear_trend_rider_regime_bars, slope_max=bear_trend_rider_regime_slope_max)
 
     for i in range(len(rows)):
-        vah, val, poc = vahs[i], vals[i], pocs[i]
+        vah, val = vahs[i], vals[i]
         switcher.process_candle(bar_idx=i, o=opens[i], h=highs[i], l=lows[i], c=closes[i], v=volumes[i],
-            ema20=ema20[i], vah=vah, val=val, poc=poc)
+            ema20=ema20[i], vah=vah, val=val, poc=None)
 
     trades = switcher.trades
     n = len(trades)
@@ -429,10 +410,6 @@ def backtest_mode3(
             "bear_trend_rider_trailing_hits": switcher._bear_trend_rider_trailing_hits,
             "bear_trend_rider_hard_exits": switcher._bear_trend_rider_hard_exits,
             "bear_wick_trail_activations": getattr(switcher, '_bear_wick_trail_activations', 0),
-            "sideways_poc_tp_used": getattr(switcher, '_sideways_poc_tp_used', 0),
-            "sideways_poc_tp_fallback": getattr(switcher, '_sideways_poc_tp_fallback', 0),
-            "bull_poc_confluence_amplified": getattr(switcher, '_bull_poc_confluence_amplified', 0),
-            "bear_blocked_no_rider": getattr(switcher, '_bear_blocked_no_rider', 0),
             "balance_position_stats": balance_stats},
         "per_tool": tool_stats, "trades": trade_list, "final_state": switcher.state}
 
