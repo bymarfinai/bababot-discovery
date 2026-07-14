@@ -1,5 +1,6 @@
 """Mode3 BBC Backtest Endpoint — /mode3_bbc/backtest.
 Filter-free variant of Mode3 for testing pure state machine + entry logic.
+Optional POC bounce entry for BULL (opt-in, strengthens continuation).
 """
 import os
 from dataclasses import asdict
@@ -39,6 +40,9 @@ def backtest_mode3_bbc(
     leverage: float = Query(50.0),
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
+    # POC bounce entry for BULL (opt-in, expands entries)
+    bull_poc_entry_enabled: bool = Query(False),
+    bull_poc_max_distance_pct: float = Query(0.02, ge=0.001, le=0.10),
 ):
     config = Mode3BBCConfig(
         va_window=va_window,
@@ -49,6 +53,8 @@ def backtest_mode3_bbc(
         leverage=leverage,
         fee_pct_roundtrip=fee_pct,
         slippage_pct=slippage_pct,
+        bull_poc_entry_enabled=bull_poc_entry_enabled,
+        bull_poc_max_distance_pct=bull_poc_max_distance_pct,
     )
 
     now_ms = int(datetime.utcnow().timestamp() * 1000)
@@ -67,21 +73,22 @@ def backtest_mode3_bbc(
 
     ema20 = compute_ema_series(closes, config.ema_period)
 
-    vahs, vals = [], []
+    vahs, vals, pocs = [], [], []
     for i in range(len(rows)):
-        vah, val, _poc = compute_va_at_bar(
+        vah, val, poc = compute_va_at_bar(
             highs, lows, closes, volumes, i,
             config.va_window, config.va_percentile_high, config.va_percentile_low,
         )
         vahs.append(vah)
         vals.append(val)
+        pocs.append(poc)
 
     switcher = Switcher(config)
 
     for i in range(len(rows)):
         switcher.process_candle(
             bar_idx=i, o=opens[i], h=highs[i], l=lows[i], c=closes[i],
-            ema20=ema20[i], vah=vahs[i], val=vals[i],
+            ema20=ema20[i], vah=vahs[i], val=vals[i], poc=pocs[i],
         )
 
     trades = switcher.trades
@@ -104,6 +111,18 @@ def backtest_mode3_bbc(
                 "pnl_pct": round(sum(t.pnl_pct for t in tt) * 100, 3),
             }
 
+    # BULL trigger breakdown (EMA reclaim vs POC bounce)
+    bull_trigger_stats = {}
+    for trig in ['ema_reclaim', 'poc_bounce']:
+        tt = [t for t in trades if t.tool == 'BULL' and t.entry_trigger == trig]
+        if tt:
+            tw = [t for t in tt if t.pnl_usd > 0]
+            bull_trigger_stats[trig] = {
+                "count": len(tt),
+                "wr_pct": round(100.0 * len(tw) / len(tt), 2),
+                "pnl_usd": round(sum(t.pnl_usd for t in tt), 2),
+            }
+
     exit_type_breakdown = {}
     for t in trades:
         exit_type_breakdown[t.exit_type] = exit_type_breakdown.get(t.exit_type, 0) + 1
@@ -119,6 +138,7 @@ def backtest_mode3_bbc(
             "sl_distance_pct": round(abs(t.entry_price - t.sl_level) / t.entry_price * 100, 3),
             "ema_at_entry": round(t.ema_at_entry, 2), "ema_at_exit": round(t.ema_at_exit, 2),
             "peak_high": round(t.peak_high, 2), "trough_low": round(t.trough_low, 2),
+            "entry_trigger": t.entry_trigger,
         })
 
     return {
@@ -138,9 +158,12 @@ def backtest_mode3_bbc(
             "sideways_entries_attempted": switcher._sideways_entries,
             "bull_entries_attempted": switcher._bull_entries,
             "bear_entries_attempted": switcher._bear_entries,
+            "bull_ema_reclaim_entries": switcher._bull_ema_reclaim_entries,
+            "bull_poc_bounce_entries": switcher._bull_poc_bounce_entries,
             "exit_type_breakdown": exit_type_breakdown,
         },
         "per_tool": tool_stats,
+        "bull_trigger_stats": bull_trigger_stats,
         "trades": trade_list,
         "final_state": switcher.state,
     }
@@ -148,4 +171,4 @@ def backtest_mode3_bbc(
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status": "ok", "module": "mode3_bbc", "version": "0.1", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3_bbc", "version": "0.2", "db_path": DB_PATH}
