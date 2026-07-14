@@ -1,6 +1,4 @@
-"""Mode3 BBC Config — minimal config for Bull Bear Continuation variant.
-All filter-related fields intentionally removed.
-"""
+"""Mode3 BBC Config — minimal config for Bull Bear Continuation variant."""
 from dataclasses import dataclass
 
 
@@ -31,19 +29,24 @@ class Mode3BBCConfig:
     # Opsi A: body ratio filter
     bull_body_ratio_min: float = 0.0
 
-    # Opsi B v2: STRUCTURAL retest to broken swing high (not EMA)
-    # At trigger, save broken_level = swing high of past N bars
-    # Wait bar N+1..N+K: bar low touches broken_level, close reclaims, bullish
-    # Invalidated if close < broken_level (support failed)
+    # Opsi B v2: structural retest to broken swing high
     bull_wait_retest_enabled: bool = False
     bull_retest_swing_lookback: int = 20
-    bull_retest_tolerance_pct: float = 0.003  # bar low within X% of broken_level
+    bull_retest_tolerance_pct: float = 0.003
     bull_retest_max_bars: int = 5
-    bull_retest_max_ema_dist_pct: float = 0.003  # legacy (unused in v2)
+    bull_retest_max_ema_dist_pct: float = 0.003  # legacy
 
     # Opsi C: swing high break as trigger
     bull_use_swing_break: bool = False
     bull_swing_lookback: int = 20
+
+    # Opsi D: 2.6 support bounce (video-inspired)
+    # Level = swing_low + range/2.6 (shallow retracement zone ~38.5% from bottom)
+    # BULL entry when bar wick touches level AND close reclaims AND bullish.
+    bull_use_26_support: bool = False
+    bull_26_lookback: int = 50
+    bull_26_ratio: float = 2.6
+    bull_26_tolerance_pct: float = 0.003  # touch tolerance around level
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
