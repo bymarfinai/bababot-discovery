@@ -40,14 +40,17 @@ class Mode3Config:
     bull_rr_ratio: float = 1.0
 
     # Idea B: POC confluence amplification for BULL entries (opt-in)
-    # If bar low touches POC AND close reclaims POC during BULL entry, boost size_mult
     bull_poc_confluence_enabled: bool = False
-    bull_poc_confluence_size_mult: float = 2.0  # target mult if confluence detected
-    bull_poc_max_distance_pct: float = 0.02  # POC must be within 2% of entry price
+    bull_poc_confluence_size_mult: float = 2.0
+    bull_poc_max_distance_pct: float = 0.02
 
     bear_mtf_15m_entry: bool = True
     bear_min_sl_dist: float = 0.0
     bear_use_1h_sl_fallback: bool = False
+
+    # Fix (2026-07-14): skip bear non-rider entries (only trade bear when HTF downtrend confirmed).
+    # Non-rider entries are mean-reversion shorts against HTF trend (catching falling knife).
+    bear_only_rider: bool = False
 
     sm_fix_2_bear_streak: bool = True
     sm_fix_2_streak_threshold: int = 2
