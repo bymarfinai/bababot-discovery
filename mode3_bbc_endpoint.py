@@ -1,5 +1,5 @@
 """Mode3 BBC Backtest Endpoint — /mode3_bbc/backtest.
-Opsi B v2: structural retest to broken swing high (not EMA).
+Opsi D: 2.6 support bounce entry trigger (video-inspired).
 """
 import os
 from dataclasses import asdict
@@ -69,24 +69,23 @@ def backtest_mode3_bbc(
     bull_poc_max_distance_pct: float = Query(0.02, ge=0.001, le=0.10),
     bull_mtf_15m_enabled: bool = Query(False),
     bull_body_ratio_min: float = Query(0.0, ge=0.0, le=1.0),
-    # Opsi B v2: structural retest to broken swing high
     bull_wait_retest_enabled: bool = Query(False),
     bull_retest_swing_lookback: int = Query(20, ge=5, le=200),
     bull_retest_tolerance_pct: float = Query(0.003, ge=0.0, le=0.05),
     bull_retest_max_bars: int = Query(5, ge=1, le=20),
-    # Opsi C
     bull_use_swing_break: bool = Query(False),
     bull_swing_lookback: int = Query(20, ge=5, le=200),
+    # Opsi D: 2.6 support bounce
+    bull_use_26_support: bool = Query(False),
+    bull_26_lookback: int = Query(50, ge=10, le=200),
+    bull_26_ratio: float = Query(2.6, ge=1.5, le=5.0),
+    bull_26_tolerance_pct: float = Query(0.003, ge=0.0, le=0.05),
 ):
     config = Mode3BBCConfig(
-        va_window=va_window,
-        ema_period=ema_period,
-        tp_pct=tp_pct,
-        sideways_tp_pct=sideways_tp_pct,
-        entry_usd=entry_usd,
-        leverage=leverage,
-        fee_pct_roundtrip=fee_pct,
-        slippage_pct=slippage_pct,
+        va_window=va_window, ema_period=ema_period,
+        tp_pct=tp_pct, sideways_tp_pct=sideways_tp_pct,
+        entry_usd=entry_usd, leverage=leverage,
+        fee_pct_roundtrip=fee_pct, slippage_pct=slippage_pct,
         bull_poc_entry_enabled=bull_poc_entry_enabled,
         bull_poc_max_distance_pct=bull_poc_max_distance_pct,
         bull_mtf_15m_enabled=bull_mtf_15m_enabled,
@@ -97,6 +96,10 @@ def backtest_mode3_bbc(
         bull_retest_max_bars=bull_retest_max_bars,
         bull_use_swing_break=bull_use_swing_break,
         bull_swing_lookback=bull_swing_lookback,
+        bull_use_26_support=bull_use_26_support,
+        bull_26_lookback=bull_26_lookback,
+        bull_26_ratio=bull_26_ratio,
+        bull_26_tolerance_pct=bull_26_tolerance_pct,
     )
 
     now_ms = int(datetime.utcnow().timestamp() * 1000)
@@ -121,9 +124,7 @@ def backtest_mode3_bbc(
             highs, lows, closes, volumes, i,
             config.va_window, config.va_percentile_high, config.va_percentile_low,
         )
-        vahs.append(vah)
-        vals.append(val)
-        pocs.append(poc)
+        vahs.append(vah); vals.append(val); pocs.append(poc)
 
     switcher = Switcher(config)
 
@@ -154,20 +155,18 @@ def backtest_mode3_bbc(
         if tt:
             tw = [t for t in tt if t.pnl_usd > 0]
             tool_stats[tool] = {
-                "count": len(tt),
-                "wr_pct": round(100.0 * len(tw) / len(tt), 2),
+                "count": len(tt), "wr_pct": round(100.0 * len(tw) / len(tt), 2),
                 "pnl_usd": round(sum(t.pnl_usd for t in tt), 2),
                 "pnl_pct": round(sum(t.pnl_pct for t in tt) * 100, 3),
             }
 
     bull_trigger_stats = {}
-    for trig in ['ema_reclaim', 'poc_bounce', 'swing_break', 'retest_entry']:
+    for trig in ['ema_reclaim', 'poc_bounce', 'swing_break', 'retest_entry', '26_bounce']:
         tt = [t for t in trades if t.tool == 'BULL' and t.entry_trigger == trig]
         if tt:
             tw = [t for t in tt if t.pnl_usd > 0]
             bull_trigger_stats[trig] = {
-                "count": len(tt),
-                "wr_pct": round(100.0 * len(tw) / len(tt), 2),
+                "count": len(tt), "wr_pct": round(100.0 * len(tw) / len(tt), 2),
                 "pnl_usd": round(sum(t.pnl_usd for t in tt), 2),
             }
 
@@ -196,25 +195,22 @@ def backtest_mode3_bbc(
         "period_end_utc": datetime.utcfromtimestamp(end_ts / 1000).strftime('%Y-%m-%d'),
         "config": asdict(config),
         "summary": {
-            "total_trades": n,
-            "win_rate_pct": round(wr, 2),
+            "total_trades": n, "win_rate_pct": round(wr, 2),
             "wins": len(wins), "losses": len(losses),
             "total_pnl_usd": round(total_pnl_usd, 2),
             "total_pnl_pct": round(total_pnl_pct, 3),
             "capital_start": config.capital_usd,
             "capital_end": round(config.capital_usd + total_pnl_usd, 2),
-            "sideways_entries_attempted": switcher._sideways_entries,
             "bull_entries_attempted": switcher._bull_entries,
-            "bear_entries_attempted": switcher._bear_entries,
             "bull_ema_reclaim_entries": switcher._bull_ema_reclaim_entries,
             "bull_poc_bounce_entries": switcher._bull_poc_bounce_entries,
             "bull_swing_break_entries": switcher._bull_swing_break_entries,
             "bull_retest_entries": switcher._bull_retest_entries,
+            "bull_26_bounce_entries": switcher._bull_26_bounce_entries,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
             "bull_blocked_body": switcher._bull_blocked_body,
             "bull_blocked_retest_timeout": switcher._bull_blocked_retest_timeout,
             "bull_blocked_retest_invalidated": switcher._bull_blocked_retest_invalidated,
-            "bull_blocked_no_swing_history": getattr(switcher, '_bull_blocked_no_swing_history', 0),
             "exit_type_breakdown": exit_type_breakdown,
         },
         "per_tool": tool_stats,
@@ -226,4 +222,4 @@ def backtest_mode3_bbc(
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status": "ok", "module": "mode3_bbc", "version": "0.5", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3_bbc", "version": "0.6", "db_path": DB_PATH}
