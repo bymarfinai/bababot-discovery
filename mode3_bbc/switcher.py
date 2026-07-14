@@ -1,6 +1,6 @@
 """Mode3 BBC Switcher — Basic state machine with opt-in signal quality options.
 BULL: MTF 15m, body filter, POC bounce, retest, swing break, 2.6 support.
-BEAR: MTF 15m, body filter.
+BEAR: MTF 15m, body filter, independent TP.
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -79,19 +79,15 @@ class Switcher:
         self._current_vah = None
         self._current_val = None
         self._current_poc = None
-        # MTF arrays
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
         self.mtf_bear_entry_high = None
-        # Deques
         self._high_deque = deque(maxlen=200)
         self._low_deque = deque(maxlen=200)
-        # Retest state
         self._bull_retest_pending = False
         self._bull_retest_bar_count = 0
         self._bull_broken_level = None
-        # Counters
         self._sideways_entries = 0
         self._bull_entries = 0
         self._bear_entries = 0
@@ -105,7 +101,6 @@ class Switcher:
         self._bull_blocked_retest_timeout = 0
         self._bull_blocked_retest_invalidated = 0
         self._bull_blocked_no_swing_history = 0
-        # BEAR counters
         self._bear_blocked_mtf = 0
         self._bear_blocked_body = 0
 
@@ -277,7 +272,6 @@ class Switcher:
         if (h >= vah) and (c <= vah):
             self._open_short_sideways(bar_idx, h, l, c); return
 
-    # ---- BULL helpers ----
     def _check_poc_bounce(self, o, h, l, c):
         if not self.config.bull_poc_entry_enabled:
             return False
@@ -465,7 +459,6 @@ class Switcher:
         elif trigger == '26_bounce':
             self._bull_26_bounce_entries += 1
 
-    # ---- BEAR helpers ----
     def _check_bear_body_ratio(self, o, h, l, c):
         bar_range = h - l
         if bar_range <= 0:
@@ -487,18 +480,15 @@ class Switcher:
             self.bear_stay_warmup = False
             return
 
-        # Primary trigger: EMA rejection (mirror of ema_reclaim)
         ema_reject = (h >= ema20) and (c < ema20) and (c < o)
         if not ema_reject:
             return
 
-        # Body ratio filter (mirror BULL A)
         if self.config.bear_body_ratio_min > 0:
             if not self._check_bear_body_ratio(o, h, l, c):
                 self._bear_blocked_body += 1
                 return
 
-        # MTF 15m precision (mirror BULL MTF)
         entry_price = c
         sl_price = h
         if self.config.bear_mtf_15m_enabled:
@@ -512,7 +502,8 @@ class Switcher:
         self._open_bear(bar_idx, h, l, sl_price, entry_price)
 
     def _open_bear(self, bar_idx, entry_high, entry_low, sl_level, entry_price):
-        tp_level = entry_price * (1.0 - self.config.tp_pct)
+        # Use independent bear_tp_pct if set, else fall back to tp_pct
+        tp_level = entry_price * (1.0 - self.config.get_bear_tp_pct())
         self.position = Position(
             tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
             entry_high=entry_high, entry_low=entry_low,
