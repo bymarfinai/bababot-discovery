@@ -1,10 +1,5 @@
 """Mode3 BBC Switcher — Basic state machine with opt-in signal quality options.
-BULL entry can be strengthened via:
-  - POC bounce (bull_poc_entry_enabled)
-  - 15m MTF precision (bull_mtf_15m_enabled)
-  - Opsi A: body ratio filter (bull_body_ratio_min)
-  - Opsi B: wait-for-retest 2-bar pattern (bull_wait_retest_enabled)
-  - Opsi C: swing high break trigger (bull_use_swing_break)
+Opsi B v2: structural retest to broken swing high (not EMA).
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -83,14 +78,13 @@ class Switcher:
         self._current_vah = None
         self._current_val = None
         self._current_poc = None
-        # MTF 15m arrays
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
-        # Swing high tracker (past bar highs)
         self._high_deque = deque(maxlen=200)
-        # Retest state (Opsi B)
+        # Retest state
         self._bull_retest_pending = False
         self._bull_retest_bar_count = 0
+        self._bull_broken_level = None  # NEW: structural level saved at trigger
         # Counters
         self._sideways_entries = 0
         self._bull_entries = 0
@@ -103,6 +97,7 @@ class Switcher:
         self._bull_blocked_body = 0
         self._bull_blocked_retest_timeout = 0
         self._bull_blocked_retest_invalidated = 0
+        self._bull_blocked_no_swing_history = 0
 
     def process_candle(self, bar_idx, o, h, l, c, ema20, vah, val, poc=None):
         self._action_taken_this_bar = False
@@ -124,7 +119,6 @@ class Switcher:
         if self.position is None and not self._action_taken_this_bar:
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val)
 
-        # Update high deque AT END so swing_break sees past bars only
         self._high_deque.append(h)
 
     def _startup_transition(self, close, ema20):
@@ -162,7 +156,7 @@ class Switcher:
         if et == 'SL':
             self.state = 'BULL'; self.bull_stay_warmup = False
             self.markers.hh_breach_case = 'none'
-            self._bull_retest_pending = False
+            self._reset_retest()
         else:
             self.state = 'SIDEWAYS'
 
@@ -183,7 +177,7 @@ class Switcher:
     def _post_exit_bull(self, et):
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
         self.markers.peak_high_bull = last_peak
-        self._bull_retest_pending = False
+        self._reset_retest()
         if et == 'TP':
             self.state = 'BULL'; self.bull_stay_warmup = True
         else:
@@ -271,7 +265,7 @@ class Switcher:
         if (h >= vah) and (c <= vah):
             self._open_short_sideways(bar_idx, h, l, c); return
 
-    # ---- Helper methods for BULL entry variants ----
+    # ---- BULL helpers ----
     def _check_poc_bounce(self, o, h, l, c):
         if not self.config.bull_poc_entry_enabled:
             return False
@@ -293,27 +287,42 @@ class Switcher:
         return self.mtf_bull_entry_close[bar_idx], self.mtf_bull_entry_low[bar_idx]
 
     def _check_body_ratio(self, o, h, l, c):
-        """Opsi A: body/range ratio filter."""
         bar_range = h - l
         if bar_range <= 0:
             return False
         body = abs(c - o)
         return (body / bar_range) >= self.config.bull_body_ratio_min
 
-    def _check_retest(self, l, c, o, ema20):
-        """Opsi B: retest bar = pullback near EMA + bullish close."""
-        if ema20 <= 0:
+    def _get_swing_high(self, lookback):
+        """Return max high from past N bars in deque (before current bar)."""
+        if len(self._high_deque) < lookback:
+            return None
+        recent = list(self._high_deque)[-lookback:]
+        return max(recent) if recent else None
+
+    def _check_structural_retest(self, l, c, o):
+        """Opsi B v2: retest = bar low touches broken level, close reclaims, bullish."""
+        if self._bull_broken_level is None:
             return False
-        # Pullback: low within tolerance of EMA
-        if l > ema20 * (1 + self.config.bull_retest_max_ema_dist_pct):
+        lvl = self._bull_broken_level
+        tolerance = self.config.bull_retest_tolerance_pct
+        # Bar low must touch broken level (within tolerance above it)
+        if l > lvl * (1 + tolerance):
             return False
-        # Bullish confirmation
-        if c <= ema20 or c <= o:
+        # Close must reclaim above broken level
+        if c <= lvl:
+            return False
+        # Bullish candle
+        if c <= o:
             return False
         return True
 
+    def _reset_retest(self):
+        self._bull_retest_pending = False
+        self._bull_retest_bar_count = 0
+        self._bull_broken_level = None
+
     def _check_swing_break(self, h, c, o):
-        """Opsi C: c > max of past N highs AND bullish."""
         lookback = self.config.bull_swing_lookback
         if len(self._high_deque) < lookback:
             return False
@@ -329,10 +338,10 @@ class Switcher:
             self.state = 'WAIT_SEE_BULLISH'
             self.markers.hh_breach_case = 'B'
             self.bull_stay_warmup = False
-            self._bull_retest_pending = False
+            self._reset_retest()
             return
 
-        # Determine primary trigger name
+        # Determine primary trigger
         if self.config.bull_use_swing_break:
             primary_trigger = self._check_swing_break(h, c, o)
             trigger_name = 'swing_break'
@@ -340,44 +349,48 @@ class Switcher:
             primary_trigger = (l <= ema20) and (c > ema20) and (c > o)
             trigger_name = 'ema_reclaim'
 
-        # Handle retest pending state (Opsi B)
+        # ---- Opsi B v2: structural retest handling ----
         if self.config.bull_wait_retest_enabled and self._bull_retest_pending:
             self._bull_retest_bar_count += 1
-            # Invalidation: close below EMA
-            if c < ema20:
-                self._bull_retest_pending = False
-                self._bull_retest_bar_count = 0
+            # Invalidation: close below broken level (support failed)
+            if c < self._bull_broken_level:
                 self._bull_blocked_retest_invalidated += 1
+                self._reset_retest()
                 return
             # Timeout
             if self._bull_retest_bar_count > self.config.bull_retest_max_bars:
-                self._bull_retest_pending = False
-                self._bull_retest_bar_count = 0
                 self._bull_blocked_retest_timeout += 1
+                self._reset_retest()
                 return
             # Check retest confirmation
-            if self._check_retest(l, c, o, ema20):
-                self._bull_retest_pending = False
-                self._bull_retest_bar_count = 0
-                self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger='retest_entry')
+            if self._check_structural_retest(l, c, o):
+                self._reset_retest()
+                # Entry at close, SL at bar low
+                self._open_bull(bar_idx, h, l, c, 'retest_entry')
                 self._bull_retest_entries += 1
                 return
-            # Not confirmed yet, keep waiting
+            # Not confirmed yet
             return
 
         # Primary trigger check
         if primary_trigger:
-            # Opsi A: body ratio filter
+            # Opsi A: body filter
             if self.config.bull_body_ratio_min > 0:
                 if not self._check_body_ratio(o, h, l, c):
                     self._bull_blocked_body += 1
-                    # Try POC bounce as fallback
                     if self._check_poc_bounce(o, h, l, c):
                         self._open_bull(bar_idx, h, l, c, 'poc_bounce')
                     return
 
-            # Opsi B: enter pending state instead of immediate entry
+            # Opsi B v2: capture broken level, enter pending
             if self.config.bull_wait_retest_enabled:
+                broken = self._get_swing_high(self.config.bull_retest_swing_lookback)
+                if broken is None:
+                    self._bull_blocked_no_swing_history += 1
+                    # Not enough history — fallback to normal entry
+                    self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger=trigger_name)
+                    return
+                self._bull_broken_level = broken
                 self._bull_retest_pending = True
                 self._bull_retest_bar_count = 0
                 return
@@ -391,7 +404,6 @@ class Switcher:
             self._open_bull(bar_idx, h, l, c, 'poc_bounce')
 
     def _execute_bull_entry(self, bar_idx, o, h, l, c, ema20, trigger):
-        """Execute BULL entry with MTF precision if enabled (only for ema_reclaim)."""
         entry_price = c
         sl_price = l
         if trigger == 'ema_reclaim' and self.config.bull_mtf_15m_enabled:
@@ -418,8 +430,6 @@ class Switcher:
             self._bull_poc_bounce_entries += 1
         elif trigger == 'swing_break':
             self._bull_swing_break_entries += 1
-        elif trigger == 'retest_entry':
-            pass  # already counted above
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bear_stay_warmup and c > ema20:
