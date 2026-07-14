@@ -25,11 +25,6 @@ class Mode3Config:
     sideways_max_slope_pct: float = 0.018
     sideways_slope_window: int = 20
 
-    # Idea A: use POC as dynamic TP for SIDEWAYS trades (opt-in via query param)
-    sideways_use_poc_tp: bool = False
-    sideways_poc_min_distance_pct: float = 0.001  # POC must be >=0.1% from entry
-    sideways_poc_max_distance_pct: float = 0.015  # POC must be <=1.5% from entry (else cap)
-
     chop_window: int = 20
     chop_max_crossings: int = 4
 
@@ -39,18 +34,9 @@ class Mode3Config:
     bull_use_rr_tp: bool = False
     bull_rr_ratio: float = 1.0
 
-    # Idea B: POC confluence amplification for BULL entries (opt-in)
-    bull_poc_confluence_enabled: bool = False
-    bull_poc_confluence_size_mult: float = 2.0
-    bull_poc_max_distance_pct: float = 0.02
-
     bear_mtf_15m_entry: bool = True
     bear_min_sl_dist: float = 0.0
     bear_use_1h_sl_fallback: bool = False
-
-    # Fix (2026-07-14): skip bear non-rider entries (only trade bear when HTF downtrend confirmed).
-    # Non-rider entries are mean-reversion shorts against HTF trend (catching falling knife).
-    bear_only_rider: bool = False
 
     sm_fix_2_bear_streak: bool = True
     sm_fix_2_streak_threshold: int = 2
