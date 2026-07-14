@@ -1,9 +1,14 @@
-"""Mode3 BBC Switcher — Basic state machine WITHOUT filters.
-BULL entry can be strengthened via POC bounce (bull_poc_entry_enabled)
-and refined via 15m MTF precision (bull_mtf_15m_enabled).
+"""Mode3 BBC Switcher — Basic state machine with opt-in signal quality options.
+BULL entry can be strengthened via:
+  - POC bounce (bull_poc_entry_enabled)
+  - 15m MTF precision (bull_mtf_15m_enabled)
+  - Opsi A: body ratio filter (bull_body_ratio_min)
+  - Opsi B: wait-for-retest 2-bar pattern (bull_wait_retest_enabled)
+  - Opsi C: swing high break trigger (bull_use_swing_break)
 """
 from dataclasses import dataclass
 from typing import Optional
+from collections import deque
 from .config import Mode3BBCConfig
 
 
@@ -78,16 +83,26 @@ class Switcher:
         self._current_vah = None
         self._current_val = None
         self._current_poc = None
-        # MTF 15m arrays (set by endpoint before backtest)
+        # MTF 15m arrays
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
+        # Swing high tracker (past bar highs)
+        self._high_deque = deque(maxlen=200)
+        # Retest state (Opsi B)
+        self._bull_retest_pending = False
+        self._bull_retest_bar_count = 0
         # Counters
         self._sideways_entries = 0
         self._bull_entries = 0
         self._bear_entries = 0
         self._bull_ema_reclaim_entries = 0
         self._bull_poc_bounce_entries = 0
+        self._bull_swing_break_entries = 0
+        self._bull_retest_entries = 0
         self._bull_blocked_mtf = 0
+        self._bull_blocked_body = 0
+        self._bull_blocked_retest_timeout = 0
+        self._bull_blocked_retest_invalidated = 0
 
     def process_candle(self, bar_idx, o, h, l, c, ema20, vah, val, poc=None):
         self._action_taken_this_bar = False
@@ -98,6 +113,7 @@ class Switcher:
 
         if self.state == 'STARTUP':
             if vah is None or val is None:
+                self._high_deque.append(h)
                 return
             self._startup_transition(c, ema20)
 
@@ -107,6 +123,9 @@ class Switcher:
 
         if self.position is None and not self._action_taken_this_bar:
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val)
+
+        # Update high deque AT END so swing_break sees past bars only
+        self._high_deque.append(h)
 
     def _startup_transition(self, close, ema20):
         if close > ema20: self.startup_bias = 'bullish'
@@ -141,13 +160,16 @@ class Switcher:
 
     def _post_exit_sideways_short(self, et):
         if et == 'SL':
-            self.state = 'BULL'; self.bull_stay_warmup = False; self.markers.hh_breach_case = 'none'
+            self.state = 'BULL'; self.bull_stay_warmup = False
+            self.markers.hh_breach_case = 'none'
+            self._bull_retest_pending = False
         else:
             self.state = 'SIDEWAYS'
 
     def _post_exit_sideways_long(self, et):
         if et == 'SL':
-            self.state = 'BEAR'; self.bear_stay_warmup = False; self.markers.ll_breach_case = 'none'
+            self.state = 'BEAR'; self.bear_stay_warmup = False
+            self.markers.ll_breach_case = 'none'
         else:
             self.state = 'SIDEWAYS'
 
@@ -161,6 +183,7 @@ class Switcher:
     def _post_exit_bull(self, et):
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
         self.markers.peak_high_bull = last_peak
+        self._bull_retest_pending = False
         if et == 'TP':
             self.state = 'BULL'; self.bull_stay_warmup = True
         else:
@@ -248,6 +271,7 @@ class Switcher:
         if (h >= vah) and (c <= vah):
             self._open_short_sideways(bar_idx, h, l, c); return
 
+    # ---- Helper methods for BULL entry variants ----
     def _check_poc_bounce(self, o, h, l, c):
         if not self.config.bull_poc_entry_enabled:
             return False
@@ -262,12 +286,42 @@ class Switcher:
         return True
 
     def _get_mtf_bull_entry(self, bar_idx):
-        """Return (close, low) from 15m EMA reclaim, or (None, None) if none."""
         if self.mtf_bull_entry_close is None:
             return None, None
         if bar_idx >= len(self.mtf_bull_entry_close):
             return None, None
         return self.mtf_bull_entry_close[bar_idx], self.mtf_bull_entry_low[bar_idx]
+
+    def _check_body_ratio(self, o, h, l, c):
+        """Opsi A: body/range ratio filter."""
+        bar_range = h - l
+        if bar_range <= 0:
+            return False
+        body = abs(c - o)
+        return (body / bar_range) >= self.config.bull_body_ratio_min
+
+    def _check_retest(self, l, c, o, ema20):
+        """Opsi B: retest bar = pullback near EMA + bullish close."""
+        if ema20 <= 0:
+            return False
+        # Pullback: low within tolerance of EMA
+        if l > ema20 * (1 + self.config.bull_retest_max_ema_dist_pct):
+            return False
+        # Bullish confirmation
+        if c <= ema20 or c <= o:
+            return False
+        return True
+
+    def _check_swing_break(self, h, c, o):
+        """Opsi C: c > max of past N highs AND bullish."""
+        lookback = self.config.bull_swing_lookback
+        if len(self._high_deque) < lookback:
+            return False
+        recent_highs = list(self._high_deque)[-lookback:]
+        swing_high = max(recent_highs)
+        if swing_high <= 0:
+            return False
+        return c > swing_high and c > o
 
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
         # Warmup exit
@@ -275,31 +329,79 @@ class Switcher:
             self.state = 'WAIT_SEE_BULLISH'
             self.markers.hh_breach_case = 'B'
             self.bull_stay_warmup = False
+            self._bull_retest_pending = False
             return
 
-        ema_reclaim = (l <= ema20) and (c > ema20) and (c > o)
-        poc_bounce = self._check_poc_bounce(o, h, l, c)
+        # Determine primary trigger name
+        if self.config.bull_use_swing_break:
+            primary_trigger = self._check_swing_break(h, c, o)
+            trigger_name = 'swing_break'
+        else:
+            primary_trigger = (l <= ema20) and (c > ema20) and (c > o)
+            trigger_name = 'ema_reclaim'
 
-        # ema_reclaim path (may use MTF)
-        if ema_reclaim:
-            entry_price = c
-            sl_price = l
-            if self.config.bull_mtf_15m_enabled:
-                mtf_c, mtf_l = self._get_mtf_bull_entry(bar_idx)
-                if mtf_c is None or mtf_l is None:
-                    # No 15m confirmation — blocked
-                    self._bull_blocked_mtf += 1
-                    ema_reclaim = False  # fall through to poc_bounce check
-                else:
-                    entry_price = mtf_c
-                    sl_price = mtf_l
-            if ema_reclaim:
-                self._open_bull(bar_idx, h, sl_price, entry_price, 'ema_reclaim')
+        # Handle retest pending state (Opsi B)
+        if self.config.bull_wait_retest_enabled and self._bull_retest_pending:
+            self._bull_retest_bar_count += 1
+            # Invalidation: close below EMA
+            if c < ema20:
+                self._bull_retest_pending = False
+                self._bull_retest_bar_count = 0
+                self._bull_blocked_retest_invalidated += 1
+                return
+            # Timeout
+            if self._bull_retest_bar_count > self.config.bull_retest_max_bars:
+                self._bull_retest_pending = False
+                self._bull_retest_bar_count = 0
+                self._bull_blocked_retest_timeout += 1
+                return
+            # Check retest confirmation
+            if self._check_retest(l, c, o, ema20):
+                self._bull_retest_pending = False
+                self._bull_retest_bar_count = 0
+                self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger='retest_entry')
+                self._bull_retest_entries += 1
+                return
+            # Not confirmed yet, keep waiting
+            return
+
+        # Primary trigger check
+        if primary_trigger:
+            # Opsi A: body ratio filter
+            if self.config.bull_body_ratio_min > 0:
+                if not self._check_body_ratio(o, h, l, c):
+                    self._bull_blocked_body += 1
+                    # Try POC bounce as fallback
+                    if self._check_poc_bounce(o, h, l, c):
+                        self._open_bull(bar_idx, h, l, c, 'poc_bounce')
+                    return
+
+            # Opsi B: enter pending state instead of immediate entry
+            if self.config.bull_wait_retest_enabled:
+                self._bull_retest_pending = True
+                self._bull_retest_bar_count = 0
                 return
 
-        # POC bounce path (always uses 1h prices, independent from MTF)
-        if poc_bounce:
+            # Immediate entry
+            self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger=trigger_name)
+            return
+
+        # POC bounce fallback
+        if self._check_poc_bounce(o, h, l, c):
             self._open_bull(bar_idx, h, l, c, 'poc_bounce')
+
+    def _execute_bull_entry(self, bar_idx, o, h, l, c, ema20, trigger):
+        """Execute BULL entry with MTF precision if enabled (only for ema_reclaim)."""
+        entry_price = c
+        sl_price = l
+        if trigger == 'ema_reclaim' and self.config.bull_mtf_15m_enabled:
+            mtf_c, mtf_l = self._get_mtf_bull_entry(bar_idx)
+            if mtf_c is None or mtf_l is None:
+                self._bull_blocked_mtf += 1
+                return
+            entry_price = mtf_c
+            sl_price = mtf_l
+        self._open_bull(bar_idx, h, sl_price, entry_price, trigger)
 
     def _open_bull(self, bar_idx, entry_high, sl_level, entry_price, trigger='ema_reclaim'):
         tp_level = entry_price * (1.0 + self.config.tp_pct)
@@ -314,6 +416,10 @@ class Switcher:
             self._bull_ema_reclaim_entries += 1
         elif trigger == 'poc_bounce':
             self._bull_poc_bounce_entries += 1
+        elif trigger == 'swing_break':
+            self._bull_swing_break_entries += 1
+        elif trigger == 'retest_entry':
+            pass  # already counted above
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bear_stay_warmup and c > ema20:
