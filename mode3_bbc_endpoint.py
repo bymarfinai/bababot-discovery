@@ -1,6 +1,6 @@
 """Mode3 BBC Backtest Endpoint — /mode3_bbc/backtest.
 Filter-free variant of Mode3 for testing pure state machine + entry logic.
-Optional POC bounce entry for BULL (opt-in, strengthens continuation).
+Optional POC bounce and 15m MTF precision for BULL (opt-in, strengthens continuation).
 """
 import os
 from dataclasses import asdict
@@ -26,6 +26,35 @@ def load_candles_from_db(symbol, timeframe, start_ts, end_ts):
     return rows
 
 
+def compute_mtf_bull_entry(rows_1h, rows_15m):
+    """For each 1h bar, find the first 15m sub-bar where EMA20-reclaim rule fires.
+    Returns (entry_closes, entry_lows) — lists aligned to rows_1h; None if no match.
+    """
+    if not rows_15m:
+        return [None] * len(rows_1h), [None] * len(rows_1h)
+    opens_15m = np.array([r[1] for r in rows_15m], dtype=float)
+    lows_15m = np.array([r[3] for r in rows_15m], dtype=float)
+    closes_15m = np.array([r[4] for r in rows_15m], dtype=float)
+    ema_15m = compute_ema_series(closes_15m, 20)
+    ts_to_idx = {r[0]: i for i, r in enumerate(rows_15m)}
+    ONE_15M_MS = 15 * 60 * 1000
+    entry_closes, entry_lows = [], []
+    for r in rows_1h:
+        t_1h = r[0]
+        fc, fl = None, None
+        for k in range(4):
+            j = ts_to_idx.get(t_1h + k * ONE_15M_MS)
+            if j is None:
+                continue
+            if (lows_15m[j] <= ema_15m[j] and closes_15m[j] > ema_15m[j] and closes_15m[j] > opens_15m[j]):
+                fc = float(closes_15m[j])
+                fl = float(lows_15m[j])
+                break
+        entry_closes.append(fc)
+        entry_lows.append(fl)
+    return entry_closes, entry_lows
+
+
 @router.get("/backtest")
 def backtest_mode3_bbc(
     symbol: str = Query("BTCUSDT"),
@@ -40,9 +69,11 @@ def backtest_mode3_bbc(
     leverage: float = Query(50.0),
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
-    # POC bounce entry for BULL (opt-in, expands entries)
+    # POC bounce entry for BULL (opt-in)
     bull_poc_entry_enabled: bool = Query(False),
     bull_poc_max_distance_pct: float = Query(0.02, ge=0.001, le=0.10),
+    # 15m MTF precision for BULL ema_reclaim (opt-in)
+    bull_mtf_15m_enabled: bool = Query(False),
 ):
     config = Mode3BBCConfig(
         va_window=va_window,
@@ -55,6 +86,7 @@ def backtest_mode3_bbc(
         slippage_pct=slippage_pct,
         bull_poc_entry_enabled=bull_poc_entry_enabled,
         bull_poc_max_distance_pct=bull_poc_max_distance_pct,
+        bull_mtf_15m_enabled=bull_mtf_15m_enabled,
     )
 
     now_ms = int(datetime.utcnow().timestamp() * 1000)
@@ -85,6 +117,14 @@ def backtest_mode3_bbc(
 
     switcher = Switcher(config)
 
+    # 15m MTF precision — preload 15m data and compute entry arrays
+    if bull_mtf_15m_enabled:
+        rows_15m = load_candles_from_db(symbol, '15m', start_ts, end_ts)
+        if rows_15m:
+            ec, el = compute_mtf_bull_entry(rows, rows_15m)
+            switcher.mtf_bull_entry_close = ec
+            switcher.mtf_bull_entry_low = el
+
     for i in range(len(rows)):
         switcher.process_candle(
             bar_idx=i, o=opens[i], h=highs[i], l=lows[i], c=closes[i],
@@ -111,7 +151,7 @@ def backtest_mode3_bbc(
                 "pnl_pct": round(sum(t.pnl_pct for t in tt) * 100, 3),
             }
 
-    # BULL trigger breakdown (EMA reclaim vs POC bounce)
+    # BULL trigger breakdown
     bull_trigger_stats = {}
     for trig in ['ema_reclaim', 'poc_bounce']:
         tt = [t for t in trades if t.tool == 'BULL' and t.entry_trigger == trig]
@@ -160,6 +200,7 @@ def backtest_mode3_bbc(
             "bear_entries_attempted": switcher._bear_entries,
             "bull_ema_reclaim_entries": switcher._bull_ema_reclaim_entries,
             "bull_poc_bounce_entries": switcher._bull_poc_bounce_entries,
+            "bull_blocked_mtf": switcher._bull_blocked_mtf,
             "exit_type_breakdown": exit_type_breakdown,
         },
         "per_tool": tool_stats,
@@ -171,4 +212,4 @@ def backtest_mode3_bbc(
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status": "ok", "module": "mode3_bbc", "version": "0.2", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3_bbc", "version": "0.3", "db_path": DB_PATH}
