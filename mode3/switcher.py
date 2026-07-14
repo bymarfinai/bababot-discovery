@@ -1,4 +1,6 @@
-"""Mode3 Switcher v5.4 — Champion clean. Fix #21 wick-based BEAR trailing."""
+"""Mode3 Switcher v5.4 — Champion clean. Fix #21 wick-based BEAR trailing.
+Idea A (2026-07-14): POC-based dynamic TP for SIDEWAYS trades (opt-in).
+"""
 from dataclasses import dataclass
 from typing import Optional
 from collections import deque
@@ -82,6 +84,7 @@ class Switcher:
         self._current_ema20 = 0.0
         self._current_vah = None
         self._current_val = None
+        self._current_poc = None  # Idea A
         self._chop_history = deque(maxlen=config.chop_window)
         self._ema_history = deque(maxlen=config.sideways_slope_window)
         self._volume_history = deque(maxlen=config.bull_volume_window)
@@ -104,6 +107,9 @@ class Switcher:
         self._bear_trend_rider_hard_exits = 0
         self._amt_bull_amplified = 0
         self._bear_wick_trail_activations = 0
+        # Idea A counters
+        self._sideways_poc_tp_used = 0
+        self._sideways_poc_tp_fallback = 0
         self.mtf_bull_entry_close = None
         self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None
@@ -124,6 +130,7 @@ class Switcher:
         self._current_ema20 = ema20
         self._current_vah = vah
         self._current_val = val
+        self._current_poc = poc  # Idea A
         if ema20 > 0:
             sign = 1 if c > ema20 else (-1 if c < ema20 else 0)
             self._chop_history.append(sign)
@@ -196,6 +203,49 @@ class Switcher:
 
     def _sideways_tp_pct(self):
         return self.config.sideways_tp_pct if self.config.sideways_tp_pct > 0 else self.config.tp_pct
+
+    def _sideways_tp_level(self, entry_price, side):
+        """Idea A: POC-based dynamic TP for SIDEWAYS trades (opt-in via sideways_use_poc_tp).
+        Rules:
+          - If flag off, use fixed sideways_tp_pct (backward compat)
+          - LONG: TP = POC if POC > entry AND min_dist <= (POC-entry)/entry <= max_dist
+          - SHORT: TP = POC if POC < entry AND min_dist <= (entry-POC)/entry <= max_dist
+          - Fallback to fixed sideways_tp_pct if POC missing or out of range
+        """
+        tp_pct = self._sideways_tp_pct()
+        if not self.config.sideways_use_poc_tp:
+            if side == 'LONG': return entry_price * (1.0 + tp_pct)
+            return entry_price * (1.0 - tp_pct)
+
+        poc = self._current_poc
+        if poc is None or poc <= 0 or entry_price <= 0:
+            self._sideways_poc_tp_fallback += 1
+            if side == 'LONG': return entry_price * (1.0 + tp_pct)
+            return entry_price * (1.0 - tp_pct)
+
+        min_dist = self.config.sideways_poc_min_distance_pct
+        max_dist = self.config.sideways_poc_max_distance_pct
+
+        if side == 'LONG':
+            if poc <= entry_price:
+                self._sideways_poc_tp_fallback += 1
+                return entry_price * (1.0 + tp_pct)
+            dist_pct = (poc - entry_price) / entry_price
+            if dist_pct < min_dist or dist_pct > max_dist:
+                self._sideways_poc_tp_fallback += 1
+                return entry_price * (1.0 + tp_pct)
+            self._sideways_poc_tp_used += 1
+            return poc
+        else:  # SHORT
+            if poc >= entry_price:
+                self._sideways_poc_tp_fallback += 1
+                return entry_price * (1.0 - tp_pct)
+            dist_pct = (entry_price - poc) / entry_price
+            if dist_pct < min_dist or dist_pct > max_dist:
+                self._sideways_poc_tp_fallback += 1
+                return entry_price * (1.0 - tp_pct)
+            self._sideways_poc_tp_used += 1
+            return poc
 
     def _bull_tp_level(self, entry_price, sl_level):
         if self.config.bull_use_rr_tp:
@@ -365,7 +415,6 @@ class Switcher:
     def _open_short_sideways(self, bar_idx, h, l, c):
         if not self._sideways_distance_ok(c): self._sideways_blocked_count += 1; return
         if not self._sideways_slope_ok(): self._sideways_blocked_slope += 1; return
-        tp_pct = self._sideways_tp_pct()
         if self.config.sideways_mtf_15m_entry and self.mtf_sideways_short_entry_close is not None:
             if bar_idx < len(self.mtf_sideways_short_entry_close):
                 mtf_close = self.mtf_sideways_short_entry_close[bar_idx]
@@ -373,20 +422,21 @@ class Switcher:
                 if mtf_close is None or mtf_high is None:
                     self._sideways_blocked_mtf += 1; return
                 self.markers.marker_high_short = mtf_high; self.markers.marker_close_short = mtf_close
+                tp_level = self._sideways_tp_level(mtf_close, 'SHORT')
                 self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=mtf_close, entry_bar=bar_idx,
-                    entry_high=mtf_high, entry_low=l, sl_level=mtf_high, tp_level=mtf_close*(1.0-tp_pct),
+                    entry_high=mtf_high, entry_low=l, sl_level=mtf_high, tp_level=tp_level,
                     peak_high=mtf_high, trough_low=l, ema_at_entry=self._current_ema20)
                 self._bear_loss_streak = 0; return
         self.markers.marker_high_short = h; self.markers.marker_close_short = c
+        tp_level = self._sideways_tp_level(c, 'SHORT')
         self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=c, entry_bar=bar_idx,
-            entry_high=h, entry_low=l, sl_level=h, tp_level=c*(1.0-tp_pct),
+            entry_high=h, entry_low=l, sl_level=h, tp_level=tp_level,
             peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
         self._bear_loss_streak = 0
 
     def _open_long_sideways(self, bar_idx, h, l, c):
         if not self._sideways_distance_ok(c): self._sideways_blocked_count += 1; return
         if not self._sideways_slope_ok(): self._sideways_blocked_slope += 1; return
-        tp_pct = self._sideways_tp_pct()
         if self.config.sideways_mtf_15m_entry and self.mtf_sideways_long_entry_close is not None:
             if bar_idx < len(self.mtf_sideways_long_entry_close):
                 mtf_close = self.mtf_sideways_long_entry_close[bar_idx]
@@ -394,13 +444,15 @@ class Switcher:
                 if mtf_close is None or mtf_low is None:
                     self._sideways_blocked_mtf += 1; return
                 self.markers.marker_low_long = mtf_low; self.markers.marker_close_long = mtf_close
+                tp_level = self._sideways_tp_level(mtf_close, 'LONG')
                 self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=mtf_close, entry_bar=bar_idx,
-                    entry_high=h, entry_low=mtf_low, sl_level=mtf_low, tp_level=mtf_close*(1.0+tp_pct),
+                    entry_high=h, entry_low=mtf_low, sl_level=mtf_low, tp_level=tp_level,
                     peak_high=h, trough_low=mtf_low, ema_at_entry=self._current_ema20)
                 self._bear_loss_streak = 0; return
         self.markers.marker_low_long = l; self.markers.marker_close_long = c
+        tp_level = self._sideways_tp_level(c, 'LONG')
         self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=c, entry_bar=bar_idx,
-            entry_high=h, entry_low=l, sl_level=l, tp_level=c*(1.0+tp_pct),
+            entry_high=h, entry_low=l, sl_level=l, tp_level=tp_level,
             peak_high=h, trough_low=l, ema_at_entry=self._current_ema20)
         self._bear_loss_streak = 0
 
