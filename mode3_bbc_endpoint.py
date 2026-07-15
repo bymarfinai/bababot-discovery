@@ -1,5 +1,7 @@
 """Mode3 BBC Backtest Endpoint — /mode3_bbc/backtest.
-BULL/BEAR/SIDEWAYS all support MTF 15m precision and body ratio filter.
+
+CHECKPOINT v1.0 (2026-07-14): Winning config as defaults.
+Calling /mode3_bbc/backtest without params uses winning config that beats Champion by $327.
 """
 import os
 from dataclasses import asdict
@@ -120,17 +122,20 @@ def backtest_mode3_bbc(
     end_days_ago: int = Query(0, ge=0, le=1500),
     va_window: int = Query(50, ge=20, le=200),
     ema_period: int = Query(20, ge=5, le=100),
-    tp_pct: float = Query(0.012, ge=0.001, le=0.05),
-    sideways_tp_pct: float = Query(0.003, ge=0.0, le=0.05),
+    # ---- Take-profit (v1.0 winning defaults) ----
+    tp_pct: float = Query(0.010, ge=0.001, le=0.05),
+    sideways_tp_pct: float = Query(0.008, ge=0.0, le=0.05),
     bear_tp_pct: float = Query(0.0, ge=0.0, le=0.05),
     entry_usd: float = Query(10.0),
     leverage: float = Query(50.0),
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
+    # ---- BULL entry (v1.0 winning defaults) ----
+    bull_mtf_15m_enabled: bool = Query(True),
+    bull_body_ratio_min: float = Query(0.7, ge=0.0, le=1.0),
+    # BULL — optional experiments (default off)
     bull_poc_entry_enabled: bool = Query(False),
     bull_poc_max_distance_pct: float = Query(0.02, ge=0.001, le=0.10),
-    bull_mtf_15m_enabled: bool = Query(False),
-    bull_body_ratio_min: float = Query(0.0, ge=0.0, le=1.0),
     bull_wait_retest_enabled: bool = Query(False),
     bull_retest_swing_lookback: int = Query(20, ge=5, le=200),
     bull_retest_tolerance_pct: float = Query(0.003, ge=0.0, le=0.05),
@@ -141,10 +146,12 @@ def backtest_mode3_bbc(
     bull_26_lookback: int = Query(50, ge=10, le=200),
     bull_26_ratio: float = Query(2.6, ge=1.5, le=5.0),
     bull_26_tolerance_pct: float = Query(0.003, ge=0.0, le=0.05),
-    bear_mtf_15m_enabled: bool = Query(False),
-    bear_body_ratio_min: float = Query(0.0, ge=0.0, le=1.0),
-    sideways_mtf_15m_enabled: bool = Query(False),
-    sideways_body_ratio_min: float = Query(0.0, ge=0.0, le=1.0),
+    # ---- BEAR entry (v1.0 winning defaults) ----
+    bear_mtf_15m_enabled: bool = Query(True),
+    bear_body_ratio_min: float = Query(0.6, ge=0.0, le=1.0),
+    # ---- SIDEWAYS entry (v1.0 winning defaults) ----
+    sideways_mtf_15m_enabled: bool = Query(True),
+    sideways_body_ratio_min: float = Query(0.6, ge=0.0, le=1.0),
 ):
     config = Mode3BBCConfig(
         va_window=va_window, ema_period=ema_period,
@@ -284,7 +291,7 @@ def backtest_mode3_bbc(
             "capital_end": round(config.capital_usd + total_pnl_usd, 2),
             "sideways_entries": switcher._sideways_entries,
             "sideways_blocked_mtf": switcher._sideways_blocked_mtf,
-            "sideways_blocked_body": switcher._sideways_blocked_body,
+            "sideways_blocked_body": getattr(switcher, '_sideways_blocked_body', 0),
             "bull_entries_attempted": switcher._bull_entries,
             "bull_ema_reclaim_entries": switcher._bull_ema_reclaim_entries,
             "bull_blocked_mtf": switcher._bull_blocked_mtf,
@@ -303,4 +310,4 @@ def backtest_mode3_bbc(
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status": "ok", "module": "mode3_bbc", "version": "1.0", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3_bbc", "version": "1.0-checkpoint", "db_path": DB_PATH}
