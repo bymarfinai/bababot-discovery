@@ -2,6 +2,7 @@
 
 CHECKPOINT v1.0 (2026-07-14): Winning config as defaults.
 v1.1 (2026-07-14): Wick-based TP+SL exit added (default on).
+v1.2 (2026-07-14): FIX phantom PnL — both wick and closed-confirm exits fill at LEVEL, not close price.
 """
 import os
 from dataclasses import asdict
@@ -126,7 +127,9 @@ def backtest_mode3_bbc(
     tp_pct: float = Query(0.010, ge=0.001, le=0.05),
     sideways_tp_pct: float = Query(0.008, ge=0.0, le=0.05),
     bear_tp_pct: float = Query(0.0, ge=0.0, le=0.05),
-    # ---- Exit style (v1.1: wick-based default) ----
+    # ---- Exit style (v1.2: no phantom PnL — both modes fill at LEVEL) ----
+    # True  = WICK trigger + level fill (aggressive, realistic for limit orders)
+    # False = CLOSED confirmation + level fill (safer, wick tolerance, no phantom)
     use_wick_exit: bool = Query(True),
     entry_usd: float = Query(10.0),
     leverage: float = Query(50.0),
@@ -313,4 +316,4 @@ def backtest_mode3_bbc(
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status": "ok", "module": "mode3_bbc", "version": "1.1-wick-exit", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3_bbc", "version": "1.2-no-phantom", "db_path": DB_PATH}
