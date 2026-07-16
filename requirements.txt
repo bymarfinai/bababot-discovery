@@ -5,3 +5,4 @@ numpy>=1.26.0
 pydantic>=2.9.0,<2.13.0
 ccxt>=4.0.0
 scipy>=1.11.0
+# v2.1 rebuild
