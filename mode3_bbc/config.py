@@ -34,6 +34,12 @@ class Mode3BBCConfig:
     sideways_tp_pct: float = 0.008     # SW TP (v1.0 winner: 0.8%)
     bear_tp_pct: float = 0.0           # 0 = use tp_pct
 
+    # ---- Exit style ----
+    # Wick-based exit: TP/SL trigger on bar wick touch (realistic limit/stop order behavior).
+    # When both TP and SL levels hit in same bar, SL wins (conservative pessimistic sim).
+    # Legacy close-based exit if False.
+    use_wick_exit: bool = True
+
     # ---- Capital & fees ----
     capital_usd: float = 100.0
     entry_usd: float = 10.0
