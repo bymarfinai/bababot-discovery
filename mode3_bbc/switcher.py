@@ -1,7 +1,9 @@
-"""Mode3 BBC Switcher — v1.6: Dual-mode SIDEWAYS.
+"""Mode3 BBC Switcher — v2.1: POC breakout entry for SIDEWAYS.
 
-Counter-trend SW = detector (small size). With-trend SW = trader (full size).
-State transitions work the same regardless of position size.
+POC breakout = trend-following within range. Price breaks through POC (fair value)
+→ enter with momentum direction. SL = candle wick. TP = sideways_tp_pct.
+POC SL → stays SIDEWAYS (intra-range, not boundary break).
+VAH/VAL entries still have priority (detector + state transition role).
 """
 from dataclasses import dataclass, field
 from typing import Optional
@@ -30,7 +32,8 @@ class Position:
     peak_high: float = 0.0; trough_low: float = 1e18
     ema_at_entry: float = 0.0; entry_trigger: str = ''
     be_triggered: bool = False; original_sl: float = 0.0
-    size_ratio: float = 1.0  # v1.6: 1.0 = full size, <1.0 = detector
+    size_ratio: float = 1.0
+    is_poc_entry: bool = False  # v2.1: POC entries don't trigger state transitions on SL
 
 @dataclass
 class Trade:
@@ -56,6 +59,7 @@ class Switcher:
         self._sideways_entries = 0; self._sideways_blocked_mtf = 0; self._sideways_blocked_body = 0
         self._sideways_blocked_ema = 0; self._sideways_blocked_min_sl = 0
         self._sideways_detector_entries = 0; self._sideways_trader_entries = 0
+        self._sideways_poc_breakout_entries = 0
         self._bull_entries = 0; self._bear_entries = 0
         self._bull_ema_reclaim_entries = 0; self._bull_poc_bounce_entries = 0
         self._bull_swing_break_entries = 0; self._bull_retest_entries = 0; self._bull_26_bounce_entries = 0
@@ -111,25 +115,35 @@ class Switcher:
         pos = self.position
         if self.config.use_wick_exit:
             if pos.side == 'SHORT':
-                if h > pos.sl_level: et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_short(et); return
-                if l <= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_short('TP'); return
+                if h > pos.sl_level: et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_short(et, pos.is_poc_entry); return
+                if l <= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_short('TP', pos.is_poc_entry); return
             else:
-                if l < pos.sl_level: et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_long(et); return
-                if h >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP'); return
+                if l < pos.sl_level: et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_long(et, pos.is_poc_entry); return
+                if h >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP', pos.is_poc_entry); return
         else:
             if pos.side == 'SHORT':
-                if c > pos.sl_level: et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_short(et); return
-                if c <= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_short('TP'); return
+                if c > pos.sl_level: et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_short(et, pos.is_poc_entry); return
+                if c <= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_short('TP', pos.is_poc_entry); return
             else:
-                if c < pos.sl_level: et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_long(et); return
-                if c >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP'); return
+                if c < pos.sl_level: et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_long(et, pos.is_poc_entry); return
+                if c >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP', pos.is_poc_entry); return
 
-    def _post_exit_sideways_short(self, et):
-        if et in ('SL', 'BE'): self.state = 'BULL'; self.bull_stay_warmup = False; self.markers.hh_breach_case = 'none'; self._reset_retest()
-        else: self.state = 'SIDEWAYS'
-    def _post_exit_sideways_long(self, et):
-        if et in ('SL', 'BE'): self.state = 'BEAR'; self.bear_stay_warmup = False; self.markers.ll_breach_case = 'none'
-        else: self.state = 'SIDEWAYS'
+    def _post_exit_sideways_short(self, et, is_poc=False):
+        if is_poc:
+            # POC entries: always stay SIDEWAYS (intra-range, not boundary break)
+            self.state = 'SIDEWAYS'
+        elif et in ('SL', 'BE'):
+            self.state = 'BULL'; self.bull_stay_warmup = False; self.markers.hh_breach_case = 'none'; self._reset_retest()
+        else:
+            self.state = 'SIDEWAYS'
+
+    def _post_exit_sideways_long(self, et, is_poc=False):
+        if is_poc:
+            self.state = 'SIDEWAYS'
+        elif et in ('SL', 'BE'):
+            self.state = 'BEAR'; self.bear_stay_warmup = False; self.markers.ll_breach_case = 'none'
+        else:
+            self.state = 'SIDEWAYS'
 
     def _exit_bull(self, bar_idx, h, l, c):
         pos = self.position
@@ -172,12 +186,17 @@ class Switcher:
         if bar_range <= 0: return False
         return abs(c - o) / bar_range >= self.config.sideways_body_ratio_min
 
+    def _check_poc_body_ratio(self, o, h, l, c):
+        bar_range = h - l
+        if bar_range <= 0: return False
+        return abs(c - o) / bar_range >= self.config.sideways_poc_body_ratio_min
+
     def _is_sw_with_trend(self, side, c, ema20):
-        """Check if SW entry is with-trend (SHORT below EMA, LONG above EMA)."""
         if side == 'SHORT': return c < ema20
         return c > ema20
 
     def _entry_sideways(self, bar_idx, o, h, l, c, ema20, vah, val):
+        # Priority 1: VAH/VAL boundary entries (detector role)
         short_ok = (h >= vah) and (c <= vah)
         long_ok = (l <= val) and (c >= val)
         if self.config.sideways_ema_filter_enabled:
@@ -188,9 +207,48 @@ class Switcher:
                 if c > ema20: short_ok = False
                 else: long_ok = False
         if (short_ok or long_ok) and self.config.sideways_body_ratio_min > 0:
-            if not self._check_sideways_body_ratio(o, h, l, c): self._sideways_blocked_body += 1; return
-        if short_ok: self._open_short_sideways(bar_idx, h, l, c, ema20)
-        elif long_ok: self._open_long_sideways(bar_idx, h, l, c, ema20)
+            if not self._check_sideways_body_ratio(o, h, l, c): self._sideways_blocked_body += 1; short_ok = False; long_ok = False
+        if short_ok: self._open_short_sideways(bar_idx, h, l, c, ema20); return
+        if long_ok: self._open_long_sideways(bar_idx, h, l, c, ema20); return
+
+        # Priority 2: POC breakout (trend-following, no state transition on SL)
+        if self.config.sideways_poc_breakout_enabled:
+            self._try_poc_breakout(bar_idx, o, h, l, c)
+
+    def _try_poc_breakout(self, bar_idx, o, h, l, c):
+        """POC breakout: price breaks through fair value with momentum."""
+        poc = self._current_poc
+        if poc is None or poc <= 0: return
+
+        # Body ratio check
+        if not self._check_poc_body_ratio(o, h, l, c): return
+
+        tp_pct = self.config.sideways_tp_pct if self.config.sideways_tp_pct > 0 else self.config.tp_pct
+
+        # POC breakout LONG: price crosses POC from below
+        if l <= poc and c > poc and c > o:
+            entry_price = c
+            sl_price = l  # candle low as SL
+            if self.config.sideways_sl_pct > 0:
+                sl_price = entry_price * (1.0 - self.config.sideways_sl_pct)
+            self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
+                entry_high=c, entry_low=sl_price, sl_level=sl_price, original_sl=sl_price,
+                tp_level=entry_price * (1.0 + tp_pct), peak_high=c, trough_low=sl_price,
+                ema_at_entry=self._current_ema20, entry_trigger='poc_breakout', is_poc_entry=True)
+            self._sideways_entries += 1; self._sideways_poc_breakout_entries += 1
+            return
+
+        # POC breakout SHORT: price crosses POC from above
+        if h >= poc and c < poc and c < o:
+            entry_price = c
+            sl_price = h  # candle high as SL
+            if self.config.sideways_sl_pct > 0:
+                sl_price = entry_price * (1.0 + self.config.sideways_sl_pct)
+            self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
+                entry_high=sl_price, entry_low=c, sl_level=sl_price, original_sl=sl_price,
+                tp_level=entry_price * (1.0 - tp_pct), peak_high=sl_price, trough_low=c,
+                ema_at_entry=self._current_ema20, entry_trigger='poc_breakout', is_poc_entry=True)
+            self._sideways_entries += 1; self._sideways_poc_breakout_entries += 1
 
     def _get_mtf_sideways_short(self, bar_idx):
         if self.mtf_sideways_short_entry_close is None: return None, None
@@ -213,14 +271,10 @@ class Switcher:
         sl_dist = abs(sl_price - entry_price) / entry_price
         if self.config.sideways_min_sl_dist_pct > 0 and sl_dist < self.config.sideways_min_sl_dist_pct:
             self._sideways_blocked_min_sl += 1; return
-        # v1.6: dual-mode size
         size_ratio = 1.0
         if self.config.sideways_dual_mode_enabled:
-            if self._is_sw_with_trend('SHORT', entry_price, ema20):
-                self._sideways_trader_entries += 1
-            else:
-                size_ratio = self.config.sideways_detector_size_ratio
-                self._sideways_detector_entries += 1
+            if self._is_sw_with_trend('SHORT', entry_price, ema20): self._sideways_trader_entries += 1
+            else: size_ratio = self.config.sideways_detector_size_ratio; self._sideways_detector_entries += 1
         self.markers.marker_high_short = sl_price; self.markers.marker_close_short = entry_price
         self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
             entry_high=sl_price, entry_low=l, sl_level=sl_price, original_sl=sl_price,
@@ -242,11 +296,8 @@ class Switcher:
             self._sideways_blocked_min_sl += 1; return
         size_ratio = 1.0
         if self.config.sideways_dual_mode_enabled:
-            if self._is_sw_with_trend('LONG', entry_price, ema20):
-                self._sideways_trader_entries += 1
-            else:
-                size_ratio = self.config.sideways_detector_size_ratio
-                self._sideways_detector_entries += 1
+            if self._is_sw_with_trend('LONG', entry_price, ema20): self._sideways_trader_entries += 1
+            else: size_ratio = self.config.sideways_detector_size_ratio; self._sideways_detector_entries += 1
         self.markers.marker_low_long = sl_price; self.markers.marker_close_long = entry_price
         self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
             entry_high=h, entry_low=sl_price, sl_level=sl_price, original_sl=sl_price,
@@ -386,7 +437,6 @@ class Switcher:
         if pos.side == 'LONG': pnl_pct = (exit_price - pos.entry_price) / pos.entry_price
         else: pnl_pct = (pos.entry_price - exit_price) / pos.entry_price
         pnl_pct_net = pnl_pct - self.config.total_cost_pct()
-        # v1.6: scale PnL by position size_ratio
         pnl_usd = pnl_pct_net * self.config.notional() * pos.size_ratio
         self.trades.append(Trade(tool=pos.tool, side=pos.side, entry_price=pos.entry_price, exit_price=exit_price,
             entry_bar=pos.entry_bar, exit_bar=bar_idx, exit_type=exit_type, pnl_pct=pnl_pct_net, pnl_usd=pnl_usd,
