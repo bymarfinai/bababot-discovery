@@ -1,57 +1,12 @@
 """Mode3 BBC Config — Bull Bear Continuation variant.
 
 ═══════════════════════════════════════════════════════════════
-CHECKPOINT v2.0 (2026-07-16)
+CHECKPOINT v2.0 (2026-07-16) + v2.1 POC Breakout
 ═══════════════════════════════════════════════════════════════
-
-Backtest: 4 pair (BTC/ETH/BNB/SOL), 1h TF, 925 days, wick exit, level fill (no phantom PnL).
-
-PRESETS (BULL/BEAR TP×SL — choose via full sweep):
-
-  Preset A — Max PnL at WR≥70%:
-    BULL: TP 1.3% × SL 2.0% → WR 77.4%, PnL $1,325, Edge +16.8%
-    BEAR: TP 1.5% × SL 2.0% → WR 72.2%, PnL $1,149, Edge +15.1%
-    SW:   as-is → PnL ~$280
-    Total: ~$2,754
-
-  Preset B — Symmetric R:R 1:1 (DEFAULT):
-    BULL: TP 1.3% × SL 1.3% → WR 70.8%, PnL $1,306, Edge +20.8%
-    BEAR: TP 1.3% × SL 1.3% → WR 69.5%, PnL $1,121, Edge +19.5%
-    SW:   as-is → PnL ~$280
-    Total: ~$2,756
-
-  Preset C — Max Edge (tightest):
-    BULL: TP 1.0% × SL 0.8% → WR 70.0%, PnL $1,066, Edge +25.6%
-    BEAR: TP 0.8% × SL 0.8% → WR 72.6%, PnL $721, Edge +22.6%
-    SW:   as-is → PnL ~$280
-    Total: ~$2,067
-
-  Preset D — Max PnL (low WR, high R:R):
-    BULL/BEAR: TP 4.0% × SL 1.3% → WR 42%, PnL $3,518
-    SW:   body 0.5, TP 1.5% → PnL $283
-    Total: ~$3,801
-
-FIXED PARAMS (all presets):
-  - use_wick_exit = True           (realistic limit/stop order sim)
-  - bull_mtf_15m_enabled = True    (15m entry precision)
-  - bear_mtf_15m_enabled = True
-  - sideways_mtf_15m_enabled = True
-  - bull_body_ratio_min = 0.7      (sweep candle filter)
-  - bear_body_ratio_min = 0.6      (bearish sharp/impulsive)
-  - sideways_body_ratio_min = 0.5  (v2.0 updated from 0.6)
-  - sideways_tp_pct = 0.015        (SW TP 1.5%)
-  - sideways_sl_pct = 0.0          (wick-based, keep)
-
-KEY DISCOVERIES (v1.0→v2.0):
-  - v1.2: phantom PnL bug fix (exit at LEVEL, not close price)
-  - v1.3: fixed SL override (sl_pct) — enables TP×SL grid sweep
-  - v1.4: move-to-BE trailing — REJECTED (kills trend winners)
-  - v1.5: SW EMA filter — improves SW WR +12% but kills cascade
-  - v1.6: SW dual-mode — works mechanically but baseline better
-  - MTF 15m CRITICAL even with fixed SL (entry quality, not just SL)
-  - BULL 100% winners had EMA rising during trade
-  - SW 97% losers were counter-trend entries (essential for detection)
-  - Funding rate impact ~3% ($82/925d) — manageable
+v2.1: SIDEWAYS POC breakout — trend-following entry at fair value break.
+  Price breaks through POC = shift of control → enter with trend.
+  POC SL → stays SIDEWAYS (intra-range, not boundary break).
+  Only 1 position at a time (skip if already open).
 """
 from dataclasses import dataclass
 
@@ -88,14 +43,14 @@ class Mode3BBCConfig:
     startup_warmup_candles: int = 51
 
     # ── Take-profit (Preset B default) ──
-    tp_pct: float = 0.013              # BULL TP 1.3%
-    sideways_tp_pct: float = 0.015     # SW TP 1.5%
-    bear_tp_pct: float = 0.0           # 0 = use tp_pct
+    tp_pct: float = 0.013
+    sideways_tp_pct: float = 0.015
+    bear_tp_pct: float = 0.0
 
     # ── Stop-loss (Preset B default) ──
-    sl_pct: float = 0.013              # BULL SL 1.3%
-    sideways_sl_pct: float = 0.0       # SW SL wick
-    bear_sl_pct: float = 0.0           # 0 = use sl_pct
+    sl_pct: float = 0.013
+    sideways_sl_pct: float = 0.0
+    bear_sl_pct: float = 0.0
 
     # ── Trailing ──
     trail_to_be_trigger_pct: float = 0.0
@@ -134,11 +89,20 @@ class Mode3BBCConfig:
 
     # ── SIDEWAYS entry ──
     sideways_mtf_15m_enabled: bool = True
-    sideways_body_ratio_min: float = 0.5     # v2.0: updated from 0.6
+    sideways_body_ratio_min: float = 0.5
     sideways_ema_filter_enabled: bool = False
     sideways_min_sl_dist_pct: float = 0.0
     sideways_dual_mode_enabled: bool = False
     sideways_detector_size_ratio: float = 0.1
+
+    # ── SIDEWAYS POC breakout (v2.1) ──
+    # Trend-following entry when price breaks through POC (fair value).
+    # POC break UP + bullish candle → LONG. POC break DOWN + bearish → SHORT.
+    # SL = candle wick (or fixed sideways_sl_pct). TP = sideways_tp_pct.
+    # POC SL → stays SIDEWAYS (no state transition, intra-range trade).
+    # Only fires if no position open (1 trade at a time).
+    sideways_poc_breakout_enabled: bool = False
+    sideways_poc_body_ratio_min: float = 0.5   # body ratio for POC breakout candle
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
