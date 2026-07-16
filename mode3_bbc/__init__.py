@@ -1,4 +1,4 @@
-"""Mode3 BBC (Bull Bear Continuation) — Basic mode3 core WITHOUT filters.
+"""Mode3 BBC (Bull Bear Continuation) — v2.1 with POC breakout.
 Reuses indicators from mode3 module.
 """
 from .config import Mode3BBCConfig
