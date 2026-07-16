@@ -1,5 +1,9 @@
 """Mode3 BBC Switcher — state machine with opt-in signal quality options.
-BULL/BEAR/SIDEWAYS all support MTF 15m precision, body ratio filter, and wick-based exits.
+BULL/BEAR/SIDEWAYS all support MTF 15m precision, body ratio filter.
+
+Exit modes (both fill at LEVEL, not at close price — no phantom PnL):
+  use_wick_exit=True:  WICK trigger (bar wick touches level) + level fill
+  use_wick_exit=False: CLOSED confirmation (candle closes past level) + level fill
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -152,9 +156,10 @@ class Switcher:
             self._exit_bear(bar_idx, h, l, c)
 
     def _exit_sideways(self, bar_idx, h, l, c):
+        """SIDEWAYS exit: wick or closed-confirm mode, both fill at LEVEL."""
         pos = self.position
         if self.config.use_wick_exit:
-            # Wick-based exit: check SL first (worst case tie-breaker)
+            # WICK trigger: SL first (worst case)
             if pos.side == 'SHORT':
                 if h > pos.sl_level:
                     self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_sideways_short('SL'); return
@@ -166,17 +171,17 @@ class Switcher:
                 if h >= pos.tp_level:
                     self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP'); return
         else:
-            # Legacy close-based
+            # CLOSED confirmation: candle must close past level, fill at LEVEL (no phantom bonus)
             if pos.side == 'SHORT':
                 if c > pos.sl_level:
-                    self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_short('SL'); return
+                    self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_sideways_short('SL'); return
                 if c <= pos.tp_level:
-                    self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_short('TP'); return
+                    self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_short('TP'); return
             else:
                 if c < pos.sl_level:
-                    self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_long('SL'); return
+                    self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_sideways_long('SL'); return
                 if c >= pos.tp_level:
-                    self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_long('TP'); return
+                    self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP'); return
 
     def _post_exit_sideways_short(self, et):
         if et == 'SL':
@@ -196,16 +201,17 @@ class Switcher:
     def _exit_bull(self, bar_idx, h, l, c):
         pos = self.position
         if self.config.use_wick_exit:
-            # Wick-based: SL first (worst case)
+            # WICK trigger: SL first
             if l < pos.sl_level:
                 self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_bull('SL'); return
             if h >= pos.tp_level:
                 self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bull('TP'); return
         else:
+            # CLOSED confirmation, fill at LEVEL
             if c < pos.sl_level:
-                self._close_position(bar_idx, c, 'SL'); self._post_exit_bull('SL'); return
+                self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_bull('SL'); return
             if c >= pos.tp_level:
-                self._close_position(bar_idx, c, 'TP'); self._post_exit_bull('TP'); return
+                self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bull('TP'); return
 
     def _post_exit_bull(self, et):
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
@@ -219,16 +225,16 @@ class Switcher:
     def _exit_bear(self, bar_idx, h, l, c):
         pos = self.position
         if self.config.use_wick_exit:
-            # Wick-based: SL first (worst case)
             if h > pos.sl_level:
                 self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_bear('SL'); return
             if l <= pos.tp_level:
                 self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bear('TP'); return
         else:
+            # CLOSED confirmation, fill at LEVEL
             if c > pos.sl_level:
-                self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
+                self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_bear('SL'); return
             if c <= pos.tp_level:
-                self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
+                self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bear('TP'); return
 
     def _post_exit_bear(self, et):
         last_trough = self.position.trough_low if self.position else self.trades[-1].trough_low
