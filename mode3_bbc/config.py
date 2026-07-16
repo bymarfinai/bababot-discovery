@@ -1,8 +1,7 @@
 """Mode3 BBC Config — Bull Bear Continuation variant.
 
-CHECKPOINT v1.0 (2026-07-14): Winning config discovered via sweep exploration.
-v1.2 (2026-07-14): No-phantom exits (level fill for both wick and closed modes).
-v1.3 (2026-07-15): Add fixed SL % override — sl_pct / sideways_sl_pct.
+v1.3 (2026-07-15): Fixed SL overrides + sweepable.
+v1.4 (2026-07-16): Move-to-BE trailing stop.
 """
 from dataclasses import dataclass
 
@@ -21,11 +20,15 @@ class Mode3BBCConfig:
     bear_tp_pct: float = 0.0
 
     # ---- Stop-loss ----
-    # If > 0, override wick-based SL with fixed % below (LONG) / above (SHORT) entry.
-    # If 0, use wick-based SL (default: MTF 15m low/high, else bar wick).
-    sl_pct: float = 0.0                 # BULL/BEAR fixed SL
-    sideways_sl_pct: float = 0.0        # SIDEWAYS fixed SL
-    bear_sl_pct: float = 0.0            # BEAR-specific override (0 = use sl_pct)
+    sl_pct: float = 0.0
+    sideways_sl_pct: float = 0.0
+    bear_sl_pct: float = 0.0
+
+    # ---- Move-to-BE trailing ----
+    # When unrealized profit reaches trigger %, SL moves to entry price (break-even).
+    # 0 = disabled. Applies to BULL/BEAR. sideways_trail_to_be_trigger_pct for SW.
+    trail_to_be_trigger_pct: float = 0.0
+    sideways_trail_to_be_trigger_pct: float = 0.0
 
     # ---- Exit style ----
     use_wick_exit: bool = True
@@ -41,7 +44,6 @@ class Mode3BBCConfig:
     bull_mtf_15m_enabled: bool = True
     bull_body_ratio_min: float = 0.7
 
-    # BULL optional experiments (default off)
     bull_poc_entry_enabled: bool = False
     bull_poc_max_distance_pct: float = 0.02
     bull_wait_retest_enabled: bool = False
