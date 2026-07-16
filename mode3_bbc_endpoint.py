@@ -1,7 +1,7 @@
 """Mode3 BBC Backtest Endpoint — /mode3_bbc/backtest.
 
 CHECKPOINT v1.0 (2026-07-14): Winning config as defaults.
-Calling /mode3_bbc/backtest without params uses winning config that beats Champion by $327.
+v1.1 (2026-07-14): Wick-based TP+SL exit added (default on).
 """
 import os
 from dataclasses import asdict
@@ -126,6 +126,8 @@ def backtest_mode3_bbc(
     tp_pct: float = Query(0.010, ge=0.001, le=0.05),
     sideways_tp_pct: float = Query(0.008, ge=0.0, le=0.05),
     bear_tp_pct: float = Query(0.0, ge=0.0, le=0.05),
+    # ---- Exit style (v1.1: wick-based default) ----
+    use_wick_exit: bool = Query(True),
     entry_usd: float = Query(10.0),
     leverage: float = Query(50.0),
     fee_pct: float = Query(0.001),
@@ -157,6 +159,7 @@ def backtest_mode3_bbc(
         va_window=va_window, ema_period=ema_period,
         tp_pct=tp_pct, sideways_tp_pct=sideways_tp_pct,
         bear_tp_pct=bear_tp_pct,
+        use_wick_exit=use_wick_exit,
         entry_usd=entry_usd, leverage=leverage,
         fee_pct_roundtrip=fee_pct, slippage_pct=slippage_pct,
         bull_poc_entry_enabled=bull_poc_entry_enabled,
@@ -310,4 +313,4 @@ def backtest_mode3_bbc(
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status": "ok", "module": "mode3_bbc", "version": "1.0-checkpoint", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3_bbc", "version": "1.1-wick-exit", "db_path": DB_PATH}
