@@ -1,9 +1,7 @@
 """Mode3 BBC Config — Bull Bear Continuation variant.
 
-v1.4: Move-to-BE trailing.
-v1.5 (2026-07-16): SW with-trend mean-reversion entry.
-  - sideways_ema_filter_enabled: SHORT only below EMA, LONG only above EMA
-  - sideways_min_sl_dist_pct: block entries with SL distance too tight
+v1.5: SW with-trend EMA filter + min SL distance.
+v1.6 (2026-07-16): SW dual-mode — detector (counter-trend, small size) vs trader (with-trend, full size).
 """
 from dataclasses import dataclass
 
@@ -59,16 +57,15 @@ class Mode3BBCConfig:
     # ---- SIDEWAYS ----
     sideways_mtf_15m_enabled: bool = True
     sideways_body_ratio_min: float = 0.6
-
-    # With-trend mean-reversion filter (v1.5):
-    # SHORT only when close < EMA (downtrend → revert from VAH)
-    # LONG only when close > EMA (uptrend → revert from VAL)
-    # Blocks counter-trend entries that cause 97% of losses
     sideways_ema_filter_enabled: bool = False
-
-    # Minimum SL distance filter (v1.5):
-    # Block entry if SL distance < threshold. Tight SL (<0.15%) has 14% WR.
     sideways_min_sl_dist_pct: float = 0.0
+
+    # Dual-mode SW (v1.6):
+    # When enabled, counter-trend SW entries use reduced position size (detector role).
+    # With-trend entries use full size (trader role).
+    # State transitions work the same regardless of size.
+    sideways_dual_mode_enabled: bool = False
+    sideways_detector_size_ratio: float = 0.1  # 10% of entry_usd for detector entries
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
