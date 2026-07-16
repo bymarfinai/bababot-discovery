@@ -4,6 +4,10 @@ BULL/BEAR/SIDEWAYS all support MTF 15m precision, body ratio filter.
 Exit modes (both fill at LEVEL, not at close price — no phantom PnL):
   use_wick_exit=True:  WICK trigger (bar wick touches level) + level fill
   use_wick_exit=False: CLOSED confirmation (candle closes past level) + level fill
+
+SL modes:
+  sl_pct=0 (default):     wick-based SL (MTF 15m low/high, or bar wick)
+  sl_pct>0:               fixed % SL below/above entry (overrides wick)
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -156,22 +160,19 @@ class Switcher:
             self._exit_bear(bar_idx, h, l, c)
 
     def _exit_sideways(self, bar_idx, h, l, c):
-        """SIDEWAYS exit: wick or closed-confirm mode, both fill at LEVEL."""
         pos = self.position
         if self.config.use_wick_exit:
-            # WICK trigger: SL first (worst case)
             if pos.side == 'SHORT':
                 if h > pos.sl_level:
                     self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_sideways_short('SL'); return
                 if l <= pos.tp_level:
                     self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_short('TP'); return
-            else:  # LONG
+            else:
                 if l < pos.sl_level:
                     self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_sideways_long('SL'); return
                 if h >= pos.tp_level:
                     self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP'); return
         else:
-            # CLOSED confirmation: candle must close past level, fill at LEVEL (no phantom bonus)
             if pos.side == 'SHORT':
                 if c > pos.sl_level:
                     self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_sideways_short('SL'); return
@@ -201,13 +202,11 @@ class Switcher:
     def _exit_bull(self, bar_idx, h, l, c):
         pos = self.position
         if self.config.use_wick_exit:
-            # WICK trigger: SL first
             if l < pos.sl_level:
                 self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_bull('SL'); return
             if h >= pos.tp_level:
                 self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bull('TP'); return
         else:
-            # CLOSED confirmation, fill at LEVEL
             if c < pos.sl_level:
                 self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_bull('SL'); return
             if c >= pos.tp_level:
@@ -230,7 +229,6 @@ class Switcher:
             if l <= pos.tp_level:
                 self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bear('TP'); return
         else:
-            # CLOSED confirmation, fill at LEVEL
             if c > pos.sl_level:
                 self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_bear('SL'); return
             if c <= pos.tp_level:
@@ -305,6 +303,9 @@ class Switcher:
                 return
             entry_price = mtf_c
             sl_price = mtf_h
+        # Override SL with fixed % if configured
+        if self.config.sideways_sl_pct > 0:
+            sl_price = entry_price * (1.0 + self.config.sideways_sl_pct)
         self.markers.marker_high_short = sl_price
         self.markers.marker_close_short = entry_price
         self.position = Position(
@@ -326,6 +327,9 @@ class Switcher:
                 return
             entry_price = mtf_c
             sl_price = mtf_l
+        # Override SL with fixed % if configured
+        if self.config.sideways_sl_pct > 0:
+            sl_price = entry_price * (1.0 - self.config.sideways_sl_pct)
         self.markers.marker_low_long = sl_price
         self.markers.marker_close_long = entry_price
         self.position = Position(
@@ -526,6 +530,9 @@ class Switcher:
         self._open_bull(bar_idx, h, sl_price, entry_price, trigger)
 
     def _open_bull(self, bar_idx, entry_high, sl_level, entry_price, trigger='ema_reclaim'):
+        # Override SL with fixed % if configured
+        if self.config.sl_pct > 0:
+            sl_level = entry_price * (1.0 - self.config.sl_pct)
         tp_level = entry_price * (1.0 + self.config.tp_pct)
         self.position = Position(
             tool='BULL', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
@@ -586,6 +593,10 @@ class Switcher:
         self._open_bear(bar_idx, h, l, sl_price, entry_price)
 
     def _open_bear(self, bar_idx, entry_high, entry_low, sl_level, entry_price):
+        # Override SL with fixed % if configured
+        bear_sl_pct = self.config.get_bear_sl_pct()
+        if bear_sl_pct > 0:
+            sl_level = entry_price * (1.0 + bear_sl_pct)
         tp_level = entry_price * (1.0 - self.config.get_bear_tp_pct())
         self.position = Position(
             tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
