@@ -1,11 +1,8 @@
-"""Mode3 BBC Backtest Endpoint — /mode3_bbc/backtest.
-v1.5 (2026-07-16): SW with-trend EMA filter + min SL distance.
-"""
+"""Mode3 BBC Backtest Endpoint — v1.6: Dual-mode SW."""
 import os
 from dataclasses import asdict
 from fastapi import APIRouter, Query
-import sqlite3
-import numpy as np
+import sqlite3, numpy as np
 from datetime import datetime
 from mode3_bbc import Mode3BBCConfig, Switcher, compute_ema_series, compute_va_at_bar
 
@@ -69,19 +66,21 @@ def backtest_mode3_bbc(
     bear_sl_pct:float=Query(0.0,ge=0.0,le=0.05),
     trail_to_be_trigger_pct:float=Query(0.0,ge=0.0,le=0.05),
     sideways_trail_to_be_trigger_pct:float=Query(0.0,ge=0.0,le=0.05),
-    # v1.5: SW with-trend filter
     sideways_ema_filter_enabled:bool=Query(False),
     sideways_min_sl_dist_pct:float=Query(0.0,ge=0.0,le=0.05),
+    # v1.6: dual-mode SW
+    sideways_dual_mode_enabled:bool=Query(False),
+    sideways_detector_size_ratio:float=Query(0.1,ge=0.0,le=1.0),
     use_wick_exit:bool=Query(True),
     entry_usd:float=Query(10.0), leverage:float=Query(50.0),
     fee_pct:float=Query(0.001), slippage_pct:float=Query(0.0005),
     bull_mtf_15m_enabled:bool=Query(True), bull_body_ratio_min:float=Query(0.7,ge=0.0,le=1.0),
-    bull_poc_entry_enabled:bool=Query(False), bull_poc_max_distance_pct:float=Query(0.02,ge=0.001,le=0.10),
-    bull_wait_retest_enabled:bool=Query(False), bull_retest_swing_lookback:int=Query(20,ge=5,le=200),
-    bull_retest_tolerance_pct:float=Query(0.003,ge=0.0,le=0.05), bull_retest_max_bars:int=Query(5,ge=1,le=20),
-    bull_use_swing_break:bool=Query(False), bull_swing_lookback:int=Query(20,ge=5,le=200),
-    bull_use_26_support:bool=Query(False), bull_26_lookback:int=Query(50,ge=10,le=200),
-    bull_26_ratio:float=Query(2.6,ge=1.5,le=5.0), bull_26_tolerance_pct:float=Query(0.003,ge=0.0,le=0.05),
+    bull_poc_entry_enabled:bool=Query(False), bull_poc_max_distance_pct:float=Query(0.02),
+    bull_wait_retest_enabled:bool=Query(False), bull_retest_swing_lookback:int=Query(20),
+    bull_retest_tolerance_pct:float=Query(0.003), bull_retest_max_bars:int=Query(5),
+    bull_use_swing_break:bool=Query(False), bull_swing_lookback:int=Query(20),
+    bull_use_26_support:bool=Query(False), bull_26_lookback:int=Query(50),
+    bull_26_ratio:float=Query(2.6), bull_26_tolerance_pct:float=Query(0.003),
     bear_mtf_15m_enabled:bool=Query(True), bear_body_ratio_min:float=Query(0.6,ge=0.0,le=1.0),
     sideways_mtf_15m_enabled:bool=Query(True), sideways_body_ratio_min:float=Query(0.6,ge=0.0,le=1.0),
 ):
@@ -93,6 +92,8 @@ def backtest_mode3_bbc(
         sideways_trail_to_be_trigger_pct=sideways_trail_to_be_trigger_pct,
         sideways_ema_filter_enabled=sideways_ema_filter_enabled,
         sideways_min_sl_dist_pct=sideways_min_sl_dist_pct,
+        sideways_dual_mode_enabled=sideways_dual_mode_enabled,
+        sideways_detector_size_ratio=sideways_detector_size_ratio,
         use_wick_exit=use_wick_exit, entry_usd=entry_usd, leverage=leverage,
         fee_pct_roundtrip=fee_pct, slippage_pct=slippage_pct,
         bull_poc_entry_enabled=bull_poc_entry_enabled, bull_poc_max_distance_pct=bull_poc_max_distance_pct,
@@ -135,7 +136,7 @@ def backtest_mode3_bbc(
         tt=[t for t in trades if t.tool==tool]
         if tt:
             tw=[t for t in tt if t.pnl_usd>0]
-            tool_stats[tool]={"count":len(tt),"wr_pct":round(100.0*len(tw)/len(tt),2),"pnl_usd":round(sum(t.pnl_usd for t in tt),2),"pnl_pct":round(sum(t.pnl_pct for t in tt)*100,3)}
+            tool_stats[tool]={"count":len(tt),"wr_pct":round(100.0*len(tw)/len(tt),2),"pnl_usd":round(sum(t.pnl_usd for t in tt),2)}
     exit_type_breakdown={}
     for t in trades: exit_type_breakdown[t.exit_type]=exit_type_breakdown.get(t.exit_type,0)+1
     trade_list=[{"tool":t.tool,"side":t.side,"entry_price":round(t.entry_price,2),"exit_price":round(t.exit_price,2),
@@ -149,12 +150,13 @@ def backtest_mode3_bbc(
         "summary":{"total_trades":n,"win_rate_pct":round(wr,2),"wins":len(wins),"losses":len(losses),
             "total_pnl_usd":round(total_pnl_usd,2),"capital_start":config.capital_usd,
             "capital_end":round(config.capital_usd+total_pnl_usd,2),
+            "sideways_detector_entries":switcher._sideways_detector_entries,
+            "sideways_trader_entries":switcher._sideways_trader_entries,
             "sideways_blocked_ema":switcher._sideways_blocked_ema,
             "sideways_blocked_min_sl":switcher._sideways_blocked_min_sl,
-            "be_triggered":switcher._be_triggered_count,"be_exits":switcher._be_exit_count,
             "exit_type_breakdown":exit_type_breakdown},
         "per_tool":tool_stats,"trades":trade_list,"final_state":switcher.state}
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status":"ok","module":"mode3_bbc","version":"1.5-sw-entry","db_path":DB_PATH}
+    return {"status":"ok","module":"mode3_bbc","version":"1.6-dual-sw","db_path":DB_PATH}
