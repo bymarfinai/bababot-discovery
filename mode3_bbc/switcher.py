@@ -1,16 +1,8 @@
 """Mode3 BBC Switcher — state machine with opt-in signal quality options.
 
-Exit modes (both fill at LEVEL, not at close price — no phantom PnL):
-  use_wick_exit=True:  WICK trigger + level fill
-  use_wick_exit=False: CLOSED confirmation + level fill
-
-SL modes:
-  sl_pct=0:  wick-based SL (MTF 15m low/high, or bar wick)
-  sl_pct>0:  fixed % SL override
-
-Move-to-BE trailing:
-  trail_to_be_trigger_pct>0: when unrealized profit reaches trigger %,
-  SL moves to entry price (break-even). Exit type = 'BE'.
+v1.5: With-trend mean-reversion for SIDEWAYS.
+  - sideways_ema_filter: SHORT only below EMA, LONG only above EMA
+  - sideways_min_sl_dist: block entries with wick SL too tight
 """
 from dataclasses import dataclass, field
 from typing import Optional
@@ -40,40 +32,20 @@ class MarkerState:
 
 @dataclass
 class Position:
-    tool: str
-    side: str
-    entry_price: float
-    entry_bar: int
-    entry_high: float
-    entry_low: float
-    sl_level: float
-    tp_level: float
-    peak_high: float = 0.0
-    trough_low: float = 1e18
-    ema_at_entry: float = 0.0
-    entry_trigger: str = ''
-    be_triggered: bool = False
-    original_sl: float = 0.0
+    tool: str; side: str; entry_price: float; entry_bar: int
+    entry_high: float; entry_low: float; sl_level: float; tp_level: float
+    peak_high: float = 0.0; trough_low: float = 1e18
+    ema_at_entry: float = 0.0; entry_trigger: str = ''
+    be_triggered: bool = False; original_sl: float = 0.0
 
 
 @dataclass
 class Trade:
-    tool: str
-    side: str
-    entry_price: float
-    exit_price: float
-    entry_bar: int
-    exit_bar: int
-    exit_type: str
-    pnl_pct: float
-    pnl_usd: float
-    peak_high: float
-    trough_low: float
-    sl_level: float = 0.0
-    tp_level: float = 0.0
-    ema_at_entry: float = 0.0
-    ema_at_exit: float = 0.0
-    entry_trigger: str = ''
+    tool: str; side: str; entry_price: float; exit_price: float
+    entry_bar: int; exit_bar: int; exit_type: str
+    pnl_pct: float; pnl_usd: float; peak_high: float; trough_low: float
+    sl_level: float = 0.0; tp_level: float = 0.0
+    ema_at_entry: float = 0.0; ema_at_exit: float = 0.0; entry_trigger: str = ''
 
 
 class Switcher:
@@ -88,66 +60,38 @@ class Switcher:
         self.startup_bias = None
         self._action_taken_this_bar = False
         self._current_ema20 = 0.0
-        self._current_vah = None
-        self._current_val = None
-        self._current_poc = None
-        self.mtf_bull_entry_close = None
-        self.mtf_bull_entry_low = None
-        self.mtf_bear_entry_close = None
-        self.mtf_bear_entry_high = None
-        self.mtf_sideways_short_entry_close = None
-        self.mtf_sideways_short_entry_high = None
-        self.mtf_sideways_long_entry_close = None
-        self.mtf_sideways_long_entry_low = None
-        self._high_deque = deque(maxlen=200)
-        self._low_deque = deque(maxlen=200)
-        self._bull_retest_pending = False
-        self._bull_retest_bar_count = 0
-        self._bull_broken_level = None
-        self._sideways_entries = 0
-        self._sideways_blocked_mtf = 0
-        self._sideways_blocked_body = 0
-        self._bull_entries = 0
-        self._bear_entries = 0
-        self._bull_ema_reclaim_entries = 0
-        self._bull_poc_bounce_entries = 0
-        self._bull_swing_break_entries = 0
-        self._bull_retest_entries = 0
-        self._bull_26_bounce_entries = 0
-        self._bull_blocked_mtf = 0
-        self._bull_blocked_body = 0
-        self._bull_blocked_retest_timeout = 0
-        self._bull_blocked_retest_invalidated = 0
+        self._current_vah = None; self._current_val = None; self._current_poc = None
+        self.mtf_bull_entry_close = None; self.mtf_bull_entry_low = None
+        self.mtf_bear_entry_close = None; self.mtf_bear_entry_high = None
+        self.mtf_sideways_short_entry_close = None; self.mtf_sideways_short_entry_high = None
+        self.mtf_sideways_long_entry_close = None; self.mtf_sideways_long_entry_low = None
+        self._high_deque = deque(maxlen=200); self._low_deque = deque(maxlen=200)
+        self._bull_retest_pending = False; self._bull_retest_bar_count = 0; self._bull_broken_level = None
+        self._sideways_entries = 0; self._sideways_blocked_mtf = 0; self._sideways_blocked_body = 0
+        self._sideways_blocked_ema = 0; self._sideways_blocked_min_sl = 0
+        self._bull_entries = 0; self._bear_entries = 0
+        self._bull_ema_reclaim_entries = 0; self._bull_poc_bounce_entries = 0
+        self._bull_swing_break_entries = 0; self._bull_retest_entries = 0; self._bull_26_bounce_entries = 0
+        self._bull_blocked_mtf = 0; self._bull_blocked_body = 0
+        self._bull_blocked_retest_timeout = 0; self._bull_blocked_retest_invalidated = 0
         self._bull_blocked_no_swing_history = 0
-        self._bear_blocked_mtf = 0
-        self._bear_blocked_body = 0
-        self._be_triggered_count = 0
-        self._be_exit_count = 0
+        self._bear_blocked_mtf = 0; self._bear_blocked_body = 0
+        self._be_triggered_count = 0; self._be_exit_count = 0
 
     def process_candle(self, bar_idx, o, h, l, c, ema20, vah, val, poc=None):
         self._action_taken_this_bar = False
-        self._current_ema20 = ema20
-        self._current_vah = vah
-        self._current_val = val
-        self._current_poc = poc
-
+        self._current_ema20 = ema20; self._current_vah = vah; self._current_val = val; self._current_poc = poc
         if self.state == 'STARTUP':
             if vah is None or val is None:
-                self._high_deque.append(h)
-                self._low_deque.append(l)
-                return
+                self._high_deque.append(h); self._low_deque.append(l); return
             self._startup_transition(c, ema20)
-
         if self.position is not None:
             self._update_position_tracking(h, l)
             self._check_move_to_be(h, l)
             self._check_exit(bar_idx, o, h, l, c, ema20, vah, val)
-
         if self.position is None and not self._action_taken_this_bar:
             self._check_entry(bar_idx, o, h, l, c, ema20, vah, val)
-
-        self._high_deque.append(h)
-        self._low_deque.append(l)
+        self._high_deque.append(h); self._low_deque.append(l)
 
     def _startup_transition(self, close, ema20):
         if close > ema20: self.startup_bias = 'bullish'
@@ -159,52 +103,27 @@ class Switcher:
         self.position.trough_low = min(self.position.trough_low, l)
 
     def _check_move_to_be(self, h, l):
-        """Check if unrealized profit reached trigger → move SL to entry (break-even)."""
         pos = self.position
-        if pos.be_triggered:
-            return  # already moved
-
-        # Determine trigger threshold
-        if pos.tool == 'SIDEWAYS':
-            trigger = self.config.sideways_trail_to_be_trigger_pct
-        else:
-            trigger = self.config.trail_to_be_trigger_pct
-
-        if trigger <= 0:
-            return  # disabled
-
+        if pos.be_triggered: return
+        trigger = self.config.sideways_trail_to_be_trigger_pct if pos.tool == 'SIDEWAYS' else self.config.trail_to_be_trigger_pct
+        if trigger <= 0: return
         entry = pos.entry_price
         if pos.side == 'LONG':
-            # Check if bar high reached trigger % above entry
-            unrealized_pct = (h - entry) / entry
-            if unrealized_pct >= trigger:
-                pos.original_sl = pos.sl_level
-                pos.sl_level = entry  # move SL to break-even
-                pos.be_triggered = True
-                self._be_triggered_count += 1
-        else:  # SHORT
-            # Check if bar low reached trigger % below entry
-            unrealized_pct = (entry - l) / entry
-            if unrealized_pct >= trigger:
-                pos.original_sl = pos.sl_level
-                pos.sl_level = entry  # move SL to break-even
-                pos.be_triggered = True
-                self._be_triggered_count += 1
+            if (h - entry) / entry >= trigger:
+                pos.original_sl = pos.sl_level; pos.sl_level = entry; pos.be_triggered = True; self._be_triggered_count += 1
+        else:
+            if (entry - l) / entry >= trigger:
+                pos.original_sl = pos.sl_level; pos.sl_level = entry; pos.be_triggered = True; self._be_triggered_count += 1
 
     def _check_exit(self, bar_idx, o, h, l, c, ema20, vah, val):
         pos = self.position
-        if pos.tool == 'SIDEWAYS':
-            self._exit_sideways(bar_idx, h, l, c)
-        elif pos.tool == 'BULL':
-            self._exit_bull(bar_idx, h, l, c)
-        elif pos.tool == 'BEAR':
-            self._exit_bear(bar_idx, h, l, c)
+        if pos.tool == 'SIDEWAYS': self._exit_sideways(bar_idx, h, l, c)
+        elif pos.tool == 'BULL': self._exit_bull(bar_idx, h, l, c)
+        elif pos.tool == 'BEAR': self._exit_bear(bar_idx, h, l, c)
 
     def _get_exit_type_label(self, base_type):
-        """Return 'BE' if position was at break-even when SL hit."""
         if base_type == 'SL' and self.position and self.position.be_triggered:
-            self._be_exit_count += 1
-            return 'BE'
+            self._be_exit_count += 1; return 'BE'
         return base_type
 
     def _exit_sideways(self, bar_idx, h, l, c):
@@ -212,127 +131,104 @@ class Switcher:
         if self.config.use_wick_exit:
             if pos.side == 'SHORT':
                 if h > pos.sl_level:
-                    et = self._get_exit_type_label('SL')
-                    self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_short(et); return
-                if l <= pos.tp_level:
-                    self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_short('TP'); return
+                    et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_short(et); return
+                if l <= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_short('TP'); return
             else:
                 if l < pos.sl_level:
-                    et = self._get_exit_type_label('SL')
-                    self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_long(et); return
-                if h >= pos.tp_level:
-                    self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP'); return
+                    et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_long(et); return
+                if h >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP'); return
         else:
             if pos.side == 'SHORT':
                 if c > pos.sl_level:
-                    et = self._get_exit_type_label('SL')
-                    self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_short(et); return
-                if c <= pos.tp_level:
-                    self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_short('TP'); return
+                    et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_short(et); return
+                if c <= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_short('TP'); return
             else:
                 if c < pos.sl_level:
-                    et = self._get_exit_type_label('SL')
-                    self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_long(et); return
-                if c >= pos.tp_level:
-                    self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP'); return
+                    et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_sideways_long(et); return
+                if c >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP'); return
 
     def _post_exit_sideways_short(self, et):
-        if et == 'SL':
+        if et in ('SL', 'BE'):
             self.state = 'BULL'; self.bull_stay_warmup = False
-            self.markers.hh_breach_case = 'none'
-            self._reset_retest()
-        elif et == 'BE':
-            # BE = position went up then reversed to entry. Still treat as SL for state machine.
-            self.state = 'BULL'; self.bull_stay_warmup = False
-            self.markers.hh_breach_case = 'none'
-            self._reset_retest()
-        else:
-            self.state = 'SIDEWAYS'
+            self.markers.hh_breach_case = 'none'; self._reset_retest()
+        else: self.state = 'SIDEWAYS'
 
     def _post_exit_sideways_long(self, et):
         if et in ('SL', 'BE'):
-            self.state = 'BEAR'; self.bear_stay_warmup = False
-            self.markers.ll_breach_case = 'none'
-        else:
-            self.state = 'SIDEWAYS'
+            self.state = 'BEAR'; self.bear_stay_warmup = False; self.markers.ll_breach_case = 'none'
+        else: self.state = 'SIDEWAYS'
 
     def _exit_bull(self, bar_idx, h, l, c):
         pos = self.position
         if self.config.use_wick_exit:
             if l < pos.sl_level:
-                et = self._get_exit_type_label('SL')
-                self._close_position(bar_idx, pos.sl_level, et); self._post_exit_bull(et); return
-            if h >= pos.tp_level:
-                self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bull('TP'); return
+                et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_bull(et); return
+            if h >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bull('TP'); return
         else:
             if c < pos.sl_level:
-                et = self._get_exit_type_label('SL')
-                self._close_position(bar_idx, pos.sl_level, et); self._post_exit_bull(et); return
-            if c >= pos.tp_level:
-                self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bull('TP'); return
+                et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_bull(et); return
+            if c >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bull('TP'); return
 
     def _post_exit_bull(self, et):
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
-        self.markers.peak_high_bull = last_peak
-        self._reset_retest()
-        if et == 'TP':
-            self.state = 'BULL'; self.bull_stay_warmup = True
-        else:
-            # SL or BE → same state transition
-            self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False
+        self.markers.peak_high_bull = last_peak; self._reset_retest()
+        if et == 'TP': self.state = 'BULL'; self.bull_stay_warmup = True
+        else: self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False
 
     def _exit_bear(self, bar_idx, h, l, c):
         pos = self.position
         if self.config.use_wick_exit:
             if h > pos.sl_level:
-                et = self._get_exit_type_label('SL')
-                self._close_position(bar_idx, pos.sl_level, et); self._post_exit_bear(et); return
-            if l <= pos.tp_level:
-                self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bear('TP'); return
+                et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_bear(et); return
+            if l <= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bear('TP'); return
         else:
             if c > pos.sl_level:
-                et = self._get_exit_type_label('SL')
-                self._close_position(bar_idx, pos.sl_level, et); self._post_exit_bear(et); return
-            if c <= pos.tp_level:
-                self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bear('TP'); return
+                et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_bear(et); return
+            if c <= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bear('TP'); return
 
     def _post_exit_bear(self, et):
         last_trough = self.position.trough_low if self.position else self.trades[-1].trough_low
         self.markers.trough_low_bear = last_trough
-        if et == 'TP':
-            self.state = 'BEAR'; self.bear_stay_warmup = True
-        else:
-            self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False
+        if et == 'TP': self.state = 'BEAR'; self.bear_stay_warmup = True
+        else: self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False
 
     def _check_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
-        if vah is None or val is None:
-            return
-        if self.state == 'SIDEWAYS':
-            self._entry_sideways(bar_idx, o, h, l, c, ema20, vah, val)
-        elif self.state == 'WAIT_SEE_BULLISH':
-            self._entry_wait_see_bullish(bar_idx, o, h, l, c, ema20, vah, val)
-        elif self.state == 'WAIT_SEE_BEARISH':
-            self._entry_wait_see_bearish(bar_idx, o, h, l, c, ema20, vah, val)
-        elif self.state == 'BULL':
-            self._entry_bull(bar_idx, o, h, l, c, ema20, vah, val)
-        elif self.state == 'BEAR':
-            self._entry_bear(bar_idx, o, h, l, c, ema20, vah, val)
+        if vah is None or val is None: return
+        if self.state == 'SIDEWAYS': self._entry_sideways(bar_idx, o, h, l, c, ema20, vah, val)
+        elif self.state == 'WAIT_SEE_BULLISH': self._entry_wait_see_bullish(bar_idx, o, h, l, c, ema20, vah, val)
+        elif self.state == 'WAIT_SEE_BEARISH': self._entry_wait_see_bearish(bar_idx, o, h, l, c, ema20, vah, val)
+        elif self.state == 'BULL': self._entry_bull(bar_idx, o, h, l, c, ema20, vah, val)
+        elif self.state == 'BEAR': self._entry_bear(bar_idx, o, h, l, c, ema20, vah, val)
 
     def _check_sideways_body_ratio(self, o, h, l, c):
         bar_range = h - l
         if bar_range <= 0: return False
-        body = abs(c - o)
-        return (body / bar_range) >= self.config.sideways_body_ratio_min
+        return abs(c - o) / bar_range >= self.config.sideways_body_ratio_min
 
     def _entry_sideways(self, bar_idx, o, h, l, c, ema20, vah, val):
         short_ok = (h >= vah) and (c <= vah)
         long_ok = (l <= val) and (c >= val)
-        if short_ok and long_ok:
-            if c > ema20: short_ok = False
-            else: long_ok = False
+
+        # v1.5: With-trend EMA filter (mandatory, not just tiebreaker)
+        if self.config.sideways_ema_filter_enabled:
+            # SHORT only below EMA (with downtrend mean-reversion)
+            if short_ok and c >= ema20:
+                short_ok = False
+                self._sideways_blocked_ema += 1
+            # LONG only above EMA (with uptrend mean-reversion)
+            if long_ok and c <= ema20:
+                long_ok = False
+                self._sideways_blocked_ema += 1
+        else:
+            # Legacy: EMA only as tiebreaker when both signals fire
+            if short_ok and long_ok:
+                if c > ema20: short_ok = False
+                else: long_ok = False
+
         if (short_ok or long_ok) and self.config.sideways_body_ratio_min > 0:
             if not self._check_sideways_body_ratio(o, h, l, c):
                 self._sideways_blocked_body += 1; return
+
         if short_ok: self._open_short_sideways(bar_idx, h, l, c)
         elif long_ok: self._open_long_sideways(bar_idx, h, l, c)
 
@@ -354,6 +250,10 @@ class Switcher:
             if mtf_c is None or mtf_h is None: self._sideways_blocked_mtf += 1; return
             entry_price = mtf_c; sl_price = mtf_h
         if self.config.sideways_sl_pct > 0: sl_price = entry_price * (1.0 + self.config.sideways_sl_pct)
+        # v1.5: minimum SL distance check
+        sl_dist = abs(sl_price - entry_price) / entry_price
+        if self.config.sideways_min_sl_dist_pct > 0 and sl_dist < self.config.sideways_min_sl_dist_pct:
+            self._sideways_blocked_min_sl += 1; return
         self.markers.marker_high_short = sl_price; self.markers.marker_close_short = entry_price
         self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
             entry_high=sl_price, entry_low=l, sl_level=sl_price, original_sl=sl_price,
@@ -368,6 +268,10 @@ class Switcher:
             if mtf_c is None or mtf_l is None: self._sideways_blocked_mtf += 1; return
             entry_price = mtf_c; sl_price = mtf_l
         if self.config.sideways_sl_pct > 0: sl_price = entry_price * (1.0 - self.config.sideways_sl_pct)
+        # v1.5: minimum SL distance check
+        sl_dist = abs(entry_price - sl_price) / entry_price
+        if self.config.sideways_min_sl_dist_pct > 0 and sl_dist < self.config.sideways_min_sl_dist_pct:
+            self._sideways_blocked_min_sl += 1; return
         self.markers.marker_low_long = sl_price; self.markers.marker_close_long = entry_price
         self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
             entry_high=h, entry_low=sl_price, sl_level=sl_price, original_sl=sl_price,
@@ -529,5 +433,4 @@ class Switcher:
             entry_bar=pos.entry_bar, exit_bar=bar_idx, exit_type=exit_type, pnl_pct=pnl_pct_net, pnl_usd=pnl_usd,
             peak_high=pos.peak_high, trough_low=pos.trough_low, sl_level=pos.sl_level, tp_level=pos.tp_level,
             ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20, entry_trigger=pos.entry_trigger))
-        self.position = None
-        self._action_taken_this_bar = True
+        self.position = None; self._action_taken_this_bar = True
