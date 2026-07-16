@@ -1,10 +1,15 @@
-"""Mode3 BBC Backtest Endpoint — v1.6: Dual-mode SW."""
+"""Mode3 BBC Backtest Endpoint — v2.0 CHECKPOINT.
+
+Preset B defaults (symmetric TP 1.3% × SL 1.3%).
+Includes /presets endpoint for quick preset reference.
+"""
 import os
 from dataclasses import asdict
 from fastapi import APIRouter, Query
 import sqlite3, numpy as np
 from datetime import datetime
 from mode3_bbc import Mode3BBCConfig, Switcher, compute_ema_series, compute_va_at_bar
+from mode3_bbc.config import preset_a, preset_b, preset_c, preset_d
 
 router = APIRouter(prefix="/mode3_bbc", tags=["mode3_bbc"])
 DB_PATH = os.environ.get("DB_PATH", "market_data.db")
@@ -55,20 +60,32 @@ def compute_mtf_sideways_entry(rows_1h, rows_15m, vahs, vals):
         sc.append(s_c);sh.append(s_h);lc.append(l_c);ll.append(l_l)
     return sc,sh,lc,ll
 
+
+@router.get("/presets")
+def get_presets():
+    """Return all 4 preset configurations."""
+    return {
+        "A": {"name": "Max PnL WR≥70%", "desc": "BULL TP1.3/SL2.0, BEAR TP1.5/SL2.0", "params": preset_a()},
+        "B": {"name": "Symmetric R:R 1:1", "desc": "BULL/BEAR TP1.3/SL1.3 (DEFAULT)", "params": preset_b()},
+        "C": {"name": "Max Edge", "desc": "BULL TP1.0/SL0.8, BEAR TP0.8/SL0.8", "params": preset_c()},
+        "D": {"name": "Max PnL (low WR)", "desc": "BULL/BEAR TP4.0/SL1.3", "params": preset_d()},
+    }
+
+
 @router.get("/backtest")
 def backtest_mode3_bbc(
     symbol:str=Query("BTCUSDT"), timeframe:str=Query("1h"),
     days:int=Query(30,ge=1,le=1500), end_days_ago:int=Query(0,ge=0,le=1500),
     va_window:int=Query(50,ge=20,le=200), ema_period:int=Query(20,ge=5,le=100),
-    tp_pct:float=Query(0.010,ge=0.001,le=0.05), sideways_tp_pct:float=Query(0.008,ge=0.0,le=0.05),
-    bear_tp_pct:float=Query(0.0,ge=0.0,le=0.05),
-    sl_pct:float=Query(0.0,ge=0.0,le=0.05), sideways_sl_pct:float=Query(0.0,ge=0.0,le=0.05),
-    bear_sl_pct:float=Query(0.0,ge=0.0,le=0.05),
-    trail_to_be_trigger_pct:float=Query(0.0,ge=0.0,le=0.05),
-    sideways_trail_to_be_trigger_pct:float=Query(0.0,ge=0.0,le=0.05),
+    # v2.0 Preset B defaults
+    tp_pct:float=Query(0.013,ge=0.001,le=0.10), sideways_tp_pct:float=Query(0.015,ge=0.0,le=0.10),
+    bear_tp_pct:float=Query(0.0,ge=0.0,le=0.10),
+    sl_pct:float=Query(0.013,ge=0.0,le=0.10), sideways_sl_pct:float=Query(0.0,ge=0.0,le=0.10),
+    bear_sl_pct:float=Query(0.0,ge=0.0,le=0.10),
+    trail_to_be_trigger_pct:float=Query(0.0,ge=0.0,le=0.10),
+    sideways_trail_to_be_trigger_pct:float=Query(0.0,ge=0.0,le=0.10),
     sideways_ema_filter_enabled:bool=Query(False),
-    sideways_min_sl_dist_pct:float=Query(0.0,ge=0.0,le=0.05),
-    # v1.6: dual-mode SW
+    sideways_min_sl_dist_pct:float=Query(0.0,ge=0.0,le=0.10),
     sideways_dual_mode_enabled:bool=Query(False),
     sideways_detector_size_ratio:float=Query(0.1,ge=0.0,le=1.0),
     use_wick_exit:bool=Query(True),
@@ -82,7 +99,7 @@ def backtest_mode3_bbc(
     bull_use_26_support:bool=Query(False), bull_26_lookback:int=Query(50),
     bull_26_ratio:float=Query(2.6), bull_26_tolerance_pct:float=Query(0.003),
     bear_mtf_15m_enabled:bool=Query(True), bear_body_ratio_min:float=Query(0.6,ge=0.0,le=1.0),
-    sideways_mtf_15m_enabled:bool=Query(True), sideways_body_ratio_min:float=Query(0.6,ge=0.0,le=1.0),
+    sideways_mtf_15m_enabled:bool=Query(True), sideways_body_ratio_min:float=Query(0.5,ge=0.0,le=1.0),
 ):
     config = Mode3BBCConfig(
         va_window=va_window, ema_period=ema_period,
@@ -139,6 +156,18 @@ def backtest_mode3_bbc(
             tool_stats[tool]={"count":len(tt),"wr_pct":round(100.0*len(tw)/len(tt),2),"pnl_usd":round(sum(t.pnl_usd for t in tt),2)}
     exit_type_breakdown={}
     for t in trades: exit_type_breakdown[t.exit_type]=exit_type_breakdown.get(t.exit_type,0)+1
+    # Drawdown calc
+    equity=0; peak_eq=0; max_dd=0
+    for t in trades:
+        equity += t.pnl_usd
+        if equity > peak_eq: peak_eq = equity
+        dd = peak_eq - equity
+        if dd > max_dd: max_dd = dd
+    # Loss streak
+    max_streak=0; cur_streak=0
+    for t in trades:
+        if t.pnl_usd <= 0: cur_streak += 1; max_streak = max(max_streak, cur_streak)
+        else: cur_streak = 0
     trade_list=[{"tool":t.tool,"side":t.side,"entry_price":round(t.entry_price,2),"exit_price":round(t.exit_price,2),
         "entry_bar":t.entry_bar,"exit_bar":t.exit_bar,"exit_type":t.exit_type,"pnl_pct":round(t.pnl_pct*100,3),
         "pnl_usd":round(t.pnl_usd,2),"sl_level":round(t.sl_level,2),"tp_level":round(t.tp_level,2),
@@ -150,13 +179,12 @@ def backtest_mode3_bbc(
         "summary":{"total_trades":n,"win_rate_pct":round(wr,2),"wins":len(wins),"losses":len(losses),
             "total_pnl_usd":round(total_pnl_usd,2),"capital_start":config.capital_usd,
             "capital_end":round(config.capital_usd+total_pnl_usd,2),
+            "max_drawdown_usd":round(max_dd,2),"max_loss_streak":max_streak,
             "sideways_detector_entries":switcher._sideways_detector_entries,
             "sideways_trader_entries":switcher._sideways_trader_entries,
-            "sideways_blocked_ema":switcher._sideways_blocked_ema,
-            "sideways_blocked_min_sl":switcher._sideways_blocked_min_sl,
             "exit_type_breakdown":exit_type_breakdown},
         "per_tool":tool_stats,"trades":trade_list,"final_state":switcher.state}
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status":"ok","module":"mode3_bbc","version":"1.6-dual-sw","db_path":DB_PATH}
+    return {"status":"ok","module":"mode3_bbc","version":"2.0-checkpoint","db_path":DB_PATH}
