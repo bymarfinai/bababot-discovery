@@ -1,5 +1,5 @@
 """Mode3 BBC Switcher — state machine with opt-in signal quality options.
-BULL/BEAR/SIDEWAYS all support MTF 15m precision and body ratio filter.
+BULL/BEAR/SIDEWAYS all support MTF 15m precision, body ratio filter, and wick-based exits.
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -145,24 +145,38 @@ class Switcher:
     def _check_exit(self, bar_idx, o, h, l, c, ema20, vah, val):
         pos = self.position
         if pos.tool == 'SIDEWAYS':
-            self._exit_sideways(bar_idx, c)
+            self._exit_sideways(bar_idx, h, l, c)
         elif pos.tool == 'BULL':
-            self._exit_bull(bar_idx, c)
+            self._exit_bull(bar_idx, h, l, c)
         elif pos.tool == 'BEAR':
-            self._exit_bear(bar_idx, c)
+            self._exit_bear(bar_idx, h, l, c)
 
-    def _exit_sideways(self, bar_idx, c):
+    def _exit_sideways(self, bar_idx, h, l, c):
         pos = self.position
-        if pos.side == 'SHORT':
-            if c > pos.sl_level:
-                self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_short('SL'); return
-            if c <= pos.tp_level:
-                self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_short('TP'); return
+        if self.config.use_wick_exit:
+            # Wick-based exit: check SL first (worst case tie-breaker)
+            if pos.side == 'SHORT':
+                if h > pos.sl_level:
+                    self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_sideways_short('SL'); return
+                if l <= pos.tp_level:
+                    self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_short('TP'); return
+            else:  # LONG
+                if l < pos.sl_level:
+                    self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_sideways_long('SL'); return
+                if h >= pos.tp_level:
+                    self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP'); return
         else:
-            if c < pos.sl_level:
-                self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_long('SL'); return
-            if c >= pos.tp_level:
-                self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_long('TP'); return
+            # Legacy close-based
+            if pos.side == 'SHORT':
+                if c > pos.sl_level:
+                    self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_short('SL'); return
+                if c <= pos.tp_level:
+                    self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_short('TP'); return
+            else:
+                if c < pos.sl_level:
+                    self._close_position(bar_idx, c, 'SL'); self._post_exit_sideways_long('SL'); return
+                if c >= pos.tp_level:
+                    self._close_position(bar_idx, c, 'TP'); self._post_exit_sideways_long('TP'); return
 
     def _post_exit_sideways_short(self, et):
         if et == 'SL':
@@ -179,12 +193,19 @@ class Switcher:
         else:
             self.state = 'SIDEWAYS'
 
-    def _exit_bull(self, bar_idx, c):
+    def _exit_bull(self, bar_idx, h, l, c):
         pos = self.position
-        if c < pos.sl_level:
-            self._close_position(bar_idx, c, 'SL'); self._post_exit_bull('SL'); return
-        if c >= pos.tp_level:
-            self._close_position(bar_idx, c, 'TP'); self._post_exit_bull('TP'); return
+        if self.config.use_wick_exit:
+            # Wick-based: SL first (worst case)
+            if l < pos.sl_level:
+                self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_bull('SL'); return
+            if h >= pos.tp_level:
+                self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bull('TP'); return
+        else:
+            if c < pos.sl_level:
+                self._close_position(bar_idx, c, 'SL'); self._post_exit_bull('SL'); return
+            if c >= pos.tp_level:
+                self._close_position(bar_idx, c, 'TP'); self._post_exit_bull('TP'); return
 
     def _post_exit_bull(self, et):
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
@@ -195,12 +216,19 @@ class Switcher:
         else:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False
 
-    def _exit_bear(self, bar_idx, c):
+    def _exit_bear(self, bar_idx, h, l, c):
         pos = self.position
-        if c > pos.sl_level:
-            self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
-        if c <= pos.tp_level:
-            self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
+        if self.config.use_wick_exit:
+            # Wick-based: SL first (worst case)
+            if h > pos.sl_level:
+                self._close_position(bar_idx, pos.sl_level, 'SL'); self._post_exit_bear('SL'); return
+            if l <= pos.tp_level:
+                self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bear('TP'); return
+        else:
+            if c > pos.sl_level:
+                self._close_position(bar_idx, c, 'SL'); self._post_exit_bear('SL'); return
+            if c <= pos.tp_level:
+                self._close_position(bar_idx, c, 'TP'); self._post_exit_bear('TP'); return
 
     def _post_exit_bear(self, et):
         last_trough = self.position.trough_low if self.position else self.trades[-1].trough_low
@@ -225,7 +253,6 @@ class Switcher:
             self._entry_bear(bar_idx, o, h, l, c, ema20, vah, val)
 
     def _check_sideways_body_ratio(self, o, h, l, c):
-        """Body/range ratio check for SIDEWAYS entries."""
         bar_range = h - l
         if bar_range <= 0:
             return False
@@ -238,7 +265,6 @@ class Switcher:
         if short_ok and long_ok:
             if c > ema20: short_ok = False
             else: long_ok = False
-        # Body ratio filter (opt-in)
         if (short_ok or long_ok) and self.config.sideways_body_ratio_min > 0:
             if not self._check_sideways_body_ratio(o, h, l, c):
                 self._sideways_blocked_body += 1
