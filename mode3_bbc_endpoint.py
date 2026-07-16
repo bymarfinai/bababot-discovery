@@ -1,8 +1,9 @@
 """Mode3 BBC Backtest Endpoint — /mode3_bbc/backtest.
 
 CHECKPOINT v1.0 (2026-07-14): Winning config as defaults.
-v1.1 (2026-07-14): Wick-based TP+SL exit added (default on).
-v1.2 (2026-07-14): FIX phantom PnL — both wick and closed-confirm exits fill at LEVEL, not close price.
+v1.1: Wick-based TP+SL exit.
+v1.2: Fix phantom PnL — level fill.
+v1.3 (2026-07-15): Add sl_pct / sideways_sl_pct / bear_sl_pct fixed SL overrides.
 """
 import os
 from dataclasses import asdict
@@ -123,22 +124,25 @@ def backtest_mode3_bbc(
     end_days_ago: int = Query(0, ge=0, le=1500),
     va_window: int = Query(50, ge=20, le=200),
     ema_period: int = Query(20, ge=5, le=100),
-    # ---- Take-profit (v1.0 winning defaults) ----
+    # ---- Take-profit ----
     tp_pct: float = Query(0.010, ge=0.001, le=0.05),
     sideways_tp_pct: float = Query(0.008, ge=0.0, le=0.05),
     bear_tp_pct: float = Query(0.0, ge=0.0, le=0.05),
-    # ---- Exit style (v1.2: no phantom PnL — both modes fill at LEVEL) ----
-    # True  = WICK trigger + level fill (aggressive, realistic for limit orders)
-    # False = CLOSED confirmation + level fill (safer, wick tolerance, no phantom)
+    # ---- Stop-loss (v1.3: fixed % override) ----
+    # If > 0, override wick-based SL with fixed % below (LONG) / above (SHORT) entry.
+    # If 0, use wick-based SL (MTF 15m low/high, or bar wick).
+    sl_pct: float = Query(0.0, ge=0.0, le=0.05),
+    sideways_sl_pct: float = Query(0.0, ge=0.0, le=0.05),
+    bear_sl_pct: float = Query(0.0, ge=0.0, le=0.05),
+    # ---- Exit style ----
     use_wick_exit: bool = Query(True),
     entry_usd: float = Query(10.0),
     leverage: float = Query(50.0),
     fee_pct: float = Query(0.001),
     slippage_pct: float = Query(0.0005),
-    # ---- BULL entry (v1.0 winning defaults) ----
+    # ---- BULL entry ----
     bull_mtf_15m_enabled: bool = Query(True),
     bull_body_ratio_min: float = Query(0.7, ge=0.0, le=1.0),
-    # BULL — optional experiments (default off)
     bull_poc_entry_enabled: bool = Query(False),
     bull_poc_max_distance_pct: float = Query(0.02, ge=0.001, le=0.10),
     bull_wait_retest_enabled: bool = Query(False),
@@ -151,10 +155,10 @@ def backtest_mode3_bbc(
     bull_26_lookback: int = Query(50, ge=10, le=200),
     bull_26_ratio: float = Query(2.6, ge=1.5, le=5.0),
     bull_26_tolerance_pct: float = Query(0.003, ge=0.0, le=0.05),
-    # ---- BEAR entry (v1.0 winning defaults) ----
+    # ---- BEAR entry ----
     bear_mtf_15m_enabled: bool = Query(True),
     bear_body_ratio_min: float = Query(0.6, ge=0.0, le=1.0),
-    # ---- SIDEWAYS entry (v1.0 winning defaults) ----
+    # ---- SIDEWAYS entry ----
     sideways_mtf_15m_enabled: bool = Query(True),
     sideways_body_ratio_min: float = Query(0.6, ge=0.0, le=1.0),
 ):
@@ -162,6 +166,7 @@ def backtest_mode3_bbc(
         va_window=va_window, ema_period=ema_period,
         tp_pct=tp_pct, sideways_tp_pct=sideways_tp_pct,
         bear_tp_pct=bear_tp_pct,
+        sl_pct=sl_pct, sideways_sl_pct=sideways_sl_pct, bear_sl_pct=bear_sl_pct,
         use_wick_exit=use_wick_exit,
         entry_usd=entry_usd, leverage=leverage,
         fee_pct_roundtrip=fee_pct, slippage_pct=slippage_pct,
@@ -316,4 +321,4 @@ def backtest_mode3_bbc(
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status": "ok", "module": "mode3_bbc", "version": "1.2-no-phantom", "db_path": DB_PATH}
+    return {"status": "ok", "module": "mode3_bbc", "version": "1.3-sl-tunable", "db_path": DB_PATH}
