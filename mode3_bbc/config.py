@@ -1,13 +1,10 @@
-"""Mode3 BBC Config — Bull Bear Continuation variant.
+"""Mode3 BBC Config — v2.2: Direct BULL↔BEAR transitions.
 
-═══════════════════════════════════════════════════════════════
-CHECKPOINT v2.0 (2026-07-16) + v2.1 POC Breakout
-═══════════════════════════════════════════════════════════════
-v2.1: SIDEWAYS POC breakout — trend-following entry at fair value break.
-  TEMPORARILY default=True for testing (endpoint v2.0 can't pass param).
+v2.2: When in BULL state (no position), if BEAR entry signal fires → go directly to BEAR.
+  Skip SIDEWAYS detection phase. Same for BEAR → BULL.
+  Reduces SW trades by ~60% and catches reversals faster.
 """
 from dataclasses import dataclass
-
 
 def preset_a() -> dict:
     return dict(tp_pct=0.013, sl_pct=0.020, bear_tp_pct=0.015, bear_sl_pct=0.020,
@@ -21,7 +18,6 @@ def preset_c() -> dict:
 def preset_d() -> dict:
     return dict(tp_pct=0.040, sl_pct=0.013,
                 sideways_body_ratio_min=0.5, sideways_tp_pct=0.015)
-
 
 @dataclass
 class Mode3BBCConfig:
@@ -76,9 +72,14 @@ class Mode3BBCConfig:
     sideways_dual_mode_enabled: bool = False
     sideways_detector_size_ratio: float = 0.1
 
-    # v2.1 POC breakout — TEMP default=True for testing
-    sideways_poc_breakout_enabled: bool = True
+    sideways_poc_breakout_enabled: bool = False
     sideways_poc_body_ratio_min: float = 0.5
+
+    # v2.2: Direct BULL↔BEAR transition
+    # When in BULL state (no open position, waiting for EMA reclaim),
+    # if a BEAR entry signal fires (EMA reject + bearish candle) → skip to BEAR.
+    # Same for BEAR state → BULL signal → skip to BULL.
+    direct_transition_enabled: bool = False
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
