@@ -1,4 +1,8 @@
-"""Mode3 BBC Backtest Endpoint — v2.2: Direct BULL↔BEAR transitions."""
+"""Mode3 BBC Backtest Endpoint — v2.3 CHECKPOINT.
+
+Defaults: BULL body 0.5, BEAR body 0.6, SW body 0.6, direct_transition ON.
+Results: 3,740 trades, $3,918 PnL (+42.5% vs baseline).
+"""
 import os
 from dataclasses import asdict
 from fastapi import APIRouter, Query
@@ -82,12 +86,12 @@ def backtest_mode3_bbc(
     sideways_detector_size_ratio:float=Query(0.1,ge=0.0,le=1.0),
     sideways_poc_breakout_enabled:bool=Query(False),
     sideways_poc_body_ratio_min:float=Query(0.5,ge=0.0,le=1.0),
-    # v2.2: direct BULL↔BEAR transition
-    direct_transition_enabled:bool=Query(False),
+    # v2.3 defaults
+    direct_transition_enabled:bool=Query(True),
     use_wick_exit:bool=Query(True),
     entry_usd:float=Query(10.0), leverage:float=Query(50.0),
     fee_pct:float=Query(0.001), slippage_pct:float=Query(0.0005),
-    bull_mtf_15m_enabled:bool=Query(True), bull_body_ratio_min:float=Query(0.7,ge=0.0,le=1.0),
+    bull_mtf_15m_enabled:bool=Query(True), bull_body_ratio_min:float=Query(0.5,ge=0.0,le=1.0),
     bull_poc_entry_enabled:bool=Query(False), bull_poc_max_distance_pct:float=Query(0.02),
     bull_wait_retest_enabled:bool=Query(False), bull_retest_swing_lookback:int=Query(20),
     bull_retest_tolerance_pct:float=Query(0.003), bull_retest_max_bars:int=Query(5),
@@ -95,7 +99,7 @@ def backtest_mode3_bbc(
     bull_use_26_support:bool=Query(False), bull_26_lookback:int=Query(50),
     bull_26_ratio:float=Query(2.6), bull_26_tolerance_pct:float=Query(0.003),
     bear_mtf_15m_enabled:bool=Query(True), bear_body_ratio_min:float=Query(0.6,ge=0.0,le=1.0),
-    sideways_mtf_15m_enabled:bool=Query(True), sideways_body_ratio_min:float=Query(0.5,ge=0.0,le=1.0),
+    sideways_mtf_15m_enabled:bool=Query(True), sideways_body_ratio_min:float=Query(0.6,ge=0.0,le=1.0),
 ):
     config = Mode3BBCConfig(
         va_window=va_window, ema_period=ema_period,
@@ -179,9 +183,11 @@ def backtest_mode3_bbc(
             "max_drawdown_usd":round(max_dd,2),"max_loss_streak":max_streak,
             "direct_bull_to_bear":switcher._direct_bull_to_bear,
             "direct_bear_to_bull":switcher._direct_bear_to_bull,
+            "direct_sw_to_bull":getattr(switcher,'_direct_sw_to_bull',0),
+            "direct_sw_to_bear":getattr(switcher,'_direct_sw_to_bear',0),
             "exit_type_breakdown":exit_type_breakdown},
         "per_tool":tool_stats,"trades":trade_list,"final_state":switcher.state}
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status":"ok","module":"mode3_bbc","version":"2.2-direct-transition","db_path":DB_PATH}
+    return {"status":"ok","module":"mode3_bbc","version":"2.3-checkpoint","db_path":DB_PATH}
