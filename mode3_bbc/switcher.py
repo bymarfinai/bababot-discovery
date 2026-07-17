@@ -1,9 +1,10 @@
-"""Mode3 BBC Switcher — v2.3: SIDEWAYS wait-and-see mode.
+"""Mode3 BBC Switcher — v2.4: MA7 trailing stop.
 
-v2.2: Direct BULL↔BEAR transitions in BULL/BEAR/WAIT_SEE states.
-v2.3: Also detect BULL/BEAR signal directly FROM SIDEWAYS state (no SW trade needed).
-  This enables "wait and see" — bot can sit in SIDEWAYS without trading,
-  then jump to BULL/BEAR when EMA signal fires.
+v2.4: Dual EMA exit for BULL/BEAR trades.
+  Entry: EMA20 reclaim/reject (as before).
+  Exit: close below/above EMA7 (trailing stop) OR fixed SL (safety net).
+  No fixed TP when trailing enabled — let winners ride until MA7 breaks.
+  SW trades keep fixed TP/SL (not affected by trailing).
 """
 from dataclasses import dataclass, field
 from typing import Optional
@@ -49,6 +50,8 @@ class Switcher:
         self.bull_stay_warmup = False; self.bear_stay_warmup = False; self.startup_bias = None
         self._action_taken_this_bar = False; self._current_ema20 = 0.0
         self._current_vah = None; self._current_val = None; self._current_poc = None
+        self._current_trailing_ema = None  # v2.4: EMA7 value at current bar
+        self.trailing_ema_series = None    # v2.4: full EMA7 array, set by endpoint
         self.mtf_bull_entry_close = None; self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None; self.mtf_bear_entry_high = None
         self.mtf_sideways_short_entry_close = None; self.mtf_sideways_short_entry_high = None
@@ -68,10 +71,14 @@ class Switcher:
         self._be_triggered_count = 0; self._be_exit_count = 0
         self._direct_bull_to_bear = 0; self._direct_bear_to_bull = 0
         self._direct_sw_to_bull = 0; self._direct_sw_to_bear = 0
+        self._trailing_ema_exits = 0  # v2.4 counter
 
     def process_candle(self, bar_idx, o, h, l, c, ema20, vah, val, poc=None):
         self._action_taken_this_bar = False; self._current_ema20 = ema20
         self._current_vah = vah; self._current_val = val; self._current_poc = poc
+        # v2.4: get trailing EMA value for this bar
+        if self.trailing_ema_series is not None and bar_idx < len(self.trailing_ema_series):
+            self._current_trailing_ema = self.trailing_ema_series[bar_idx]
         if self.state == 'STARTUP':
             if vah is None or val is None: self._high_deque.append(h); self._low_deque.append(l); return
             self._startup_transition(c, ema20)
@@ -140,30 +147,71 @@ class Switcher:
 
     def _exit_bull(self, bar_idx, h, l, c):
         pos = self.position
+        # Fixed SL always checked first (safety net)
         if self.config.use_wick_exit:
             if l < pos.sl_level: et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_bull(et); return
-            if h >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bull('TP'); return
         else:
             if c < pos.sl_level: et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_bull(et); return
-            if c >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bull('TP'); return
+
+        # v2.4: trailing EMA exit (BULL LONG: exit when close < EMA7)
+        if self.config.trailing_ema_enabled and self._current_trailing_ema is not None:
+            bars_held = bar_idx - pos.entry_bar
+            if bars_held >= self.config.trailing_ema_min_bars:
+                if c < self._current_trailing_ema:
+                    # Exit at close price (not wick — trailing is close-based)
+                    self._close_position(bar_idx, c, 'TRAIL'); self._trailing_ema_exits += 1
+                    self._post_exit_bull('TRAIL'); return
+            # Optional max TP ceiling
+            if self.config.trailing_ema_max_tp_pct > 0:
+                max_tp = pos.entry_price * (1.0 + self.config.trailing_ema_max_tp_pct)
+                if self.config.use_wick_exit:
+                    if h >= max_tp: self._close_position(bar_idx, max_tp, 'TP'); self._post_exit_bull('TP'); return
+                else:
+                    if c >= max_tp: self._close_position(bar_idx, max_tp, 'TP'); self._post_exit_bull('TP'); return
+        else:
+            # Original fixed TP
+            if self.config.use_wick_exit:
+                if h >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bull('TP'); return
+            else:
+                if c >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bull('TP'); return
+
     def _post_exit_bull(self, et):
         last_peak = self.position.peak_high if self.position else self.trades[-1].peak_high
         self.markers.peak_high_bull = last_peak; self._reset_retest()
-        if et == 'TP': self.state = 'BULL'; self.bull_stay_warmup = True
+        if et in ('TP', 'TRAIL'): self.state = 'BULL'; self.bull_stay_warmup = True
         else: self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False
 
     def _exit_bear(self, bar_idx, h, l, c):
         pos = self.position
+        # Fixed SL first
         if self.config.use_wick_exit:
             if h > pos.sl_level: et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_bear(et); return
-            if l <= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bear('TP'); return
         else:
             if c > pos.sl_level: et = self._get_exit_type_label('SL'); self._close_position(bar_idx, pos.sl_level, et); self._post_exit_bear(et); return
-            if c <= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bear('TP'); return
+
+        # v2.4: trailing EMA exit (BEAR SHORT: exit when close > EMA7)
+        if self.config.trailing_ema_enabled and self._current_trailing_ema is not None:
+            bars_held = bar_idx - pos.entry_bar
+            if bars_held >= self.config.trailing_ema_min_bars:
+                if c > self._current_trailing_ema:
+                    self._close_position(bar_idx, c, 'TRAIL'); self._trailing_ema_exits += 1
+                    self._post_exit_bear('TRAIL'); return
+            if self.config.trailing_ema_max_tp_pct > 0:
+                max_tp = pos.entry_price * (1.0 - self.config.trailing_ema_max_tp_pct)
+                if self.config.use_wick_exit:
+                    if l <= max_tp: self._close_position(bar_idx, max_tp, 'TP'); self._post_exit_bear('TP'); return
+                else:
+                    if c <= max_tp: self._close_position(bar_idx, max_tp, 'TP'); self._post_exit_bear('TP'); return
+        else:
+            if self.config.use_wick_exit:
+                if l <= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bear('TP'); return
+            else:
+                if c <= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_bear('TP'); return
+
     def _post_exit_bear(self, et):
         last_trough = self.position.trough_low if self.position else self.trades[-1].trough_low
         self.markers.trough_low_bear = last_trough
-        if et == 'TP': self.state = 'BEAR'; self.bear_stay_warmup = True
+        if et in ('TP', 'TRAIL'): self.state = 'BEAR'; self.bear_stay_warmup = True
         else: self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False
 
     def _check_entry(self, bar_idx, o, h, l, c, ema20, vah, val):
@@ -178,15 +226,12 @@ class Switcher:
         bar_range = h - l
         if bar_range <= 0: return False
         return abs(c - o) / bar_range >= self.config.sideways_body_ratio_min
-
     def _is_bear_signal(self, o, h, l, c, ema20):
         return (h >= ema20) and (c < ema20) and (c < o)
-
     def _is_bull_signal(self, o, h, l, c, ema20):
         return (l <= ema20) and (c > ema20) and (c > o)
 
     def _entry_sideways(self, bar_idx, o, h, l, c, ema20, vah, val):
-        # v2.3: PRIORITY 0 — direct transition from SIDEWAYS to BULL/BEAR (wait-and-see)
         if self.config.direct_transition_enabled:
             if self._is_bull_signal(o, h, l, c, ema20):
                 if self.config.bull_body_ratio_min <= 0 or self._check_body_ratio(o, h, l, c):
@@ -196,7 +241,6 @@ class Switcher:
                 if self.config.bear_body_ratio_min <= 0 or self._check_bear_body_ratio(o, h, l, c):
                     self.state = 'BEAR'; self._direct_sw_to_bear += 1
                     self._execute_bear_entry(bar_idx, o, h, l, c, ema20); return
-        # PRIORITY 1: VAH/VAL boundary entries (detector role)
         short_ok = (h >= vah) and (c <= vah)
         long_ok = (l <= val) and (c >= val)
         if self.config.sideways_ema_filter_enabled:
@@ -221,17 +265,11 @@ class Switcher:
         tp_pct = self.config.sideways_tp_pct if self.config.sideways_tp_pct > 0 else self.config.tp_pct
         if l <= poc and c > poc and c > o:
             sl_price = l if self.config.sideways_sl_pct <= 0 else c * (1.0 - self.config.sideways_sl_pct)
-            self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=c, entry_bar=bar_idx,
-                entry_high=c, entry_low=sl_price, sl_level=sl_price, original_sl=sl_price,
-                tp_level=c * (1.0 + tp_pct), peak_high=c, trough_low=sl_price,
-                ema_at_entry=self._current_ema20, entry_trigger='poc_breakout', is_poc_entry=True)
+            self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=c, entry_bar=bar_idx, entry_high=c, entry_low=sl_price, sl_level=sl_price, original_sl=sl_price, tp_level=c*(1.0+tp_pct), peak_high=c, trough_low=sl_price, ema_at_entry=self._current_ema20, entry_trigger='poc_breakout', is_poc_entry=True)
             self._sideways_entries += 1; self._sideways_poc_breakout_entries += 1; return
         if h >= poc and c < poc and c < o:
             sl_price = h if self.config.sideways_sl_pct <= 0 else c * (1.0 + self.config.sideways_sl_pct)
-            self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=c, entry_bar=bar_idx,
-                entry_high=sl_price, entry_low=c, sl_level=sl_price, original_sl=sl_price,
-                tp_level=c * (1.0 - tp_pct), peak_high=sl_price, trough_low=c,
-                ema_at_entry=self._current_ema20, entry_trigger='poc_breakout', is_poc_entry=True)
+            self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=c, entry_bar=bar_idx, entry_high=sl_price, entry_low=c, sl_level=sl_price, original_sl=sl_price, tp_level=c*(1.0-tp_pct), peak_high=sl_price, trough_low=c, ema_at_entry=self._current_ema20, entry_trigger='poc_breakout', is_poc_entry=True)
             self._sideways_entries += 1; self._sideways_poc_breakout_entries += 1
 
     def _get_mtf_sideways_short(self, bar_idx):
@@ -253,17 +291,13 @@ class Switcher:
             entry_price = mtf_c; sl_price = mtf_h
         if self.config.sideways_sl_pct > 0: sl_price = entry_price * (1.0 + self.config.sideways_sl_pct)
         sl_dist = abs(sl_price - entry_price) / entry_price
-        if self.config.sideways_min_sl_dist_pct > 0 and sl_dist < self.config.sideways_min_sl_dist_pct:
-            self._sideways_blocked_min_sl += 1; return
+        if self.config.sideways_min_sl_dist_pct > 0 and sl_dist < self.config.sideways_min_sl_dist_pct: self._sideways_blocked_min_sl += 1; return
         size_ratio = 1.0
         if self.config.sideways_dual_mode_enabled:
             if c < ema20: self._sideways_trader_entries += 1
             else: size_ratio = self.config.sideways_detector_size_ratio; self._sideways_detector_entries += 1
         self.markers.marker_high_short = sl_price; self.markers.marker_close_short = entry_price
-        self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
-            entry_high=sl_price, entry_low=l, sl_level=sl_price, original_sl=sl_price,
-            tp_level=entry_price * (1.0 - tp_pct), peak_high=sl_price, trough_low=l,
-            ema_at_entry=self._current_ema20, size_ratio=size_ratio)
+        self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=entry_price, entry_bar=bar_idx, entry_high=sl_price, entry_low=l, sl_level=sl_price, original_sl=sl_price, tp_level=entry_price*(1.0-tp_pct), peak_high=sl_price, trough_low=l, ema_at_entry=self._current_ema20, size_ratio=size_ratio)
         self._sideways_entries += 1
 
     def _open_long_sideways(self, bar_idx, h, l, c, ema20=None):
@@ -276,17 +310,13 @@ class Switcher:
             entry_price = mtf_c; sl_price = mtf_l
         if self.config.sideways_sl_pct > 0: sl_price = entry_price * (1.0 - self.config.sideways_sl_pct)
         sl_dist = abs(entry_price - sl_price) / entry_price
-        if self.config.sideways_min_sl_dist_pct > 0 and sl_dist < self.config.sideways_min_sl_dist_pct:
-            self._sideways_blocked_min_sl += 1; return
+        if self.config.sideways_min_sl_dist_pct > 0 and sl_dist < self.config.sideways_min_sl_dist_pct: self._sideways_blocked_min_sl += 1; return
         size_ratio = 1.0
         if self.config.sideways_dual_mode_enabled:
             if c > ema20: self._sideways_trader_entries += 1
             else: size_ratio = self.config.sideways_detector_size_ratio; self._sideways_detector_entries += 1
         self.markers.marker_low_long = sl_price; self.markers.marker_close_long = entry_price
-        self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
-            entry_high=h, entry_low=sl_price, sl_level=sl_price, original_sl=sl_price,
-            tp_level=entry_price * (1.0 + tp_pct), peak_high=h, trough_low=sl_price,
-            ema_at_entry=self._current_ema20, size_ratio=size_ratio)
+        self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=entry_price, entry_bar=bar_idx, entry_high=h, entry_low=sl_price, sl_level=sl_price, original_sl=sl_price, tp_level=entry_price*(1.0+tp_pct), peak_high=h, trough_low=sl_price, ema_at_entry=self._current_ema20, size_ratio=size_ratio)
         self._sideways_entries += 1
 
     def _entry_wait_see_bullish(self, bar_idx, o, h, l, c, ema20, vah, val):
@@ -394,9 +424,7 @@ class Switcher:
     def _open_bull(self, bar_idx, entry_high, sl_level, entry_price, trigger='ema_reclaim'):
         if self.config.sl_pct > 0: sl_level = entry_price * (1.0 - self.config.sl_pct)
         tp_level = entry_price * (1.0 + self.config.tp_pct)
-        self.position = Position(tool='BULL', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
-            entry_high=entry_high, entry_low=sl_level, sl_level=sl_level, original_sl=sl_level, tp_level=tp_level,
-            peak_high=entry_high, trough_low=sl_level, ema_at_entry=self._current_ema20, entry_trigger=trigger)
+        self.position = Position(tool='BULL', side='LONG', entry_price=entry_price, entry_bar=bar_idx, entry_high=entry_high, entry_low=sl_level, sl_level=sl_level, original_sl=sl_level, tp_level=tp_level, peak_high=entry_high, trough_low=sl_level, ema_at_entry=self._current_ema20, entry_trigger=trigger)
         self._bull_entries += 1
         if trigger == 'ema_reclaim': self._bull_ema_reclaim_entries += 1
         elif trigger == 'poc_bounce': self._bull_poc_bounce_entries += 1
@@ -431,9 +459,7 @@ class Switcher:
         bear_sl_pct = self.config.get_bear_sl_pct()
         if bear_sl_pct > 0: sl_level = entry_price * (1.0 + bear_sl_pct)
         tp_level = entry_price * (1.0 - self.config.get_bear_tp_pct())
-        self.position = Position(tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
-            entry_high=entry_high, entry_low=entry_low, sl_level=sl_level, original_sl=sl_level, tp_level=tp_level,
-            peak_high=entry_high, trough_low=entry_low, ema_at_entry=self._current_ema20)
+        self.position = Position(tool='BEAR', side='SHORT', entry_price=entry_price, entry_bar=bar_idx, entry_high=entry_high, entry_low=entry_low, sl_level=sl_level, original_sl=sl_level, tp_level=tp_level, peak_high=entry_high, trough_low=entry_low, ema_at_entry=self._current_ema20)
         self._bear_entries += 1
 
     def _close_position(self, bar_idx, exit_price, exit_type):
@@ -442,8 +468,5 @@ class Switcher:
         else: pnl_pct = (pos.entry_price - exit_price) / pos.entry_price
         pnl_pct_net = pnl_pct - self.config.total_cost_pct()
         pnl_usd = pnl_pct_net * self.config.notional() * pos.size_ratio
-        self.trades.append(Trade(tool=pos.tool, side=pos.side, entry_price=pos.entry_price, exit_price=exit_price,
-            entry_bar=pos.entry_bar, exit_bar=bar_idx, exit_type=exit_type, pnl_pct=pnl_pct_net, pnl_usd=pnl_usd,
-            peak_high=pos.peak_high, trough_low=pos.trough_low, sl_level=pos.sl_level, tp_level=pos.tp_level,
-            ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20, entry_trigger=pos.entry_trigger))
+        self.trades.append(Trade(tool=pos.tool, side=pos.side, entry_price=pos.entry_price, exit_price=exit_price, entry_bar=pos.entry_bar, exit_bar=bar_idx, exit_type=exit_type, pnl_pct=pnl_pct_net, pnl_usd=pnl_usd, peak_high=pos.peak_high, trough_low=pos.trough_low, sl_level=pos.sl_level, tp_level=pos.tp_level, ema_at_entry=pos.ema_at_entry, ema_at_exit=self._current_ema20, entry_trigger=pos.entry_trigger))
         self.position = None; self._action_taken_this_bar = True
