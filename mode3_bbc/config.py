@@ -1,23 +1,22 @@
-"""Mode3 BBC Config — v2.2: Direct BULL↔BEAR transitions.
+"""Mode3 BBC Config — v2.3 CHECKPOINT.
 
-v2.2: When in BULL state (no position), if BEAR entry signal fires → go directly to BEAR.
-  Skip SIDEWAYS detection phase. Same for BEAR → BULL.
-  Reduces SW trades by ~60% and catches reversals faster.
+Config: BULL 0.5, BEAR 0.6, SW 0.6, Direct Transition ON.
+Results: 3,740 trades, $3,918 PnL, +42.5% vs baseline.
 """
 from dataclasses import dataclass
 
 def preset_a() -> dict:
     return dict(tp_pct=0.013, sl_pct=0.020, bear_tp_pct=0.015, bear_sl_pct=0.020,
-                sideways_body_ratio_min=0.5, sideways_tp_pct=0.015)
+                sideways_body_ratio_min=0.6, sideways_tp_pct=0.015)
 def preset_b() -> dict:
     return dict(tp_pct=0.013, sl_pct=0.013,
-                sideways_body_ratio_min=0.5, sideways_tp_pct=0.015)
+                sideways_body_ratio_min=0.6, sideways_tp_pct=0.015)
 def preset_c() -> dict:
     return dict(tp_pct=0.010, sl_pct=0.008, bear_tp_pct=0.008, bear_sl_pct=0.008,
-                sideways_body_ratio_min=0.5, sideways_tp_pct=0.015)
+                sideways_body_ratio_min=0.6, sideways_tp_pct=0.015)
 def preset_d() -> dict:
     return dict(tp_pct=0.040, sl_pct=0.013,
-                sideways_body_ratio_min=0.5, sideways_tp_pct=0.015)
+                sideways_body_ratio_min=0.6, sideways_tp_pct=0.015)
 
 @dataclass
 class Mode3BBCConfig:
@@ -46,8 +45,9 @@ class Mode3BBCConfig:
     fee_pct_roundtrip: float = 0.001
     slippage_pct: float = 0.0005
 
+    # v2.3: BULL body lowered 0.7→0.5 (more entries, +$289 PnL)
     bull_mtf_15m_enabled: bool = True
-    bull_body_ratio_min: float = 0.7
+    bull_body_ratio_min: float = 0.5
     bull_poc_entry_enabled: bool = False
     bull_poc_max_distance_pct: float = 0.02
     bull_wait_retest_enabled: bool = False
@@ -62,11 +62,13 @@ class Mode3BBCConfig:
     bull_26_ratio: float = 2.6
     bull_26_tolerance_pct: float = 0.003
 
+    # BEAR body kept at 0.6 (1,157 trades preserved)
     bear_mtf_15m_enabled: bool = True
     bear_body_ratio_min: float = 0.6
 
+    # v2.3: SW body raised 0.5→0.6 (SW now profitable +$105)
     sideways_mtf_15m_enabled: bool = True
-    sideways_body_ratio_min: float = 0.5
+    sideways_body_ratio_min: float = 0.6
     sideways_ema_filter_enabled: bool = False
     sideways_min_sl_dist_pct: float = 0.0
     sideways_dual_mode_enabled: bool = False
@@ -75,11 +77,8 @@ class Mode3BBCConfig:
     sideways_poc_breakout_enabled: bool = False
     sideways_poc_body_ratio_min: float = 0.5
 
-    # v2.2: Direct BULL↔BEAR transition
-    # When in BULL state (no open position, waiting for EMA reclaim),
-    # if a BEAR entry signal fires (EMA reject + bearish candle) → skip to BEAR.
-    # Same for BEAR state → BULL signal → skip to BULL.
-    direct_transition_enabled: bool = False
+    # v2.2: Direct BULL↔BEAR transition (biggest improvement +$1,103)
+    direct_transition_enabled: bool = True
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
