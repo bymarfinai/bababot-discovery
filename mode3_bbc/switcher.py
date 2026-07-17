@@ -1,9 +1,8 @@
-"""Mode3 BBC Switcher — v2.1: POC breakout entry for SIDEWAYS.
+"""Mode3 BBC Switcher — v2.2: Direct BULL↔BEAR transitions.
 
-POC breakout = trend-following within range. Price breaks through POC (fair value)
-→ enter with momentum direction. SL = candle wick. TP = sideways_tp_pct.
-POC SL → stays SIDEWAYS (intra-range, not boundary break).
-VAH/VAL entries still have priority (detector + state transition role).
+When in BULL state (no position), check for BEAR entry signal → go directly to BEAR.
+When in BEAR state (no position), check for BULL entry signal → go directly to BULL.
+Skips SIDEWAYS detection phase for faster reversal catching.
 """
 from dataclasses import dataclass, field
 from typing import Optional
@@ -33,7 +32,7 @@ class Position:
     ema_at_entry: float = 0.0; entry_trigger: str = ''
     be_triggered: bool = False; original_sl: float = 0.0
     size_ratio: float = 1.0
-    is_poc_entry: bool = False  # v2.1: POC entries don't trigger state transitions on SL
+    is_poc_entry: bool = False
 
 @dataclass
 class Trade:
@@ -67,6 +66,7 @@ class Switcher:
         self._bull_blocked_retest_timeout = 0; self._bull_blocked_retest_invalidated = 0; self._bull_blocked_no_swing_history = 0
         self._bear_blocked_mtf = 0; self._bear_blocked_body = 0
         self._be_triggered_count = 0; self._be_exit_count = 0
+        self._direct_bull_to_bear = 0; self._direct_bear_to_bull = 0
 
     def process_candle(self, bar_idx, o, h, l, c, ema20, vah, val, poc=None):
         self._action_taken_this_bar = False; self._current_ema20 = ema20
@@ -129,21 +129,13 @@ class Switcher:
                 if c >= pos.tp_level: self._close_position(bar_idx, pos.tp_level, 'TP'); self._post_exit_sideways_long('TP', pos.is_poc_entry); return
 
     def _post_exit_sideways_short(self, et, is_poc=False):
-        if is_poc:
-            # POC entries: always stay SIDEWAYS (intra-range, not boundary break)
-            self.state = 'SIDEWAYS'
-        elif et in ('SL', 'BE'):
-            self.state = 'BULL'; self.bull_stay_warmup = False; self.markers.hh_breach_case = 'none'; self._reset_retest()
-        else:
-            self.state = 'SIDEWAYS'
-
+        if is_poc: self.state = 'SIDEWAYS'
+        elif et in ('SL', 'BE'): self.state = 'BULL'; self.bull_stay_warmup = False; self.markers.hh_breach_case = 'none'; self._reset_retest()
+        else: self.state = 'SIDEWAYS'
     def _post_exit_sideways_long(self, et, is_poc=False):
-        if is_poc:
-            self.state = 'SIDEWAYS'
-        elif et in ('SL', 'BE'):
-            self.state = 'BEAR'; self.bear_stay_warmup = False; self.markers.ll_breach_case = 'none'
-        else:
-            self.state = 'SIDEWAYS'
+        if is_poc: self.state = 'SIDEWAYS'
+        elif et in ('SL', 'BE'): self.state = 'BEAR'; self.bear_stay_warmup = False; self.markers.ll_breach_case = 'none'
+        else: self.state = 'SIDEWAYS'
 
     def _exit_bull(self, bar_idx, h, l, c):
         pos = self.position
@@ -186,17 +178,15 @@ class Switcher:
         if bar_range <= 0: return False
         return abs(c - o) / bar_range >= self.config.sideways_body_ratio_min
 
-    def _check_poc_body_ratio(self, o, h, l, c):
-        bar_range = h - l
-        if bar_range <= 0: return False
-        return abs(c - o) / bar_range >= self.config.sideways_poc_body_ratio_min
+    def _is_bear_signal(self, o, h, l, c, ema20):
+        """Check if current bar has a BEAR entry signal (EMA reject + bearish)."""
+        return (h >= ema20) and (c < ema20) and (c < o)
 
-    def _is_sw_with_trend(self, side, c, ema20):
-        if side == 'SHORT': return c < ema20
-        return c > ema20
+    def _is_bull_signal(self, o, h, l, c, ema20):
+        """Check if current bar has a BULL entry signal (EMA reclaim + bullish)."""
+        return (l <= ema20) and (c > ema20) and (c > o)
 
     def _entry_sideways(self, bar_idx, o, h, l, c, ema20, vah, val):
-        # Priority 1: VAH/VAL boundary entries (detector role)
         short_ok = (h >= vah) and (c <= vah)
         long_ok = (l <= val) and (c >= val)
         if self.config.sideways_ema_filter_enabled:
@@ -210,43 +200,27 @@ class Switcher:
             if not self._check_sideways_body_ratio(o, h, l, c): self._sideways_blocked_body += 1; short_ok = False; long_ok = False
         if short_ok: self._open_short_sideways(bar_idx, h, l, c, ema20); return
         if long_ok: self._open_long_sideways(bar_idx, h, l, c, ema20); return
-
-        # Priority 2: POC breakout (trend-following, no state transition on SL)
         if self.config.sideways_poc_breakout_enabled:
             self._try_poc_breakout(bar_idx, o, h, l, c)
 
     def _try_poc_breakout(self, bar_idx, o, h, l, c):
-        """POC breakout: price breaks through fair value with momentum."""
         poc = self._current_poc
         if poc is None or poc <= 0: return
-
-        # Body ratio check
-        if not self._check_poc_body_ratio(o, h, l, c): return
-
+        bar_range = h - l
+        if bar_range <= 0 or abs(c - o) / bar_range < self.config.sideways_poc_body_ratio_min: return
         tp_pct = self.config.sideways_tp_pct if self.config.sideways_tp_pct > 0 else self.config.tp_pct
-
-        # POC breakout LONG: price crosses POC from below
         if l <= poc and c > poc and c > o:
-            entry_price = c
-            sl_price = l  # candle low as SL
-            if self.config.sideways_sl_pct > 0:
-                sl_price = entry_price * (1.0 - self.config.sideways_sl_pct)
-            self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
+            sl_price = l if self.config.sideways_sl_pct <= 0 else c * (1.0 - self.config.sideways_sl_pct)
+            self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=c, entry_bar=bar_idx,
                 entry_high=c, entry_low=sl_price, sl_level=sl_price, original_sl=sl_price,
-                tp_level=entry_price * (1.0 + tp_pct), peak_high=c, trough_low=sl_price,
+                tp_level=c * (1.0 + tp_pct), peak_high=c, trough_low=sl_price,
                 ema_at_entry=self._current_ema20, entry_trigger='poc_breakout', is_poc_entry=True)
-            self._sideways_entries += 1; self._sideways_poc_breakout_entries += 1
-            return
-
-        # POC breakout SHORT: price crosses POC from above
+            self._sideways_entries += 1; self._sideways_poc_breakout_entries += 1; return
         if h >= poc and c < poc and c < o:
-            entry_price = c
-            sl_price = h  # candle high as SL
-            if self.config.sideways_sl_pct > 0:
-                sl_price = entry_price * (1.0 + self.config.sideways_sl_pct)
-            self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
+            sl_price = h if self.config.sideways_sl_pct <= 0 else c * (1.0 + self.config.sideways_sl_pct)
+            self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=c, entry_bar=bar_idx,
                 entry_high=sl_price, entry_low=c, sl_level=sl_price, original_sl=sl_price,
-                tp_level=entry_price * (1.0 - tp_pct), peak_high=sl_price, trough_low=c,
+                tp_level=c * (1.0 - tp_pct), peak_high=sl_price, trough_low=c,
                 ema_at_entry=self._current_ema20, entry_trigger='poc_breakout', is_poc_entry=True)
             self._sideways_entries += 1; self._sideways_poc_breakout_entries += 1
 
@@ -273,7 +247,7 @@ class Switcher:
             self._sideways_blocked_min_sl += 1; return
         size_ratio = 1.0
         if self.config.sideways_dual_mode_enabled:
-            if self._is_sw_with_trend('SHORT', entry_price, ema20): self._sideways_trader_entries += 1
+            if c < ema20: self._sideways_trader_entries += 1
             else: size_ratio = self.config.sideways_detector_size_ratio; self._sideways_detector_entries += 1
         self.markers.marker_high_short = sl_price; self.markers.marker_close_short = entry_price
         self.position = Position(tool='SIDEWAYS', side='SHORT', entry_price=entry_price, entry_bar=bar_idx,
@@ -296,7 +270,7 @@ class Switcher:
             self._sideways_blocked_min_sl += 1; return
         size_ratio = 1.0
         if self.config.sideways_dual_mode_enabled:
-            if self._is_sw_with_trend('LONG', entry_price, ema20): self._sideways_trader_entries += 1
+            if c > ema20: self._sideways_trader_entries += 1
             else: size_ratio = self.config.sideways_detector_size_ratio; self._sideways_detector_entries += 1
         self.markers.marker_low_long = sl_price; self.markers.marker_close_long = entry_price
         self.position = Position(tool='SIDEWAYS', side='LONG', entry_price=entry_price, entry_bar=bar_idx,
@@ -308,12 +282,23 @@ class Switcher:
     def _entry_wait_see_bullish(self, bar_idx, o, h, l, c, ema20, vah, val):
         hh_lvl = self.markers.hh_breach_level()
         if hh_lvl is not None and c > hh_lvl: self.state = 'BULL'; self.bull_stay_warmup = False; return
+        # v2.2: direct transition — if BEAR signal while waiting for bullish confirmation
+        if self.config.direct_transition_enabled and self._is_bear_signal(o, h, l, c, ema20):
+            if self.config.bear_body_ratio_min <= 0 or self._check_bear_body_ratio(o, h, l, c):
+                self.state = 'BEAR'; self._direct_bull_to_bear += 1
+                self._execute_bear_entry(bar_idx, o, h, l, c, ema20); return
         if self.markers.marker_close_short is not None:
             if (h >= vah) and (c <= self.markers.marker_close_short): self._open_short_sideways(bar_idx, h, l, c, ema20); return
         if (l <= val) and (c >= val): self._open_long_sideways(bar_idx, h, l, c, ema20); return
+
     def _entry_wait_see_bearish(self, bar_idx, o, h, l, c, ema20, vah, val):
         ll_lvl = self.markers.ll_breach_level()
         if ll_lvl is not None and c < ll_lvl: self.state = 'BEAR'; self.bear_stay_warmup = False; return
+        # v2.2: direct transition — if BULL signal while waiting for bearish confirmation
+        if self.config.direct_transition_enabled and self._is_bull_signal(o, h, l, c, ema20):
+            if self.config.bull_body_ratio_min <= 0 or self._check_body_ratio(o, h, l, c):
+                self.state = 'BULL'; self._direct_bear_to_bull += 1
+                self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger='ema_reclaim'); return
         if self.markers.marker_close_long is not None:
             if (l <= val) and (c >= self.markers.marker_close_long): self._open_long_sideways(bar_idx, h, l, c, ema20); return
         if (h >= vah) and (c <= vah): self._open_short_sideways(bar_idx, h, l, c, ema20); return
@@ -332,6 +317,10 @@ class Switcher:
         bar_range = h - l
         if bar_range <= 0: return False
         return abs(c - o) / bar_range >= self.config.bull_body_ratio_min
+    def _check_bear_body_ratio(self, o, h, l, c):
+        bar_range = h - l
+        if bar_range <= 0: return False
+        return abs(c - o) / bar_range >= self.config.bear_body_ratio_min
     def _get_swing_high(self, lookback):
         if len(self._high_deque) < lookback: return None
         return max(list(self._high_deque)[-lookback:])
@@ -360,8 +349,13 @@ class Switcher:
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bull_stay_warmup and c < ema20:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False; self._reset_retest(); return
+        # v2.2: check for BEAR signal while in BULL state (no position open)
+        if self.config.direct_transition_enabled and self._is_bear_signal(o, h, l, c, ema20):
+            if self.config.bear_body_ratio_min <= 0 or self._check_bear_body_ratio(o, h, l, c):
+                self.state = 'BEAR'; self._direct_bull_to_bear += 1
+                self._execute_bear_entry(bar_idx, o, h, l, c, ema20); return
         if self.config.bull_use_swing_break: primary_trigger = self._check_swing_break(h, c, o); trigger_name = 'swing_break'
-        else: primary_trigger = (l <= ema20) and (c > ema20) and (c > o); trigger_name = 'ema_reclaim'
+        else: primary_trigger = self._is_bull_signal(o, h, l, c, ema20); trigger_name = 'ema_reclaim'
         if self.config.bull_wait_retest_enabled and self._bull_retest_pending:
             self._bull_retest_bar_count += 1
             if c < self._bull_broken_level: self._bull_blocked_retest_invalidated += 1; self._reset_retest(); return
@@ -402,26 +396,31 @@ class Switcher:
         elif trigger == 'swing_break': self._bull_swing_break_entries += 1
         elif trigger == '26_bounce': self._bull_26_bounce_entries += 1
 
-    def _check_bear_body_ratio(self, o, h, l, c):
-        bar_range = h - l
-        if bar_range <= 0: return False
-        return abs(c - o) / bar_range >= self.config.bear_body_ratio_min
     def _get_mtf_bear_entry(self, bar_idx):
         if self.mtf_bear_entry_close is None: return None, None
         if bar_idx >= len(self.mtf_bear_entry_close): return None, None
         return self.mtf_bear_entry_close[bar_idx], self.mtf_bear_entry_high[bar_idx]
 
-    def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
-        if self.bear_stay_warmup and c > ema20:
-            self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False; return
-        if not ((h >= ema20) and (c < ema20) and (c < o)): return
-        if self.config.bear_body_ratio_min > 0 and not self._check_bear_body_ratio(o, h, l, c): self._bear_blocked_body += 1; return
+    def _execute_bear_entry(self, bar_idx, o, h, l, c, ema20):
+        """Execute BEAR entry (used by both normal _entry_bear and direct transition)."""
         entry_price = c; sl_price = h
         if self.config.bear_mtf_15m_enabled:
             mtf_c, mtf_h = self._get_mtf_bear_entry(bar_idx)
             if mtf_c is None or mtf_h is None: self._bear_blocked_mtf += 1; return
             entry_price = mtf_c; sl_price = mtf_h
         self._open_bear(bar_idx, h, l, sl_price, entry_price)
+
+    def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
+        if self.bear_stay_warmup and c > ema20:
+            self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False; return
+        # v2.2: check for BULL signal while in BEAR state (no position open)
+        if self.config.direct_transition_enabled and self._is_bull_signal(o, h, l, c, ema20):
+            if self.config.bull_body_ratio_min <= 0 or self._check_body_ratio(o, h, l, c):
+                self.state = 'BULL'; self._direct_bear_to_bull += 1
+                self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger='ema_reclaim'); return
+        if not self._is_bear_signal(o, h, l, c, ema20): return
+        if self.config.bear_body_ratio_min > 0 and not self._check_bear_body_ratio(o, h, l, c): self._bear_blocked_body += 1; return
+        self._execute_bear_entry(bar_idx, o, h, l, c, ema20)
 
     def _open_bear(self, bar_idx, entry_high, entry_low, sl_level, entry_price):
         bear_sl_pct = self.config.get_bear_sl_pct()
