@@ -1,7 +1,9 @@
-"""Mode3 BBC Config — v2.3 CHECKPOINT.
+"""Mode3 BBC Config — v2.4: MA7 trailing stop.
 
-Config: BULL 0.5, BEAR 0.6, SW 0.6, Direct Transition ON.
-Results: 3,740 trades, $3,918 PnL, +42.5% vs baseline.
+v2.4: Dual EMA system — EMA20 for state/entry, EMA7 as trailing exit.
+  BULL: enter at EMA20 reclaim, exit when close < EMA7 (or fixed SL).
+  BEAR: enter at EMA20 reject, exit when close > EMA7 (or fixed SL).
+  No fixed TP — let winners ride until MA7 breaks.
 """
 from dataclasses import dataclass
 
@@ -45,7 +47,6 @@ class Mode3BBCConfig:
     fee_pct_roundtrip: float = 0.001
     slippage_pct: float = 0.0005
 
-    # v2.3: BULL body lowered 0.7→0.5 (more entries, +$289 PnL)
     bull_mtf_15m_enabled: bool = True
     bull_body_ratio_min: float = 0.5
     bull_poc_entry_enabled: bool = False
@@ -62,11 +63,9 @@ class Mode3BBCConfig:
     bull_26_ratio: float = 2.6
     bull_26_tolerance_pct: float = 0.003
 
-    # BEAR body kept at 0.6 (1,157 trades preserved)
     bear_mtf_15m_enabled: bool = True
     bear_body_ratio_min: float = 0.6
 
-    # v2.3: SW body raised 0.5→0.6 (SW now profitable +$105)
     sideways_mtf_15m_enabled: bool = True
     sideways_body_ratio_min: float = 0.6
     sideways_ema_filter_enabled: bool = False
@@ -77,8 +76,20 @@ class Mode3BBCConfig:
     sideways_poc_breakout_enabled: bool = False
     sideways_poc_body_ratio_min: float = 0.5
 
-    # v2.2: Direct BULL↔BEAR transition (biggest improvement +$1,103)
     direct_transition_enabled: bool = True
+
+    # v2.4: MA7 trailing stop
+    # When enabled, BULL/BEAR exits use trailing_ema instead of fixed TP.
+    # BULL LONG: exit when close < trailing_ema (MA7 break)
+    # BEAR SHORT: exit when close > trailing_ema (MA7 break)
+    # Fixed SL still active as safety net.
+    # SW trades keep fixed TP (not affected).
+    trailing_ema_enabled: bool = False
+    trailing_ema_period: int = 7
+    # Optional: minimum bars to hold before trailing activates (avoid instant exit)
+    trailing_ema_min_bars: int = 1
+    # Optional: if > 0, use fixed TP as ceiling even with trailing
+    trailing_ema_max_tp_pct: float = 0.0
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
