@@ -1,8 +1,9 @@
-"""Mode3 BBC Switcher — v2.2: Direct BULL↔BEAR transitions.
+"""Mode3 BBC Switcher — v2.3: SIDEWAYS wait-and-see mode.
 
-When in BULL state (no position), check for BEAR entry signal → go directly to BEAR.
-When in BEAR state (no position), check for BULL entry signal → go directly to BULL.
-Skips SIDEWAYS detection phase for faster reversal catching.
+v2.2: Direct BULL↔BEAR transitions in BULL/BEAR/WAIT_SEE states.
+v2.3: Also detect BULL/BEAR signal directly FROM SIDEWAYS state (no SW trade needed).
+  This enables "wait and see" — bot can sit in SIDEWAYS without trading,
+  then jump to BULL/BEAR when EMA signal fires.
 """
 from dataclasses import dataclass, field
 from typing import Optional
@@ -31,8 +32,7 @@ class Position:
     peak_high: float = 0.0; trough_low: float = 1e18
     ema_at_entry: float = 0.0; entry_trigger: str = ''
     be_triggered: bool = False; original_sl: float = 0.0
-    size_ratio: float = 1.0
-    is_poc_entry: bool = False
+    size_ratio: float = 1.0; is_poc_entry: bool = False
 
 @dataclass
 class Trade:
@@ -67,6 +67,7 @@ class Switcher:
         self._bear_blocked_mtf = 0; self._bear_blocked_body = 0
         self._be_triggered_count = 0; self._be_exit_count = 0
         self._direct_bull_to_bear = 0; self._direct_bear_to_bull = 0
+        self._direct_sw_to_bull = 0; self._direct_sw_to_bear = 0
 
     def process_candle(self, bar_idx, o, h, l, c, ema20, vah, val, poc=None):
         self._action_taken_this_bar = False; self._current_ema20 = ema20
@@ -179,14 +180,23 @@ class Switcher:
         return abs(c - o) / bar_range >= self.config.sideways_body_ratio_min
 
     def _is_bear_signal(self, o, h, l, c, ema20):
-        """Check if current bar has a BEAR entry signal (EMA reject + bearish)."""
         return (h >= ema20) and (c < ema20) and (c < o)
 
     def _is_bull_signal(self, o, h, l, c, ema20):
-        """Check if current bar has a BULL entry signal (EMA reclaim + bullish)."""
         return (l <= ema20) and (c > ema20) and (c > o)
 
     def _entry_sideways(self, bar_idx, o, h, l, c, ema20, vah, val):
+        # v2.3: PRIORITY 0 — direct transition from SIDEWAYS to BULL/BEAR (wait-and-see)
+        if self.config.direct_transition_enabled:
+            if self._is_bull_signal(o, h, l, c, ema20):
+                if self.config.bull_body_ratio_min <= 0 or self._check_body_ratio(o, h, l, c):
+                    self.state = 'BULL'; self._direct_sw_to_bull += 1
+                    self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger='ema_reclaim'); return
+            elif self._is_bear_signal(o, h, l, c, ema20):
+                if self.config.bear_body_ratio_min <= 0 or self._check_bear_body_ratio(o, h, l, c):
+                    self.state = 'BEAR'; self._direct_sw_to_bear += 1
+                    self._execute_bear_entry(bar_idx, o, h, l, c, ema20); return
+        # PRIORITY 1: VAH/VAL boundary entries (detector role)
         short_ok = (h >= vah) and (c <= vah)
         long_ok = (l <= val) and (c >= val)
         if self.config.sideways_ema_filter_enabled:
@@ -282,7 +292,6 @@ class Switcher:
     def _entry_wait_see_bullish(self, bar_idx, o, h, l, c, ema20, vah, val):
         hh_lvl = self.markers.hh_breach_level()
         if hh_lvl is not None and c > hh_lvl: self.state = 'BULL'; self.bull_stay_warmup = False; return
-        # v2.2: direct transition — if BEAR signal while waiting for bullish confirmation
         if self.config.direct_transition_enabled and self._is_bear_signal(o, h, l, c, ema20):
             if self.config.bear_body_ratio_min <= 0 or self._check_bear_body_ratio(o, h, l, c):
                 self.state = 'BEAR'; self._direct_bull_to_bear += 1
@@ -294,7 +303,6 @@ class Switcher:
     def _entry_wait_see_bearish(self, bar_idx, o, h, l, c, ema20, vah, val):
         ll_lvl = self.markers.ll_breach_level()
         if ll_lvl is not None and c < ll_lvl: self.state = 'BEAR'; self.bear_stay_warmup = False; return
-        # v2.2: direct transition — if BULL signal while waiting for bearish confirmation
         if self.config.direct_transition_enabled and self._is_bull_signal(o, h, l, c, ema20):
             if self.config.bull_body_ratio_min <= 0 or self._check_body_ratio(o, h, l, c):
                 self.state = 'BULL'; self._direct_bear_to_bull += 1
@@ -349,7 +357,6 @@ class Switcher:
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bull_stay_warmup and c < ema20:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False; self._reset_retest(); return
-        # v2.2: check for BEAR signal while in BULL state (no position open)
         if self.config.direct_transition_enabled and self._is_bear_signal(o, h, l, c, ema20):
             if self.config.bear_body_ratio_min <= 0 or self._check_bear_body_ratio(o, h, l, c):
                 self.state = 'BEAR'; self._direct_bull_to_bear += 1
@@ -402,7 +409,6 @@ class Switcher:
         return self.mtf_bear_entry_close[bar_idx], self.mtf_bear_entry_high[bar_idx]
 
     def _execute_bear_entry(self, bar_idx, o, h, l, c, ema20):
-        """Execute BEAR entry (used by both normal _entry_bear and direct transition)."""
         entry_price = c; sl_price = h
         if self.config.bear_mtf_15m_enabled:
             mtf_c, mtf_h = self._get_mtf_bear_entry(bar_idx)
@@ -413,7 +419,6 @@ class Switcher:
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bear_stay_warmup and c > ema20:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False; return
-        # v2.2: check for BULL signal while in BEAR state (no position open)
         if self.config.direct_transition_enabled and self._is_bull_signal(o, h, l, c, ema20):
             if self.config.bull_body_ratio_min <= 0 or self._check_body_ratio(o, h, l, c):
                 self.state = 'BULL'; self._direct_bear_to_bull += 1
