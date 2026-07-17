@@ -1,4 +1,4 @@
-"""Mode3 BBC Backtest Endpoint — v2.1: POC breakout for SIDEWAYS."""
+"""Mode3 BBC Backtest Endpoint — v2.2: Direct BULL↔BEAR transitions."""
 import os
 from dataclasses import asdict
 from fastapi import APIRouter, Query
@@ -80,9 +80,10 @@ def backtest_mode3_bbc(
     sideways_min_sl_dist_pct:float=Query(0.0,ge=0.0,le=0.10),
     sideways_dual_mode_enabled:bool=Query(False),
     sideways_detector_size_ratio:float=Query(0.1,ge=0.0,le=1.0),
-    # v2.1: POC breakout
     sideways_poc_breakout_enabled:bool=Query(False),
     sideways_poc_body_ratio_min:float=Query(0.5,ge=0.0,le=1.0),
+    # v2.2: direct BULL↔BEAR transition
+    direct_transition_enabled:bool=Query(False),
     use_wick_exit:bool=Query(True),
     entry_usd:float=Query(10.0), leverage:float=Query(50.0),
     fee_pct:float=Query(0.001), slippage_pct:float=Query(0.0005),
@@ -108,6 +109,7 @@ def backtest_mode3_bbc(
         sideways_detector_size_ratio=sideways_detector_size_ratio,
         sideways_poc_breakout_enabled=sideways_poc_breakout_enabled,
         sideways_poc_body_ratio_min=sideways_poc_body_ratio_min,
+        direct_transition_enabled=direct_transition_enabled,
         use_wick_exit=use_wick_exit, entry_usd=entry_usd, leverage=leverage,
         fee_pct_roundtrip=fee_pct, slippage_pct=slippage_pct,
         bull_poc_entry_enabled=bull_poc_entry_enabled, bull_poc_max_distance_pct=bull_poc_max_distance_pct,
@@ -175,10 +177,11 @@ def backtest_mode3_bbc(
             "total_pnl_usd":round(total_pnl_usd,2),"capital_start":config.capital_usd,
             "capital_end":round(config.capital_usd+total_pnl_usd,2),
             "max_drawdown_usd":round(max_dd,2),"max_loss_streak":max_streak,
-            "sideways_poc_breakout_entries":switcher._sideways_poc_breakout_entries,
+            "direct_bull_to_bear":switcher._direct_bull_to_bear,
+            "direct_bear_to_bull":switcher._direct_bear_to_bull,
             "exit_type_breakdown":exit_type_breakdown},
         "per_tool":tool_stats,"trades":trade_list,"final_state":switcher.state}
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status":"ok","module":"mode3_bbc","version":"2.1-poc-breakout","db_path":DB_PATH}
+    return {"status":"ok","module":"mode3_bbc","version":"2.2-direct-transition","db_path":DB_PATH}
