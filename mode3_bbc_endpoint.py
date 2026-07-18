@@ -1,4 +1,4 @@
-"""Mode3 BBC Backtest Endpoint — v2.4: MA7 trailing stop."""
+"""Mode3 BBC Backtest Endpoint — v2.5: 4H directional filter."""
 import os
 from dataclasses import asdict
 from fastapi import APIRouter, Query
@@ -54,6 +54,30 @@ def compute_mtf_sideways_entry(rows_1h, rows_15m, vahs, vals):
         sc.append(s_c);sh.append(s_h);lc.append(l_c);ll.append(l_l)
     return sc,sh,lc,ll
 
+def compute_higher_tf_ema(rows_1h, rows_4h, ema_period):
+    """Compute 4H EMA and map to 1H bar indices."""
+    if not rows_4h: return None
+    closes_4h = np.array([r[4] for r in rows_4h], dtype=float)
+    ema_4h = compute_ema_series(closes_4h, ema_period)
+    # Map 4H timestamps to EMA values
+    ts_to_ema = {rows_4h[i][0]: float(ema_4h[i]) for i in range(len(rows_4h))}
+    # For each 1H bar, find the most recent completed 4H bar's EMA
+    result = []
+    sorted_4h_ts = sorted(ts_to_ema.keys())
+    for r in rows_1h:
+        ts_1h = r[0]
+        # Find the 4H bar that contains this 1H bar (floor to 4H boundary)
+        # 4H bars are at 0:00, 4:00, 8:00, 12:00, 16:00, 20:00
+        ms_4h = 4 * 3600 * 1000
+        aligned_ts = (ts_1h // ms_4h) * ms_4h
+        ema_val = ts_to_ema.get(aligned_ts)
+        if ema_val is None:
+            # Try previous 4H bar
+            prev_ts = aligned_ts - ms_4h
+            ema_val = ts_to_ema.get(prev_ts)
+        result.append(ema_val)
+    return result
+
 @router.get("/presets")
 def get_presets():
     return {
@@ -81,11 +105,13 @@ def backtest_mode3_bbc(
     sideways_poc_breakout_enabled:bool=Query(False),
     sideways_poc_body_ratio_min:float=Query(0.5,ge=0.0,le=1.0),
     direct_transition_enabled:bool=Query(True),
-    # v2.4: trailing EMA
     trailing_ema_enabled:bool=Query(False),
     trailing_ema_period:int=Query(7,ge=3,le=50),
     trailing_ema_min_bars:int=Query(1,ge=0,le=20),
     trailing_ema_max_tp_pct:float=Query(0.0,ge=0.0,le=0.20),
+    # v2.5: 4H directional filter
+    higher_tf_filter_enabled:bool=Query(False),
+    higher_tf_ema_period:int=Query(7,ge=3,le=50),
     use_wick_exit:bool=Query(True),
     entry_usd:float=Query(10.0), leverage:float=Query(50.0),
     fee_pct:float=Query(0.001), slippage_pct:float=Query(0.0005),
@@ -112,10 +138,9 @@ def backtest_mode3_bbc(
         sideways_poc_breakout_enabled=sideways_poc_breakout_enabled,
         sideways_poc_body_ratio_min=sideways_poc_body_ratio_min,
         direct_transition_enabled=direct_transition_enabled,
-        trailing_ema_enabled=trailing_ema_enabled,
-        trailing_ema_period=trailing_ema_period,
-        trailing_ema_min_bars=trailing_ema_min_bars,
-        trailing_ema_max_tp_pct=trailing_ema_max_tp_pct,
+        trailing_ema_enabled=trailing_ema_enabled, trailing_ema_period=trailing_ema_period,
+        trailing_ema_min_bars=trailing_ema_min_bars, trailing_ema_max_tp_pct=trailing_ema_max_tp_pct,
+        higher_tf_filter_enabled=higher_tf_filter_enabled, higher_tf_ema_period=higher_tf_ema_period,
         use_wick_exit=use_wick_exit, entry_usd=entry_usd, leverage=leverage,
         fee_pct_roundtrip=fee_pct, slippage_pct=slippage_pct,
         bull_poc_entry_enabled=bull_poc_entry_enabled, bull_poc_max_distance_pct=bull_poc_max_distance_pct,
@@ -139,10 +164,14 @@ def backtest_mode3_bbc(
         vah,val,poc=compute_va_at_bar(highs,lows,closes,volumes,i,config.va_window,config.va_percentile_high,config.va_percentile_low)
         vahs.append(vah);vals.append(val);pocs.append(poc)
     switcher=Switcher(config)
-    # v2.4: compute trailing EMA and pass to switcher
     if config.trailing_ema_enabled:
-        trailing_ema = compute_ema_series(closes, config.trailing_ema_period)
-        switcher.trailing_ema_series = trailing_ema
+        switcher.trailing_ema_series = compute_ema_series(closes, config.trailing_ema_period)
+    # v2.5: compute 4H EMA and map to 1H bars
+    if config.higher_tf_filter_enabled and timeframe == '1h':
+        rows_4h = load_candles_from_db(symbol, '4h', start_ts, end_ts)
+        if rows_4h:
+            htf_ema = compute_higher_tf_ema(rows, rows_4h, config.higher_tf_ema_period)
+            switcher.higher_tf_ema_series = htf_ema
     if bull_mtf_15m_enabled or bear_mtf_15m_enabled or sideways_mtf_15m_enabled:
         rows_15m=load_candles_from_db(symbol,'15m',start_ts,end_ts)
         if rows_15m:
@@ -188,9 +217,11 @@ def backtest_mode3_bbc(
             "capital_end":round(config.capital_usd+total_pnl_usd,2),
             "max_drawdown_usd":round(max_dd,2),"max_loss_streak":max_streak,
             "trailing_ema_exits":switcher._trailing_ema_exits,
+            "bull_blocked_higher_tf":switcher._bull_blocked_higher_tf,
+            "bear_blocked_higher_tf":switcher._bear_blocked_higher_tf,
             "exit_type_breakdown":exit_type_breakdown},
         "per_tool":tool_stats,"trades":trade_list,"final_state":switcher.state}
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status":"ok","module":"mode3_bbc","version":"2.4-trailing-ema","db_path":DB_PATH}
+    return {"status":"ok","module":"mode3_bbc","version":"2.5-4h-filter","db_path":DB_PATH}
