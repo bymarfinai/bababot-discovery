@@ -1,9 +1,9 @@
-"""Mode3 BBC Config — v2.4: MA7 trailing stop.
+"""Mode3 BBC Config — v2.5: 4H directional filter.
 
-v2.4: Dual EMA system — EMA20 for state/entry, EMA7 as trailing exit.
-  BULL: enter at EMA20 reclaim, exit when close < EMA7 (or fixed SL).
-  BEAR: enter at EMA20 reject, exit when close > EMA7 (or fixed SL).
-  No fixed TP — let winners ride until MA7 breaks.
+v2.5: Block 1H entries that counter 4H trend.
+  If 1H close > 4H EMA7 → 4H bullish → block 1H BEAR entries
+  If 1H close < 4H EMA7 → 4H bearish → block 1H BULL entries
+  Simple price vs 4H EMA check, no 4H state machine needed.
 """
 from dataclasses import dataclass
 
@@ -38,7 +38,6 @@ class Mode3BBCConfig:
 
     trail_to_be_trigger_pct: float = 0.0
     sideways_trail_to_be_trigger_pct: float = 0.0
-
     use_wick_exit: bool = True
 
     capital_usd: float = 100.0
@@ -78,18 +77,17 @@ class Mode3BBCConfig:
 
     direct_transition_enabled: bool = True
 
-    # v2.4: MA7 trailing stop
-    # When enabled, BULL/BEAR exits use trailing_ema instead of fixed TP.
-    # BULL LONG: exit when close < trailing_ema (MA7 break)
-    # BEAR SHORT: exit when close > trailing_ema (MA7 break)
-    # Fixed SL still active as safety net.
-    # SW trades keep fixed TP (not affected).
     trailing_ema_enabled: bool = False
     trailing_ema_period: int = 7
-    # Optional: minimum bars to hold before trailing activates (avoid instant exit)
     trailing_ema_min_bars: int = 1
-    # Optional: if > 0, use fixed TP as ceiling even with trailing
     trailing_ema_max_tp_pct: float = 0.0
+
+    # v2.5: 4H directional filter
+    # Block 1H BULL entries when 1H close < 4H EMA (4H bearish)
+    # Block 1H BEAR entries when 1H close > 4H EMA (4H bullish)
+    # SW entries NOT affected (detector role preserved)
+    higher_tf_filter_enabled: bool = False
+    higher_tf_ema_period: int = 7
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
