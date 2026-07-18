@@ -1,9 +1,13 @@
-"""Mode3 BBC Config — v2.5: 4H directional filter.
+"""Mode3 BBC Config — v2.5 CLEAN.
 
-v2.5: Block 1H entries that counter 4H trend.
-  If 1H close > 4H EMA7 → 4H bullish → block 1H BEAR entries
-  If 1H close < 4H EMA7 → 4H bearish → block 1H BULL entries
-  Simple price vs 4H EMA check, no 4H state machine needed.
+Cleaned: removed 4H directional filter (tested, didn't improve WR/PnL).
+Kept: trailing EMA (v2.4), direct transition (v2.2), body ratio tuning (v2.3).
+
+Best configs discovered:
+  EMA7 TP1.3% SL1.3% → WR 65.4%, PnL $6,060 (max PnL)
+  EMA7 TP1.0% SL1.3% → WR 72.0%, PnL $5,344 (high WR)
+  EMA7 TP0.9% SL1.3% → WR 74.7%, PnL $5,197 (balanced)
+  EMA20 TP1.3% SL1.3% → WR 66.6%, PnL $3,918 (conservative)
 """
 from dataclasses import dataclass
 
@@ -77,17 +81,11 @@ class Mode3BBCConfig:
 
     direct_transition_enabled: bool = True
 
+    # v2.4: trailing EMA exit (kept — useful for sweep)
     trailing_ema_enabled: bool = False
     trailing_ema_period: int = 7
     trailing_ema_min_bars: int = 1
     trailing_ema_max_tp_pct: float = 0.0
-
-    # v2.5: 4H directional filter
-    # Block 1H BULL entries when 1H close < 4H EMA (4H bearish)
-    # Block 1H BEAR entries when 1H close > 4H EMA (4H bullish)
-    # SW entries NOT affected (detector role preserved)
-    higher_tf_filter_enabled: bool = False
-    higher_tf_ema_period: int = 7
 
     def notional(self) -> float:
         return self.entry_usd * self.leverage
