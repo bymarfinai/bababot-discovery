@@ -116,7 +116,20 @@ if _MODE3_CLEAN_AVAILABLE:
 if _MODE3_BBC_AVAILABLE:
     app.include_router(mode3_bbc_router)
     print("[INIT] Mode3 BBC mounted at /mode3_bbc/backtest, /mode3_bbc/health")
-      
+if _MODE3_BBC_AVAILABLE:
+    app.include_router(mode3_bbc_router)
+    print("[INIT] Mode3 BBC mounted at /mode3_bbc/backtest, /mode3_bbc/health")
+
+# ── BBC Sweep endpoint ─────────────────────────────────────
+try:
+    from bbc_sweep_endpoint import router as bbc_sweep_router
+    app.include_router(bbc_sweep_router)
+    print("[INIT] BBC Sweep mounted at /mode3_bbc/sweep/*")
+except Exception as _e:
+    print(f"[WARN] bbc_sweep not available: {_e}")
+# ────────────────────────────────────────────────────────────
+security = HTTPBearer(auto_error=False)
+        
 security = HTTPBearer(auto_error=False)
 
 API_TOKEN = os.environ.get("BACKTEST_API_TOKEN", "")
