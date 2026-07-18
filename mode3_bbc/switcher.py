@@ -1,11 +1,7 @@
-"""Mode3 BBC Switcher — v2.5: 4H directional filter.
+"""Mode3 BBC Switcher — v2.5 CLEAN.
 
-v2.5: Block 1H BULL/BEAR entries that counter 4H EMA direction.
-  higher_tf_ema array (4H EMA7 mapped to 1H bars) set by endpoint.
-  BULL entry: only if close > higher_tf_ema (4H bullish)
-  BEAR entry: only if close < higher_tf_ema (4H bearish)
-  SW entries NOT filtered (detector role preserved).
-  Direct transitions also filtered.
+Cleaned: removed 4H directional filter (didn't work).
+Kept: v2.2 direct transitions, v2.3 SW wait-and-see, v2.4 trailing EMA.
 """
 from dataclasses import dataclass, field
 from typing import Optional
@@ -52,9 +48,7 @@ class Switcher:
         self._action_taken_this_bar = False; self._current_ema20 = 0.0
         self._current_vah = None; self._current_val = None; self._current_poc = None
         self._current_trailing_ema = None
-        self._current_higher_tf_ema = None  # v2.5
         self.trailing_ema_series = None
-        self.higher_tf_ema_series = None    # v2.5: 4H EMA mapped to 1H bars
         self.mtf_bull_entry_close = None; self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None; self.mtf_bear_entry_high = None
         self.mtf_sideways_short_entry_close = None; self.mtf_sideways_short_entry_high = None
@@ -69,34 +63,18 @@ class Switcher:
         self._bull_ema_reclaim_entries = 0; self._bull_poc_bounce_entries = 0
         self._bull_swing_break_entries = 0; self._bull_retest_entries = 0; self._bull_26_bounce_entries = 0
         self._bull_blocked_mtf = 0; self._bull_blocked_body = 0
-        self._bull_blocked_higher_tf = 0  # v2.5
-        self._bear_blocked_mtf = 0; self._bear_blocked_body = 0
-        self._bear_blocked_higher_tf = 0  # v2.5
         self._bull_blocked_retest_timeout = 0; self._bull_blocked_retest_invalidated = 0; self._bull_blocked_no_swing_history = 0
+        self._bear_blocked_mtf = 0; self._bear_blocked_body = 0
         self._be_triggered_count = 0; self._be_exit_count = 0
         self._direct_bull_to_bear = 0; self._direct_bear_to_bull = 0
         self._direct_sw_to_bull = 0; self._direct_sw_to_bear = 0
         self._trailing_ema_exits = 0
-
-    def _is_higher_tf_bullish(self, c):
-        """v2.5: check if 4H EMA says bullish (close > 4H EMA)."""
-        if not self.config.higher_tf_filter_enabled: return True
-        if self._current_higher_tf_ema is None: return True
-        return c > self._current_higher_tf_ema
-
-    def _is_higher_tf_bearish(self, c):
-        """v2.5: check if 4H EMA says bearish (close < 4H EMA)."""
-        if not self.config.higher_tf_filter_enabled: return True
-        if self._current_higher_tf_ema is None: return True
-        return c < self._current_higher_tf_ema
 
     def process_candle(self, bar_idx, o, h, l, c, ema20, vah, val, poc=None):
         self._action_taken_this_bar = False; self._current_ema20 = ema20
         self._current_vah = vah; self._current_val = val; self._current_poc = poc
         if self.trailing_ema_series is not None and bar_idx < len(self.trailing_ema_series):
             self._current_trailing_ema = self.trailing_ema_series[bar_idx]
-        if self.higher_tf_ema_series is not None and bar_idx < len(self.higher_tf_ema_series):
-            self._current_higher_tf_ema = self.higher_tf_ema_series[bar_idx]
         if self.state == 'STARTUP':
             if vah is None or val is None: self._high_deque.append(h); self._low_deque.append(l); return
             self._startup_transition(c, ema20)
@@ -233,12 +211,11 @@ class Switcher:
 
     def _entry_sideways(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.config.direct_transition_enabled:
-            # v2.5: direct transitions also filtered by 4H
-            if self._is_bull_signal(o, h, l, c, ema20) and self._is_higher_tf_bullish(c):
+            if self._is_bull_signal(o, h, l, c, ema20):
                 if self.config.bull_body_ratio_min <= 0 or self._check_body_ratio(o, h, l, c):
                     self.state = 'BULL'; self._direct_sw_to_bull += 1
                     self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger='ema_reclaim'); return
-            elif self._is_bear_signal(o, h, l, c, ema20) and self._is_higher_tf_bearish(c):
+            elif self._is_bear_signal(o, h, l, c, ema20):
                 if self.config.bear_body_ratio_min <= 0 or self._check_bear_body_ratio(o, h, l, c):
                     self.state = 'BEAR'; self._direct_sw_to_bear += 1
                     self._execute_bear_entry(bar_idx, o, h, l, c, ema20); return
@@ -294,7 +271,7 @@ class Switcher:
     def _entry_wait_see_bullish(self, bar_idx, o, h, l, c, ema20, vah, val):
         hh_lvl = self.markers.hh_breach_level()
         if hh_lvl is not None and c > hh_lvl: self.state = 'BULL'; self.bull_stay_warmup = False; return
-        if self.config.direct_transition_enabled and self._is_bear_signal(o, h, l, c, ema20) and self._is_higher_tf_bearish(c):
+        if self.config.direct_transition_enabled and self._is_bear_signal(o, h, l, c, ema20):
             if self.config.bear_body_ratio_min <= 0 or self._check_bear_body_ratio(o, h, l, c):
                 self.state = 'BEAR'; self._direct_bull_to_bear += 1
                 self._execute_bear_entry(bar_idx, o, h, l, c, ema20); return
@@ -305,7 +282,7 @@ class Switcher:
     def _entry_wait_see_bearish(self, bar_idx, o, h, l, c, ema20, vah, val):
         ll_lvl = self.markers.ll_breach_level()
         if ll_lvl is not None and c < ll_lvl: self.state = 'BEAR'; self.bear_stay_warmup = False; return
-        if self.config.direct_transition_enabled and self._is_bull_signal(o, h, l, c, ema20) and self._is_higher_tf_bullish(c):
+        if self.config.direct_transition_enabled and self._is_bull_signal(o, h, l, c, ema20):
             if self.config.bull_body_ratio_min <= 0 or self._check_body_ratio(o, h, l, c):
                 self.state = 'BULL'; self._direct_bear_to_bull += 1
                 self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger='ema_reclaim'); return
@@ -336,18 +313,16 @@ class Switcher:
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bull_stay_warmup and c < ema20:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False; self._reset_retest(); return
-        # v2.5: check 4H filter for direct BEAR transition
-        if self.config.direct_transition_enabled and self._is_bear_signal(o, h, l, c, ema20) and self._is_higher_tf_bearish(c):
+        if self.config.direct_transition_enabled and self._is_bear_signal(o, h, l, c, ema20):
             if self.config.bear_body_ratio_min <= 0 or self._check_bear_body_ratio(o, h, l, c):
                 self.state = 'BEAR'; self._direct_bull_to_bear += 1
                 self._execute_bear_entry(bar_idx, o, h, l, c, ema20); return
         primary_trigger = self._is_bull_signal(o, h, l, c, ema20); trigger_name = 'ema_reclaim'
         if primary_trigger:
-            # v2.5: block BULL entry if 4H is bearish
-            if not self._is_higher_tf_bullish(c):
-                self._bull_blocked_higher_tf += 1; return
             if self.config.bull_body_ratio_min > 0 and not self._check_body_ratio(o, h, l, c):
-                self._bull_blocked_body += 1; return
+                self._bull_blocked_body += 1
+                if self._check_poc_bounce(o, h, l, c): self._open_bull(bar_idx, h, l, c, 'poc_bounce'); return
+                return
             self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger=trigger_name)
 
     def _execute_bull_entry(self, bar_idx, o, h, l, c, ema20, trigger):
@@ -380,15 +355,11 @@ class Switcher:
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.bear_stay_warmup and c > ema20:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False; return
-        # v2.5: check 4H filter for direct BULL transition
-        if self.config.direct_transition_enabled and self._is_bull_signal(o, h, l, c, ema20) and self._is_higher_tf_bullish(c):
+        if self.config.direct_transition_enabled and self._is_bull_signal(o, h, l, c, ema20):
             if self.config.bull_body_ratio_min <= 0 or self._check_body_ratio(o, h, l, c):
                 self.state = 'BULL'; self._direct_bear_to_bull += 1
                 self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger='ema_reclaim'); return
         if not self._is_bear_signal(o, h, l, c, ema20): return
-        # v2.5: block BEAR entry if 4H is bullish
-        if not self._is_higher_tf_bearish(c):
-            self._bear_blocked_higher_tf += 1; return
         if self.config.bear_body_ratio_min > 0 and not self._check_bear_body_ratio(o, h, l, c): self._bear_blocked_body += 1; return
         self._execute_bear_entry(bar_idx, o, h, l, c, ema20)
 
