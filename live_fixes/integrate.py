@@ -20,6 +20,30 @@ from datetime import datetime, timezone
 
 
 # ══════════════════════════════════════════════
+# FIX 0: PRECISION table — add missing pairs + fix wrong precisions
+# ══════════════════════════════════════════════
+
+baret_live.PRECISION.update({
+    "BTCUSDT":       {"price": 1, "qty": 3},
+    "ETHUSDT":       {"price": 2, "qty": 3},
+    "SOLUSDT":       {"price": 2, "qty": 1},
+    "AVAXUSDT":      {"price": 3, "qty": 1},
+    "DOGEUSDT":      {"price": 5, "qty": 0},
+    "XRPUSDT":       {"price": 4, "qty": 1},
+    "LINKUSDT":      {"price": 3, "qty": 2},   # FIX: was 1, should be 2 (stepSize 0.01)
+    "1000PEPEUSDT":  {"price": 7, "qty": 0},
+    "BNBUSDT":       {"price": 2, "qty": 2},    # NEW
+    "SUIUSDT":       {"price": 4, "qty": 1},    # NEW
+    "ARBUSDT":       {"price": 4, "qty": 1},    # NEW
+    "NEARUSDT":      {"price": 3, "qty": 1},    # NEW
+    "ADAUSDT":       {"price": 4, "qty": 0},    # NEW
+    "DOTUSDT":       {"price": 3, "qty": 1},    # NEW
+    "MATICUSDT":     {"price": 5, "qty": 0},    # NEW
+})
+_log("[LiveFixes] ✅ FIX 0: PRECISION table updated (LINKUSDT qty 1→2, +7 new pairs)")
+
+
+# ══════════════════════════════════════════════
 # FIX 1: _place_sl_tp with retry 3x + Telegram alert
 # ══════════════════════════════════════════════
 
@@ -55,8 +79,6 @@ def _place_sl_tp_v2(client, symbol, position_side, sl_price, tp_price, max_retri
 
     return results
 
-
-# Apply patch
 baret_live._place_sl_tp = _place_sl_tp_v2
 _log("[LiveFixes] ✅ FIX 1: _place_sl_tp patched with retry 3x + Telegram alert")
 
@@ -72,7 +94,6 @@ def _reconcile_exchange_positions(client, state, configs, prefix, acct_name):
         exchange_symbols = {p["symbol"] for p in exchange_positions}
         tracked_symbols = set(state.get("positions", {}).keys())
 
-        # Orphan: on exchange but not tracked
         for pos in exchange_positions:
             symbol = pos["symbol"]
             if symbol not in tracked_symbols:
@@ -88,7 +109,12 @@ def _reconcile_exchange_positions(client, state, configs, prefix, acct_name):
                     client.cancel_all_orders(symbol)
                     _cancel_sl_tp(client, symbol)
                     close_side = "SELL" if amt > 0 else "BUY"
-                    client.place_market_close(symbol, close_side, abs(amt))
+                    # Use raw qty string to avoid precision rounding issues
+                    raw_qty = str(abs(amt))
+                    client.api_post("/fapi/v1/order", {
+                        "symbol": symbol, "side": close_side, "type": "MARKET",
+                        "quantity": raw_qty, "reduceOnly": "true",
+                    })
                     time.sleep(1)
                     verify = client.get_position(symbol)
                     if verify and abs(float(verify.get("positionAmt", 0))) > 0:
@@ -107,7 +133,6 @@ def _reconcile_exchange_positions(client, state, configs, prefix, acct_name):
                     _log(f"{prefix}  ❌ ORPHAN {symbol} error: {e}")
                     _send_telegram(f"❌ ORPHAN {symbol} error: {e}")
 
-        # Ghost: tracked but not on exchange
         for symbol in list(tracked_symbols):
             if symbol not in exchange_symbols:
                 pos_info = state["positions"].get(symbol)
@@ -126,27 +151,14 @@ def _reconcile_exchange_positions(client, state, configs, prefix, acct_name):
         _log(f"{prefix}  ⚠️ Reconcile error: {e}")
 
 
-# Patch: inject reconciliation into the main loop
-# We wrap _baret_live_loop to add reconciliation at cycle start
-_original_loop = baret_live._baret_live_loop
-
-def _patched_baret_live_loop(*args, **kwargs):
-    """Patched loop that adds reconciliation. We monkey-patch _monitor_positions instead
-    since it's called every poll cycle, making reconciliation more frequent."""
-    return _original_loop(*args, **kwargs)
-
-# Better approach: patch _monitor_positions to also reconcile periodically
 _original_monitor = baret_live._monitor_positions
-_last_reconcile = [0]  # timestamp of last reconciliation
+_last_reconcile = [0]
 
 def _patched_monitor_positions(client, configs, state, prefix, acct_name, last_debug_ref):
     """Monitor with periodic reconciliation (every 5 minutes)."""
-    # Run original monitor
     _original_monitor(client, configs, state, prefix, acct_name, last_debug_ref)
-    
-    # Reconcile every 5 minutes
     now = time.time()
-    if now - _last_reconcile[0] > 300:  # 5 min
+    if now - _last_reconcile[0] > 300:
         _reconcile_exchange_positions(client, state, configs, prefix, acct_name)
         _last_reconcile[0] = now
 
@@ -245,8 +257,47 @@ def get_exchange_positions(account_id=None):
 
     return {"ok": True, "positions": results, "count": len(results), "account": acct_name}
 
-# Export for app.py
 baret_live.get_exchange_positions = get_exchange_positions
 _log("[LiveFixes] ✅ FIX 4: get_exchange_positions added")
 
-_log("[LiveFixes] ═══ ALL 4 CRITICAL FIXES APPLIED ═══")
+
+# ══════════════════════════════════════════════
+# FIX 5: Max daily loss enforcement
+# ══════════════════════════════════════════════
+
+_daily_pnl = {}  # {"YYYY-MM-DD": total_pnl_usd}
+
+_original_log_trade = baret_live._log_trade_to_d1
+
+def _patched_log_trade_to_d1(symbol, timeframe, side, entry_price, exit_price, entry_time, exit_time,
+                              sl_pct, tp_pct, pnl_dollar, pnl_pct, exit_reason, acct_name=""):
+    """Log trade + track daily PnL for max_daily_loss enforcement."""
+    # Call original
+    _original_log_trade(symbol, timeframe, side, entry_price, exit_price, entry_time, exit_time,
+                        sl_pct, tp_pct, pnl_dollar, pnl_pct, exit_reason, acct_name)
+    # Track daily PnL
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    key = f"{acct_name}_{today}" if acct_name else f"demo_{today}"
+    _daily_pnl[key] = _daily_pnl.get(key, 0) + (pnl_dollar or 0)
+    
+    daily_total = _daily_pnl[key]
+    if daily_total < 0:
+        _log(f"  📊 Daily PnL ({acct_name or 'demo'}): ${daily_total:.2f}")
+
+baret_live._log_trade_to_d1 = _patched_log_trade_to_d1
+
+
+def check_daily_loss_limit(acct_name="", max_loss=0):
+    """Check if daily loss limit exceeded. Returns (exceeded, current_pnl)."""
+    if max_loss <= 0:
+        return False, 0
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    key = f"{acct_name}_{today}" if acct_name else f"demo_{today}"
+    current = _daily_pnl.get(key, 0)
+    exceeded = current <= -abs(max_loss)
+    return exceeded, current
+
+baret_live.check_daily_loss_limit = check_daily_loss_limit
+_log("[LiveFixes] ✅ FIX 5: Daily PnL tracking + max_daily_loss check")
+
+_log("[LiveFixes] ═══ ALL 5 FIXES APPLIED ═══")
