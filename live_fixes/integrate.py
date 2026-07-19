@@ -109,7 +109,6 @@ def _reconcile_exchange_positions(client, state, configs, prefix, acct_name):
                     client.cancel_all_orders(symbol)
                     _cancel_sl_tp(client, symbol)
                     close_side = "SELL" if amt > 0 else "BUY"
-                    # Use raw qty string to avoid precision rounding issues
                     raw_qty = str(abs(amt))
                     client.api_post("/fapi/v1/order", {
                         "symbol": symbol, "side": close_side, "type": "MARKET",
@@ -262,27 +261,47 @@ _log("[LiveFixes] ✅ FIX 4: get_exchange_positions added")
 
 
 # ══════════════════════════════════════════════
-# FIX 5: Max daily loss enforcement
+# FIX 5: Max daily loss — FULL ENFORCEMENT
+#
+# How it works:
+# 1. _log_trade_to_d1 patched → accumulates daily PnL per account
+# 2. ExchangeClient.place_limit patched → BLOCKS new orders when limit hit
+# 3. Telegram alert sent once when limit first breached
+#
+# This means: existing positions keep their SL/TP (they can still close),
+# but NO NEW entries are placed. Bot stays running to monitor existing.
 # ══════════════════════════════════════════════
 
-_daily_pnl = {}  # {"YYYY-MM-DD": total_pnl_usd}
+_daily_pnl = {}           # {"acct_YYYY-MM-DD": total_pnl_usd}
+_daily_limit_map = {}     # {"acct_name": max_loss_usd}  — loaded from D1 account config
+_daily_alert_sent = set() # {"acct_YYYY-MM-DD"} — prevent spam
 
+# Track PnL on every closed trade
 _original_log_trade = baret_live._log_trade_to_d1
 
 def _patched_log_trade_to_d1(symbol, timeframe, side, entry_price, exit_price, entry_time, exit_time,
                               sl_pct, tp_pct, pnl_dollar, pnl_pct, exit_reason, acct_name=""):
     """Log trade + track daily PnL for max_daily_loss enforcement."""
-    # Call original
     _original_log_trade(symbol, timeframe, side, entry_price, exit_price, entry_time, exit_time,
                         sl_pct, tp_pct, pnl_dollar, pnl_pct, exit_reason, acct_name)
-    # Track daily PnL
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    key = f"{acct_name}_{today}" if acct_name else f"demo_{today}"
+    key = f"{acct_name or 'demo'}_{today}"
     _daily_pnl[key] = _daily_pnl.get(key, 0) + (pnl_dollar or 0)
-    
     daily_total = _daily_pnl[key]
-    if daily_total < 0:
-        _log(f"  📊 Daily PnL ({acct_name or 'demo'}): ${daily_total:.2f}")
+    _log(f"  📊 Daily PnL ({acct_name or 'demo'}): ${daily_total:.2f}")
+
+    # Check if limit breached
+    max_loss = _daily_limit_map.get(acct_name, 0)
+    if max_loss > 0 and daily_total <= -abs(max_loss) and key not in _daily_alert_sent:
+        _daily_alert_sent.add(key)
+        _log(f"  🚨 MAX DAILY LOSS BREACHED ({acct_name or 'demo'}): ${daily_total:.2f} exceeds -${max_loss}")
+        _send_telegram(
+            f"🚨 *MAX DAILY LOSS BREACHED*\n"
+            f"Account: {acct_name or 'demo'}\n"
+            f"Daily PnL: ${daily_total:.2f}\n"
+            f"Limit: -${max_loss}\n"
+            f"⛔ New entries BLOCKED until tomorrow UTC"
+        )
 
 baret_live._log_trade_to_d1 = _patched_log_trade_to_d1
 
@@ -292,12 +311,55 @@ def check_daily_loss_limit(acct_name="", max_loss=0):
     if max_loss <= 0:
         return False, 0
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    key = f"{acct_name}_{today}" if acct_name else f"demo_{today}"
+    key = f"{acct_name or 'demo'}_{today}"
     current = _daily_pnl.get(key, 0)
     exceeded = current <= -abs(max_loss)
     return exceeded, current
 
 baret_live.check_daily_loss_limit = check_daily_loss_limit
-_log("[LiveFixes] ✅ FIX 5: Daily PnL tracking + max_daily_loss check")
 
-_log("[LiveFixes] ═══ ALL 5 FIXES APPLIED ═══")
+
+# ── ENFORCEMENT: Patch place_limit to block new orders when limit hit ──
+
+_original_place_limit = baret_live.ExchangeClient.place_limit
+
+def _guarded_place_limit(self, symbol, side, price, qty):
+    """place_limit with daily loss guard. Blocks new entries when limit breached."""
+    # Find which account this client belongs to
+    acct_name = ""
+    max_loss = 0
+    for aid, bot in baret_live._account_bots.items():
+        if bot.get("client") is self:
+            acct_name = bot["account"].get("name", "")
+            max_loss = bot["account"].get("max_daily_loss", 0)
+            break
+
+    if max_loss > 0:
+        exceeded, current_pnl = check_daily_loss_limit(acct_name, max_loss)
+        if exceeded:
+            _log(f"  ⛔ ORDER BLOCKED: {symbol} {side} — daily loss ${current_pnl:.2f} exceeds -${max_loss}")
+            return {"blocked": True, "reason": "daily_loss_exceeded", "daily_pnl": current_pnl, "limit": max_loss}
+
+    return _original_place_limit(self, symbol, side, price, qty)
+
+baret_live.ExchangeClient.place_limit = _guarded_place_limit
+
+
+# ── Also load max_daily_loss from account configs at bot start ──
+
+_original_account_loop = baret_live._account_loop
+
+def _patched_account_loop(account_id, client, account_info, mode="baret_dca"):
+    """Wrap account_loop to register max_daily_loss before trading starts."""
+    acct_name = account_info.get("name", f"Account-{account_id}")
+    max_loss = account_info.get("max_daily_loss", 0)
+    if max_loss > 0:
+        _daily_limit_map[acct_name] = max_loss
+        _log(f"[{acct_name}] 💰 Max daily loss set: ${max_loss}")
+    return _original_account_loop(account_id, client, account_info, mode)
+
+baret_live._account_loop = _patched_account_loop
+
+_log("[LiveFixes] ✅ FIX 5: Max daily loss ENFORCED (blocks place_limit when limit hit)")
+
+_log("[LiveFixes] ═══ ALL 6 FIXES APPLIED (0-5) ═══")
