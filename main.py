@@ -1,24 +1,44 @@
 """
 BabaBot Main — Thin wrapper that applies live_fixes before starting.
 Procfile points here: uvicorn main:app
-
-This avoids modifying the 113KB app.py file directly.
 """
 
 # Step 1: Apply all 4 critical live trading fixes (monkey-patch)
+_live_fixes_status = "not_loaded"
+_live_fixes_error = None
+
 try:
-    import live_fixes.integrate  # patches baret_live automatically
-    print("[MAIN] Live fixes applied successfully")
+    import live_fixes.integrate
+    _live_fixes_status = "loaded"
+    print("[MAIN] ✅ Live fixes applied successfully")
 except Exception as e:
-    print(f"[MAIN] WARNING: live_fixes not loaded: {e}")
+    import traceback
+    _live_fixes_error = traceback.format_exc()
+    _live_fixes_status = f"error: {e}"
+    print(f"[MAIN] ❌ live_fixes FAILED: {e}")
+    print(_live_fixes_error)
 
 # Step 2: Import the main FastAPI app
 from app import app
 
-# Step 3: Mount the new endpoints (exchange-positions, close-position, close-all)
+# Step 3: Mount the new endpoints
+_endpoints_status = "not_loaded"
 try:
     from live_fixes.endpoints import router as live_fixes_router
     app.include_router(live_fixes_router)
-    print("[MAIN] Live fixes endpoints mounted (exchange-positions, close-position, close-all)")
+    _endpoints_status = "mounted"
+    print("[MAIN] ✅ Live fixes endpoints mounted")
 except Exception as e:
-    print(f"[MAIN] WARNING: live_fixes endpoints not mounted: {e}")
+    import traceback
+    _endpoints_status = f"error: {e}"
+    print(f"[MAIN] ❌ Endpoints FAILED: {e}")
+    print(traceback.format_exc())
+
+# Step 4: Debug endpoint
+@app.get("/live-fixes/status")
+def live_fixes_debug():
+    return {
+        "fixes": _live_fixes_status,
+        "endpoints": _endpoints_status,
+        "error": _live_fixes_error,
+    }
