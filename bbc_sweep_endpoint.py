@@ -46,7 +46,6 @@ def _init_sweep_tables():
     conn.commit(); conn.close()
 
 def _make_id(symbol, timeframe, days, config):
-    """Deterministic ID from config — prevents duplicates."""
     key = f"{symbol}_{timeframe}_{days}_{json.dumps(config, sort_keys=True)}"
     return hashlib.md5(key.encode()).hexdigest()[:16]
 
@@ -59,7 +58,6 @@ def _load_candles(symbol, timeframe, days):
     rows = cur.fetchall(); conn.close(); return rows, start_ts, now_ms
 
 def _run_single_backtest(symbol, timeframe, days, params):
-    """Run one backtest and return summary dict."""
     rows, start_ts, end_ts = _load_candles(symbol, timeframe, days)
     config = Mode3BBCConfig(**{k: v for k, v in params.items() if hasattr(Mode3BBCConfig, k)})
     if len(rows) < config.startup_warmup_candles:
@@ -78,7 +76,6 @@ def _run_single_backtest(symbol, timeframe, days, params):
     switcher = Switcher(config)
     if config.trailing_ema_enabled:
         switcher.trailing_ema_series = compute_ema_series(closes, config.trailing_ema_period)
-    # MTF 15m
     if config.bull_mtf_15m_enabled or config.bear_mtf_15m_enabled or config.sideways_mtf_15m_enabled:
         from mode3_bbc_endpoint import compute_mtf_bull_entry, compute_mtf_bear_entry, compute_mtf_sideways_entry
         conn = sqlite3.connect(DB_PATH); cur = conn.cursor()
@@ -140,10 +137,34 @@ def start_sweep(
     bear_bodies: List[float] = Body(default=[0.4, 0.5, 0.6, 0.7]),
     trailing_modes: List[bool] = Body(default=[False]),
 ):
-    """Start batch sweep. Returns job_id for status polling."""
+    """Start batch sweep. Validates symbols have data in DB first."""
     _init_sweep_tables()
-    combos = []
+
+    # ── VALIDATE: check which symbols actually have data ──
+    conn = sqlite3.connect(DB_PATH)
+    valid_symbols = []
+    missing_symbols = []
     for sym in symbols:
+        count = conn.execute(
+            "SELECT COUNT(*) FROM klines WHERE symbol=? AND timeframe=?",
+            (sym, timeframe)
+        ).fetchone()[0]
+        if count >= 100:
+            valid_symbols.append(sym)
+        else:
+            missing_symbols.append({"symbol": sym, "candles": count})
+    conn.close()
+
+    if not valid_symbols:
+        return {
+            "error": f"No data in DB for ANY of the requested symbols",
+            "missing": missing_symbols,
+            "hint": "Fetch candle data first via data_fetcher or add pairs to DB"
+        }
+
+    # ── Generate combos (only for valid symbols) ──
+    combos = []
+    for sym in valid_symbols:
         for ema in ema_periods:
             for tp in tp_pcts:
                 for sl in sl_pcts:
@@ -164,12 +185,17 @@ def start_sweep(
     conn.execute("INSERT INTO bbc_sweep_jobs (id, created_at, status, total_combos, completed, params_json) VALUES (?,?,?,?,?,?)",
         (job_id, datetime.utcnow().isoformat(), 'queued', len(combos), 0, json.dumps(combos)))
     conn.commit(); conn.close()
-    return {"job_id": job_id, "total_combos": len(combos), "status": "queued"}
+
+    result = {"job_id": job_id, "total_combos": len(combos), "status": "queued",
+              "symbols_valid": valid_symbols}
+    if missing_symbols:
+        result["warning"] = f"Skipped {len(missing_symbols)} symbols with no data"
+        result["missing"] = missing_symbols
+    return result
 
 
 @router.get("/run/{job_id}")
 def run_sweep_batch(job_id: str, batch_size: int = Query(default=10, ge=1, le=50)):
-    """Process next batch of sweep combos. Called by cron or manually."""
     _init_sweep_tables()
     conn = sqlite3.connect(DB_PATH)
     job = conn.execute("SELECT status, total_combos, completed, params_json FROM bbc_sweep_jobs WHERE id=?", (job_id,)).fetchone()
@@ -241,7 +267,6 @@ def sweep_results(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
-    """Query sweep results with filters. For dashboard consumption."""
     _init_sweep_tables()
     conn = sqlite3.connect(DB_PATH)
     where = ["win_rate >= ?", "total_pnl >= ?", "total_trades >= ?"]
@@ -284,7 +309,6 @@ def sweep_results(
 
 @router.delete("/results")
 def clear_results():
-    """Clear all sweep results."""
     conn = sqlite3.connect(DB_PATH)
     conn.execute("DELETE FROM bbc_sweep_results")
     conn.execute("DELETE FROM bbc_sweep_jobs")
