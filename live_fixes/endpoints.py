@@ -57,8 +57,7 @@ def api_close_all(account_id: int = None):
     return baret_live.close_all_positions()
 
 # ══════════════════════════════════════════════
-# BBC LIVE CONFIGS — save sweep winners for live trading
-# Persisted to JSON file (survives restart)
+# BBC LIVE CONFIGS
 # ══════════════════════════════════════════════
 
 _BBC_CONFIG_FILE = "/app/data/bbc_live_configs.json"
@@ -84,10 +83,24 @@ def _save_bbc_configs():
 _load_bbc_configs()
 
 
+def _get_bbc_symbols():
+    """Get BBC pairs: D1 custom-configs (primary) > local JSON (fallback) > BTCUSDT."""
+    try:
+        r = requests.get(f"{WORKER_URL}/custom-configs/list?live_only=true", timeout=10)
+        configs = r.json().get("configs", [])
+        symbols = [c["symbol"] for c in configs if c.get("mode") == "bbc"]
+        if symbols:
+            return symbols
+    except:
+        pass
+    if _bbc_configs:
+        return [c["symbol"] for c in _bbc_configs]
+    return ["BTCUSDT"]
+
+
 @router.get("/bbc-live/configs")
 def api_bbc_configs():
     return {"ok": True, "configs": _bbc_configs, "count": len(_bbc_configs)}
-
 
 @router.post("/bbc-live/configs/add")
 async def api_bbc_config_add(request: Request):
@@ -96,21 +109,16 @@ async def api_bbc_config_add(request: Request):
     if not symbol:
         return {"ok": False, "error": "symbol required"}
     config = {
-        "symbol": symbol,
-        "ema_period": data.get("ema_period", 7),
-        "tp_pct": data.get("tp_pct", 1.0),
-        "sl_pct": data.get("sl_pct", 1.0),
-        "win_rate": data.get("win_rate", 0),
-        "total_pnl": data.get("total_pnl", 0),
-        "total_trades": data.get("total_trades", 0),
-        "source": "sweep",
+        "symbol": symbol, "ema_period": data.get("ema_period", 7),
+        "tp_pct": data.get("tp_pct", 1.0), "sl_pct": data.get("sl_pct", 1.0),
+        "win_rate": data.get("win_rate", 0), "total_pnl": data.get("total_pnl", 0),
+        "total_trades": data.get("total_trades", 0), "source": "sweep",
         "saved_at": datetime.now(timezone.utc).isoformat(),
     }
     _bbc_configs[:] = [c for c in _bbc_configs if c["symbol"] != symbol]
     _bbc_configs.append(config)
     _save_bbc_configs()
     return {"ok": True, "config": config, "total": len(_bbc_configs)}
-
 
 @router.delete("/bbc-live/configs/remove")
 def api_bbc_config_remove(symbol: str):
@@ -119,7 +127,6 @@ def api_bbc_config_remove(symbol: str):
     _bbc_configs[:] = [c for c in _bbc_configs if c["symbol"] != symbol]
     _save_bbc_configs()
     return {"ok": True, "removed": before - len(_bbc_configs), "total": len(_bbc_configs)}
-
 
 @router.get("/bbc-live/configs/auto-pick")
 def api_bbc_auto_pick(min_wr: float = 65, limit: int = 8):
@@ -154,7 +161,7 @@ def api_bbc_auto_pick(min_wr: float = 65, limit: int = 8):
 
 
 # ══════════════════════════════════════════════
-# BBC GLOBAL ENDPOINTS (legacy, still works)
+# BBC GLOBAL ENDPOINTS
 # ══════════════════════════════════════════════
 
 @router.get("/bbc-live/start")
@@ -167,8 +174,7 @@ def api_bbc_start(symbols: str = "BTCUSDT", timeframe: str = "1h",
     if tp_pct > 0: overrides["tp_pct"] = tp_pct / 100
     if sl_pct > 0: overrides["sl_pct"] = sl_pct / 100
     if ema_period > 0: overrides["ema_period"] = ema_period
-    return start_bbc_live(symbol_list, timeframe, position_usd, leverage,
-                          overrides or None)
+    return start_bbc_live(symbol_list, timeframe, position_usd, leverage, overrides or None)
 
 @router.get("/bbc-live/stop")
 def api_bbc_stop():
@@ -204,10 +210,8 @@ def api_bbc_status():
 _bbc_account_bots = {}
 
 def _bbc_account_loop(account_id, client, account_info):
-    """Run BBC loop for a specific trading account."""
     from bbc_live import _bbc_live_loop
     from baret_live import _log
-
     bot = _bbc_account_bots.get(account_id)
     if not bot:
         return
@@ -215,16 +219,13 @@ def _bbc_account_loop(account_id, client, account_info):
     position_usd = account_info.get("position_usd", 10)
     leverage = account_info.get("leverage", 50)
     client.leverage = leverage
-
-    symbols = [c["symbol"] for c in _bbc_configs] if _bbc_configs else ["BTCUSDT"]
-
+    symbols = _get_bbc_symbols()
     overrides = {}
     if _bbc_configs:
         cfg = _bbc_configs[0]
         if cfg.get("tp_pct"): overrides["tp_pct"] = cfg["tp_pct"] / 100 if cfg["tp_pct"] > 1 else cfg["tp_pct"]
         if cfg.get("sl_pct"): overrides["sl_pct"] = cfg["sl_pct"] / 100 if cfg["sl_pct"] > 1 else cfg["sl_pct"]
         if cfg.get("ema_period"): overrides["ema_period"] = cfg["ema_period"]
-
     try:
         _bbc_live_loop(
             symbols=symbols, timeframe="1h",
@@ -235,9 +236,8 @@ def _bbc_account_loop(account_id, client, account_info):
             acct_name=acct_name,
         )
     except Exception as e:
-        _log(f"[BBC {acct_name}] ❌ CRASH: {e}")
+        _log(f"[BBC {acct_name}] CRASH: {e}")
         _log(f"[BBC {acct_name}] {traceback.format_exc()}")
-
     bot["running"] = False
     try:
         requests.post(f"{WORKER_URL}/trading-accounts/update-status",
@@ -245,35 +245,26 @@ def _bbc_account_loop(account_id, client, account_info):
     except:
         pass
 
-
 @router.get("/bbc-live/start-account")
 def api_bbc_start_account(account_id: int):
-    """Start BBC for a specific trading account (Real-1, Real-2, etc)."""
     from baret_live import ExchangeClient
-
     account_id = int(account_id)
     if account_id in _bbc_account_bots and _bbc_account_bots[account_id].get("running"):
         return {"ok": True, "message": f"BBC account {account_id} already running"}
-
     try:
         r = requests.get(f"{WORKER_URL}/trading-accounts/list", timeout=10)
         accounts = r.json().get("accounts", [])
         account = next((a for a in accounts if a["id"] == account_id), None)
     except Exception as e:
         return {"ok": False, "error": f"Failed to fetch account: {e}"}
-
     if not account:
         return {"ok": False, "error": f"Account {account_id} not found"}
-
     api_key = os.environ.get(account["env_key_name"], "")
     api_secret = os.environ.get(account["env_secret_name"], "")
     if not api_key or not api_secret:
         return {"ok": False, "error": f"API keys not found: {account['env_key_name']}"}
-
     client = ExchangeClient(account["base_url"], api_key, api_secret, account.get("leverage", 50))
-
-    symbols = [c["symbol"] for c in _bbc_configs] if _bbc_configs else ["BTCUSDT"]
-
+    symbols = _get_bbc_symbols()
     bot_state = {
         "mode": "bbc", "active_pairs": symbols, "pairs": {},
         "positions": {}, "cycle_count": 0, "last_cycle": None,
@@ -283,26 +274,18 @@ def api_bbc_start_account(account_id: int):
         "running": True, "state": bot_state,
         "client": client, "account": account, "thread": None,
     }
-
     t = threading.Thread(target=_bbc_account_loop, args=(account_id, client, account), daemon=True)
     _bbc_account_bots[account_id]["thread"] = t
     t.start()
-
     try:
         requests.post(f"{WORKER_URL}/trading-accounts/update-status",
                       json={"id": account_id, "status": "running"}, timeout=10)
     except:
         pass
-
-    return {
-        "ok": True,
-        "message": f"BBC started for '{account['name']}', pairs: {', '.join(symbols)}, ${account['position_usd']}x{account['leverage']}x",
-    }
-
+    return {"ok": True, "message": f"BBC started for '{account['name']}', pairs: {', '.join(symbols)}, ${account['position_usd']}x{account['leverage']}x"}
 
 @router.get("/bbc-live/stop-account")
 def api_bbc_stop_account(account_id: int):
-    """Stop BBC for a specific trading account."""
     account_id = int(account_id)
     bot = _bbc_account_bots.get(account_id)
     if not bot or not bot.get("running"):
@@ -315,23 +298,17 @@ def api_bbc_stop_account(account_id: int):
         pass
     return {"ok": True, "message": f"BBC account {account_id} stopping..."}
 
-
 # ══════════════════════════════════════════════
-# SWEEP ALL — background worker on Railway
+# SWEEP ALL
 # ══════════════════════════════════════════════
 
-_sweep_all_state = {
-    "running": False, "job_id": None, "completed": 0, "total": 0,
-    "results_added": 0, "started_at": None, "errors": 0,
-    "last_batch_at": None, "log": [],
-}
+_sweep_all_state = {"running": False, "job_id": None, "completed": 0, "total": 0, "results_added": 0, "started_at": None, "errors": 0, "last_batch_at": None, "log": []}
 _sweep_all_thread = None
 _sweep_all_stop = False
 
 def _sweep_log(msg):
     ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
-    entry = f"[{ts}] {msg}"
-    _sweep_all_state["log"].append(entry)
+    _sweep_all_state["log"].append(f"[{ts}] {msg}")
     if len(_sweep_all_state["log"]) > 50:
         _sweep_all_state["log"] = _sweep_all_state["log"][-50:]
     print(f"[SweepAll] {msg}")
@@ -340,16 +317,11 @@ def _sweep_all_worker(job_id, batch_size=20):
     global _sweep_all_stop
     port = os.environ.get("PORT", "8000")
     base = f"http://127.0.0.1:{port}"
-    _sweep_all_state.update({
-        "running": True, "job_id": job_id,
-        "started_at": datetime.now(timezone.utc).isoformat(),
-        "errors": 0, "results_added": 0, "log": [],
-    })
+    _sweep_all_state.update({"running": True, "job_id": job_id, "started_at": datetime.now(timezone.utc).isoformat(), "errors": 0, "results_added": 0, "log": []})
     try:
         r = requests.get(f"{base}/mode3_bbc/sweep/status/{job_id}", timeout=10).json()
         _sweep_all_state["total"] = r.get("total", 0)
         _sweep_all_state["completed"] = r.get("completed", 0)
-        _sweep_log(f"Started: {_sweep_all_state['completed']}/{_sweep_all_state['total']} combos")
     except Exception as e:
         _sweep_log(f"Initial status failed: {e}")
     consecutive_errors = 0
@@ -361,23 +333,17 @@ def _sweep_all_worker(job_id, batch_size=20):
             _sweep_all_state["results_added"] += r.get("results_added", 0)
             _sweep_all_state["last_batch_at"] = datetime.now(timezone.utc).isoformat()
             consecutive_errors = 0
-            pct = round(_sweep_all_state["completed"] / max(_sweep_all_state["total"], 1) * 100, 1)
-            if _sweep_all_state["completed"] % 100 < batch_size:
-                _sweep_log(f"{_sweep_all_state['completed']}/{_sweep_all_state['total']} ({pct}%) | +{r.get('results_added', 0)} results this batch")
             if r.get("status") == "completed" or _sweep_all_state["completed"] >= _sweep_all_state["total"]:
-                _sweep_log(f"✅ COMPLETED! {_sweep_all_state['completed']} combos, {_sweep_all_state['results_added']} total results")
+                _sweep_log(f"COMPLETED! {_sweep_all_state['completed']} combos")
                 break
         except Exception as e:
             consecutive_errors += 1
             _sweep_all_state["errors"] += 1
-            _sweep_log(f"❌ Batch error ({consecutive_errors}/5): {e}")
             if consecutive_errors >= 5:
-                _sweep_log("STOPPED: too many consecutive errors")
                 break
             time.sleep(3)
     _sweep_all_state["running"] = False
     _sweep_all_stop = False
-    _sweep_log("Worker finished")
 
 @router.get("/sweep-all/start")
 def api_sweep_all_start(job_id: str, batch_size: int = 20):
