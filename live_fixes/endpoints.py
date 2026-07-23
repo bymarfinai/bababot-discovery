@@ -82,7 +82,6 @@ def _save_bbc_configs():
 
 _load_bbc_configs()
 
-
 def _get_bbc_symbols():
     """Get BBC pairs: D1 custom-configs (primary) > local JSON (fallback) > BTCUSDT."""
     try:
@@ -96,7 +95,6 @@ def _get_bbc_symbols():
     if _bbc_configs:
         return [c["symbol"] for c in _bbc_configs]
     return ["BTCUSDT"]
-
 
 @router.get("/bbc-live/configs")
 def api_bbc_configs():
@@ -158,7 +156,6 @@ def api_bbc_auto_pick(min_wr: float = 65, limit: int = 8):
         _bbc_configs.append(cfg)
     _save_bbc_configs()
     return {"ok": True, "picked": list(picked.values()), "total_configs": len(_bbc_configs)}
-
 
 # ══════════════════════════════════════════════
 # BBC GLOBAL ENDPOINTS
@@ -304,7 +301,7 @@ def api_bbc_stop_account(account_id: int):
 
 @router.get("/bbc-live/positions")
 def api_bbc_positions(account_id: int = None):
-    """Get open positions + open orders from BBC account bot's Binance client."""
+    """Get open positions + open algo orders from BBC account bot's Binance client."""
     results = {}
     for aid, bot in _bbc_account_bots.items():
         if account_id and int(account_id) != int(aid):
@@ -314,9 +311,9 @@ def api_bbc_positions(account_id: int = None):
         client = bot["client"]
         acct_name = bot["account"].get("name", f"Account-{aid}")
         try:
-            positions = client.api_get("/fapi/v2/positionRisk")
+            raw_positions = client.get_all_positions()
             open_pos = []
-            for p in positions:
+            for p in raw_positions:
                 amt = float(p.get("positionAmt", 0))
                 if amt != 0:
                     open_pos.append({
@@ -328,13 +325,21 @@ def api_bbc_positions(account_id: int = None):
                         "leverage": p.get("leverage"),
                         "mark_price": float(p.get("markPrice", 0)),
                     })
-            orders = client.api_get("/fapi/v1/openOrders")
+            algo_orders = client.get_open_algo_orders() or []
+            algo_list = []
+            if isinstance(algo_orders, dict) and algo_orders.get("rows"):
+                algo_orders = algo_orders["rows"]
+            if isinstance(algo_orders, list):
+                for o in algo_orders:
+                    algo_list.append({
+                        "symbol": o.get("symbol"), "side": o.get("side"),
+                        "type": o.get("type"), "price": o.get("triggerPrice"),
+                        "algoId": o.get("algoId"),
+                    })
             results[aid] = {
                 "account_name": acct_name,
                 "positions": open_pos,
-                "open_orders": [{"symbol": o["symbol"], "side": o["side"], "type": o["type"],
-                                 "price": o.get("stopPrice") or o.get("price"),
-                                 "orderId": o["orderId"]} for o in orders],
+                "open_orders": algo_list,
             }
         except Exception as e:
             results[aid] = {"account_name": acct_name, "error": str(e)}
@@ -399,7 +404,6 @@ def _sweep_log(msg):
     _sweep_all_state["log"].append(f"[{ts}] {msg}")
     if len(_sweep_all_state["log"]) > 50:
         _sweep_all_state["log"] = _sweep_all_state["log"][-50:]
-    print(f"[SweepAll] {msg}")
 
 def _sweep_all_worker(job_id, batch_size=20):
     global _sweep_all_stop
