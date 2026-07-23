@@ -299,6 +299,94 @@ def api_bbc_stop_account(account_id: int):
     return {"ok": True, "message": f"BBC account {account_id} stopping..."}
 
 # ══════════════════════════════════════════════
+# BBC POSITION MANAGEMENT
+# ══════════════════════════════════════════════
+
+@router.get("/bbc-live/positions")
+def api_bbc_positions(account_id: int = None):
+    """Get open positions + open orders from BBC account bot's Binance client."""
+    results = {}
+    for aid, bot in _bbc_account_bots.items():
+        if account_id and int(account_id) != int(aid):
+            continue
+        if not bot.get("client"):
+            continue
+        client = bot["client"]
+        acct_name = bot["account"].get("name", f"Account-{aid}")
+        try:
+            positions = client.api_get("/fapi/v2/positionRisk")
+            open_pos = []
+            for p in positions:
+                amt = float(p.get("positionAmt", 0))
+                if amt != 0:
+                    open_pos.append({
+                        "symbol": p["symbol"],
+                        "side": "LONG" if amt > 0 else "SHORT",
+                        "qty": abs(amt),
+                        "entry": float(p.get("entryPrice", 0)),
+                        "pnl": float(p.get("unRealizedProfit", 0)),
+                        "leverage": p.get("leverage"),
+                        "mark_price": float(p.get("markPrice", 0)),
+                    })
+            orders = client.api_get("/fapi/v1/openOrders")
+            results[aid] = {
+                "account_name": acct_name,
+                "positions": open_pos,
+                "open_orders": [{"symbol": o["symbol"], "side": o["side"], "type": o["type"],
+                                 "price": o.get("stopPrice") or o.get("price"),
+                                 "orderId": o["orderId"]} for o in orders],
+            }
+        except Exception as e:
+            results[aid] = {"account_name": acct_name, "error": str(e)}
+    return {"ok": True, "accounts": results}
+
+@router.get("/bbc-live/cancel-orders")
+def api_bbc_cancel_orders(account_id: int, symbol: str = ""):
+    """Cancel all open orders for a symbol on BBC account."""
+    bot = _bbc_account_bots.get(int(account_id))
+    if not bot or not bot.get("client"):
+        return {"ok": False, "error": f"Account {account_id} not available"}
+    client = bot["client"]
+    try:
+        if symbol:
+            symbol = symbol.upper()
+            client.cancel_all_orders(symbol)
+            from baret_live import _cancel_sl_tp
+            _cancel_sl_tp(client, symbol)
+            return {"ok": True, "message": f"Cancelled all orders for {symbol}"}
+        else:
+            for sym in bot["state"].get("active_pairs", []):
+                try:
+                    client.cancel_all_orders(sym)
+                    from baret_live import _cancel_sl_tp
+                    _cancel_sl_tp(client, sym)
+                except:
+                    pass
+            return {"ok": True, "message": "Cancelled all orders"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@router.get("/bbc-live/place-sltp")
+def api_bbc_place_sltp(account_id: int, symbol: str, sl: float, tp: float):
+    """Place SL/TP for an existing position."""
+    bot = _bbc_account_bots.get(int(account_id))
+    if not bot or not bot.get("client"):
+        return {"ok": False, "error": f"Account {account_id} not available"}
+    client = bot["client"]
+    symbol = symbol.upper()
+    try:
+        pos = client.get_position(symbol)
+        if not pos or float(pos.get("positionAmt", 0)) == 0:
+            return {"ok": False, "error": f"No open position for {symbol}"}
+        amt = float(pos["positionAmt"])
+        side = "LONG" if amt > 0 else "SHORT"
+        from baret_live import _place_sl_tp
+        result = _place_sl_tp(client, symbol, side, sl, tp)
+        return {"ok": True, "symbol": symbol, "side": side, "sl": sl, "tp": tp, "result": result}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+# ══════════════════════════════════════════════
 # SWEEP ALL
 # ══════════════════════════════════════════════
 
