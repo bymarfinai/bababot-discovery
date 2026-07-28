@@ -391,6 +391,63 @@ def api_bbc_place_sltp(account_id: int, symbol: str, sl: float, tp: float):
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
+@router.get("/bbc-live/close-position")
+def api_bbc_close_position(account_id: int, symbol: str):
+    """Close a single BBC position: cancel orders + cancel SL/TP + market close."""
+    account_id = int(account_id)
+    bot = _bbc_account_bots.get(account_id)
+    if not bot or not bot.get("client"):
+        return {"ok": False, "error": f"Account {account_id} not available (bot not started?)"}
+    client = bot["client"]
+    symbol = symbol.upper()
+    try:
+        client.cancel_all_orders(symbol)
+        from baret_live import _cancel_sl_tp
+        _cancel_sl_tp(client, symbol)
+        pos = client.get_position(symbol)
+        if not pos or float(pos.get("positionAmt", 0)) == 0:
+            return {"ok": True, "message": f"{symbol}: no open position to close"}
+        amt = abs(float(pos["positionAmt"]))
+        side_close = "SELL" if float(pos["positionAmt"]) > 0 else "BUY"
+        client.place_market_close(symbol, side_close, amt)
+        if bot.get("state"):
+            bot["state"].get("positions", {}).pop(symbol, None)
+        return {"ok": True, "message": f"Closed {symbol} position ({side_close} {amt})"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@router.get("/bbc-live/close-all-positions")
+def api_bbc_close_all_positions(account_id: int):
+    """Close ALL open positions for a BBC account."""
+    account_id = int(account_id)
+    bot = _bbc_account_bots.get(account_id)
+    if not bot or not bot.get("client"):
+        return {"ok": False, "error": f"Account {account_id} not available (bot not started?)"}
+    client = bot["client"]
+    closed = []
+    errors = []
+    try:
+        raw_positions = client.get_all_positions()
+        for p in raw_positions:
+            amt = float(p.get("positionAmt", 0))
+            if amt == 0:
+                continue
+            sym = p["symbol"]
+            try:
+                client.cancel_all_orders(sym)
+                from baret_live import _cancel_sl_tp
+                _cancel_sl_tp(client, sym)
+                side_close = "SELL" if amt > 0 else "BUY"
+                client.place_market_close(sym, side_close, abs(amt))
+                closed.append(sym)
+            except Exception as e:
+                errors.append({"symbol": sym, "error": str(e)})
+        if bot.get("state"):
+            bot["state"]["positions"] = {}
+        return {"ok": True, "closed": closed, "errors": errors, "message": f"Closed {len(closed)} positions"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
 # ══════════════════════════════════════════════
 # SWEEP ALL
 # ══════════════════════════════════════════════
