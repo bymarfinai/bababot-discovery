@@ -1,4 +1,4 @@
-"""Mode3 BBC Backtest Endpoint — v2.5 CLEAN (no 4H filter)."""
+"""Mode3 BBC Backtest Endpoint — v2.6 with exit_on_state_change support."""
 import os
 from dataclasses import asdict
 from fastapi import APIRouter, Query
@@ -6,6 +6,7 @@ import sqlite3, numpy as np
 from datetime import datetime
 from mode3_bbc import Mode3BBCConfig, Switcher, compute_ema_series, compute_va_at_bar
 from mode3_bbc.config import preset_a, preset_b, preset_c, preset_d
+from mode3_bbc.switcher import Trade
 
 router = APIRouter(prefix="/mode3_bbc", tags=["mode3_bbc"])
 DB_PATH = os.environ.get("DB_PATH", "market_data.db")
@@ -96,6 +97,8 @@ def backtest_mode3_bbc(
     bull_26_ratio:float=Query(2.6), bull_26_tolerance_pct:float=Query(0.003),
     bear_mtf_15m_enabled:bool=Query(True), bear_body_ratio_min:float=Query(0.6,ge=0.0,le=1.0),
     sideways_mtf_15m_enabled:bool=Query(True), sideways_body_ratio_min:float=Query(0.6,ge=0.0,le=1.0),
+    # ── NEW: exit on state change ──
+    exit_on_state_change:bool=Query(False),
 ):
     config = Mode3BBCConfig(
         va_window=va_window, ema_period=ema_period,
@@ -146,8 +149,43 @@ def backtest_mode3_bbc(
                 sc,sh,lc,ll=compute_mtf_sideways_entry(rows,rows_15m,vahs,vals)
                 switcher.mtf_sideways_short_entry_close=sc; switcher.mtf_sideways_short_entry_high=sh
                 switcher.mtf_sideways_long_entry_close=lc; switcher.mtf_sideways_long_entry_low=ll
+
+    # ── Main backtest loop with optional exit_on_state_change ──
+    state_change_exits = 0
     for i in range(len(rows)):
-        switcher.process_candle(bar_idx=i,o=opens[i],h=highs[i],l=lows[i],c=closes[i],ema20=ema20[i],vah=vahs[i],val=vals[i],poc=pocs[i])
+        prev_state = switcher.state
+        had_pos = switcher.position is not None
+        old_pos_ref = switcher.position  # reference before process
+
+        switcher.process_candle(bar_idx=i, o=opens[i], h=highs[i], l=lows[i], c=closes[i],
+                                ema20=ema20[i], vah=vahs[i], val=vals[i], poc=pocs[i])
+
+        # Exit on state change: if state changed AND we still have the same position open
+        if exit_on_state_change and switcher.position is not None and had_pos:
+            new_state = switcher.state
+            if new_state != prev_state:
+                # State changed while in position → close at candle close price
+                pos = switcher.position
+                exit_price = float(closes[i])
+                if pos.side == 'LONG':
+                    pnl_pct = (exit_price - pos.entry_price) / pos.entry_price
+                else:
+                    pnl_pct = (pos.entry_price - exit_price) / pos.entry_price
+                pnl_pct_net = pnl_pct - config.total_cost_pct()
+                pnl_usd = pnl_pct_net * config.notional() * pos.size_ratio
+
+                switcher.trades.append(Trade(
+                    tool=pos.tool, side=pos.side, entry_price=pos.entry_price,
+                    exit_price=exit_price, entry_bar=pos.entry_bar, exit_bar=i,
+                    exit_type='STATE_CHG', pnl_pct=pnl_pct_net, pnl_usd=pnl_usd,
+                    peak_high=pos.peak_high, trough_low=pos.trough_low,
+                    sl_level=pos.sl_level, tp_level=pos.tp_level,
+                    ema_at_entry=pos.ema_at_entry, ema_at_exit=float(ema20[i]),
+                    entry_trigger=pos.entry_trigger,
+                ))
+                switcher.position = None
+                state_change_exits += 1
+
     trades=switcher.trades; n=len(trades)
     wins=[t for t in trades if t.pnl_usd>0]; losses=[t for t in trades if t.pnl_usd<=0]
     total_pnl_usd=sum(t.pnl_usd for t in trades); wr=100.0*len(wins)/n if n>0 else 0
@@ -177,6 +215,7 @@ def backtest_mode3_bbc(
         "peak_high":round(t.peak_high,2),"trough_low":round(t.trough_low,2),"entry_trigger":t.entry_trigger} for t in trades]
     return {"symbol":symbol,"timeframe":timeframe,"days":days,"end_days_ago":end_days_ago,
         "candles_processed":len(rows),"config":asdict(config),
+        "exit_on_state_change":exit_on_state_change, "state_change_exits":state_change_exits,
         "summary":{"total_trades":n,"win_rate_pct":round(wr,2),"wins":len(wins),"losses":len(losses),
             "total_pnl_usd":round(total_pnl_usd,2),"capital_start":config.capital_usd,
             "capital_end":round(config.capital_usd+total_pnl_usd,2),
@@ -187,4 +226,4 @@ def backtest_mode3_bbc(
 
 @router.get("/health")
 def mode3_bbc_health():
-    return {"status":"ok","module":"mode3_bbc","version":"2.5-clean","db_path":DB_PATH}
+    return {"status":"ok","module":"mode3_bbc","version":"2.6-state-change","db_path":DB_PATH}
