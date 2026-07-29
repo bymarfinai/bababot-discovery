@@ -260,11 +260,7 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                     if not ps.warmup_ok or not ps.exchange_position:
                         continue
                     try:
-                        try:
-                            ex_pos = client.get_position(symbol)
-                        except (ConnectionError, Exception) as api_err:
-                            _log(f"{prefix}  ⚠️ {symbol}: get_position API error, skipping poll: {api_err}")
-                            continue  # Don't treat API error as position closed
+                        ex_pos = client.get_position(symbol)
                         if not ex_pos or float(ex_pos.get("positionAmt", 0)) == 0:
                             ep = ps.exchange_position
                             cp = _get_price(symbol)
