@@ -1,31 +1,132 @@
 """
-BabaBot AI Strategy Discovery — Backtesting API
-FastAPI server with /backtest + /fetch-data endpoints.
+BabaBot — Main App (Thin Orchestrator)
+All endpoints live in separate router files. This file only:
+1. Creates FastAPI app
+2. Imports and mounts routers
+3. Manages shared state (DB, auth, fetch)
 
-Updated: Support custom pairs + timeframes in /fetch-data via ccxt.
+REFACTORED: 29 Jul 2026
+Original 113KB monolith → thin orchestrator + router files
 """
 
 import os
-import threading
 import sqlite3
 import time
+import threading
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, Security, Body
+from fastapi import FastAPI, HTTPException, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
-from typing import Optional
-from backtesting_core import Backtester, StrategyConfig, BacktestResult, ENTRY_LOGICS, calc_correlation, run_feature_study, run_marthias_study, test_ai_rules, bootstrap_validate_rules, run_sltp_optimization, run_paper_test, DCAConfig, backtest_dca, backtest_deret_statistik, analyze_deviation_clusters
-# REMOVED: live_bot.py (Iron Legion) and dca_bot.py — superseded by baret_live.py
-from baret_bot import start_baret, stop_baret, baret_status, get_baret_log
-from baret_live import start_baret_live, stop_baret_live, baret_live_status, get_baret_live_log, close_position, close_all_positions, start_account_bot, stop_account_bot, account_bot_status
-from ultron_engine import ultron_status, get_ultron_log, manual_analyze, clear_pair_skip, clear_hour_skip, clear_buffer_adjustment
-from tick_discovery import (
-        start_tick_discovery, stop_tick_discovery, get_discovery_status, get_discovery_log,
-        extract_tick_events, analyze_tick_stats,
-        start_sweep_engine, stop_sweep_engine, get_sweep_status,
-        pause_sweep_engine, resume_sweep_engine,
-        profile_winning_combo,
-        cluster_levels, combo_sweep, custom_backtest,
-        _load_data as td_load_data, DB_PATH as TD_DB_PATH,
-    )
+
+# ── Shared config ──
+DB_PATH = os.environ.get("DB_PATH", "market_data.db")
+API_TOKEN = os.environ.get("BACKTEST_API_TOKEN", "")
+security = HTTPBearer(auto_error=False)
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
+    if not API_TOKEN:
+        return True
+    if not credentials or credentials.credentials != API_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid or missing token")
+    return True
+
+# ── App ──
+app = FastAPI(title="BabaBot Backtesting API", version="2.0.0")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# ══════════════════════════════════════════════
+# MOUNT ROUTERS (each in its own file)
+# ══════════════════════════════════════════════
+
+def _try_mount(module_name, router_attr="router", label=None):
+    """Import module, get router, mount to app. Returns True if successful."""
+    try:
+        mod = __import__(module_name)
+        router = getattr(mod, router_attr)
+        app.include_router(router)
+        print(f"[INIT] ✅ {label or module_name} mounted")
+        return True
+    except Exception as e:
+        print(f"[INIT] ⚠️ {label or module_name} not available: {e}")
+        return False
+
+# ── Core routers (from refactored monolith) ──
+_try_mount("endpoints_backtest", label="Backtest endpoints (/backtest/*)")
+_try_mount("endpoints_data", label="Data endpoints (/data/*, /fetch-*)")
+_try_mount("endpoints_tick", label="Tick Discovery (/tick/*)")
+_try_mount("endpoints_live", label="Baret Live (/baret-live/*)")
+_try_mount("endpoints_ultron", label="Ultron (/ultron/*)")
+_try_mount("endpoints_p2_cron", label="P2 Cron (/p2-cron/*)")
+_try_mount("endpoints_baret_discovery", label="Baret Discovery (/baret/*)")
+
+# ── Mode 3 family ──
+_try_mount("mode3_api", label="Mode3 DRC (/mode3/*)")
+_try_mount("mode3_eval_predictor", label="Mode3 Eval Predictor")
+_try_mount("mode3_regime_api", label="Mode3 Regime (/mode3/regime/*)")
+_try_mount("mtf_analyze_endpoint", label="MTF Analyze (/mtf/*)")
+_try_mount("mode3_backtest_endpoint", label="Mode3 Clean (/mode3/backtest)")
+_try_mount("mode3_bbc_endpoint", label="Mode3 BBC backtest")
+_try_mount("bbc_sweep_endpoint", label="BBC Sweep (/mode3_bbc/sweep/*)")
+_try_mount("orchestrator_endpoint", label="Orchestrator (/mtf/orchestrator_backtest)")
+
+# ── BBC Live Trading ──
+_try_mount("bbc_live_endpoint", label="BBC Live (/bbc-live/*)")
+
+# ══════════════════════════════════════════════
+# MINIMAL ENDPOINTS (stay in app.py)
+# ══════════════════════════════════════════════
+
+@app.get("/")
+def root():
+    return {
+        "service": "BabaBot Backtesting API",
+        "version": "2.0.0",
+        "status": "running",
+        "db_path": DB_PATH,
+    }
+
+@app.get("/health")
+def health():
+    db_ok = Path(DB_PATH).exists()
+    candle_count = 0
+    if db_ok:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            candle_count = conn.execute("SELECT COUNT(*) FROM klines").fetchone()[0]
+            conn.close()
+        except:
+            pass
+    return {"status": "ok", "db_exists": db_ok, "total_candles": candle_count, "db_path": DB_PATH}
+
+@app.get("/server-ip")
+def server_ip():
+    try:
+        import requests
+        r = requests.get("https://api.ipify.org?format=json", timeout=5)
+        return {"ok": True, "ip": r.json().get("ip")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+# ══════════════════════════════════════════════
+# AUTO-START (startup events)
+# ══════════════════════════════════════════════
+
+@app.on_event("startup")
+def _auto_start():
+    # P2 Cron
+    if os.environ.get("P2_CRON_ENABLED", "true").lower() == "true":
+        try:
+            from endpoints_p2_cron import start_p2_cron
+            start_p2_cron()
+        except Exception as e:
+            print(f"[INIT] P2 Cron auto-start failed: {e}")
+    
+    # Baret Live
+    if os.environ.get("BARET_LIVE_ENABLED", "false").lower() == "true":
+        try:
+            from baret_live import start_baret_live
+            mode = os.environ.get("BARET_LIVE_MODE", "baret")
+            pos_usd = float(os.environ.get("BARET_LIVE_POSITION", "10"))
+            start_baret_live(mode=mode, position_usd=pos_usd)
+        except Exception as e:
+            print(f"[INIT] Baret Live auto-start failed: {e}")
