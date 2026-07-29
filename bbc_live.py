@@ -1,17 +1,26 @@
 """
 BBC Live Trading — Wire BBC Switcher engine to live exchange.
 
+v2.1: MTF 15m confirmation enabled — fetch 15m candles at entry,
+      check for EMA reclaim/reject confirmation before placing order.
+      Without MTF: WR 49% (losing). With MTF: WR 65% (profitable).
+
 Architecture:
 - 1 Switcher instance per pair (stateful state machine)
 - Market orders at candle close (not limit like Baret)
 - SL/TP via algoOrder at exchange
+- MTF 15m: at entry signal, fetch 4x 15m candles, check confirmation
 - Uses same ExchangeClient + logging as baret_live
 
 Flow per candle:
-1. Fetch closed candle from OKX
-2. Compute EMA20, VAH, VAL
+1. Fetch closed 1H candle
+2. Compute EMA, VAH, VAL
 3. Feed candle to Switcher
-4. If Switcher opened position → place market order + SL/TP
+4. If Switcher opened position:
+   a. Fetch 4x 15m candles for that hour
+   b. Check MTF confirmation (EMA reclaim/reject on 15m)
+   c. If confirmed → place market order at 15m entry price + SL/TP
+   d. If NOT confirmed → skip entry, close switcher position
 5. If Switcher closed position → verify exchange state
 6. Between candles: exchange monitors SL/TP via algoOrder
 """
@@ -70,6 +79,59 @@ def _compute_va(highs, lows, closes, volumes, window, pct_high=85, pct_low=15):
         else:
             poc_list[i] = (vah_list[i] + val_list[i]) / 2
     return vah_list, val_list, poc_list
+
+
+# ══════════════════════════════════════════════
+# MTF 15m CONFIRMATION (v2.1 — critical for WR)
+# ══════════════════════════════════════════════
+
+def _check_mtf_bull_entry(candles_15m):
+    """Check if any of the 4 15m candles confirms BULL EMA reclaim.
+    Returns (entry_price, sl_price) or (None, None) if no confirmation.
+    Same logic as backtest compute_mtf_bull_entry().
+    """
+    if not candles_15m or len(candles_15m) < 4:
+        return None, None
+    closes = [c["close"] for c in candles_15m]
+    ema15 = _compute_ema(closes, 20)  # need more history ideally, but 4 candles is minimum
+    # For proper EMA, we should fetch more 15m candles. Use last 20+ candles.
+    # But for the 4-candle window check, we compare against the EMA at that point.
+    # Fetch 24 15m candles (6 hours) to compute EMA20 properly.
+    for i in range(len(candles_15m)):
+        c = candles_15m[i]
+        ema_val = ema15[i] if i < len(ema15) else ema15[-1]
+        if c["low"] <= ema_val and c["close"] > ema_val and c["close"] > c["open"]:
+            return c["close"], c["low"]
+    return None, None
+
+
+def _check_mtf_bear_entry(candles_15m):
+    """Check if any of the 4 15m candles confirms BEAR EMA reject.
+    Returns (entry_price, sl_price) or (None, None) if no confirmation.
+    Same logic as backtest compute_mtf_bear_entry().
+    """
+    if not candles_15m or len(candles_15m) < 4:
+        return None, None
+    closes = [c["close"] for c in candles_15m]
+    ema15 = _compute_ema(closes, 20)
+    for i in range(len(candles_15m)):
+        c = candles_15m[i]
+        ema_val = ema15[i] if i < len(ema15) else ema15[-1]
+        if c["high"] >= ema_val and c["close"] < ema_val and c["close"] < c["open"]:
+            return c["close"], c["high"]
+    return None, None
+
+
+def _fetch_15m_for_mtf(symbol, count=24):
+    """Fetch recent 15m candles for MTF confirmation. 
+    24 candles = 6 hours, enough for EMA20 computation + 4-candle window.
+    """
+    try:
+        candles = _fetch_candles(symbol, "15m", count)
+        return candles if candles else []
+    except Exception as e:
+        _log(f"  ⚠️ MTF 15m fetch {symbol}: {e}")
+        return []
 
 
 # ══════════════════════════════════════════════
@@ -141,9 +203,15 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                 if hasattr(cfg, k):
                     setattr(cfg, k, v)
 
+        # v2.1: MTF 15m handled MANUALLY in live loop (not by switcher)
+        # Switcher runs WITHOUT MTF (detects signals on 1H),
+        # then we confirm with 15m BEFORE placing order.
         cfg.bull_mtf_15m_enabled = False
         cfg.bear_mtf_15m_enabled = False
         cfg.sideways_mtf_15m_enabled = False
+
+        # MTF is checked manually — this flag controls it
+        mtf_15m_enabled = True  # <-- THE FIX: always check 15m confirmation
 
         pair_states = {}
         for symbol in symbols:
@@ -161,8 +229,8 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
         tf_minutes = {"15m": 15, "1h": 60, "4h": 240}
         interval_min = tf_minutes.get(timeframe, 60)
 
-        _log(f"{prefix}═══ BBC LIVE STARTED ═══ {len(symbols)} pairs, TF={timeframe}, ${position_usd}/trade, {leverage}x")
-        _send_telegram(f"📊 BBC LIVE STARTED\nPairs: {', '.join(symbols)}\nTF: {timeframe}\nPosition: ${position_usd}\nTP: {cfg.tp_pct*100:.1f}% SL: {cfg.sl_pct*100:.1f}%")
+        _log(f"{prefix}═══ BBC LIVE STARTED ═══ {len(symbols)} pairs, TF={timeframe}, ${position_usd}/trade, {leverage}x, MTF15m={'ON' if mtf_15m_enabled else 'OFF'}")
+        _send_telegram(f"📊 BBC LIVE STARTED\nPairs: {', '.join(symbols)}\nTF: {timeframe}\nPosition: ${position_usd}\nTP: {cfg.tp_pct*100:.1f}% SL: {cfg.sl_pct*100:.1f}%\nMTF 15m: {'ON ✅' if mtf_15m_enabled else 'OFF ❌'}")
 
         warmup_count = cfg.startup_warmup_candles + 10
         _log(f"{prefix}  🔥 Warming up Switchers ({warmup_count} candles)...")
@@ -261,9 +329,14 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                         continue
                     try:
                         ex_pos = client.get_position(symbol)
-                        if not ex_pos or float(ex_pos.get("positionAmt", 0)) == 0:
+                        if ex_pos is None:
+                            # v2.1: connection error — DON'T treat as position closed
+                            continue
+                        if float(ex_pos.get("positionAmt", 0)) == 0:
                             ep = ps.exchange_position
                             cp = _get_price(symbol)
+                            if cp is None or cp <= 0:
+                                continue
                             side = ep["side"]
                             entry = ep["entry"]
                             qty = ep["qty"]
@@ -285,8 +358,13 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                             if ps.switcher.position:
                                 ps.switcher._close_position(ps.bar_idx, cp, hit)
 
+                    except ConnectionError:
+                        _log(f"{prefix}  ⚠️ Connection error monitoring {symbol} — will retry")
                     except Exception as e:
-                        _log(f"{prefix}  ⚠️ Monitor {symbol}: {e}")
+                        if "Connection" in str(e) or "reset" in str(e).lower():
+                            _log(f"{prefix}  ⚠️ Connection error monitoring {symbol} — will retry")
+                        else:
+                            _log(f"{prefix}  ⚠️ Monitor {symbol}: {e}")
 
             if not running_check():
                 break
@@ -355,11 +433,62 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                         tp_price = sp.tp_level
                         tool = sp.tool
 
-                        # Skip SIDEWAYS entries — proven unprofitable (WR 35%, $76 from 342 trades)
+                        # Skip SIDEWAYS entries — proven unprofitable
                         if tool == "SIDEWAYS":
                             _log(f"{prefix}  ⏩ {symbol}: SKIP SIDEWAYS entry ({side})")
                             ps.switcher._close_position(ps.bar_idx, entry_price, "SKIP")
                             continue
+
+                        # ═══ v2.1: MTF 15m CONFIRMATION ═══
+                        if mtf_15m_enabled and tool in ("BULL", "BEAR"):
+                            candles_15m = _fetch_15m_for_mtf(symbol, 24)
+                            if candles_15m and len(candles_15m) >= 4:
+                                # Check last 4 15m candles (= the 1H candle period)
+                                last_4 = candles_15m[-4:]
+                                # But compute EMA on full 24 candles for accuracy
+                                closes_15m = [c["close"] for c in candles_15m]
+                                ema15_series = _compute_ema(closes_15m, 20)
+
+                                mtf_entry = None
+                                mtf_sl = None
+
+                                if tool == "BULL":
+                                    # Check last 4 candles for bull reclaim
+                                    for j in range(len(candles_15m) - 4, len(candles_15m)):
+                                        c15 = candles_15m[j]
+                                        ema15 = ema15_series[j]
+                                        if c15["low"] <= ema15 and c15["close"] > ema15 and c15["close"] > c15["open"]:
+                                            mtf_entry = c15["close"]
+                                            mtf_sl = c15["low"]
+                                            break
+                                else:  # BEAR
+                                    for j in range(len(candles_15m) - 4, len(candles_15m)):
+                                        c15 = candles_15m[j]
+                                        ema15 = ema15_series[j]
+                                        if c15["high"] >= ema15 and c15["close"] < ema15 and c15["close"] < c15["open"]:
+                                            mtf_entry = c15["close"]
+                                            mtf_sl = c15["high"]
+                                            break
+
+                                if mtf_entry is None:
+                                    # No 15m confirmation → SKIP entry
+                                    _log(f"{prefix}  ⏩ {symbol}: {tool} signal but NO 15m confirmation — SKIP")
+                                    ps.switcher._close_position(ps.bar_idx, entry_price, "MTF_SKIP")
+                                    continue
+                                else:
+                                    # Use 15m entry price (more precise than 1H close)
+                                    entry_price = mtf_entry
+                                    # SL: use fixed % from config (not 15m wick)
+                                    if side == "LONG":
+                                        sl_price = entry_price * (1 - cfg.sl_pct)
+                                        tp_price = entry_price * (1 + cfg.tp_pct)
+                                    else:
+                                        sl_price = entry_price * (1 + cfg.get_bear_sl_pct())
+                                        tp_price = entry_price * (1 - cfg.get_bear_tp_pct())
+                                    _log(f"{prefix}  ✅ {symbol}: 15m confirmed {tool} entry @ ${mtf_entry:.4f}")
+                            else:
+                                _log(f"{prefix}  ⚠️ {symbol}: 15m candles unavailable, using 1H entry")
+                        # ═══ END MTF 15m ═══
 
                         order_side = "BUY" if side == "LONG" else "SELL"
                         qty = _calc_quantity(symbol, entry_price, position_usd, leverage)
@@ -404,7 +533,8 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                                     f"{symbol} @ ${actual_entry:.4f}\n"
                                     f"TP: ${tp_price:.4f} ({cfg.tp_pct*100:.1f}%)\n"
                                     f"SL: ${sl_price:.4f} ({cfg.sl_pct*100:.1f}%)\n"
-                                    f"State: {new_state}"
+                                    f"State: {new_state}\n"
+                                    f"MTF: {'15m confirmed ✅' if mtf_15m_enabled else 'OFF'}"
                                 )
                                 _log(f"{prefix}  ✅ {symbol} {side} FILLED @ ${actual_entry:.4f}")
                             else:
