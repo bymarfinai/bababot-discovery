@@ -18,6 +18,11 @@ from baret_live import (
     WORKER_URL,
 )
 
+# Fix: BBC trades logged with 'bbc_live_' notes prefix (not 'baret_live_')
+import bbc_live as _bbc_mod
+from bbc_trade_logger import _log_trade_to_d1 as _bbc_logger
+_bbc_mod._log_trade_to_d1 = _bbc_logger
+
 router = APIRouter()
 
 BBC_FALLBACK = {
