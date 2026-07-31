@@ -514,28 +514,29 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                                 br_ec = c15["close"]
                                 br_eh = c15["high"]
                         
-                        # Extend MTF arrays for this bar_idx
-                        while len(ps.switcher.mtf_bull_entry_close or []) <= ps.bar_idx:
+                        # Extend MTF arrays for NEXT bar_idx (process_candle uses bar_idx+1)
+                        next_bar = ps.bar_idx + 1
+                        while len(ps.switcher.mtf_bull_entry_close or []) <= next_bar:
                             if ps.switcher.mtf_bull_entry_close is None:
                                 ps.switcher.mtf_bull_entry_close = []
                             ps.switcher.mtf_bull_entry_close.append(None)
                         if ps.switcher.mtf_bull_entry_low is None:
                             ps.switcher.mtf_bull_entry_low = []
-                        while len(ps.switcher.mtf_bull_entry_low) <= ps.bar_idx:
+                        while len(ps.switcher.mtf_bull_entry_low) <= next_bar:
                             ps.switcher.mtf_bull_entry_low.append(None)
                         if ps.switcher.mtf_bear_entry_close is None:
                             ps.switcher.mtf_bear_entry_close = []
-                        while len(ps.switcher.mtf_bear_entry_close) <= ps.bar_idx:
+                        while len(ps.switcher.mtf_bear_entry_close) <= next_bar:
                             ps.switcher.mtf_bear_entry_close.append(None)
                         if ps.switcher.mtf_bear_entry_high is None:
                             ps.switcher.mtf_bear_entry_high = []
-                        while len(ps.switcher.mtf_bear_entry_high) <= ps.bar_idx:
+                        while len(ps.switcher.mtf_bear_entry_high) <= next_bar:
                             ps.switcher.mtf_bear_entry_high.append(None)
                         
-                        ps.switcher.mtf_bull_entry_close[ps.bar_idx] = b_ec
-                        ps.switcher.mtf_bull_entry_low[ps.bar_idx] = b_el
-                        ps.switcher.mtf_bear_entry_close[ps.bar_idx] = br_ec
-                        ps.switcher.mtf_bear_entry_high[ps.bar_idx] = br_eh
+                        ps.switcher.mtf_bull_entry_close[next_bar] = b_ec
+                        ps.switcher.mtf_bull_entry_low[next_bar] = b_el
+                        ps.switcher.mtf_bear_entry_close[next_bar] = br_ec
+                        ps.switcher.mtf_bear_entry_high[next_bar] = br_eh
                         
                         if b_ec: _log(f"{prefix}  🔍 {symbol}: 15m BULL confirm @ ${b_ec:.4f}")
                         if br_ec: _log(f"{prefix}  🔍 {symbol}: 15m BEAR confirm @ ${br_ec:.4f}")
