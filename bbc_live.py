@@ -6,6 +6,8 @@ v3.0 FIX: MTF 15m enabled in switcher config (not manually checked outside).
      Warmup pre-computes MTF arrays. Live cycle extends per bar.
 
 v2.2: Per-pair configs + state-safe SKIP handling.
+
+v3.1: Detection layers — phantom position check after warmup + dead bot alert.
 """
 
 import time
@@ -220,7 +222,7 @@ def _is_connection_error(e):
 
 
 # ══════════════════════════════════════════════
-# BBC LIVE LOOP — v3.0
+# BBC LIVE LOOP — v3.1
 # ══════════════════════════════════════════════
 
 _bbc_live_running = False
@@ -278,8 +280,8 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
             pc = pair_states[symbol].config
             _log(f"{prefix}  📋 {symbol}: EMA={pc.ema_period} TP={pc.tp_pct*100:.1f}% SL={pc.sl_pct*100:.1f}% BullBody={pc.bull_body_ratio_min} BearBody={pc.bear_body_ratio_min} MTF=INSIDE")
 
-        _log(f"{prefix}═══ BBC LIVE v3.0 STARTED ═══ {len(symbols)} pairs, TF={timeframe}, MTF=INSIDE_SWITCHER (same as backtest)")
-        _send_telegram(f"📊 BBC LIVE v3.0 STARTED\nPairs: {', '.join(symbols)}\nMTF: INSIDE SWITCHER ✅ (same as backtest)")
+        _log(f"{prefix}═══ BBC LIVE v3.1 STARTED ═══ {len(symbols)} pairs, TF={timeframe}, MTF=INSIDE_SWITCHER (same as backtest)")
+        _send_telegram(f"📊 BBC LIVE v3.1 STARTED\nPairs: {', '.join(symbols)}\nMTF: INSIDE SWITCHER ✅ (same as backtest)")
 
         # ═══ WARMUP ═══
         for symbol in symbols:
@@ -347,6 +349,46 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
 
         state["pairs"] = {s: {"state": ps.switcher.state, "position": None} for s, ps in pair_states.items() if ps.warmup_ok}
 
+        # ═══ LAYER 1: PHANTOM POSITION DETECTION (v3.1) ═══
+        phantom_count = 0
+        for symbol in symbols:
+            ps = pair_states[symbol]
+            if not ps.warmup_ok or ps.switcher.position is None:
+                continue
+            try:
+                ex_pos = client.get_position(symbol)
+                ex_amt = abs(float(ex_pos.get("positionAmt", 0))) if ex_pos else 0
+                if ex_amt == 0:
+                    phantom = ps.switcher.position
+                    phantom_count += 1
+                    _log(f"{prefix}  🚨 PHANTOM DETECTED: {symbol} — Switcher says {phantom.tool} {phantom.side} @ ${phantom.entry_price:.4f} but exchange is FLAT")
+                    _log(f"{prefix}     → Resetting Switcher position to None (state={ps.switcher.state} preserved)")
+                    _send_telegram(
+                        f"🚨 *PHANTOM POSITION DETECTED*\n"
+                        f"{symbol}: Switcher={phantom.tool} {phantom.side} @ ${phantom.entry_price:.4f}\n"
+                        f"Exchange: FLAT (no position)\n"
+                        f"Action: Position reset, state={ps.switcher.state}\n"
+                        f"⚠️ State may be wrong — monitor next entries"
+                    )
+                    ps.switcher.position = None
+                else:
+                    sw_side = ps.switcher.position.side
+                    ex_side = "LONG" if float(ex_pos.get("positionAmt", 0)) > 0 else "SHORT"
+                    if sw_side != ex_side:
+                        _log(f"{prefix}  🚨 SIDE MISMATCH: {symbol} — Switcher={sw_side} but exchange={ex_side}")
+                        _send_telegram(
+                            f"🚨 *SIDE MISMATCH*\n"
+                            f"{symbol}: Switcher={sw_side}, Exchange={ex_side}\n"
+                            f"Manual intervention needed!"
+                        )
+            except Exception as e:
+                _log(f"{prefix}  ⚠️ Phantom check {symbol}: {e}")
+
+        if phantom_count > 0:
+            _log(f"{prefix}  🚨 {phantom_count} phantom position(s) detected and reset")
+        else:
+            _log(f"{prefix}  ✅ No phantom positions — all clear")
+
         # ═══ ORPHAN CHECK (log only, no auto-close) ═══
         for symbol in symbols:
             try:
@@ -365,6 +407,8 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
         poll_sec = 15
         cycle = 0
         last_processed_boundary = 0
+        _cycles_without_trade = 0
+        _DEAD_BOT_THRESHOLD = 6
 
         while running_check():
             now = datetime.now(timezone.utc)
@@ -727,6 +771,29 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                 except Exception as e:
                     _log(f"{prefix}  ❌ {symbol} error: {e}")
                     _log(f"{prefix}     {traceback.format_exc()}")
+
+            # ═══ LAYER 2: DEAD BOT DETECTION (v3.1) ═══
+            cycle_has_positions = any(
+                ps.exchange_position is not None
+                for ps in pair_states.values() if ps.warmup_ok
+            )
+            if cycle_has_positions:
+                _cycles_without_trade = 0
+            else:
+                _cycles_without_trade += 1
+
+            if _cycles_without_trade >= _DEAD_BOT_THRESHOLD:
+                states_summary = ", ".join(
+                    f"{s}={ps.switcher.state}" for s, ps in pair_states.items() if ps.warmup_ok
+                )
+                _log(f"{prefix}  ⚠️ DEAD BOT ALERT: {_cycles_without_trade} cycles without any trade!")
+                _send_telegram(
+                    f"⚠️ *DEAD BOT ALERT*\n"
+                    f"{_cycles_without_trade} cycles (≈{_cycles_without_trade}h) without any trade\n"
+                    f"States: {states_summary}\n"
+                    f"Check if bot is stuck or market is just quiet"
+                )
+                _cycles_without_trade = 0
 
             _log(f"{prefix}═══ CYCLE {cycle} DONE ═══")
 
