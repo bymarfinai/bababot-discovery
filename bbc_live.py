@@ -347,19 +347,18 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
 
         state["pairs"] = {s: {"state": ps.switcher.state, "position": None} for s, ps in pair_states.items() if ps.warmup_ok}
 
-        # ═══ CLEANUP ORPHAN POSITIONS ═══
+        # ═══ ORPHAN CHECK (log only, no auto-close) ═══
         for symbol in symbols:
             try:
                 pos = client.get_position(symbol)
                 if pos and float(pos.get("positionAmt", 0)) != 0:
                     amt = float(pos["positionAmt"])
-                    side_close = "SELL" if amt > 0 else "BUY"
-                    client.cancel_all_orders(symbol)
-                    _cancel_sl_tp(client, symbol)
-                    client.place_market_close(symbol, side_close, abs(amt))
-                    _log(f"{prefix}  🧹 {symbol}: closed orphan position")
+                    side = "LONG" if amt > 0 else "SHORT"
+                    entry = float(pos.get("entryPrice", 0))
+                    _log(f"{prefix}  ⚠️ {symbol}: existing {side} position on exchange @ ${entry:.4f} — NOT auto-closing")
+                    _send_telegram(f"⚠️ BBC {symbol}: existing {side} @ ${entry:.4f}\nManual close from dashboard if needed")
             except Exception as e:
-                _log(f"{prefix}  ⚠️ Orphan cleanup {symbol}: {e}")
+                _log(f"{prefix}  ⚠️ Orphan check {symbol}: {e}")
 
         _log(f"{prefix}  ⏰ Cycle interval: {interval_min}min")
 
