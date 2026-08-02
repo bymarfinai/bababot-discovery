@@ -42,38 +42,43 @@ def check_account_health(client, acct_name, bot_state):
                 algo_orders = algo_orders.get("orders", [])
             if isinstance(algo_orders, list):
                 for ao in algo_orders:
-                    if ao.get("type") == "STOP_MARKET":
+                    otype = ao.get("type") or ao.get("algoOrderType") or ao.get("origType") or ""
+                    if otype in ("STOP_MARKET", "STOP"):
                         has_sl = True
-                    elif ao.get("type") == "TAKE_PROFIT_MARKET":
+                    elif otype in ("TAKE_PROFIT_MARKET", "TAKE_PROFIT"):
                         has_tp = True
+            else:
+                _log(f"[MONITOR] ⚠️ Unexpected algo_orders response for {symbol}: {type(algo_orders)} — {str(algo_orders)[:200]}")
+
+            if has_sl and has_tp:
+                continue
 
             # Auto-fix missing SL/TP
-            if not has_sl or not has_tp:
-                cfg = configs.get(symbol, BBC_FALLBACK.get(symbol))
-                if cfg and entry > 0:
-                    sl_pct = cfg.get("sl_pct", 0.015)
-                    tp_pct = cfg.get("tp_pct", 0.013)
+            cfg = configs.get(symbol, BBC_FALLBACK.get(symbol))
+            if cfg and entry > 0:
+                sl_pct = cfg.get("sl_pct", 0.015)
+                tp_pct = cfg.get("tp_pct", 0.013)
 
-                    if side == "LONG":
-                        sl_price = entry * (1 - sl_pct)
-                        tp_price = entry * (1 + tp_pct)
-                    else:
-                        sl_price = entry * (1 + sl_pct)
-                        tp_price = entry * (1 - tp_pct)
+                if side == "LONG":
+                    sl_price = entry * (1 - sl_pct)
+                    tp_price = entry * (1 + tp_pct)
+                else:
+                    sl_price = entry * (1 + sl_pct)
+                    tp_price = entry * (1 - tp_pct)
 
-                    # Cancel existing algo orders first to avoid -4130 conflict
+                if has_sl or has_tp:
                     try:
                         client.cancel_all_algo_orders(symbol)
                     except Exception:
                         pass
 
-                    result = _place_sl_tp(client, symbol, side, sl_price, tp_price)
-                    fixes.append(f"🔧 {symbol} {side} — placed SL @ ${sl_price:.4f} + TP @ ${tp_price:.4f}")
-                else:
-                    if not has_sl:
-                        alerts.append(f"⚠️ {symbol} {side} @ ${entry:.4f} — NO SL (no config to auto-fix)")
-                    if not has_tp:
-                        alerts.append(f"⚠️ {symbol} {side} @ ${entry:.4f} — NO TP (no config to auto-fix)")
+                result = _place_sl_tp(client, symbol, side, sl_price, tp_price)
+                fixes.append(f"🔧 {symbol} {side} — placed SL @ ${sl_price:.4f} + TP @ ${tp_price:.4f}")
+            else:
+                if not has_sl:
+                    alerts.append(f"⚠️ {symbol} {side} @ ${entry:.4f} — NO SL (no config to auto-fix)")
+                if not has_tp:
+                    alerts.append(f"⚠️ {symbol} {side} @ ${entry:.4f} — NO TP (no config to auto-fix)")
 
             # Check if bot is tracking
             bot_positions = bot_state.get("positions", {})
