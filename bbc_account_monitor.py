@@ -108,7 +108,7 @@ def check_account_health(client, acct_name, bot_state):
             if acct_name not in (t.get("notes") or ""):
                 continue
             exit_str = t.get("exit_time") or ""
-            d1_keys.add((t.get("symbol"), exit_str[:13], t.get("side")))
+            d1_keys.add((t.get("symbol"), exit_str[:16], t.get("side")))
 
         for symbol in configs.keys():
             try:
@@ -154,7 +154,7 @@ def check_account_health(client, acct_name, bot_state):
                     pos_side = "SHORT" if exit_side == "BUY" else "LONG"
 
                     # Dedup: skip if already in D1
-                    dedup_key = (symbol, exit_time[:13], pos_side)
+                    dedup_key = (symbol, exit_time[:16], pos_side)
                     if dedup_key in d1_keys:
                         continue
 

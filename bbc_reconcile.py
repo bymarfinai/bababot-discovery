@@ -29,9 +29,23 @@ def reconcile_missed_trades(client, symbols, phantom_symbols, timeframe, prefix,
     if not phantom_symbols:
         _log(f"{prefix}  ✅ No phantoms — skipping reconciliation")
         return 0
-    
+
     _log(f"{prefix}  🔄 RECONCILIATION: checking exchange history for {len(phantom_symbols)} phantom symbol(s)...")
-    
+
+    # Fetch existing D1 trades to avoid duplicates
+    import os, requests as _req
+    _WORKER = os.environ.get("WORKER_URL", "https://bababot-pro.bymarfinai.workers.dev")
+    d1_keys = set()
+    try:
+        r = _req.get(f"{_WORKER}/bot/trade-log?period=7d", timeout=10)
+        for t in r.json().get("trades", []):
+            if acct_name not in (t.get("notes") or ""):
+                continue
+            exit_str = (t.get("exit_time") or "")[:16]
+            d1_keys.add((t.get("symbol"), exit_str, t.get("side")))
+    except Exception:
+        pass
+
     reconciled = 0
     lookback_ms = 12 * 60 * 60 * 1000  # 12 hours
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
@@ -126,9 +140,15 @@ def reconcile_missed_trades(client, symbols, phantom_symbols, timeframe, prefix,
                 exit_reason = "TP" if total_rpnl > 0 else "SL"
                 commission = sum(float(t.get("commission", 0)) for t in group)
                 net_pnl = total_rpnl - commission
-                
+
+                # Dedup: skip if already logged to D1
+                dedup_key = (symbol, exit_time[:16], position_side)
+                if dedup_key in d1_keys:
+                    _log(f"{prefix}  ⏭ SKIP {symbol} {position_side} {exit_reason} — already in D1")
+                    continue
+
                 emoji = "🎯" if exit_reason == "TP" else "🛑"
-                
+
                 _log(f"{prefix}  {emoji} RECONCILED: {symbol} {position_side} {exit_reason}")
                 _log(f"{prefix}     Entry: ${avg_entry_price:.4f} → Exit: ${avg_exit_price:.4f} | PnL: {pnl_pct:+.2f}% (${net_pnl:+.4f})")
                 _log(f"{prefix}     Exit time: {exit_time}")
