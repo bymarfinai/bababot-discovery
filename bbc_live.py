@@ -28,6 +28,7 @@ from baret_live import (
 from mode3_bbc.config import Mode3BBCConfig
 from mode3_bbc.switcher import Switcher
 from bbc_reconcile import reconcile_missed_trades
+from bbc_account_monitor import check_account_health
 
 
 # ══════════════════════════════════════════════
@@ -816,6 +817,12 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                     f"Check if bot is stuck or market is just quiet"
                 )
                 _cycles_without_trade = 0
+
+            # ═══ ACCOUNT HEALTH CHECK (every candle close) ═══
+            try:
+                check_account_health(client, acct_name, state)
+            except Exception as e:
+                _log(f"{prefix}  ⚠️ Health check error: {e}")
 
             _log(f"{prefix}═══ CYCLE {cycle} DONE ═══")
 

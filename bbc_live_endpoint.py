@@ -13,7 +13,7 @@ import requests as req
 from fastapi import APIRouter
 
 from bbc_live import start_bbc_live, stop_bbc_live, bbc_live_status, _bbc_live_loop
-from bbc_account_monitor import start_monitor, stop_monitor
+from bbc_account_monitor import check_account_health
 from baret_live import (
     ExchangeClient, _log, _send_telegram, _cancel_sl_tp,
     _get_default_client, _account_bots, close_position, close_all_positions,
@@ -135,10 +135,7 @@ def bbc_live_start_account(account_id: int = 0):
     t = threading.Thread(target=_bbc_account_loop, args=(account_id, client, account), daemon=True)
     _bbc_account_bots[account_id]["thread"] = t
     t.start()
-    # Start background health monitor
-    acct_name = account.get("name", f"BBC-{account_id}")
-    start_monitor(account_id, client, acct_name, lambda: _bbc_account_bots.get(account_id))
-    return {"ok": True, "message": f"BBC started for '{acct_name}', ${account.get('position_usd', 1)}×{account.get('leverage', 50)}x (monitor ON)"}
+    return {"ok": True, "message": f"BBC started for '{account['name']}', ${account.get('position_usd', 1)}×{account.get('leverage', 50)}x"}
 
 
 @router.get("/bbc-live/stop-account")
@@ -147,9 +144,8 @@ def bbc_live_stop_account(account_id: int = 0):
     if not bot or not bot.get("running"):
         return {"ok": True, "message": f"BBC account {account_id} not running"}
     bot["running"] = False
-    stop_monitor(account_id)
     _log(f"[BBC-{account_id}] Stop signal sent")
-    return {"ok": True, "message": f"BBC account {account_id} stopping... (monitor OFF)"}
+    return {"ok": True, "message": f"BBC account {account_id} stopping..."}
 
 
 @router.get("/bbc-live/account-status")
