@@ -9,6 +9,8 @@ v2.2: Per-pair configs + state-safe SKIP handling.
 
 v3.1: Detection layers — phantom position check after warmup + dead bot alert.
       Post-restart trade reconciliation via exchange history.
+
+v3.2: Fix fill confirmation retry, orphan adoption, exit price accuracy.
 """
 
 import time
@@ -71,8 +73,6 @@ def _compute_va(highs, lows, closes, volumes, window, pct_high=85, pct_low=15):
 # ══════════════════════════════════════════════
 
 def _compute_mtf_bull_for_bar(candles_15m_for_hour):
-    """Check 4 15m candles for BULL EMA reclaim. Same logic as backtest.
-    Returns (entry_close, entry_low) or (None, None)."""
     if not candles_15m_for_hour or len(candles_15m_for_hour) < 4:
         return None, None
     closes = [c["close"] for c in candles_15m_for_hour]
@@ -86,8 +86,6 @@ def _compute_mtf_bull_for_bar(candles_15m_for_hour):
 
 
 def _compute_mtf_bear_for_bar(candles_15m_for_hour):
-    """Check 4 15m candles for BEAR EMA reject. Same logic as backtest.
-    Returns (entry_close, entry_high) or (None, None)."""
     if not candles_15m_for_hour or len(candles_15m_for_hour) < 4:
         return None, None
     closes = [c["close"] for c in candles_15m_for_hour]
@@ -101,77 +99,83 @@ def _compute_mtf_bear_for_bar(candles_15m_for_hour):
 
 
 def _compute_mtf_arrays(candles_1h, all_15m_candles):
-    """Pre-compute MTF arrays for warmup — SAME as backtest.
-    
-    For each 1H candle, find matching 15m candles by timestamp,
-    check bull/bear confirmation, build arrays indexed by bar_idx.
-    """
     n = len(candles_1h)
     bull_ec = [None] * n
     bull_el = [None] * n
     bear_ec = [None] * n
     bear_eh = [None] * n
-    
-    # Index 15m candles by timestamp for fast lookup
     idx_15m = {}
     for c in all_15m_candles:
         idx_15m[c["time"]] = c
-    
     for i, c1h in enumerate(candles_1h):
         t = c1h["time"]
-        # Get 4 15m candles within this 1H period
         M = 15 * 60 * 1000
         candles_in_hour = []
         for k in range(4):
             c15 = idx_15m.get(t + k * M)
             if c15:
                 candles_in_hour.append(c15)
-        
         if len(candles_in_hour) >= 4:
-            # Need full 15m history for accurate EMA20
-            # Get all 15m candles up to and including this hour
             hour_end = t + 4 * M
             history_15m = [c for c in all_15m_candles if c["time"] <= hour_end]
             if len(history_15m) >= 20:
                 closes_15m = [c["close"] for c in history_15m]
                 ema15 = _compute_ema(closes_15m, 20)
-                
-                # Check last 4 candles (the ones in this hour)
                 for k in range(4):
                     c15_time = t + k * M
                     c15 = idx_15m.get(c15_time)
                     if not c15:
                         continue
-                    # Find index in history
                     try:
                         j = next(idx for idx, c in enumerate(history_15m) if c["time"] == c15_time)
                     except StopIteration:
                         continue
                     ev = ema15[j]
-                    
-                    # BULL check
                     if bull_ec[i] is None:
                         if c15["low"] <= ev and c15["close"] > ev and c15["close"] > c15["open"]:
                             bull_ec[i] = c15["close"]
                             bull_el[i] = c15["low"]
-                    
-                    # BEAR check
                     if bear_ec[i] is None:
                         if c15["high"] >= ev and c15["close"] < ev and c15["close"] < c15["open"]:
                             bear_ec[i] = c15["close"]
                             bear_eh[i] = c15["high"]
-    
     return bull_ec, bull_el, bear_ec, bear_eh
 
 
 def _fetch_15m_for_period(symbol, start_time_ms, count=40):
-    """Fetch 15m candles for a period. Returns list of candle dicts."""
     try:
         candles = _fetch_candles(symbol, "15m", count)
         return candles if candles else []
     except Exception as e:
         _log(f"  ⚠️ MTF 15m fetch {symbol}: {e}")
         return []
+
+
+# ══════════════════════════════════════════════
+# HELPERS (v3.2)
+# ══════════════════════════════════════════════
+
+def _wait_for_fill(client, symbol, max_attempts=5):
+    """Retry loop to confirm position fill. Returns ex_pos or None."""
+    for attempt in range(max_attempts):
+        time.sleep(1)
+        ex_pos = client.get_position(symbol)
+        if ex_pos and abs(float(ex_pos.get("positionAmt", 0))) > 0:
+            return ex_pos
+    return None
+
+
+def _get_actual_exit_price(client, symbol, fallback_price):
+    """Get actual fill price from exchange trade history instead of current price."""
+    try:
+        trades = client.api_get("/fapi/v1/userTrades", {
+            "symbol": symbol, "limit": 5
+        }, signed=True)
+        if trades and isinstance(trades, list) and len(trades) > 0:
+            return float(trades[-1]["price"])
+    except:
+        pass
+    return fallback_price
 
 
 # ══════════════════════════════════════════════
@@ -194,7 +198,6 @@ def _build_pair_config(symbol, position_usd, leverage, config_overrides=None):
     cfg = Mode3BBCConfig()
     cfg.entry_usd = position_usd
     cfg.leverage = leverage
-
     if config_overrides:
         for k, v in config_overrides.items():
             if not isinstance(v, dict) and hasattr(cfg, k):
@@ -203,12 +206,9 @@ def _build_pair_config(symbol, position_usd, leverage, config_overrides=None):
             for k, v in config_overrides[symbol].items():
                 if hasattr(cfg, k):
                     setattr(cfg, k, v)
-
-    # v3.0: MTF 15m ENABLED in switcher — same as backtest
     cfg.bull_mtf_15m_enabled = True
     cfg.bear_mtf_15m_enabled = True
-    cfg.sideways_mtf_15m_enabled = False  # sideways is skipped anyway
-
+    cfg.sideways_mtf_15m_enabled = False
     return cfg
 
 
@@ -224,7 +224,7 @@ def _is_connection_error(e):
 
 
 # ══════════════════════════════════════════════
-# BBC LIVE LOOP — v3.1
+# BBC LIVE LOOP — v3.2
 # ══════════════════════════════════════════════
 
 _bbc_live_running = False
@@ -282,8 +282,8 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
             pc = pair_states[symbol].config
             _log(f"{prefix}  📋 {symbol}: EMA={pc.ema_period} TP={pc.tp_pct*100:.1f}% SL={pc.sl_pct*100:.1f}% BullBody={pc.bull_body_ratio_min} BearBody={pc.bear_body_ratio_min} MTF=INSIDE")
 
-        _log(f"{prefix}═══ BBC LIVE v3.1 STARTED ═══ {len(symbols)} pairs, TF={timeframe}, MTF=INSIDE_SWITCHER (same as backtest)")
-        _send_telegram(f"📊 BBC LIVE v3.1 STARTED\nPairs: {', '.join(symbols)}\nMTF: INSIDE SWITCHER ✅ (same as backtest)")
+        _log(f"{prefix}═══ BBC LIVE v3.2 STARTED ═══ {len(symbols)} pairs, TF={timeframe}, MTF=INSIDE_SWITCHER")
+        _send_telegram(f"📊 BBC LIVE v3.2 STARTED\nPairs: {', '.join(symbols)}\nFixes: fill retry, orphan adopt, exit price accuracy")
 
         # ═══ WARMUP ═══
         for symbol in symbols:
@@ -296,20 +296,14 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                 if not candles or len(candles) < ps.config.startup_warmup_candles:
                     _log(f"{prefix}  ❌ {symbol}: insufficient 1H candles ({len(candles) if candles else 0})")
                     continue
-
-                # v3.0: Also fetch 15m candles for MTF during warmup
                 candles_15m = _fetch_candles(symbol, "15m", warmup_count * 4 + 20)
-                
                 opens = [c["open"] for c in candles]
                 highs = [c["high"] for c in candles]
                 lows = [c["low"] for c in candles]
                 closes = [c["close"] for c in candles]
                 volumes = [c.get("volume", 1.0) for c in candles]
-
                 ema_series = _compute_ema(closes, ps.config.ema_period)
                 vah_list, val_list, poc_list = _compute_va(highs, lows, closes, volumes, ps.config.va_window)
-
-                # v3.0: Pre-compute MTF arrays (same as backtest)
                 if candles_15m and len(candles_15m) >= 20:
                     bull_ec, bull_el, bear_ec, bear_eh = _compute_mtf_arrays(candles, candles_15m)
                     ps.switcher.mtf_bull_entry_close = bull_ec
@@ -319,24 +313,20 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                     _log(f"{prefix}  ✅ {symbol}: 15m MTF arrays computed ({len(candles_15m)} 15m candles)")
                 else:
                     _log(f"{prefix}  ⚠️ {symbol}: insufficient 15m candles for MTF warmup")
-
                 for i in range(len(candles)):
                     ps.switcher.process_candle(
                         i, opens[i], highs[i], lows[i], closes[i],
                         ema_series[i], vah_list[i], val_list[i], poc_list[i]
                     )
-
                 ps.bar_idx = len(candles)
                 ps.candle_history = candles
                 ps.last_candle_time = candles[-1]["time"] if candles else 0
                 ps.warmup_ok = True
-
                 sw_state = ps.switcher.state
                 sw_pos = "LONG" if ps.switcher.position and ps.switcher.position.side == "LONG" else (
                     "SHORT" if ps.switcher.position else "flat"
                 )
                 _log(f"{prefix}  ✅ {symbol}: warmup done, state={sw_state}, position={sw_pos}, {len(ps.switcher.trades)} warmup trades")
-
             except Exception as e:
                 _log(f"{prefix}  ❌ {symbol} warmup CRASHED: {e}")
                 _log(f"{prefix}     {traceback.format_exc()}")
@@ -366,25 +356,14 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                     phantom_count += 1
                     phantom_symbols.append(symbol)
                     _log(f"{prefix}  🚨 PHANTOM DETECTED: {symbol} — Switcher says {phantom.tool} {phantom.side} @ ${phantom.entry_price:.4f} but exchange is FLAT")
-                    _log(f"{prefix}     → Resetting Switcher position to None (state={ps.switcher.state} preserved)")
-                    _send_telegram(
-                        f"🚨 *PHANTOM POSITION DETECTED*\n"
-                        f"{symbol}: Switcher={phantom.tool} {phantom.side} @ ${phantom.entry_price:.4f}\n"
-                        f"Exchange: FLAT (no position)\n"
-                        f"Action: Position reset, state={ps.switcher.state}\n"
-                        f"⚠️ State may be wrong — monitor next entries"
-                    )
+                    _send_telegram(f"🚨 *PHANTOM POSITION*\n{symbol}: {phantom.tool} {phantom.side} @ ${phantom.entry_price:.4f}\nExchange: FLAT\nAction: Reset")
                     ps.switcher.position = None
                 else:
                     sw_side = ps.switcher.position.side
                     ex_side = "LONG" if float(ex_pos.get("positionAmt", 0)) > 0 else "SHORT"
                     if sw_side != ex_side:
                         _log(f"{prefix}  🚨 SIDE MISMATCH: {symbol} — Switcher={sw_side} but exchange={ex_side}")
-                        _send_telegram(
-                            f"🚨 *SIDE MISMATCH*\n"
-                            f"{symbol}: Switcher={sw_side}, Exchange={ex_side}\n"
-                            f"Manual intervention needed!"
-                        )
+                        _send_telegram(f"🚨 *SIDE MISMATCH*\n{symbol}: Switcher={sw_side}, Exchange={ex_side}\nManual intervention needed!")
             except Exception as e:
                 _log(f"{prefix}  ⚠️ Phantom check {symbol}: {e}")
 
@@ -399,16 +378,43 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
         except Exception as e:
             _log(f"{prefix}  ⚠️ Reconciliation failed: {e}")
 
-        # ═══ ORPHAN CHECK (log only, no auto-close) ═══
+        # ═══ ORPHAN ADOPTION (v3.2 — was log-only, now adopts) ═══
         for symbol in symbols:
+            ps = pair_states[symbol]
+            if not ps.warmup_ok:
+                continue
             try:
                 pos = client.get_position(symbol)
                 if pos and float(pos.get("positionAmt", 0)) != 0:
                     amt = float(pos["positionAmt"])
                     side = "LONG" if amt > 0 else "SHORT"
                     entry = float(pos.get("entryPrice", 0))
-                    _log(f"{prefix}  ⚠️ {symbol}: existing {side} position on exchange @ ${entry:.4f} — NOT auto-closing")
-                    _send_telegram(f"⚠️ BBC {symbol}: existing {side} @ ${entry:.4f}\nManual close from dashboard if needed")
+                    if ps.exchange_position:
+                        continue
+                    if side == "LONG":
+                        tp = entry * (1 + ps.config.tp_pct)
+                        sl = entry * (1 - ps.config.sl_pct)
+                    else:
+                        tp = entry * (1 - ps.config.get_bear_tp_pct())
+                        sl = entry * (1 + ps.config.get_bear_sl_pct())
+                    _log(f"{prefix}  📎 ADOPTING {symbol}: {side} @ ${entry:.4f} | setting TP=${tp:.4f} SL=${sl:.4f}")
+                    try:
+                        _cancel_sl_tp(client, symbol)
+                    except:
+                        pass
+                    sl_tp = _place_sl_tp(client, symbol, side, sl, tp)
+                    ps.exchange_position = {
+                        "side": side, "entry": entry, "qty": abs(amt),
+                        "tp": tp, "sl": sl, "tool": "ADOPTED",
+                        "sl_algo_id": sl_tp.get("sl", {}).get("algoId"),
+                        "tp_algo_id": sl_tp.get("tp", {}).get("algoId"),
+                        "filled_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                    state["positions"][symbol] = {
+                        "side": side, "entry": entry, "qty": abs(amt),
+                        "tp": tp, "sl": sl, "tool": "ADOPTED",
+                    }
+                    _send_telegram(f"📎 *ADOPTED ORPHAN*\n{symbol} {side} @ ${entry:.4f}\nTP: ${tp:.4f} SL: ${sl:.4f}")
             except Exception as e:
                 _log(f"{prefix}  ⚠️ Orphan check {symbol}: {e}")
 
@@ -449,7 +455,9 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                             continue
                         if float(ex_pos.get("positionAmt", 0)) == 0:
                             ep = ps.exchange_position
+                            # v3.2 FIX 3: Get actual fill price from trade history
                             cp = _get_price(symbol)
+                            cp = _get_actual_exit_price(client, symbol, cp)
                             if cp is None or cp <= 0:
                                 continue
                             side = ep["side"]
@@ -469,8 +477,8 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                             hit = "TP" if pnl_pct > 0 else "SL"
                             emoji = "🎯" if hit == "TP" else "🛑"
 
-                            _log(f"{prefix}  {emoji} {symbol} {side} {hit} (exchange) @ ~${cp:.4f} | PnL: {pnl_pct:+.2f}%")
-                            _send_telegram(f"{emoji} *BBC {symbol} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ~${cp:.4f}\nPnL: {pnl_pct:+.2f}%")
+                            _log(f"{prefix}  {emoji} {symbol} {side} {hit} (exchange) @ ${cp:.4f} | PnL: {pnl_pct:+.2f}%")
+                            _send_telegram(f"{emoji} *BBC {symbol} {side} {hit}*\nEntry: ${entry:.4f}\nExit: ${cp:.4f}\nPnL: {pnl_pct:+.2f}%")
                             _log_trade_to_d1(symbol, timeframe, side, entry, cp,
                                 ep.get("filled_at", ""), datetime.now(timezone.utc).isoformat(),
                                 ps.config.sl_pct * 100, ps.config.tp_pct * 100,
@@ -535,20 +543,13 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                     last_val = val_list[-1]
                     last_poc = poc_list[-1]
 
-                    # v3.0: Fetch 15m and compute MTF for THIS bar
                     candles_15m = _fetch_candles(symbol, "15m", 40)
                     if candles_15m and len(candles_15m) >= 20:
-                        # Build MTF data for current bar
                         M = 15 * 60 * 1000
                         idx_15m = {c["time"]: c for c in candles_15m}
-                        candles_in_hour = [idx_15m.get(latest_time + k * M) for k in range(4)]
-                        candles_in_hour = [c for c in candles_in_hour if c]
-                        
                         closes_15m = [c["close"] for c in candles_15m]
                         ema15 = _compute_ema(closes_15m, 20)
-                        
                         b_ec, b_el, br_ec, br_eh = None, None, None, None
-                        
                         for k in range(4):
                             c15_time = latest_time + k * M
                             c15 = idx_15m.get(c15_time)
@@ -559,15 +560,12 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                             except StopIteration:
                                 continue
                             ev = ema15[j]
-                            
                             if b_ec is None and c15["low"] <= ev and c15["close"] > ev and c15["close"] > c15["open"]:
                                 b_ec = c15["close"]
                                 b_el = c15["low"]
                             if br_ec is None and c15["high"] >= ev and c15["close"] < ev and c15["close"] < c15["open"]:
                                 br_ec = c15["close"]
                                 br_eh = c15["high"]
-                        
-                        # Extend MTF arrays for NEXT bar_idx (process_candle uses bar_idx+1)
                         next_bar = ps.bar_idx + 1
                         while len(ps.switcher.mtf_bull_entry_close or []) <= next_bar:
                             if ps.switcher.mtf_bull_entry_close is None:
@@ -585,12 +583,10 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                             ps.switcher.mtf_bear_entry_high = []
                         while len(ps.switcher.mtf_bear_entry_high) <= next_bar:
                             ps.switcher.mtf_bear_entry_high.append(None)
-                        
                         ps.switcher.mtf_bull_entry_close[next_bar] = b_ec
                         ps.switcher.mtf_bull_entry_low[next_bar] = b_el
                         ps.switcher.mtf_bear_entry_close[next_bar] = br_ec
                         ps.switcher.mtf_bear_entry_high[next_bar] = br_eh
-                        
                         if b_ec: _log(f"{prefix}  🔍 {symbol}: 15m BULL confirm @ ${b_ec:.4f}")
                         if br_ec: _log(f"{prefix}  🔍 {symbol}: 15m BEAR confirm @ ${br_ec:.4f}")
 
@@ -609,16 +605,15 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
 
                     _log(f"{prefix}  📊 {symbol}: state={new_state} | EMA{ps.config.ema_period}={last_ema:.2f} VAH={last_vah:.2f} VAL={last_val:.2f} | close=${last['close']:.4f}")
 
-                    # ═══ NEW POSITION OPENED (by switcher with MTF inside) ═══
+                    # ═══ NEW POSITION OPENED ═══
                     if not had_position and has_position:
                         sp = ps.switcher.position
                         side = sp.side
-                        entry_price = sp.entry_price  # v3.0: THIS IS NOW 15m CLOSE (same as backtest!)
+                        entry_price = sp.entry_price
                         sl_price = sp.sl_level
                         tp_price = sp.tp_level
                         tool = sp.tool
 
-                        # Skip SIDEWAYS
                         if tool == "SIDEWAYS":
                             _log(f"{prefix}  ⏩ {symbol}: SKIP SIDEWAYS entry ({side})")
                             ps.switcher.position = None
@@ -635,16 +630,13 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                         })
 
                         if result.get("orderId"):
-                            time.sleep(1)
-                            ex_pos = client.get_position(symbol)
+                            # v3.2 FIX 1: Retry loop instead of single sleep(1)
+                            ex_pos = _wait_for_fill(client, symbol)
                             if ex_pos:
                                 actual_entry = float(ex_pos.get("entryPrice", entry_price))
                                 actual_qty = abs(float(ex_pos.get("positionAmt", qty)))
 
-                                # v3.0: Use SWITCHER's TP/SL (calculated from 15m entry, same as backtest)
-                                # Only adjust if actual fill is significantly different
                                 if abs(actual_entry - entry_price) / entry_price > 0.001:
-                                    # Fill price >0.1% different — recalculate from fill
                                     if side == "LONG":
                                         tp_price = actual_entry * (1 + ps.config.tp_pct)
                                         sl_price = actual_entry * (1 - ps.config.sl_pct)
@@ -678,7 +670,7 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                                 )
                                 _log(f"{prefix}  ✅ {symbol} {side} FILLED @ ${actual_entry:.4f}")
                             else:
-                                _log(f"{prefix}  ⚠️ {symbol}: order placed but position not found")
+                                _log(f"{prefix}  ⚠️ {symbol}: order placed but position not found after 5 retries")
                         else:
                             _log(f"{prefix}  ❌ {symbol} order FAILED: {result.get('msg', result)}")
 
@@ -697,7 +689,9 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                                         close_side = "SELL" if ep["side"] == "LONG" else "BUY"
                                         client.place_market_close(symbol, close_side, amt)
                                         time.sleep(1)
+                                # v3.2 FIX 3: actual exit price
                                 cp = _get_price(symbol)
+                                cp = _get_actual_exit_price(client, symbol, cp)
                                 side = ep["side"]
                                 entry = ep["entry"]
                                 pnl_pct = ((cp - entry) / entry * 100) if side == "LONG" else ((entry - cp) / entry * 100)
@@ -736,7 +730,7 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
 
                         sp = ps.switcher.position
                         side = sp.side
-                        entry_price = sp.entry_price  # 15m sniper price
+                        entry_price = sp.entry_price
                         sl_price = sp.sl_level
                         tp_price = sp.tp_level
                         order_side = "BUY" if side == "LONG" else "SELL"
@@ -746,8 +740,8 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                             "quantity": _fmt_qty(symbol, qty),
                         })
                         if result.get("orderId"):
-                            time.sleep(1)
-                            ex_pos = client.get_position(symbol)
+                            # v3.2 FIX 1: Retry loop
+                            ex_pos = _wait_for_fill(client, symbol)
                             if ex_pos:
                                 actual_entry = float(ex_pos.get("entryPrice", entry_price))
                                 actual_qty = abs(float(ex_pos.get("positionAmt", qty)))
