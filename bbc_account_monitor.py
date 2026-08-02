@@ -87,38 +87,117 @@ def check_account_health(client, acct_name, bot_state):
     except Exception as e:
         _log(f"[MONITOR] ❌ Position check error: {e}")
 
-    # 2. Cross-check recent trades: exchange vs D1 (last 6h)
+    # 2. Auto-sync: pull exchange trades (last 6h), backfill any missing from D1
     try:
+        from bbc_trade_logger import _log_trade_to_d1
+
         now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         lookback_6h = 6 * 60 * 60 * 1000
-        exchange_exit_count = 0
+
+        # Fetch D1 trades for dedup
+        d1_trades = []
+        try:
+            r = req.get(f"{_WORKER_URL}/bot/trade-log?period=24h", timeout=10)
+            d1_trades = r.json().get("trades", [])
+        except Exception:
+            pass
+
+        # Build dedup key set from D1: (symbol, approx_exit_time_hour, side)
+        d1_keys = set()
+        for t in d1_trades:
+            if acct_name not in (t.get("notes") or ""):
+                continue
+            exit_str = t.get("exit_time") or ""
+            d1_keys.add((t.get("symbol"), exit_str[:13], t.get("side")))
 
         for symbol in configs.keys():
             try:
-                trades = client.api_get("/fapi/v1/userTrades", {
+                exchange_trades = client.api_get("/fapi/v1/userTrades", {
                     "symbol": symbol,
                     "startTime": now_ms - lookback_6h,
                     "limit": 100,
                 }, signed=True)
-                if isinstance(trades, list):
-                    for t in trades:
-                        if abs(float(t.get("realizedPnl", 0))) > 0.0001:
-                            exchange_exit_count += 1
-            except Exception:
-                pass
+                if not isinstance(exchange_trades, list):
+                    continue
 
-        if exchange_exit_count > 0:
-            try:
-                r = req.get(f"{_WORKER_URL}/bot/trade-log?period=24h", timeout=10)
-                d1_trades = r.json().get("trades", [])
-                d1_count = len([t for t in d1_trades if acct_name in (t.get("notes") or "")])
-                if exchange_exit_count > d1_count:
-                    missing = exchange_exit_count - d1_count
-                    alerts.append(f"📋 {missing} trade(s) on exchange but NOT in D1 log (last 6h) — run /bbc-live/sync-trades to fix")
-            except Exception:
-                pass
+                # Split into entry and exit fills
+                entry_fills = []
+                exit_fills = []
+                for t in exchange_trades:
+                    rpnl = float(t.get("realizedPnl", 0))
+                    if abs(rpnl) > 0.0001:
+                        exit_fills.append(t)
+                    else:
+                        entry_fills.append(t)
+
+                if not exit_fills:
+                    continue
+
+                # Group exit fills by time proximity (within 1s = same exit)
+                exit_groups = []
+                current_group = [exit_fills[0]]
+                for i in range(1, len(exit_fills)):
+                    if exit_fills[i]["time"] - exit_fills[i-1]["time"] < 1000:
+                        current_group.append(exit_fills[i])
+                    else:
+                        exit_groups.append(current_group)
+                        current_group = [exit_fills[i]]
+                exit_groups.append(current_group)
+
+                for group in exit_groups:
+                    total_qty = sum(float(t["qty"]) for t in group)
+                    total_rpnl = sum(float(t["realizedPnl"]) for t in group)
+                    avg_exit = sum(float(t["price"]) * float(t["qty"]) for t in group) / total_qty if total_qty else 0
+                    exit_time_ms = group[-1]["time"]
+                    exit_time = datetime.fromtimestamp(exit_time_ms / 1000, tz=timezone.utc).isoformat()
+                    exit_side = group[0]["side"]
+                    pos_side = "SHORT" if exit_side == "BUY" else "LONG"
+
+                    # Dedup: skip if already in D1
+                    dedup_key = (symbol, exit_time[:13], pos_side)
+                    if dedup_key in d1_keys:
+                        continue
+
+                    # Find matching entry fills
+                    matching = [t for t in entry_fills if t["side"] != exit_side and t["time"] < exit_time_ms]
+                    if matching:
+                        matching.sort(key=lambda t: t["time"], reverse=True)
+                        eq = 0
+                        ep_sum = 0
+                        entry_time_ms = matching[0]["time"]
+                        for t in matching:
+                            q = float(t["qty"])
+                            eq += q
+                            ep_sum += float(t["price"]) * q
+                            entry_time_ms = min(entry_time_ms, t["time"])
+                            if eq >= total_qty * 0.95:
+                                break
+                        avg_entry = ep_sum / eq if eq else avg_exit
+                        entry_time = datetime.fromtimestamp(entry_time_ms / 1000, tz=timezone.utc).isoformat()
+                    else:
+                        avg_entry = avg_exit
+                        entry_time = exit_time
+
+                    pnl_pct = ((avg_exit - avg_entry) / avg_entry * 100) if pos_side == "LONG" else ((avg_entry - avg_exit) / avg_entry * 100) if avg_entry > 0 else 0
+                    commission = sum(float(t.get("commission", 0)) for t in group)
+                    net_pnl = total_rpnl - commission
+                    exit_reason = "TP_SYNCED" if total_rpnl > 0 else "SL_SYNCED"
+
+                    cfg = configs.get(symbol, BBC_FALLBACK.get(symbol, {}))
+                    _log_trade_to_d1(
+                        symbol, "1h", pos_side, avg_entry, avg_exit,
+                        entry_time, exit_time,
+                        cfg.get("sl_pct", 0) * 100, cfg.get("tp_pct", 0) * 100,
+                        net_pnl, pnl_pct, exit_reason, acct_name
+                    )
+                    emoji = "🎯" if "TP" in exit_reason else "🛑"
+                    fixes.append(f"📋 {emoji} SYNCED {symbol} {pos_side} {exit_reason} | Entry ${avg_entry:.4f} → Exit ${avg_exit:.4f} | PnL ${net_pnl:+.4f}")
+                    _log(f"[MONITOR] 📋 AUTO-SYNCED: {symbol} {pos_side} {exit_reason} PnL=${net_pnl:+.4f}")
+
+            except Exception as e:
+                _log(f"[MONITOR] ⚠️ Sync error {symbol}: {e}")
     except Exception as e:
-        _log(f"[MONITOR] ❌ Trade cross-check error: {e}")
+        _log(f"[MONITOR] ❌ Trade sync error: {e}")
 
     # Report
     if fixes:
