@@ -267,12 +267,13 @@ def bbc_account_health(account_id: int = 0):
             algo_orders = algo_orders.get("orders", [])
         if isinstance(algo_orders, list):
             for ao in algo_orders:
-                if ao.get("type") == "STOP_MARKET":
+                otype = ao.get("type") or ao.get("algoOrderType") or ao.get("origType") or ""
+                if otype in ("STOP_MARKET", "STOP"):
                     has_sl = True
-                    sl_price = float(ao.get("triggerPrice", 0))
-                elif ao.get("type") == "TAKE_PROFIT_MARKET":
+                    sl_price = float(ao.get("triggerPrice") or ao.get("stopPrice") or 0)
+                elif otype in ("TAKE_PROFIT_MARKET", "TAKE_PROFIT"):
                     has_tp = True
-                    tp_price = float(ao.get("triggerPrice", 0))
+                    tp_price = float(ao.get("triggerPrice") or ao.get("stopPrice") or 0)
 
         # Check if bot is tracking this position
         bot = _bbc_account_bots.get(account_id)

@@ -6,7 +6,8 @@ Usage: Called after phantom detection in bbc_live.py warmup sequence.
 """
 
 from datetime import datetime, timezone, timedelta
-from baret_live import _log, _send_telegram, _log_trade_to_d1
+from baret_live import _log, _send_telegram
+from bbc_trade_logger import _log_trade_to_d1
 
 
 def reconcile_missed_trades(client, symbols, phantom_symbols, timeframe, prefix, acct_name):
