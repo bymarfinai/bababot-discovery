@@ -80,7 +80,7 @@ def backtest_mode3_bbc(
     sideways_poc_breakout_enabled:bool=Query(False),
     sideways_poc_body_ratio_min:float=Query(0.5,ge=0.0,le=1.0),
     direct_transition_enabled:bool=Query(True),
-    direct_transition_wait_reject:bool=Query(False),
+    direct_transition_wait_reject:bool=Query(True),
     trailing_ema_enabled:bool=Query(False),
     trailing_ema_period:int=Query(7,ge=3,le=50),
     trailing_ema_min_bars:int=Query(1,ge=0,le=20),
