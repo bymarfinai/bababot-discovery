@@ -513,3 +513,79 @@ def bbc_sync_trades(account_id: int = 0, days: int = 7):
         "trades": synced,
         "errors": errors if errors else None,
     }
+
+
+@router.get("/bbc-live/cleanup-duplicates")
+def bbc_cleanup_duplicates(period: str = "30d", dry_run: bool = True):
+    """Find and remove duplicate trades from D1.
+
+    Duplicates = same (symbol, exit_time[:16], side, notes-prefix).
+    Keeps the first occurrence, marks the rest for deletion.
+    Set dry_run=false to actually delete via Worker.
+    """
+    try:
+        r = req.get(f"{WORKER_URL}/bot/trade-log?period={period}", timeout=15)
+        all_trades = r.json().get("trades", [])
+    except Exception as e:
+        return {"ok": False, "error": f"Failed to fetch trades: {e}"}
+
+    # Only look at BBC trades
+    bbc_trades = [t for t in all_trades if (t.get("notes") or "").startswith("BBC_V3")]
+
+    seen = {}
+    duplicates = []
+    kept = []
+
+    for t in bbc_trades:
+        key = (
+            t.get("symbol", ""),
+            (t.get("exit_time") or "")[:16],
+            t.get("side", ""),
+            (t.get("notes") or "").split("_")[0:2],  # BBC_V3 prefix
+        )
+        key_str = str(key)
+        if key_str in seen:
+            duplicates.append(t)
+        else:
+            seen[key_str] = t
+            kept.append(t)
+
+    deleted = 0
+    delete_errors = []
+
+    if not dry_run and duplicates:
+        for t in duplicates:
+            trade_id = t.get("id")
+            if not trade_id:
+                delete_errors.append(f"No ID for {t.get('symbol')} {t.get('exit_time')}")
+                continue
+            try:
+                r = req.delete(f"{WORKER_URL}/bot/trade-log/{trade_id}", timeout=10)
+                if r.status_code < 300:
+                    deleted += 1
+                else:
+                    delete_errors.append(f"ID {trade_id}: HTTP {r.status_code} — {r.text[:200]}")
+            except Exception as e:
+                delete_errors.append(f"ID {trade_id}: {e}")
+
+    return {
+        "ok": True,
+        "period": period,
+        "total_bbc_trades": len(bbc_trades),
+        "unique": len(kept),
+        "duplicates_found": len(duplicates),
+        "deleted": deleted,
+        "dry_run": dry_run,
+        "delete_errors": delete_errors if delete_errors else None,
+        "duplicate_details": [
+            {
+                "id": t.get("id"),
+                "symbol": t.get("symbol"),
+                "side": t.get("side"),
+                "exit_time": t.get("exit_time"),
+                "exit_reason": t.get("exit_reason"),
+                "pnl_dollar": t.get("pnl_dollar"),
+            }
+            for t in duplicates[:50]
+        ],
+    }
