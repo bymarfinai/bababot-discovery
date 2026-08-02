@@ -61,17 +61,14 @@ def check_account_health(client, acct_name, bot_state):
                         sl_price = entry * (1 + sl_pct)
                         tp_price = entry * (1 - tp_pct)
 
-                    if not has_sl and not has_tp:
-                        result = _place_sl_tp(client, symbol, side, sl_price, tp_price)
-                        fixes.append(f"🔧 {symbol} {side} — placed SL @ ${sl_price:.4f} + TP @ ${tp_price:.4f}")
-                    elif not has_sl:
-                        close_side = "SELL" if side == "LONG" else "BUY"
-                        client.place_algo_order(symbol, close_side, "STOP_MARKET", sl_price)
-                        fixes.append(f"🔧 {symbol} {side} — placed SL @ ${sl_price:.4f}")
-                    elif not has_tp:
-                        close_side = "SELL" if side == "LONG" else "BUY"
-                        client.place_algo_order(symbol, close_side, "TAKE_PROFIT_MARKET", tp_price)
-                        fixes.append(f"🔧 {symbol} {side} — placed TP @ ${tp_price:.4f}")
+                    # Cancel existing algo orders first to avoid -4130 conflict
+                    try:
+                        client.cancel_all_algo_orders(symbol)
+                    except Exception:
+                        pass
+
+                    result = _place_sl_tp(client, symbol, side, sl_price, tp_price)
+                    fixes.append(f"🔧 {symbol} {side} — placed SL @ ${sl_price:.4f} + TP @ ${tp_price:.4f}")
                 else:
                     if not has_sl:
                         alerts.append(f"⚠️ {symbol} {side} @ ${entry:.4f} — NO SL (no config to auto-fix)")
