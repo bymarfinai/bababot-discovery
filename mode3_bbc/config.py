@@ -80,6 +80,7 @@ class Mode3BBCConfig:
     sideways_poc_body_ratio_min: float = 0.5
 
     direct_transition_enabled: bool = True
+    direct_transition_wait_reject: bool = False
 
     # v2.4: trailing EMA exit (kept — useful for sweep)
     trailing_ema_enabled: bool = False

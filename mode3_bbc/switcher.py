@@ -49,6 +49,8 @@ class Switcher:
         self._current_vah = None; self._current_val = None; self._current_poc = None
         self._current_trailing_ema = None
         self.trailing_ema_series = None
+        self.reject_ema_series = None
+        self._current_reject_ema = None
         self.mtf_bull_entry_close = None; self.mtf_bull_entry_low = None
         self.mtf_bear_entry_close = None; self.mtf_bear_entry_high = None
         self.mtf_sideways_short_entry_close = None; self.mtf_sideways_short_entry_high = None
@@ -69,12 +71,15 @@ class Switcher:
         self._direct_bull_to_bear = 0; self._direct_bear_to_bull = 0
         self._direct_sw_to_bull = 0; self._direct_sw_to_bear = 0
         self._trailing_ema_exits = 0
+        self._wait_ema_reject = False; self._wait_reject_skipped = 0
 
     def process_candle(self, bar_idx, o, h, l, c, ema20, vah, val, poc=None):
         self._action_taken_this_bar = False; self._current_ema20 = ema20
         self._current_vah = vah; self._current_val = val; self._current_poc = poc
         if self.trailing_ema_series is not None and bar_idx < len(self.trailing_ema_series):
             self._current_trailing_ema = self.trailing_ema_series[bar_idx]
+        if self.reject_ema_series is not None and bar_idx < len(self.reject_ema_series):
+            self._current_reject_ema = self.reject_ema_series[bar_idx]
         if self.state == 'STARTUP':
             if vah is None or val is None: self._high_deque.append(h); self._low_deque.append(l); return
             self._startup_transition(c, ema20)
@@ -208,6 +213,14 @@ class Switcher:
         return (h >= ema20) and (c < ema20) and (c < o)
     def _is_bull_signal(self, o, h, l, c, ema20):
         return (l <= ema20) and (c > ema20) and (c > o)
+    def _is_ema7_bear_reject(self, o, h, l, c):
+        ema7 = self._current_reject_ema
+        if ema7 is None: return False
+        return (h >= ema7) and (c < ema7) and (c < o)
+    def _is_ema7_bull_reject(self, o, h, l, c):
+        ema7 = self._current_reject_ema
+        if ema7 is None: return False
+        return (l <= ema7) and (c > ema7) and (c > o)
 
     def _entry_sideways(self, bar_idx, o, h, l, c, ema20, vah, val):
         if self.config.direct_transition_enabled:
@@ -311,11 +324,20 @@ class Switcher:
     def _reset_retest(self): self._bull_retest_pending = False; self._bull_retest_bar_count = 0; self._bull_broken_level = None
 
     def _entry_bull(self, bar_idx, o, h, l, c, ema20, vah, val):
+        if self._wait_ema_reject and self.state == 'BULL':
+            if self._is_ema7_bull_reject(o, h, l, c):
+                self._wait_ema_reject = False; self._wait_reject_skipped = 0
+                self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger='ema_reclaim'); return
+            self._wait_reject_skipped += 1
+            if self._wait_reject_skipped >= 5: self._wait_ema_reject = False; self._wait_reject_skipped = 0
+            return
         if self.bull_stay_warmup and c < ema20:
             self.state = 'WAIT_SEE_BULLISH'; self.markers.hh_breach_case = 'B'; self.bull_stay_warmup = False; self._reset_retest(); return
         if self.config.direct_transition_enabled and self._is_bear_signal(o, h, l, c, ema20):
             if self.config.bear_body_ratio_min <= 0 or self._check_bear_body_ratio(o, h, l, c):
                 self.state = 'BEAR'; self._direct_bull_to_bear += 1
+                if self.config.direct_transition_wait_reject:
+                    self._wait_ema_reject = True; return
                 self._execute_bear_entry(bar_idx, o, h, l, c, ema20); return
         primary_trigger = self._is_bull_signal(o, h, l, c, ema20); trigger_name = 'ema_reclaim'
         if primary_trigger:
@@ -353,11 +375,20 @@ class Switcher:
         self._open_bear(bar_idx, h, l, sl_price, entry_price)
 
     def _entry_bear(self, bar_idx, o, h, l, c, ema20, vah, val):
+        if self._wait_ema_reject and self.state == 'BEAR':
+            if self._is_ema7_bear_reject(o, h, l, c):
+                self._wait_ema_reject = False; self._wait_reject_skipped = 0
+                self._execute_bear_entry(bar_idx, o, h, l, c, ema20); return
+            self._wait_reject_skipped += 1
+            if self._wait_reject_skipped >= 5: self._wait_ema_reject = False; self._wait_reject_skipped = 0
+            return
         if self.bear_stay_warmup and c > ema20:
             self.state = 'WAIT_SEE_BEARISH'; self.markers.ll_breach_case = 'B'; self.bear_stay_warmup = False; return
         if self.config.direct_transition_enabled and self._is_bull_signal(o, h, l, c, ema20):
             if self.config.bull_body_ratio_min <= 0 or self._check_body_ratio(o, h, l, c):
                 self.state = 'BULL'; self._direct_bear_to_bull += 1
+                if self.config.direct_transition_wait_reject:
+                    self._wait_ema_reject = True; return
                 self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger='ema_reclaim'); return
         if not self._is_bear_signal(o, h, l, c, ema20): return
         if self.config.bear_body_ratio_min > 0 and not self._check_bear_body_ratio(o, h, l, c): self._bear_blocked_body += 1; return
