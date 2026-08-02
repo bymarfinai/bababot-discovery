@@ -217,30 +217,161 @@ def bbc_close_all(account_id: int = None):
     return close_all_positions(client=client)
 
 
+def _get_client_for_account(account_id):
+    """Get or create ExchangeClient for an account. Returns (client, acct_name) or raises."""
+    bot = _bbc_account_bots.get(account_id)
+    if bot and bot.get("client"):
+        return bot["client"], bot["account"].get("name", f"Account-{account_id}")
+    r = req.get(f"{WORKER_URL}/trading-accounts/list", timeout=10)
+    accounts = r.json().get("accounts", [])
+    account = next((a for a in accounts if a["id"] == account_id), None)
+    if not account:
+        raise ValueError(f"Account {account_id} not found")
+    api_key = os.environ.get(account["env_key_name"], "")
+    api_secret = os.environ.get(account["env_secret_name"], "")
+    if not api_key or not api_secret:
+        raise ValueError(f"API keys not found: {account['env_key_name']}")
+    client = ExchangeClient(account["base_url"], api_key, api_secret, account.get("leverage", 50))
+    return client, account.get("name", f"Account-{account_id}")
+
+
+@router.get("/bbc-live/account-health")
+def bbc_account_health(account_id: int = 0):
+    """Full account health check: positions, SL/TP orders, balance, cross-check with bot state."""
+    try:
+        client, acct_name = _get_client_for_account(account_id)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+
+    # 1. All open positions from exchange
+    positions = client.get_all_positions()
+    position_list = []
+    for p in positions:
+        symbol = p["symbol"]
+        amt = float(p.get("positionAmt", 0))
+        entry = float(p.get("entryPrice", 0))
+        mark = float(p.get("markPrice", 0))
+        unrealized_pnl = float(p.get("unRealizedProfit", 0))
+        leverage = int(p.get("leverage", 0))
+        liq_price = float(p.get("liquidationPrice", 0))
+        side = "LONG" if amt > 0 else "SHORT"
+
+        # Check if this position has SL/TP algo orders
+        algo_orders = client.get_open_algo_orders(symbol)
+        has_sl = False
+        has_tp = False
+        sl_price = None
+        tp_price = None
+        if isinstance(algo_orders, dict):
+            algo_orders = algo_orders.get("orders", [])
+        if isinstance(algo_orders, list):
+            for ao in algo_orders:
+                if ao.get("type") == "STOP_MARKET":
+                    has_sl = True
+                    sl_price = float(ao.get("triggerPrice", 0))
+                elif ao.get("type") == "TAKE_PROFIT_MARKET":
+                    has_tp = True
+                    tp_price = float(ao.get("triggerPrice", 0))
+
+        # Check if bot is tracking this position
+        bot = _bbc_account_bots.get(account_id)
+        bot_tracking = False
+        if bot and bot.get("state"):
+            bot_positions = bot["state"].get("positions", {})
+            bot_tracking = symbol in bot_positions
+
+        warnings = []
+        if not has_sl:
+            warnings.append("NO_SL")
+        if not has_tp:
+            warnings.append("NO_TP")
+        if not bot_tracking:
+            warnings.append("NOT_TRACKED_BY_BOT")
+
+        position_list.append({
+            "symbol": symbol,
+            "side": side,
+            "size": abs(amt),
+            "entry_price": entry,
+            "mark_price": mark,
+            "unrealized_pnl": round(unrealized_pnl, 4),
+            "leverage": leverage,
+            "liquidation_price": liq_price,
+            "has_sl": has_sl, "sl_price": sl_price,
+            "has_tp": has_tp, "tp_price": tp_price,
+            "bot_tracking": bot_tracking,
+            "warnings": warnings if warnings else None,
+        })
+
+    # 2. Account balance
+    balance_info = {}
+    try:
+        balances = client.api_get("/fapi/v2/balance", signed=True)
+        if isinstance(balances, list):
+            usdt = next((b for b in balances if b["asset"] == "USDT"), None)
+            if usdt:
+                balance_info = {
+                    "total": round(float(usdt.get("balance", 0)), 4),
+                    "available": round(float(usdt.get("availableBalance", 0)), 4),
+                    "unrealized_pnl": round(float(usdt.get("crossUnPnl", 0)), 4),
+                }
+    except Exception:
+        pass
+
+    # 3. Recent trade history from exchange (last 24h)
+    recent_pnl = 0
+    recent_trades_count = 0
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    lookback_24h = 24 * 60 * 60 * 1000
+    for symbol in list(BBC_FALLBACK.keys()):
+        try:
+            trades = client.api_get("/fapi/v1/userTrades", {
+                "symbol": symbol,
+                "startTime": now_ms - lookback_24h,
+                "limit": 100,
+            }, signed=True)
+            if isinstance(trades, list):
+                for t in trades:
+                    rpnl = float(t.get("realizedPnl", 0))
+                    commission = float(t.get("commission", 0))
+                    recent_pnl += rpnl - commission
+                    if abs(rpnl) > 0.0001:
+                        recent_trades_count += 1
+        except Exception:
+            pass
+
+    # 4. Cross-check with D1 trade log
+    d1_mismatch = []
+    try:
+        r = req.get(f"{WORKER_URL}/bot/trade-log?period=24h", timeout=10)
+        d1_trades = r.json().get("trades", [])
+        d1_count = len([t for t in d1_trades if acct_name in (t.get("notes") or "")])
+        if recent_trades_count > 0 and d1_count < recent_trades_count:
+            d1_mismatch.append(f"Exchange has {recent_trades_count} exits in 24h but D1 only has {d1_count} for {acct_name}")
+    except Exception:
+        pass
+
+    return {
+        "ok": True,
+        "account": acct_name,
+        "account_id": account_id,
+        "balance": balance_info,
+        "positions": position_list,
+        "position_count": len(position_list),
+        "pnl_24h": round(recent_pnl, 4),
+        "exits_24h": recent_trades_count,
+        "d1_warnings": d1_mismatch if d1_mismatch else None,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @router.get("/bbc-live/sync-trades")
 def bbc_sync_trades(account_id: int = 0, days: int = 7):
     """Pull trade history from Binance, cross-check with D1, log any missing trades."""
-    # Get client for this account
-    bot = _bbc_account_bots.get(account_id)
-    if not bot or not bot.get("client"):
-        # Try to create client from account info
-        try:
-            r = req.get(f"{WORKER_URL}/trading-accounts/list", timeout=10)
-            accounts = r.json().get("accounts", [])
-            account = next((a for a in accounts if a["id"] == account_id), None)
-            if not account:
-                return {"ok": False, "error": f"Account {account_id} not found"}
-            api_key = os.environ.get(account["env_key_name"], "")
-            api_secret = os.environ.get(account["env_secret_name"], "")
-            if not api_key or not api_secret:
-                return {"ok": False, "error": f"API keys not found: {account['env_key_name']}"}
-            client = ExchangeClient(account["base_url"], api_key, api_secret, account.get("leverage", 50))
-            acct_name = account.get("name", f"Account-{account_id}")
-        except Exception as e:
-            return {"ok": False, "error": f"Failed to init client: {e}"}
-    else:
-        client = bot["client"]
-        acct_name = bot["account"].get("name", f"Account-{account_id}")
+    try:
+        client, acct_name = _get_client_for_account(account_id)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
 
     # Get existing D1 trades for dedup
     try:
