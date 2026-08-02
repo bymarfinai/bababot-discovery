@@ -92,7 +92,7 @@ def check_account_health(client, acct_name, bot_state):
         from bbc_trade_logger import _log_trade_to_d1
 
         now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-        lookback_6h = 6 * 60 * 60 * 1000
+        lookback_6h = 24 * 60 * 60 * 1000
 
         # Fetch D1 trades for dedup
         d1_trades = []
