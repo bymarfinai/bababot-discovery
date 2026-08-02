@@ -8,6 +8,7 @@ v2.1: Per-pair configs loaded FULLY from D1 (ema, body ratios, TP, SL).
 import os
 import threading
 import traceback
+from datetime import datetime, timezone
 import requests as req
 from fastapi import APIRouter
 
@@ -214,3 +215,168 @@ def bbc_close_all(account_id: int = None):
         bot = _bbc_account_bots.get(account_id)
         if bot: client = bot.get("client")
     return close_all_positions(client=client)
+
+
+@router.get("/bbc-live/sync-trades")
+def bbc_sync_trades(account_id: int = 0, days: int = 7):
+    """Pull trade history from Binance, cross-check with D1, log any missing trades."""
+    # Get client for this account
+    bot = _bbc_account_bots.get(account_id)
+    if not bot or not bot.get("client"):
+        # Try to create client from account info
+        try:
+            r = req.get(f"{WORKER_URL}/trading-accounts/list", timeout=10)
+            accounts = r.json().get("accounts", [])
+            account = next((a for a in accounts if a["id"] == account_id), None)
+            if not account:
+                return {"ok": False, "error": f"Account {account_id} not found"}
+            api_key = os.environ.get(account["env_key_name"], "")
+            api_secret = os.environ.get(account["env_secret_name"], "")
+            if not api_key or not api_secret:
+                return {"ok": False, "error": f"API keys not found: {account['env_key_name']}"}
+            client = ExchangeClient(account["base_url"], api_key, api_secret, account.get("leverage", 50))
+            acct_name = account.get("name", f"Account-{account_id}")
+        except Exception as e:
+            return {"ok": False, "error": f"Failed to init client: {e}"}
+    else:
+        client = bot["client"]
+        acct_name = bot["account"].get("name", f"Account-{account_id}")
+
+    # Get existing D1 trades for dedup
+    try:
+        r = req.get(f"{WORKER_URL}/bot/trade-log?period={'30d' if days <= 30 else 'all'}", timeout=15)
+        d1_trades = r.json().get("trades", [])
+    except Exception:
+        d1_trades = []
+
+    # Build set of existing trades for matching (entry_time + symbol + side)
+    existing = set()
+    for t in d1_trades:
+        key = (t.get("symbol", ""), t.get("side", ""), t.get("entry_price", 0))
+        existing.add(key)
+
+    symbols = list(BBC_FALLBACK.keys())
+    lookback_ms = days * 24 * 60 * 60 * 1000
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+    synced = []
+    errors = []
+
+    for symbol in symbols:
+        try:
+            trades = client.api_get("/fapi/v1/userTrades", {
+                "symbol": symbol,
+                "startTime": now_ms - lookback_ms,
+                "limit": 500,
+            }, signed=True)
+
+            if not isinstance(trades, list) or not trades:
+                continue
+
+            entry_fills = []
+            exit_fills = []
+            for t in trades:
+                rpnl = float(t.get("realizedPnl", 0))
+                if abs(rpnl) > 0.0001:
+                    exit_fills.append(t)
+                else:
+                    entry_fills.append(t)
+
+            if not exit_fills:
+                continue
+
+            # Group exit fills by time proximity (within 2s = same exit)
+            exit_groups = []
+            current_group = [exit_fills[0]]
+            for i in range(1, len(exit_fills)):
+                if exit_fills[i]["time"] - exit_fills[i - 1]["time"] < 2000:
+                    current_group.append(exit_fills[i])
+                else:
+                    exit_groups.append(current_group)
+                    current_group = [exit_fills[i]]
+            exit_groups.append(current_group)
+
+            for group in exit_groups:
+                total_qty = sum(float(t["qty"]) for t in group)
+                total_rpnl = sum(float(t["realizedPnl"]) for t in group)
+                avg_exit_price = sum(float(t["price"]) * float(t["qty"]) for t in group) / total_qty if total_qty > 0 else 0
+                exit_time_ms = group[-1]["time"]
+                exit_time = datetime.fromtimestamp(exit_time_ms / 1000, tz=timezone.utc).isoformat()
+
+                exit_side = group[0]["side"]
+                position_side = "SHORT" if exit_side == "BUY" else "LONG"
+
+                # Find matching entries
+                matching_entries = [t for t in entry_fills
+                                    if t["side"] != exit_side and t["time"] < exit_time_ms]
+                if matching_entries:
+                    matching_entries.sort(key=lambda t: t["time"], reverse=True)
+                    entry_qty = 0
+                    entry_price_sum = 0
+                    entry_time_ms = matching_entries[0]["time"]
+                    for t in matching_entries:
+                        q = float(t["qty"])
+                        entry_qty += q
+                        entry_price_sum += float(t["price"]) * q
+                        entry_time_ms = min(entry_time_ms, t["time"])
+                        if entry_qty >= total_qty * 0.95:
+                            break
+                    avg_entry_price = entry_price_sum / entry_qty if entry_qty > 0 else avg_exit_price
+                    entry_time = datetime.fromtimestamp(entry_time_ms / 1000, tz=timezone.utc).isoformat()
+                else:
+                    avg_entry_price = avg_exit_price
+                    entry_time = exit_time
+
+                # Check if already in D1
+                dedup_key = (symbol, position_side, round(avg_entry_price, 2))
+                already_logged = dedup_key in existing
+
+                if position_side == "LONG":
+                    pnl_pct = (avg_exit_price - avg_entry_price) / avg_entry_price * 100
+                else:
+                    pnl_pct = (avg_entry_price - avg_exit_price) / avg_entry_price * 100
+
+                commission = sum(float(t.get("commission", 0)) for t in group)
+                net_pnl = total_rpnl - commission
+                exit_reason = "TP" if total_rpnl > 0 else "SL"
+
+                trade_record = {
+                    "symbol": symbol, "side": position_side,
+                    "entry_price": round(avg_entry_price, 4),
+                    "exit_price": round(avg_exit_price, 4),
+                    "entry_time": entry_time, "exit_time": exit_time,
+                    "pnl_dollar": round(net_pnl, 4), "pnl_pct": round(pnl_pct, 2),
+                    "exit_reason": exit_reason, "already_in_d1": already_logged,
+                }
+
+                if not already_logged:
+                    from bbc_trade_logger import _log_trade_to_d1
+                    _log_trade_to_d1(
+                        symbol, "1h", position_side,
+                        avg_entry_price, avg_exit_price,
+                        entry_time, exit_time,
+                        0, 0, net_pnl, pnl_pct,
+                        f"{exit_reason}_SYNCED", acct_name,
+                    )
+                    trade_record["action"] = "SYNCED_TO_D1"
+                else:
+                    trade_record["action"] = "ALREADY_EXISTS"
+
+                synced.append(trade_record)
+
+        except Exception as e:
+            errors.append({"symbol": symbol, "error": str(e)})
+
+    new_count = sum(1 for t in synced if t["action"] == "SYNCED_TO_D1")
+    existing_count = sum(1 for t in synced if t["action"] == "ALREADY_EXISTS")
+
+    return {
+        "ok": True,
+        "account": acct_name,
+        "days_scanned": days,
+        "total_exchange_trades": len(synced),
+        "already_in_d1": existing_count,
+        "newly_synced": new_count,
+        "trades": synced,
+        "errors": errors if errors else None,
+    }

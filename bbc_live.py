@@ -730,6 +730,18 @@ def _bbc_live_loop(symbols, timeframe="1h", position_usd=10.0, leverage=50,
                                         close_side = "SELL" if ep["side"] == "LONG" else "BUY"
                                         client.place_market_close(symbol, close_side, amt)
                                         time.sleep(1)
+                                # Log the closed trade
+                                cp = _get_price(symbol)
+                                side = ep["side"]
+                                entry = ep["entry"]
+                                pnl_pct = ((cp - entry) / entry * 100) if side == "LONG" else ((entry - cp) / entry * 100)
+                                pnl_dollar = pnl_pct / 100 * entry * ep["qty"]
+                                exit_type = "FLIP"
+                                _log(f"{prefix}  📊 {symbol} {side} FLIP closed @ ${cp:.4f} | PnL: {pnl_pct:+.2f}%")
+                                _log_trade_to_d1(symbol, timeframe, side, entry, cp,
+                                    ep.get("filled_at", ""), datetime.now(timezone.utc).isoformat(),
+                                    ps.config.sl_pct * 100, ps.config.tp_pct * 100,
+                                    pnl_dollar, pnl_pct, exit_type, acct_name)
                             except Exception as e:
                                 _log(f"{prefix}  ⚠️ {symbol} flip close error: {e}")
                             ps.exchange_position = None
