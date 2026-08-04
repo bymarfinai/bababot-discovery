@@ -164,7 +164,6 @@ def causal_state_reject(
             continue
         bars = bars[:4]
         state_at_hour_start = switcher.state
-        state_side = _state_side(state_at_hour_start)
         reference_ema = ema1h[i - 1] if i > 0 else None
 
         for j, bar in enumerate(bars):
@@ -210,12 +209,15 @@ def causal_state_reject(
             if active is not None or scheduled or exited_this_bar:
                 continue
 
-            if reference_ema is not None and state_side is not None:
+            # Exit synchronization can change BULL/BEAR into a WAIT state
+            # within the same hour; always read the current state here.
+            current_state_side = _state_side(switcher.state)
+            if reference_ema is not None and current_state_side is not None:
                 body_min = (
-                    bull_body_ratio_min if state_side == "LONG"
+                    bull_body_ratio_min if current_state_side == "LONG"
                     else bear_body_ratio_min
                 )
-                if _rejects_ema7(bar, reference_ema, state_side, body_min):
+                if _rejects_ema7(bar, reference_ema, current_state_side, body_min):
                     next_bar = None
                     next_hour = i
                     if j + 1 < len(bars):
@@ -229,7 +231,7 @@ def causal_state_reject(
                             next_hour = i + 1
                     if next_bar is not None:
                         scheduled[int(next_bar[0])] = {
-                            "side": state_side,
+                            "side": current_state_side,
                             "signal_hour": i,
                             "source_bar": bar_time,
                         }
