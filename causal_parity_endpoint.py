@@ -295,8 +295,8 @@ def causal_parity_backtest(
                         tp=float("inf") if trades[-1].side == "LONG" else 0.0,
                         entry_hour=i,
                         entry_time=int(row[0]),
-                        peak_high=trades[-1].peak_high,
-                        trough_low=trades[-1].trough_low,
+                        peak_high=float(row[2]),
+                        trough_low=float(row[3]),
                     )
                 )
                 switcher.position = blocker
