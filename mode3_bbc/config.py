@@ -80,6 +80,8 @@ class Mode3BBCConfig:
     sideways_poc_body_ratio_min: float = 0.5
 
     direct_transition_enabled: bool = True
+    # Keep SIDEWAYS as a regime while optionally disabling SIDEWAYS trades.
+    enable_sideways_trades: bool = True
 
     # v2.4: trailing EMA exit (kept — useful for sweep)
     trailing_ema_enabled: bool = False
