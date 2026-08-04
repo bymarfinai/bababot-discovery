@@ -161,7 +161,7 @@ def causal_parity_backtest(
     slippage_pct: float = Query(0.0005, ge=0.0, le=0.10),
     include_trades: bool = Query(False),
 ):
-try:
+    try:
         now_ms = int(datetime.utcnow().timestamp() * 1000)
         end_ms = now_ms - end_days_ago * 86400 * 1000
         start_ms = end_ms - days * 86400 * 1000
@@ -359,8 +359,8 @@ try:
             result["trades"] = [asdict(t) for t in trades]
         return result
     
-except Exception as exc:
-    return {"error": "causal_parity_runtime", "detail": f"{type(exc).__name__}: {exc}"}
+    except Exception as exc:
+        return {"error": "causal_parity_runtime", "detail": f"{type(exc).__name__}: {exc}"}
 
 @router.get("/health-parity")
 def causal_parity_health():
