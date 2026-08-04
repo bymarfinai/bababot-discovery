@@ -53,6 +53,7 @@ _try_mount("same_hour_bbc_endpoint", "Causal BBC same-hour 3→4 backtest")
 _try_mount("causal_sniper_endpoint", "Causal EMA7 sniper concepts")
 _try_mount("causal_parity_endpoint", "Causal BBC parity backtest")
 _try_mount("causal_state_reject_endpoint", "Causal 1H state + 15m EMA7 rejection")
+_try_mount("causal_state_mtf_reject_endpoint", "Causal 1H state + 15m EMA rejection")
 _try_mount("bbc_sweep_endpoint", "BBC Sweep")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 
