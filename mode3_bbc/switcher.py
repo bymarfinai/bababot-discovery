@@ -279,6 +279,8 @@ class Switcher:
             if self.config.bear_body_ratio_min <= 0 or self._check_bear_body_ratio(o, h, l, c):
                 self.state = 'BEAR'; self._direct_bull_to_bear += 1
                 self._execute_bear_entry(bar_idx, o, h, l, c, ema20); return
+        if not self.config.enable_sideways_trades:
+            return
         if self.markers.marker_close_short is not None:
             if (h >= vah) and (c <= self.markers.marker_close_short): self._open_short_sideways(bar_idx, h, l, c, ema20); return
         if (l <= val) and (c >= val): self._open_long_sideways(bar_idx, h, l, c, ema20); return
@@ -290,6 +292,8 @@ class Switcher:
             if self.config.bull_body_ratio_min <= 0 or self._check_body_ratio(o, h, l, c):
                 self.state = 'BULL'; self._direct_bear_to_bull += 1
                 self._execute_bull_entry(bar_idx, o, h, l, c, ema20, trigger='ema_reclaim'); return
+        if not self.config.enable_sideways_trades:
+            return
         if self.markers.marker_close_long is not None:
             if (l <= val) and (c >= self.markers.marker_close_long): self._open_long_sideways(bar_idx, h, l, c, ema20); return
         if (h >= vah) and (c <= vah): self._open_short_sideways(bar_idx, h, l, c, ema20); return
