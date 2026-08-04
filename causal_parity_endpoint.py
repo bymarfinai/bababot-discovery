@@ -365,4 +365,4 @@ def causal_parity_backtest(
 
 @router.get("/health-parity")
 def causal_parity_health():
-    return {"status": "ok", "module": "mode3_bbc_parity", "causal": True, "parity": True}
+    return {"status": "ok", "module": "mode3_bbc_parity", "causal": True, "parity": True, "build": "parity-debug-2"}
