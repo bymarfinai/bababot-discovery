@@ -59,6 +59,7 @@ def causal_3to4_backtest(
     va_window: int = Query(50, ge=20, le=200),
     ema_period: int = Query(7, ge=5, le=100),
     mtf_ema_period: int = Query(20, ge=5, le=100),
+    use_15m_confirmation: bool = Query(True),
     tp_pct: float = Query(0.013, ge=0.001, le=0.10),
     sl_pct: float = Query(0.013, ge=0.001, le=0.10),
     bear_tp_pct: float = Query(0.0, ge=0.0, le=0.10),
@@ -181,7 +182,8 @@ def causal_3to4_backtest(
                 j4 = idx15.get(int(fourth[0]))
                 if j4 is not None:
                     ratio = bull_body_ratio_min if direction == "LONG" else bear_body_ratio_min
-                    if _confirm_fourth(fourth, ema15[j4], direction, ratio):
+                    if (not use_15m_confirmation or
+                            _confirm_fourth(fourth, ema15[j4], direction, ratio)):
                         active = _make_position(
                             signal, fourth, j4, i, cfg,
                             vah[i], val[i],
@@ -201,6 +203,7 @@ def causal_3to4_backtest(
         "entry_timing": "same_hour_candle_3_arm_candle_4_entry",
         "main_1h_ema_period": ema_period,
         "mtf_15m_ema_period": mtf_ema_period,
+        "use_15m_confirmation": use_15m_confirmation,
         "candles_processed": len(rows),
         "candles_15m": len(rows15),
         "config": asdict(cfg),
