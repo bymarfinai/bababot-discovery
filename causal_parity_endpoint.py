@@ -11,6 +11,7 @@ import os
 from dataclasses import asdict
 from datetime import datetime
 from typing import Optional
+import traceback
 
 from fastapi import APIRouter, Query
 
@@ -360,7 +361,7 @@ def causal_parity_backtest(
         return result
     
     except Exception as exc:
-        return {"error": "causal_parity_runtime", "detail": f"{type(exc).__name__}: {exc}"}
+        return {"error": "causal_parity_runtime", "detail": f"{type(exc).__name__}: {exc}", "trace": traceback.format_exc()}
 
 @router.get("/health-parity")
 def causal_parity_health():
