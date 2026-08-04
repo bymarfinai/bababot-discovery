@@ -219,6 +219,10 @@ class Switcher:
                 if self.config.bear_body_ratio_min <= 0 or self._check_bear_body_ratio(o, h, l, c):
                     self.state = 'BEAR'; self._direct_sw_to_bear += 1
                     self._execute_bear_entry(bar_idx, o, h, l, c, ema20); return
+        # Disabling SIDEWAYS trades must not disable the SIDEWAYS regime or
+        # direct transitions into BULL/BEAR. It only suppresses range entries.
+        if not self.config.enable_sideways_trades:
+            return
         short_ok = (h >= vah) and (c <= vah)
         long_ok = (l <= val) and (c >= val)
         if self.config.sideways_ema_filter_enabled:
