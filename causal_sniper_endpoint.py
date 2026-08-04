@@ -120,9 +120,10 @@ def _make_open_position(signal, row, hour_index, cfg, price):
     )
 
 
-def _pattern_sides(row, reference_ema, body_min, mode="either"):
+def _pattern_sides(row, reference_ema, bull_body_min, bear_body_min):
     sides = []
     for side in ("LONG", "SHORT"):
+        body_min = bull_body_min if side == "LONG" else bear_body_min
         if _single_rejection(row, reference_ema, side, body_min):
             sides.append(side)
     if len(sides) > 1:
@@ -268,7 +269,7 @@ def causal_sniper(
 
             if concept == "single_rejection":
                 sides = _pattern_sides(
-                    bar, ref_ema, body_for["LONG"], break_mode
+                    bar, ref_ema, bull_body_ratio_min, bear_body_ratio_min
                 )
                 if sides:
                     next_bar, next_hour = first_next_bar(i, j)
