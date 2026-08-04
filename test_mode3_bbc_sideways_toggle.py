@@ -83,6 +83,32 @@ class SidewaysTradeToggleTests(unittest.TestCase):
         self.assertEqual(switcher.position.tool, "SIDEWAYS")
         self.assertEqual(switcher.position.side, "SHORT")
 
+    def test_disabled_sideways_suppresses_wait_state_reentry(self):
+        cfg = Mode3BBCConfig(
+            enable_sideways_trades=False,
+            direct_transition_enabled=False,
+            sideways_mtf_15m_enabled=False,
+            sideways_body_ratio_min=0.0,
+        )
+        switcher = Switcher(cfg)
+        switcher.state = "WAIT_SEE_BULLISH"
+        switcher.markers.marker_close_short = 108.0
+
+        switcher.process_candle(
+            bar_idx=100,
+            o=109.0,
+            h=110.0,
+            l=100.0,
+            c=105.0,
+            ema20=104.0,
+            vah=108.0,
+            val=95.0,
+            poc=103.0,
+        )
+
+        self.assertIsNone(switcher.position)
+        self.assertEqual(switcher.state, "WAIT_SEE_BULLISH")
+
 
 if __name__ == "__main__":
     unittest.main()
