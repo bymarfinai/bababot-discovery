@@ -48,6 +48,7 @@ _try_mount("mode3_regime_api", "Mode3 Regime")
 _try_mount("mtf_analyze_endpoint", "MTF Analyze")
 _try_mount("mode3_backtest_endpoint", "Mode3 Clean")
 _try_mount("mode3_bbc_endpoint", "Mode3 BBC backtest")
+_try_mount("causal_bbc_endpoint", "Causal BBC backtest (/mode3_bbc/causal-backtest)")
 _try_mount("bbc_sweep_endpoint", "BBC Sweep")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 
