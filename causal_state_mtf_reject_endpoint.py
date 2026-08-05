@@ -112,6 +112,7 @@ def causal_state_reject(
     fee_pct: float = Query(0.001, ge=0.0, le=0.10),
     slippage_pct: float = Query(0.0005, ge=0.0, le=0.10),
     entry_timing: str = Query("next_open"),
+    require_1h_reclaim: bool = Query(False),
     include_trades: bool = Query(False),
 ):
     if entry_timing not in ("next_open", "close"):
@@ -176,6 +177,24 @@ def causal_state_reject(
             continue
         bars = bars[:4]
         state_at_hour_start = switcher.state
+        hour_1h_gate_side = None
+        if require_1h_reclaim and i > 0:
+            previous_row = rows[i - 1]
+            previous_ema = ema1h[i - 1]
+            for candidate_side in ("LONG", "SHORT"):
+                body_min = (
+                    bull_body_ratio_min
+                    if candidate_side == "LONG"
+                    else bear_body_ratio_min
+                )
+                if _rejects_ema(
+                    previous_row,
+                    previous_ema,
+                    candidate_side,
+                    body_min,
+                ):
+                    hour_1h_gate_side = candidate_side
+                    break
 
         for j, bar in enumerate(bars):
             bar_time = int(bar[0])
@@ -223,6 +242,11 @@ def causal_state_reject(
             # Exit synchronization can change BULL/BEAR into a WAIT state
             # within the same hour; always read the current state here.
             current_state_side = _state_side(switcher.state)
+            if (
+                require_1h_reclaim
+                and current_state_side != hour_1h_gate_side
+            ):
+                current_state_side = None
             bar_ema = ema15_by_time.get(bar_time)
             if bar_ema is not None and current_state_side is not None:
                 body_min = (
@@ -300,6 +324,7 @@ def causal_state_reject(
         ),
         "reference_ema": "completed_15m_ema",
         "reject_ema_period": reject_ema_period,
+        "require_1h_reclaim": require_1h_reclaim,
         "exit_model": "completed_15m_ohlc",
         "main_1h_ema_period": ema_period,
         "config": asdict(cfg),
