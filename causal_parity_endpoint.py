@@ -420,7 +420,10 @@ def _bridge_first_hit(rows, start_idx, side, entry_price, tp_pct, sl_pct):
     return len(rows) - 1, last, "END"
 
 
-def _bridge_variant(legacy_trades, rows, rows15, entry_mode, tp_pct, sl_pct):
+def _bridge_variant(
+    legacy_trades, rows, rows15, entry_mode, tp_pct, sl_pct,
+    fee_pct, slippage_pct, notional,
+):
     """Replay the frozen legacy entry ledger with one alternate entry price."""
     by_time = {int(r[0]): r for r in rows15}
     records = []
@@ -451,7 +454,7 @@ def _bridge_variant(legacy_trades, rows, rows15, entry_mode, tp_pct, sl_pct):
             raw = (exit_price - entry) / entry
         else:
             raw = (entry - exit_price) / entry
-        net = raw - (0.001 + 0.0005)
+        net = raw - (fee_pct + slippage_pct)
         records.append({
             "legacy_entry_bar": b,
             "side": p.side,
@@ -461,7 +464,7 @@ def _bridge_variant(legacy_trades, rows, rows15, entry_mode, tp_pct, sl_pct):
             "exit_bar": exit_bar,
             "exit_type": exit_type,
             "pnl_pct": net,
-            "pnl_usd": net * 500.0,
+            "pnl_usd": net * notional,
             "legacy_exit_type": p.exit_type,
         })
     wins = [r for r in records if r["pnl_usd"] > 0]
@@ -586,6 +589,7 @@ def bridge_backtest(
             legacy_trades, rows, rows15, mode,
             tp_pct if tp_pct > 0 else cfg.tp_pct,
             (sl_pct if sl_pct > 0 else cfg.sl_pct),
+            fee_pct, slippage_pct, cfg.notional(),
         )
         if not include_trades:
             variants[mode].pop("records", None)
