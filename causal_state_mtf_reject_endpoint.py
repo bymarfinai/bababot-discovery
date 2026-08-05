@@ -69,8 +69,8 @@ def _dummy_position(pos: CausalPosition):
     )
 
 
-def _make_position(side, row, hour_index, cfg):
-    price = float(row[1])
+def _make_position(side, row, hour_index, cfg, price=None):
+    price = float(row[1]) if price is None else float(price)
     if side == "LONG":
         sl = price * (1.0 - cfg.sl_pct)
         tp = price * (1.0 + cfg.tp_pct)
@@ -111,8 +111,14 @@ def causal_state_reject(
     leverage: float = Query(50.0, gt=0),
     fee_pct: float = Query(0.001, ge=0.0, le=0.10),
     slippage_pct: float = Query(0.0005, ge=0.0, le=0.10),
+    entry_timing: str = Query("next_open"),
     include_trades: bool = Query(False),
 ):
+    if entry_timing not in ("next_open", "close"):
+        return {
+            "error": "entry_timing must be next_open or close",
+            "trades": [],
+        }
     now_ms = int(datetime.utcnow().timestamp() * 1000)
     end_ms = now_ms - end_days_ago * 86400 * 1000
     start_ms = end_ms - days * 86400 * 1000
@@ -224,24 +230,36 @@ def causal_state_reject(
                     else bear_body_ratio_min
                 )
                 if _rejects_ema(bar, bar_ema, current_state_side, body_min):
-                    next_bar = None
-                    next_hour = i
-                    if j + 1 < len(bars):
-                        next_bar = bars[j + 1]
-                    elif i + 1 < len(rows):
-                        next_bars = by_hour.get(
-                            int(rows[i + 1][0]) // HOUR_MS, []
+                    if entry_timing == "close":
+                        # The signal is known at this completed 15m close.
+                        # No intrabar exit is credited to the same candle.
+                        active = _make_position(
+                            current_state_side,
+                            bar,
+                            i,
+                            cfg,
+                            price=float(bar[4]),
                         )
-                        if next_bars:
-                            next_bar = next_bars[0]
-                            next_hour = i + 1
-                    if next_bar is not None:
-                        scheduled[int(next_bar[0])] = {
-                            "side": current_state_side,
-                            "signal_hour": i,
-                            "source_bar": bar_time,
-                        }
                         rejection_events += 1
+                    else:
+                        next_bar = None
+                        next_hour = i
+                        if j + 1 < len(bars):
+                            next_bar = bars[j + 1]
+                        elif i + 1 < len(rows):
+                            next_bars = by_hour.get(
+                                int(rows[i + 1][0]) // HOUR_MS, []
+                            )
+                            if next_bars:
+                                next_bar = next_bars[0]
+                                next_hour = i + 1
+                        if next_bar is not None:
+                            scheduled[int(next_bar[0])] = {
+                                "side": current_state_side,
+                                "signal_hour": i,
+                                "source_bar": bar_time,
+                            }
+                            rejection_events += 1
 
         # Keep the full Switcher state current at the completed 1H close.
         # If a real position is open, block new Switcher entries while it is
@@ -275,7 +293,11 @@ def causal_state_reject(
         "end_days_ago": end_days_ago,
         "causal": True,
         "state_based": True,
-        "entry_timing": "next_15m_open_after_ema7_rejection",
+        "entry_timing": (
+            "completed_15m_close"
+            if entry_timing == "close"
+            else "next_15m_open_after_ema7_rejection"
+        ),
         "reference_ema": "completed_15m_ema",
         "reject_ema_period": reject_ema_period,
         "exit_model": "completed_15m_ohlc",
