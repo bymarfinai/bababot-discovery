@@ -546,19 +546,20 @@ def bridge_backtest(
     )
     switcher = Switcher(cfg)
     switcher.mtf_bull_entry_close = bull_mtf
+    row15_by_time = {int(r[0]): r for r in rows15}
     switcher.mtf_bull_entry_low = [
-        float(rows15[next(
-            j for j, r in enumerate(rows15)
-            if int(r[0]) == int(rows[i][0]) + (bull_k[i] or 0) * M15_MS
-        )][3]) if bull_k[i] is not None else None
+        float(row15_by_time[int(rows[i][0]) + (bull_k[i] or 0) * M15_MS][3])
+        if bull_k[i] is not None
+        and int(rows[i][0]) + (bull_k[i] or 0) * M15_MS in row15_by_time
+        else None
         for i in range(len(rows))
     ]
     switcher.mtf_bear_entry_close = bear_mtf
     switcher.mtf_bear_entry_high = [
-        float(rows15[next(
-            j for j, r in enumerate(rows15)
-            if int(r[0]) == int(rows[i][0]) + (bear_k[i] or 0) * M15_MS
-        )][2]) if bear_k[i] is not None else None
+        float(row15_by_time[int(rows[i][0]) + (bear_k[i] or 0) * M15_MS][2])
+        if bear_k[i] is not None
+        and int(rows[i][0]) + (bear_k[i] or 0) * M15_MS in row15_by_time
+        else None
         for i in range(len(rows))
     ]
     for i, row in enumerate(rows):
