@@ -395,6 +395,44 @@ def _bridge_mtf_candidates(rows1h, rows15, period=20):
     return bull, bull_k, bear, bear_k
 
 
+
+def _bridge_entry_levels(rows1h, rows15, ema1h, bull_k, bear_k, period=20):
+    """Build directional reference prices for the frozen entry schedule."""
+    n = len(rows1h)
+    closes15 = [float(r[4]) for r in rows15]
+    ema15 = _ema_series(closes15, period)
+    idx = {int(r[0]): j for j, r in enumerate(rows15)}
+    levels = {
+        "one_hour_ema": {
+            "LONG": [float(x) for x in ema1h],
+            "SHORT": [float(x) for x in ema1h],
+        },
+        "one_hour_low_high": {
+            "LONG": [float(r[3]) for r in rows1h],
+            "SHORT": [float(r[2]) for r in rows1h],
+        },
+        "one_hour_close": {
+            "LONG": [float(r[4]) for r in rows1h],
+            "SHORT": [float(r[4]) for r in rows1h],
+        },
+        "mtf_ema": {"LONG": [None] * n, "SHORT": [None] * n},
+        "mtf_low_high": {"LONG": [None] * n, "SHORT": [None] * n},
+    }
+    for i, row in enumerate(rows1h):
+        t = int(row[0])
+        if bull_k[i] is not None:
+            j = idx.get(t + bull_k[i] * M15_MS)
+            if j is not None:
+                levels["mtf_ema"]["LONG"][i] = float(ema15[j])
+                levels["mtf_low_high"]["LONG"][i] = float(rows15[j][3])
+        if bear_k[i] is not None:
+            j = idx.get(t + bear_k[i] * M15_MS)
+            if j is not None:
+                levels["mtf_ema"]["SHORT"][i] = float(ema15[j])
+                levels["mtf_low_high"]["SHORT"][i] = float(rows15[j][2])
+    return levels
+
+
 def _bridge_first_hit(rows, start_idx, side, entry_price, tp_pct, sl_pct):
     """Legacy 1H wick model: SL is checked before TP on each candle."""
     if side == "LONG":
@@ -422,7 +460,7 @@ def _bridge_first_hit(rows, start_idx, side, entry_price, tp_pct, sl_pct):
 
 def _bridge_variant(
     legacy_trades, rows, rows15, entry_mode, tp_pct, sl_pct,
-    fee_pct, slippage_pct, notional,
+    fee_pct, slippage_pct, notional, entry_levels=None,
 ):
     """Replay the frozen legacy entry ledger with one alternate entry price."""
     by_time = {int(r[0]): r for r in rows15}
@@ -435,6 +473,19 @@ def _bridge_variant(
             entry = float(p.entry_price)
         elif entry_mode == "one_hour_close":
             entry = float(rows[b][4])
+        elif entry_mode in (
+            "one_hour_ema",
+            "one_hour_low_high",
+            "one_hour_close",
+            "mtf_ema",
+            "mtf_low_high",
+        ):
+            if entry_levels is None:
+                raise ValueError("entry_levels required for reference-price variant")
+            entry = entry_levels[entry_mode][p.side][b]
+            if entry is None:
+                filled = False
+                entry = float(p.entry_price)
         elif entry_mode == "next_15m_limit":
             next_bar = by_time.get(signal_time + HOUR_MS)
             if next_bar is None:
@@ -577,6 +628,9 @@ def bridge_backtest(
     bull_mtf, bull_k, bear_mtf, bear_k = _bridge_mtf_candidates(
         rows, rows15, mtf_ema_period
     )
+    entry_levels = _bridge_entry_levels(
+        rows, rows15, ema1h, bull_k, bear_k, mtf_ema_period
+    )
     switcher = Switcher(cfg)
     switcher.mtf_bull_entry_close = bull_mtf
     row15_by_time = {int(r[0]): r for r in rows15}
@@ -604,6 +658,11 @@ def bridge_backtest(
     variants = {}
     for mode in (
         "legacy_candidate_close",
+        "one_hour_ema",
+        "one_hour_low_high",
+        "one_hour_close",
+        "mtf_ema",
+        "mtf_low_high",
         "blend_25",
         "blend_50",
         "blend_75",
@@ -620,7 +679,7 @@ def bridge_backtest(
             legacy_trades, rows, rows15, mode,
             tp_pct if tp_pct > 0 else cfg.tp_pct,
             (sl_pct if sl_pct > 0 else cfg.sl_pct),
-            fee_pct, slippage_pct, cfg.notional(),
+            fee_pct, slippage_pct, cfg.notional(), entry_levels,
         )
         if not include_trades:
             variants[mode].pop("records", None)
@@ -662,5 +721,13 @@ def bridge_backtest(
             "pnl_usd": round(sum(float(p.pnl_usd) for p in legacy_trades), 2),
         },
         "next_open_delta_pct": stats,
+        "entry_price_definitions": {
+            "one_hour_ema": f"EMA{ema_period} on the signal 1H candle",
+            "one_hour_low_high": "1H low for LONG / 1H high for SHORT",
+            "one_hour_close": "signal 1H close",
+            "mtf_ema": f"EMA{mtf_ema_period} on the first qualifying 15m candidate",
+            "mtf_low_high": "candidate 15m low for LONG / 15m high for SHORT",
+            "legacy_candidate_close": "first qualifying 15m candidate close",
+        },
         "variants": variants,
     }
