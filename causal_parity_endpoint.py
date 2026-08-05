@@ -430,10 +430,29 @@ def _bridge_variant(
     for p in legacy_trades:
         b = int(p.entry_bar)
         signal_time = int(rows[b][0])
+        filled = True
         if entry_mode == "legacy_candidate_close":
             entry = float(p.entry_price)
         elif entry_mode == "one_hour_close":
             entry = float(rows[b][4])
+        elif entry_mode == "next_15m_limit":
+            next_bar = by_time.get(signal_time + HOUR_MS)
+            if next_bar is None:
+                continue
+            limit_price = float(p.entry_price)
+            o15, h15, l15 = map(float, next_bar[1:4])
+            if p.side == "LONG":
+                if l15 > limit_price:
+                    filled = False
+                    entry = limit_price
+                else:
+                    entry = o15 if o15 <= limit_price else limit_price
+            else:
+                if h15 < limit_price:
+                    filled = False
+                    entry = limit_price
+                else:
+                    entry = o15 if o15 >= limit_price else limit_price
         elif entry_mode == "next_15m_open" or entry_mode.startswith("blend_"):
             next_bar = by_time.get(signal_time + HOUR_MS)
             if next_bar is None:
@@ -446,6 +465,8 @@ def _bridge_variant(
                 entry = float(p.entry_price) + fraction * (next_open - float(p.entry_price))
         else:
             raise ValueError(f"unknown bridge entry mode: {entry_mode}")
+        if not filled:
+            continue
         exit_bar, exit_price, exit_type = _bridge_first_hit(
             rows, b + 1, p.side, entry, tp_pct,
             sl_pct,
@@ -471,6 +492,7 @@ def _bridge_variant(
     flips = [r for r in records if r["exit_type"] != r["legacy_exit_type"]]
     return {
         "entry_mode": entry_mode,
+        "signals": len(legacy_trades),
         "trades": len(records),
         "wins": len(wins),
         "losses": len(records) - len(wins),
@@ -583,6 +605,7 @@ def bridge_backtest(
         "blend_50",
         "blend_75",
         "next_15m_open",
+        "next_15m_limit",
         "one_hour_close",
     ):
         variants[mode] = _bridge_variant(
