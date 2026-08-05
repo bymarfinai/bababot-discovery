@@ -54,7 +54,6 @@ _try_mount("causal_sniper_endpoint", "Causal EMA7 sniper concepts")
 _try_mount("causal_parity_endpoint", "Causal BBC parity backtest")
 _try_mount("causal_state_reject_endpoint", "Causal 1H state + 15m EMA7 rejection")
 _try_mount("causal_state_mtf_reject_endpoint", "Causal 1H state + 15m EMA rejection")
-_try_mount("bull_state_age_diagnostic_endpoint", "BULL state-age limit diagnostic")
 _try_mount("bbc_sweep_endpoint", "BBC Sweep")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 
