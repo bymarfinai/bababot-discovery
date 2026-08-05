@@ -494,6 +494,9 @@ def _bridge_variant(
         "entry_mode": entry_mode,
         "signals": len(legacy_trades),
         "trades": len(records),
+        "fill_rate_pct": round(
+            100.0 * len(records) / len(legacy_trades), 2
+        ) if legacy_trades else 0.0,
         "wins": len(wins),
         "losses": len(records) - len(wins),
         "wr_pct": round(100.0 * len(wins) / len(records), 2) if records else 0.0,
