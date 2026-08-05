@@ -431,11 +431,16 @@ def _bridge_variant(legacy_trades, rows, rows15, entry_mode, tp_pct, sl_pct):
             entry = float(p.entry_price)
         elif entry_mode == "one_hour_close":
             entry = float(rows[b][4])
-        elif entry_mode == "next_15m_open":
+        elif entry_mode == "next_15m_open" or entry_mode.startswith("blend_"):
             next_bar = by_time.get(signal_time + HOUR_MS)
             if next_bar is None:
                 continue
-            entry = float(next_bar[1])
+            next_open = float(next_bar[1])
+            if entry_mode == "next_15m_open":
+                entry = next_open
+            else:
+                fraction = float(entry_mode.split("_")[1]) / 100.0
+                entry = float(p.entry_price) + fraction * (next_open - float(p.entry_price))
         else:
             raise ValueError(f"unknown bridge entry mode: {entry_mode}")
         exit_bar, exit_price, exit_type = _bridge_first_hit(
@@ -571,6 +576,9 @@ def bridge_backtest(
     variants = {}
     for mode in (
         "legacy_candidate_close",
+        "blend_25",
+        "blend_50",
+        "blend_75",
         "next_15m_open",
         "one_hour_close",
     ):
