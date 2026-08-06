@@ -57,6 +57,7 @@ _try_mount("causal_state_mtf_reject_endpoint", "Causal 1H state + 15m EMA reject
 _try_mount("bbc_sweep_endpoint", "BBC Sweep")
 _try_mount("bbc_limit_sim", "BBC Limit Order Sim (/mode3_bbc/limit_sim)")
 _try_mount("honest_15m_endpoint", "Honest 15m Entry (/honest_15m/*)")
+_try_mount("filtered_reclaim_endpoint", "Filtered Reclaim V0-V4 (/filtered_reclaim/*)")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 
 # BBC Live Trading
