@@ -1,14 +1,7 @@
 """V2 Audit — matched control base rate + alternative labels.
 
-Control = first candle of each pullback episode (pullback_start_bar)
-Event = reclaim candle (continuation event bar)
-One control per pullback, one event per pullback.
-
-Alternative labels (all BULL, BEAR symmetric):
-A. Close stays above EMA_slow for next N candles
-B. Higher-high vs event close within N candles  
-C. Protected low intact for next N candles
-D. MFE (max favorable excursion) in ATR units before invalidation
+FIX: event fires ON the bar where phase transitions from PULLBACK→TREND.
+Episode end is that same bar. Match must include ep["end"].
 
 GET /continuation/v2/audit?symbol=SOLUSDT&days=971
 """
@@ -48,44 +41,34 @@ def _wilson_ci(successes, total, z=1.96):
     spr = z * math.sqrt((p*(1-p) + z*z/(4*total)) / total) / den
     return round(100*p, 1), round(100*max(0, ctr-spr), 1), round(100*min(1, ctr+spr), 1)
 
-# Import detector (same file has it via router_v2)
 from continuation_detector_endpoint import ContinuationDetectorV2
 
 def _eval_labels(i, side, H, L, C, ef, es, atr_arr, prot, n):
-    """Evaluate all alternative labels at bar i. Returns dict."""
     result = {}
     for hz in [2, 4, 8]:
         end = min(i + hz + 1, n)
         if i + 1 >= n:
-            for k in ["ema_hold", "hh_close", "prot_intact", "mfe_atr"]:
+            for k in ["ema_hold","hh_close","prot_intact","mfe_atr"]:
                 result[f"{k}_h{hz}"] = None
             continue
-
         if side == "BULL":
-            # A: close stays above EMA_slow
             ema_hold = all(C[j] > es[j] for j in range(i+1, end))
-            # B: higher high vs event close
             hh = any(H[j] > C[i] for j in range(i+1, end))
-            # C: protected low intact
             intact = all(L[j] >= prot for j in range(i+1, end)) if prot else True
-            # D: MFE in ATR before invalidation
-            mfe = 0
-            atr_at_i = atr_arr[i] if atr_arr[i] > 0 else 1
+            mfe = 0; atr_at = atr_arr[i] if atr_arr[i] > 0 else 1
             for j in range(i+1, min(i+hz+1, n)):
-                excursion = (H[j] - C[i]) / atr_at_i
-                if excursion > mfe: mfe = excursion
+                exc = (H[j] - C[i]) / atr_at
+                if exc > mfe: mfe = exc
                 if prot and L[j] < prot: break
         else:
             ema_hold = all(C[j] < es[j] for j in range(i+1, end))
             hh = any(L[j] < C[i] for j in range(i+1, end))
             intact = all(H[j] <= prot for j in range(i+1, end)) if prot else True
-            mfe = 0
-            atr_at_i = atr_arr[i] if atr_arr[i] > 0 else 1
+            mfe = 0; atr_at = atr_arr[i] if atr_arr[i] > 0 else 1
             for j in range(i+1, min(i+hz+1, n)):
-                excursion = (C[i] - L[j]) / atr_at_i
-                if excursion > mfe: mfe = excursion
+                exc = (C[i] - L[j]) / atr_at
+                if exc > mfe: mfe = exc
                 if prot and H[j] > prot: break
-
         result[f"ema_hold_h{hz}"] = ema_hold
         result[f"hh_close_h{hz}"] = hh
         result[f"prot_intact_h{hz}"] = intact
@@ -108,29 +91,14 @@ def v2_audit(
 
     det = ContinuationDetectorV2(ema_fast, ema_slow, swing_lb, swing_atr, slope_lb, min_pb_bars=1)
 
-    # Track pullback episodes
-    # Each episode: (start_bar, end_bar, side, had_event, event_bar)
-    episodes = []
-    current_pb_start = None; current_pb_side = None
+    # First pass: collect all events with their protected levels
     events_by_bar = {}
+    # Also track per-bar state for episode construction
+    bar_state = []  # (regime, phase) per bar
 
     for i in range(n):
-        old_phase = det.phase; old_regime = det.regime
         result = det.process(i, O, H, L, C, ef, es, atr_arr)
-
-        # Track pullback start/end
-        if det.regime in ("BULL","BEAR") and det.phase == "PULLBACK":
-            if current_pb_start is None:
-                current_pb_start = i
-                current_pb_side = "BULL" if det.regime == "BULL" else "BEAR"
-        else:
-            if current_pb_start is not None:
-                episodes.append({
-                    "start": current_pb_start, "end": i,
-                    "side": current_pb_side, "duration": i - current_pb_start,
-                })
-                current_pb_start = None; current_pb_side = None
-
+        bar_state.append((det.regime, det.phase))
         if result:
             for ev in result.get("events", []):
                 if "CONTINUATION" in ev:
@@ -139,48 +107,54 @@ def v2_audit(
                     events_by_bar[i] = {"side": side, "prot": prot,
                         "tgt": det.swing.last_swing_high if side=="BULL" else det.swing.last_swing_low}
 
-    # Close final episode
-    if current_pb_start is not None:
-        episodes.append({"start": current_pb_start, "end": n, "side": current_pb_side, "duration": n - current_pb_start})
+    # Build episodes from bar_state
+    episodes = []
+    in_pb = False; pb_start = None; pb_side = None
+    for i in range(n):
+        regime, phase = bar_state[i]
+        if regime in ("BULL","BEAR") and phase == "PULLBACK":
+            if not in_pb:
+                in_pb = True; pb_start = i
+                pb_side = "BULL" if regime == "BULL" else "BEAR"
+        else:
+            if in_pb:
+                # Episode ends. The reclaim bar (if any) is THIS bar (i) where phase just changed.
+                # Include i in the search since event fires on the transition bar.
+                episodes.append({"start": pb_start, "end": i, "side": pb_side, "duration": i - pb_start})
+                in_pb = False
+    if in_pb:
+        episodes.append({"start": pb_start, "end": n-1, "side": pb_side, "duration": n-1 - pb_start})
 
-    # Match episodes to events
+    # Match episodes to events — include ep["end"] in search!
     for ep in episodes:
         ep["had_event"] = False; ep["event_bar"] = None
-        for bar in range(ep["start"], ep["end"]):
+        # Search range: start to end INCLUSIVE (end is the transition bar where event fires)
+        for bar in range(ep["start"], ep["end"] + 1):
             if bar in events_by_bar and events_by_bar[bar]["side"] == ep["side"]:
                 ep["had_event"] = True; ep["event_bar"] = bar
-                break  # first event per episode only
+                break
 
-    # Compute labels for CONTROL (pullback start) and EVENT (reclaim bar)
-    label_names = ["ema_hold", "hh_close", "prot_intact", "mfe_atr"]
+    label_names = ["ema_hold","hh_close","prot_intact","mfe_atr"]
     horizons = [2, 4, 8]
-
     results = {}
-    for side in ["BULL", "BEAR"]:
+
+    for side in ["BULL","BEAR"]:
         side_eps = [ep for ep in episodes if ep["side"] == side]
         event_eps = [ep for ep in side_eps if ep["had_event"]]
         no_event_eps = [ep for ep in side_eps if not ep["had_event"]]
 
-        # CONTROL: evaluate at pullback start bar for ALL episodes
+        # CONTROL: evaluate at pullback start
         ctrl_labels = {f"{ln}_h{hz}": [] for ln in label_names for hz in horizons}
         for ep in side_eps:
             bi = ep["start"]
             if bi + 9 >= n: continue
-            # Use current protected level at episode start
-            # Re-run detector to get exact prot at that bar... approximate with nearest event's prot
-            # For simplicity, use the swing tracker's state. Since we can't easily get historical prot,
-            # use the protected level from the nearest event or recompute
-            # APPROXIMATE: use a rolling 20-bar swing as proxy
-            if side == "BULL":
-                prot = float(min(L[max(0,bi-20):bi+1]))
-            else:
-                prot = float(max(H[max(0,bi-20):bi+1]))
+            if side == "BULL": prot = float(min(L[max(0,bi-20):bi+1]))
+            else: prot = float(max(H[max(0,bi-20):bi+1]))
             labels = _eval_labels(bi, side, H, L, C, ef, es, atr_arr, prot, n)
             for k, v in labels.items():
-                if v is not None and k in ctrl_labels:
-                    ctrl_labels[k].append(v)
+                if v is not None and k in ctrl_labels: ctrl_labels[k].append(v)
 
-        # EVENT: evaluate at event bar for episodes that had events
+        # EVENT: evaluate at reclaim bar
         evt_labels = {f"{ln}_h{hz}": [] for ln in label_names for hz in horizons}
         for ep in event_eps:
             bi = ep["event_bar"]
@@ -192,51 +166,41 @@ def v2_audit(
                 else: prot = float(max(H[max(0,bi-20):bi+1]))
             labels = _eval_labels(bi, side, H, L, C, ef, es, atr_arr, prot, n)
             for k, v in labels.items():
-                if v is not None and k in evt_labels:
-                    evt_labels[k].append(v)
+                if v is not None and k in evt_labels: evt_labels[k].append(v)
 
-        # Compute accuracy for each label
         side_result = {
             "total_episodes": len(side_eps),
             "episodes_with_event": len(event_eps),
             "episodes_without_event": len(no_event_eps),
+            "event_rate_pct": round(100*len(event_eps)/len(side_eps),1) if side_eps else 0,
         }
 
         comparison = {}
         for ln in label_names:
             for hz in horizons:
                 key = f"{ln}_h{hz}"
-                # Control
-                ctrl = ctrl_labels[key]
+                ctrl = ctrl_labels[key]; evt = evt_labels[key]
                 if ln == "mfe_atr":
-                    ctrl_mean = round(np.mean(ctrl), 2) if ctrl else 0
-                    ctrl_med = round(float(np.median(ctrl)), 2) if ctrl else 0
-                    evt = evt_labels[key]
-                    evt_mean = round(np.mean(evt), 2) if evt else 0
-                    evt_med = round(float(np.median(evt)), 2) if evt else 0
                     comparison[key] = {
-                        "ctrl_n": len(ctrl), "ctrl_mean_atr": ctrl_mean, "ctrl_median_atr": ctrl_med,
-                        "evt_n": len(evt), "evt_mean_atr": evt_mean, "evt_median_atr": evt_med,
-                        "lift_mean": round(evt_mean - ctrl_mean, 2),
+                        "ctrl_n": len(ctrl), "ctrl_mean": round(np.mean(ctrl),2) if ctrl else 0, "ctrl_med": round(float(np.median(ctrl)),2) if ctrl else 0,
+                        "evt_n": len(evt), "evt_mean": round(np.mean(evt),2) if evt else 0, "evt_med": round(float(np.median(evt)),2) if evt else 0,
+                        "lift_mean": round((np.mean(evt) if evt else 0) - (np.mean(ctrl) if ctrl else 0), 2),
                     }
                 else:
-                    ctrl_true = sum(1 for v in ctrl if v)
-                    ctrl_acc, ctrl_lo, ctrl_hi = _wilson_ci(ctrl_true, len(ctrl))
-                    evt = evt_labels[key]
-                    evt_true = sum(1 for v in evt if v)
-                    evt_acc, evt_lo, evt_hi = _wilson_ci(evt_true, len(evt))
-                    lift = round(evt_acc - ctrl_acc, 1)
+                    ct = sum(1 for v in ctrl if v); ca, clo, chi = _wilson_ci(ct, len(ctrl))
+                    et = sum(1 for v in evt if v); ea, elo, ehi = _wilson_ci(et, len(evt))
+                    lift = round(ea - ca, 1)
                     comparison[key] = {
-                        "ctrl_n": len(ctrl), "ctrl_true": ctrl_true, "ctrl_acc": ctrl_acc, "ctrl_ci": [ctrl_lo, ctrl_hi],
-                        "evt_n": len(evt), "evt_true": evt_true, "evt_acc": evt_acc, "evt_ci": [evt_lo, evt_hi],
-                        "lift": lift, "significant": abs(lift) > 3 and (evt_lo > ctrl_hi or ctrl_lo > evt_hi),
+                        "ctrl_n": len(ctrl), "ctrl_true": ct, "ctrl_acc": ca, "ctrl_ci": [clo, chi],
+                        "evt_n": len(evt), "evt_true": et, "evt_acc": ea, "evt_ci": [elo, ehi],
+                        "lift": lift, "significant": abs(lift) > 3 and (elo > chi or clo > ehi),
                     }
-
         side_result["comparison"] = comparison
         results[side] = side_result
 
     return {
         "symbol": symbol, "days": days, "candles": n,
         "total_episodes": len(episodes),
+        "total_events_found": len(events_by_bar),
         "results": results,
     }
