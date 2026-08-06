@@ -13,8 +13,10 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 def _try_mount(module_name, label=None):
     try:
         mod = __import__(module_name)
-        if hasattr(mod, 'router'): app.include_router(mod.router)
-        if hasattr(mod, 'router_sweep'): app.include_router(mod.router_sweep)
+        # Mount any router attribute found
+        for attr in ("router", "router_sweep", "router_v2"):
+            if hasattr(mod, attr):
+                app.include_router(getattr(mod, attr))
         print(f"[INIT] ✅ {label or module_name}")
         return True
     except Exception as e:
@@ -44,7 +46,7 @@ _try_mount("honest_15m_endpoint", "Honest 15m")
 _try_mount("filtered_reclaim_endpoint", "Filtered Reclaim")
 _try_mount("filtered_switcher_endpoint", "Filtered Switcher")
 _try_mount("v4_sweep_endpoint", "V4 Frozen Sweep")
-_try_mount("continuation_detector_endpoint", "Continuation Detector")
+_try_mount("continuation_detector_endpoint", "Continuation Detector v1+v2")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 _try_mount("bbc_live_endpoint", "BBC Live")
 
