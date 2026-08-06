@@ -4,17 +4,10 @@ Layer 1: REGIME  (persistent) — BULL / BEAR / SIDEWAYS
 Layer 2: PHASE   (within regime) — TREND / PULLBACK / INVALIDATED  
 Layer 3: EVENT   (one-shot) — BULL_CONTINUATION_CONFIRM / BEAR_CONTINUATION_CONFIRM
 
-Key fixes from v1:
-- Continuation is EVENT not STATE (fires once, doesn't persist)
-- ATR-scaled swing significance (no minor noise swings)
-- 2 confirmed HH + 2 confirmed HL required for BULL regime
-- Swing confirmed only at right-side confirmation bar (no backdating)
-- One wick never flips regime
-- Pullback needs body ratio check, not just close > EMA
-
-GET /continuation/v2/trace?symbol=SOLUSDT&days=400
+GET /continuation/v2/trace?symbol=SOLUSDT&days=971
+GET /continuation/v2/diagnostic?symbol=SOLUSDT&days=971  (multi-horizon + features)
 """
-import os, sqlite3, numpy as np
+import os, sqlite3, numpy as np, math
 from fastapi import APIRouter, Query
 from datetime import datetime, timezone
 
@@ -26,9 +19,7 @@ def _load(symbol, tf, days):
     now_ms = int(datetime.utcnow().timestamp() * 1000)
     start = now_ms - (days * 86400 * 1000)
     cur = conn.cursor()
-    cur.execute("SELECT open_time,open,high,low,close,volume FROM klines "
-                "WHERE symbol=? AND timeframe=? AND open_time>=? AND open_time<? "
-                "ORDER BY open_time ASC", (symbol, tf, start, now_ms))
+    cur.execute("SELECT open_time,open,high,low,close,volume FROM klines WHERE symbol=? AND timeframe=? AND open_time>=? AND open_time<? ORDER BY open_time ASC", (symbol, tf, start, now_ms))
     rows = cur.fetchall(); conn.close(); return rows
 
 def _ema(c, p):
@@ -44,398 +35,292 @@ def _atr(H, L, C, period=14):
         else: atr[i] = atr[i-1] + (tr - atr[i-1]) / period
     return atr
 
-
 class CausalSwingTracker:
-    """Track swing highs/lows with ATR significance and causal confirmation."""
-    
     def __init__(self, lookback=10, min_atr_mult=0.5):
-        self.lb = lookback
-        self.min_atr = min_atr_mult
-        self.confirmed_highs = []  # [(confirm_bar, swing_bar, price)]
-        self.confirmed_lows = []
-    
+        self.lb = lookback; self.min_atr = min_atr_mult
+        self.confirmed_highs = []; self.confirmed_lows = []
+
     def update(self, i, H, L, ATR):
-        """Check if bar (i - lb) is a confirmed swing. Causal: uses data [0..i] only."""
-        lb = self.lb
-        cand = i - lb
+        lb = self.lb; cand = i - lb
         if cand < lb or cand < 0: return
-        
         atr_val = ATR[cand] if ATR[cand] > 0 else 1.0
         min_sig = self.min_atr * atr_val
-        
-        # Swing high: H[cand] >= all neighbors in [cand-lb, i]
-        is_high = True
-        for k in range(max(0, cand - lb), min(i + 1, cand + lb + 1)):
-            if k == cand: continue
-            if H[k] > H[cand]: is_high = False; break
-        
+        is_high = all(H[k] <= H[cand] for k in range(max(0,cand-lb), min(i+1,cand+lb+1)) if k != cand)
         if is_high:
-            # Significance: must be meaningfully higher than surrounding lows
             local_low = min(L[max(0,cand-lb):cand+lb+1])
             if H[cand] - local_low >= min_sig:
-                # Don't add duplicate
                 if not self.confirmed_highs or self.confirmed_highs[-1][2] != H[cand]:
                     self.confirmed_highs.append((i, cand, float(H[cand])))
-        
-        # Swing low
-        is_low = True
-        for k in range(max(0, cand - lb), min(i + 1, cand + lb + 1)):
-            if k == cand: continue
-            if L[k] < L[cand]: is_low = False; break
-        
+        is_low = all(L[k] >= L[cand] for k in range(max(0,cand-lb), min(i+1,cand+lb+1)) if k != cand)
         if is_low:
             local_high = max(H[max(0,cand-lb):cand+lb+1])
             if local_high - L[cand] >= min_sig:
                 if not self.confirmed_lows or self.confirmed_lows[-1][2] != L[cand]:
                     self.confirmed_lows.append((i, cand, float(L[cand])))
-    
-    def count_hh(self):
-        """Count consecutive higher-highs in recent confirmed swings."""
-        if len(self.confirmed_highs) < 2: return 0
-        count = 0
-        for j in range(len(self.confirmed_highs)-1, 0, -1):
-            if self.confirmed_highs[j][2] > self.confirmed_highs[j-1][2]:
-                count += 1
-            else: break
-        return count
-    
-    def count_hl(self):
-        if len(self.confirmed_lows) < 2: return 0
-        count = 0
-        for j in range(len(self.confirmed_lows)-1, 0, -1):
-            if self.confirmed_lows[j][2] > self.confirmed_lows[j-1][2]:
-                count += 1
-            else: break
-        return count
-    
-    def count_lh(self):
-        if len(self.confirmed_highs) < 2: return 0
-        count = 0
-        for j in range(len(self.confirmed_highs)-1, 0, -1):
-            if self.confirmed_highs[j][2] < self.confirmed_highs[j-1][2]:
-                count += 1
-            else: break
-        return count
-    
-    def count_ll(self):
-        if len(self.confirmed_lows) < 2: return 0
-        count = 0
-        for j in range(len(self.confirmed_lows)-1, 0, -1):
-            if self.confirmed_lows[j][2] < self.confirmed_lows[j-1][2]:
-                count += 1
-            else: break
-        return count
-    
-    @property
-    def protected_low(self):
-        return self.confirmed_lows[-1][2] if self.confirmed_lows else None
-    
-    @property
-    def protected_high(self):
-        return self.confirmed_highs[-1][2] if self.confirmed_highs else None
-    
-    @property
-    def last_swing_high(self):
-        return self.confirmed_highs[-1][2] if self.confirmed_highs else None
-    
-    @property
-    def last_swing_low(self):
-        return self.confirmed_lows[-1][2] if self.confirmed_lows else None
 
+    def _count_seq(self, arr, ascending):
+        if len(arr) < 2: return 0
+        count = 0
+        for j in range(len(arr)-1, 0, -1):
+            if ascending and arr[j][2] > arr[j-1][2]: count += 1
+            elif not ascending and arr[j][2] < arr[j-1][2]: count += 1
+            else: break
+        return count
+
+    def count_hh(self): return self._count_seq(self.confirmed_highs, True)
+    def count_hl(self): return self._count_seq(self.confirmed_lows, True)
+    def count_lh(self): return self._count_seq(self.confirmed_highs, False)
+    def count_ll(self): return self._count_seq(self.confirmed_lows, False)
+
+    @property
+    def protected_low(self): return self.confirmed_lows[-1][2] if self.confirmed_lows else None
+    @property
+    def protected_high(self): return self.confirmed_highs[-1][2] if self.confirmed_highs else None
+    @property
+    def last_swing_high(self): return self.confirmed_highs[-1][2] if self.confirmed_highs else None
+    @property
+    def last_swing_low(self): return self.confirmed_lows[-1][2] if self.confirmed_lows else None
+    @property
+    def protected_low_bar(self): return self.confirmed_lows[-1][1] if self.confirmed_lows else None
+    @property
+    def protected_high_bar(self): return self.confirmed_highs[-1][1] if self.confirmed_highs else None
 
 class ContinuationDetectorV2:
-    def __init__(self, ema_fast_p=7, ema_slow_p=20, swing_lb=10, 
-                 swing_atr_mult=0.5, slope_lb=3):
-        self.regime = "STARTUP"
-        self.phase = "NONE"
+    def __init__(self, ema_fast_p=7, ema_slow_p=20, swing_lb=10, swing_atr_mult=0.5, slope_lb=3):
+        self.regime = "STARTUP"; self.phase = "NONE"
         self.swing = CausalSwingTracker(swing_lb, swing_atr_mult)
-        self.slope_lb = slope_lb
-        self.ema_f_p = ema_fast_p; self.ema_s_p = ema_slow_p
-        
+        self.slope_lb = slope_lb; self.ema_f_p = ema_fast_p; self.ema_s_p = ema_slow_p
         self.ema_cross_below = 0; self.ema_cross_above = 0
-        self.pullback_bars = 0
-        self.invalidation_bars = 0
-        self.regime_duration = 0
-        
-        self.events = []  # one-shot events this bar
-        self.transition_log = []
-    
+        self.pullback_bars = 0; self.invalidation_bars = 0; self.regime_duration = 0
+        self.events = []
+
     def process(self, i, O, H, L, C, ef, es, ATR):
-        o, h, l, c = O[i], H[i], L[i], C[i]
-        e_f, e_s = ef[i], es[i]
-        
-        self.events = []  # reset events each bar
-        self.swing.update(i, H, L, ATR)
-        
-        # EMA cross tracking
+        o,h,l,c = O[i],H[i],L[i],C[i]; e_f,e_s = ef[i],es[i]
+        self.events = []; self.swing.update(i, H, L, ATR)
         if e_f > e_s: self.ema_cross_above += 1; self.ema_cross_below = 0
         else: self.ema_cross_below += 1; self.ema_cross_above = 0
-        
-        # Derived (causal)
         sl = self.slope_lb
-        slope_f = (e_f - ef[i-sl]) / e_f if i >= sl and e_f > 0 else 0
-        slope_s = (e_s - es[i-sl]) / e_s if i >= sl and e_s > 0 else 0
-        bar_range = h - l
-        body = abs(c - o)
-        body_ratio = body / bar_range if bar_range > 0 else 0
-        bull_reclaim = c > e_f and c > o and body_ratio >= 0.3
-        bear_reject = c < e_f and c < o and body_ratio >= 0.3
-        
-        hh = self.swing.count_hh()
-        hl = self.swing.count_hl()
-        lh = self.swing.count_lh()
-        ll = self.swing.count_ll()
-        prot_low = self.swing.protected_low
-        prot_high = self.swing.protected_high
-        
-        old_regime = self.regime; old_phase = self.phase
-        reason = ""
-        warmup = max(self.ema_s_p * 2, self.swing.lb * 4)
-        
+        slope_f = (e_f - ef[i-sl])/e_f if i >= sl and e_f > 0 else 0
+        slope_s = (e_s - es[i-sl])/e_s if i >= sl and e_s > 0 else 0
+        br = h-l; body = abs(c-o); body_r = body/br if br > 0 else 0
+        bull_reclaim = c > e_f and c > o and body_r >= 0.3
+        bear_reject = c < e_f and c < o and body_r >= 0.3
+        hh=self.swing.count_hh(); hl=self.swing.count_hl()
+        lh=self.swing.count_lh(); ll=self.swing.count_ll()
+        prot_low=self.swing.protected_low; prot_high=self.swing.protected_high
+        old_r=self.regime; old_p=self.phase; reason=""
+        warmup = max(self.ema_s_p*2, self.swing.lb*4)
         self.regime_duration += 1
-        
-        # ═══ STARTUP ═══
+
         if self.regime == "STARTUP":
-            if i < warmup: return
-            if hh >= 2 and hl >= 2 and e_f > e_s and slope_s > 0:
-                self.regime = "BULL"; self.phase = "TREND"
-                reason = f"2HH+2HL, EMA aligned, slope_s={slope_s:.4f}"
-            elif lh >= 2 and ll >= 2 and e_f < e_s and slope_s < 0:
-                self.regime = "BEAR"; self.phase = "TREND"
-                reason = f"2LH+2LL, EMA aligned, slope_s={slope_s:.4f}"
-            else:
-                self.regime = "SIDEWAYS"; self.phase = "NONE"
-                reason = f"hh={hh} hl={hl} lh={lh} ll={ll} no clear structure"
-        
-        # ═══ SIDEWAYS ═══
+            if i < warmup: return None
+            if hh>=2 and hl>=2 and e_f>e_s and slope_s>0: self.regime="BULL";self.phase="TREND";reason=f"2HH+2HL EMA up"
+            elif lh>=2 and ll>=2 and e_f<e_s and slope_s<0: self.regime="BEAR";self.phase="TREND";reason=f"2LH+2LL EMA dn"
+            else: self.regime="SIDEWAYS";self.phase="NONE";reason="no structure"
         elif self.regime == "SIDEWAYS":
-            if hh >= 2 and hl >= 2 and e_f > e_s and slope_s > 0:
-                self.regime = "BULL"; self.phase = "TREND"
-                reason = f"structure bullish: {hh}HH+{hl}HL, EMA cross up"
-            elif lh >= 2 and ll >= 2 and e_f < e_s and slope_s < 0:
-                self.regime = "BEAR"; self.phase = "TREND"
-                reason = f"structure bearish: {lh}LH+{ll}LL, EMA cross dn"
-        
-        # ═══ BULL REGIME ═══
+            if hh>=2 and hl>=2 and e_f>e_s and slope_s>0: self.regime="BULL";self.phase="TREND";reason=f"{hh}HH+{hl}HL EMA up"
+            elif lh>=2 and ll>=2 and e_f<e_s and slope_s<0: self.regime="BEAR";self.phase="TREND";reason=f"{lh}LH+{ll}LL EMA dn"
         elif self.regime == "BULL":
-            # Regime invalidation checks (applies to all phases)
-            if prot_low is not None and c < prot_low:
-                self.regime = "SIDEWAYS"; self.phase = "NONE"
-                self.invalidation_bars = 0
-                reason = f"BULL invalidated: close {c:.2f} < protected_low {prot_low:.2f}"
-            elif self.ema_cross_below >= 2:
-                self.regime = "SIDEWAYS"; self.phase = "NONE"
-                reason = "BULL→SIDEWAYS: EMA_f < EMA_s for 2 bars"
+            if prot_low is not None and c < prot_low: self.regime="SIDEWAYS";self.phase="NONE";self.invalidation_bars=0;reason=f"prot_low broken"
+            elif self.ema_cross_below >= 2: self.regime="SIDEWAYS";self.phase="NONE";reason="EMA cross dn 2bars"
             else:
-                # Phase transitions within BULL
-                if self.phase == "TREND":
-                    if l <= e_f:  # price touches EMA
-                        self.phase = "PULLBACK"; self.pullback_bars = 0
-                        reason = f"BULL pullback: low {l:.2f} <= EMA_f {e_f:.2f}"
-                
-                elif self.phase == "PULLBACK":
+                if self.phase=="TREND":
+                    if l <= e_f: self.phase="PULLBACK";self.pullback_bars=0;reason="low<=EMA"
+                elif self.phase=="PULLBACK":
                     self.pullback_bars += 1
-                    if bull_reclaim:
-                        # ONE-SHOT EVENT, not state change
-                        self.events.append("BULL_CONTINUATION_CONFIRM")
-                        self.phase = "TREND"  # back to trend phase
-                        reason = f"BULL continuation event: c={c:.2f}>EMA={e_f:.2f}, body={body_ratio:.2f}"
-                    elif self.pullback_bars >= 6:
-                        self.phase = "INVALIDATED"
-                        reason = f"pullback too long: {self.pullback_bars} bars"
-                
-                elif self.phase == "INVALIDATED":
+                    if bull_reclaim: self.events.append("BULL_CONTINUATION_CONFIRM");self.phase="TREND";reason=f"reclaim c={c:.2f} body={body_r:.2f}"
+                    elif self.pullback_bars >= 6: self.phase="INVALIDATED";reason="pb 6bars"
+                elif self.phase=="INVALIDATED":
                     self.invalidation_bars += 1
-                    if bull_reclaim and self.invalidation_bars >= 2:
-                        self.phase = "TREND"
-                        reason = "recovered from invalidation"
-                    elif self.invalidation_bars >= 4:
-                        self.regime = "SIDEWAYS"; self.phase = "NONE"
-                        reason = "BULL regime ended: invalidation timeout"
-        
-        # ═══ BEAR REGIME ═══
+                    if bull_reclaim and self.invalidation_bars >= 2: self.phase="TREND";reason="recovered"
+                    elif self.invalidation_bars >= 4: self.regime="SIDEWAYS";self.phase="NONE";reason="inv timeout"
         elif self.regime == "BEAR":
-            if prot_high is not None and c > prot_high:
-                self.regime = "SIDEWAYS"; self.phase = "NONE"
-                reason = f"BEAR invalidated: close {c:.2f} > protected_high {prot_high:.2f}"
-            elif self.ema_cross_above >= 2:
-                self.regime = "SIDEWAYS"; self.phase = "NONE"
-                reason = "BEAR→SIDEWAYS: EMA_f > EMA_s for 2 bars"
+            if prot_high is not None and c > prot_high: self.regime="SIDEWAYS";self.phase="NONE";reason="prot_high broken"
+            elif self.ema_cross_above >= 2: self.regime="SIDEWAYS";self.phase="NONE";reason="EMA cross up 2bars"
             else:
-                if self.phase == "TREND":
-                    if h >= e_f:
-                        self.phase = "PULLBACK"; self.pullback_bars = 0
-                        reason = f"BEAR pullback: high {h:.2f} >= EMA_f {e_f:.2f}"
-                
-                elif self.phase == "PULLBACK":
+                if self.phase=="TREND":
+                    if h >= e_f: self.phase="PULLBACK";self.pullback_bars=0;reason="high>=EMA"
+                elif self.phase=="PULLBACK":
                     self.pullback_bars += 1
-                    if bear_reject:
-                        self.events.append("BEAR_CONTINUATION_CONFIRM")
-                        self.phase = "TREND"
-                        reason = f"BEAR continuation event: c={c:.2f}<EMA={e_f:.2f}, body={body_ratio:.2f}"
-                    elif self.pullback_bars >= 6:
-                        self.phase = "INVALIDATED"
-                        reason = f"pullback too long: {self.pullback_bars} bars"
-                
-                elif self.phase == "INVALIDATED":
+                    if bear_reject: self.events.append("BEAR_CONTINUATION_CONFIRM");self.phase="TREND";reason=f"reject c={c:.2f} body={body_r:.2f}"
+                    elif self.pullback_bars >= 6: self.phase="INVALIDATED";reason="pb 6bars"
+                elif self.phase=="INVALIDATED":
                     self.invalidation_bars += 1
-                    if bear_reject and self.invalidation_bars >= 2:
-                        self.phase = "TREND"
-                        reason = "recovered from invalidation"
-                    elif self.invalidation_bars >= 4:
-                        self.regime = "SIDEWAYS"; self.phase = "NONE"
-                        reason = "BEAR regime ended: invalidation timeout"
-        
-        # Track regime duration reset
-        if self.regime != old_regime:
-            self.regime_duration = 0
-        
-        # Log transition
-        if self.regime != old_regime or self.phase != old_phase or self.events:
-            return {
-                "bar": i, "old_regime": old_regime, "old_phase": old_phase,
-                "new_regime": self.regime, "new_phase": self.phase,
-                "events": list(self.events), "reason": reason,
-                "hh": hh, "hl": hl, "lh": lh, "ll": ll,
-                "prot_low": prot_low, "prot_high": prot_high,
-            }
+                    if bear_reject and self.invalidation_bars >= 2: self.phase="TREND";reason="recovered"
+                    elif self.invalidation_bars >= 4: self.regime="SIDEWAYS";self.phase="NONE";reason="inv timeout"
+
+        if self.regime != old_r: self.regime_duration = 0
+        if self.regime != old_r or self.phase != old_p or self.events:
+            return {"bar":i,"old_r":old_r,"old_p":old_p,"new_r":self.regime,"new_p":self.phase,
+                    "events":list(self.events),"reason":reason,"hh":hh,"hl":hl,"lh":lh,"ll":ll,
+                    "prot_low":prot_low,"prot_high":prot_high,"slope_f":round(slope_f,5),"slope_s":round(slope_s,5),
+                    "pb_bars":self.pullback_bars,"body_r":round(body_r,3),"regime_dur":self.regime_duration}
         return None
 
-
-def _forward_label(i, side, H, L, prot_level, swing_target, n, horizon=4):
-    if i + 1 >= n or swing_target is None: return "NO_DATA"
-    end = min(i + horizon + 1, n)
-    if side == "BULL":
-        for j in range(i+1, end):
-            if prot_level is not None and L[j] < prot_level: return "FALSE"
-        for j in range(i+1, end):
-            if H[j] > swing_target: return "TRUE"
+def _fwd_label(i, side, H, L, prot, tgt, n, horizon):
+    if i+1>=n or tgt is None: return "NO_DATA"
+    end = min(i+horizon+1, n)
+    if side=="BULL":
+        for j in range(i+1,end):
+            if prot is not None and L[j] < prot: return "FALSE"
+        for j in range(i+1,end):
+            if H[j] > tgt: return "TRUE"
         return "FALSE"
     else:
-        for j in range(i+1, end):
-            if prot_level is not None and H[j] > prot_level: return "FALSE"
-        for j in range(i+1, end):
-            if L[j] < swing_target: return "TRUE"
+        for j in range(i+1,end):
+            if prot is not None and H[j] > prot: return "FALSE"
+        for j in range(i+1,end):
+            if L[j] < tgt: return "TRUE"
         return "FALSE"
 
+def _base_rate(H, L, C, n, side, horizon):
+    """Unconditional: for random bar, what % of time does price make HH/LL within horizon?"""
+    count = 0; total = 0
+    lookback = 20
+    for i in range(lookback, n - horizon - 1):
+        sh = max(H[i-lookback:i]); sl = min(L[i-lookback:i])
+        end = min(i+horizon+1, n)
+        if side == "BULL":
+            hh = any(H[j] > sh for j in range(i+1, end))
+            intact = all(L[j] >= sl for j in range(i+1, end))
+            if hh and intact: count += 1
+        else:
+            ll = any(L[j] < sl for j in range(i+1, end))
+            intact = all(H[j] <= sh for j in range(i+1, end))
+            if ll and intact: count += 1
+        total += 1
+    return round(100*count/total, 1) if total else 0
 
+@router_v2.get("/diagnostic")
+def v2_diagnostic(
+    symbol: str = Query("SOLUSDT"), days: int = Query(971, ge=30, le=1500),
+    ema_fast: int = Query(7), ema_slow: int = Query(20),
+    swing_lb: int = Query(10), swing_atr: float = Query(0.5), slope_lb: int = Query(3),
+):
+    rows = _load(symbol, "1h", days)
+    if len(rows) < ema_slow*2+50: return {"error": f"Not enough: {len(rows)}"}
+    O=np.array([r[1] for r in rows],dtype=float); H=np.array([r[2] for r in rows],dtype=float)
+    L=np.array([r[3] for r in rows],dtype=float); C=np.array([r[4] for r in rows],dtype=float)
+    T=[r[0] for r in rows]; n=len(rows)
+    ef=_ema(C,ema_fast); es=_ema(C,ema_slow); atr_arr=_atr(H,L,C,14)
+
+    det = ContinuationDetectorV2(ema_fast,ema_slow,swing_lb,swing_atr,slope_lb)
+    regime_counts={}; regime_log=[]; cur_rs=0; cur_r="STARTUP"
+    all_events=[]; fast_reg=0
+
+    for i in range(n):
+        result = det.process(i, O, H, L, C, ef, es, atr_arr)
+        regime_counts[det.regime] = regime_counts.get(det.regime,0)+1
+        if result:
+            ts = datetime.fromtimestamp(T[i]/1000,tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
+            if result["old_r"] != result["new_r"]:
+                dur = i - cur_rs
+                regime_log.append({"r":cur_r,"s":cur_rs,"e":i,"d":dur})
+                if dur <= 1 and cur_r not in ("STARTUP",): fast_reg += 1
+                cur_rs=i; cur_r=result["new_r"]
+            for ev in result.get("events",[]):
+                if "CONTINUATION" not in ev: continue
+                side = "BULL" if "BULL" in ev else "BEAR"
+                prot = det.swing.protected_low if side=="BULL" else det.swing.protected_high
+                tgt = det.swing.last_swing_high if side=="BULL" else det.swing.last_swing_low
+                prot_bar = det.swing.protected_low_bar if side=="BULL" else det.swing.protected_high_bar
+                ema_spread = (ef[i]-es[i])/es[i] if es[i]>0 else 0
+                dist_to_tgt = abs(tgt-C[i])/C[i] if tgt else 0
+                prot_age = i - prot_bar if prot_bar is not None else 0
+                labels = {}
+                for hz in [1,2,4,8]:
+                    labels[f"h{hz}"] = _fwd_label(i, side, H, L, prot, tgt, n, hz)
+                all_events.append({
+                    "bar":i,"time":ts,"side":side,"event":ev,
+                    "c":round(C[i],2),"ema_f":round(ef[i],2),"ema_s":round(es[i],2),
+                    "atr":round(atr_arr[i],2),
+                    "prot":round(prot,2) if prot else None,
+                    "tgt":round(tgt,2) if tgt else None,
+                    "labels":labels,
+                    "features":{
+                        "ema_spread_pct":round(100*ema_spread,3),
+                        "slope_f":result["slope_f"],"slope_s":result["slope_s"],
+                        "pb_bars":result["pb_bars"],"body_r":result["body_r"],
+                        "dist_to_tgt_pct":round(100*dist_to_tgt,3),
+                        "prot_age_bars":prot_age,
+                        "regime_dur":result["regime_dur"],
+                        "hh":result["hh"],"hl":result["hl"],
+                    },
+                    "reason":result["reason"],
+                })
+    regime_log.append({"r":cur_r,"s":cur_rs,"e":n,"d":n-cur_rs})
+
+    # Duration stats
+    dur_stats = {}
+    for rl in regime_log:
+        dur_stats.setdefault(rl["r"],[]).append(rl["d"])
+    dur_summary = {r:{"n":len(d),"avg":round(np.mean(d),1),"med":round(float(np.median(d)),1),"min":min(d),"max":max(d)} for r,d in dur_stats.items()}
+
+    # Multi-horizon accuracy
+    horizons_acc = {}
+    for side in ["BULL","BEAR"]:
+        evs = [e for e in all_events if e["side"]==side]
+        for hz in [1,2,4,8]:
+            key = f"h{hz}"
+            valid = [e for e in evs if e["labels"][key] != "NO_DATA"]
+            true_c = sum(1 for e in valid if e["labels"][key]=="TRUE")
+            n_valid = len(valid)
+            acc = round(100*true_c/n_valid,1) if n_valid else 0
+            # Wilson CI 95%
+            if n_valid > 0:
+                p = true_c/n_valid; z = 1.96
+                denom = 1 + z*z/n_valid
+                center = (p + z*z/(2*n_valid)) / denom
+                spread = z * math.sqrt((p*(1-p) + z*z/(4*n_valid))/n_valid) / denom
+                ci_lo = round(100*max(0, center-spread),1)
+                ci_hi = round(100*min(1, center+spread),1)
+            else: ci_lo=0; ci_hi=0
+            horizons_acc[f"{side}_h{hz}"] = {"events":n_valid,"true":true_c,"acc":acc,"ci_lo":ci_lo,"ci_hi":ci_hi}
+
+    # Base rate
+    base_rates = {}
+    for side in ["BULL","BEAR"]:
+        for hz in [1,2,4,8]:
+            base_rates[f"{side}_h{hz}"] = _base_rate(H,L,C,n,side,hz)
+
+    # Rolling windows (split into 3)
+    third = n // 3
+    windows = [("early",0,third),("mid",third,2*third),("late",2*third,n)]
+    rolling = {}
+    for wname, ws, we in windows:
+        for side in ["BULL","BEAR"]:
+            evs = [e for e in all_events if e["side"]==side and ws<=e["bar"]<we]
+            valid = [e for e in evs if e["labels"]["h4"]!="NO_DATA"]
+            true_c = sum(1 for e in valid if e["labels"]["h4"]=="TRUE")
+            acc = round(100*true_c/len(valid),1) if valid else 0
+            rolling[f"{side}_{wname}"] = {"events":len(valid),"true":true_c,"acc":acc}
+
+    # False events with features (first 15 per side)
+    false_bull = [e for e in all_events if e["side"]=="BULL" and e["labels"]["h4"]=="FALSE"][:15]
+    false_bear = [e for e in all_events if e["side"]=="BEAR" and e["labels"]["h4"]=="FALSE"][:15]
+
+    return {
+        "symbol":symbol,"days":days,"candles":n,
+        "regime_distribution":regime_counts,
+        "regime_duration":dur_summary,
+        "fast_regime_changes":fast_reg,
+        "sideways_pct":round(100*regime_counts.get("SIDEWAYS",0)/n,1),
+        "horizons":horizons_acc,
+        "base_rates":base_rates,
+        "rolling_h4":rolling,
+        "total_events":len(all_events),
+        "false_bull":false_bull,
+        "false_bear":false_bear,
+        "events":all_events,
+    }
+
+# Keep original trace endpoint too
 @router_v2.get("/trace")
 def continuation_v2_trace(
     symbol: str = Query("SOLUSDT"), days: int = Query(400, ge=30, le=1500),
     ema_fast: int = Query(7), ema_slow: int = Query(20),
     swing_lb: int = Query(10, ge=5, le=30),
-    swing_atr: float = Query(0.5, ge=0.1, le=2.0),
-    slope_lb: int = Query(3),
+    swing_atr: float = Query(0.5, ge=0.1, le=2.0), slope_lb: int = Query(3),
 ):
-    rows = _load(symbol, "1h", days)
-    if len(rows) < ema_slow * 2 + 50: return {"error": f"Not enough: {len(rows)}"}
-
-    O = np.array([r[1] for r in rows], dtype=float)
-    H = np.array([r[2] for r in rows], dtype=float)
-    L = np.array([r[3] for r in rows], dtype=float)
-    C = np.array([r[4] for r in rows], dtype=float)
-    T = [r[0] for r in rows]
-    n = len(rows)
-    ef = _ema(C, ema_fast); es = _ema(C, ema_slow)
-    atr = _atr(H, L, C, 14)
-
-    det = ContinuationDetectorV2(ema_fast, ema_slow, swing_lb, swing_atr, slope_lb)
-
-    transitions = []
-    cont_events = []
-    regime_log = []  # (start_bar, end_bar, regime)
-    cur_regime_start = 0; cur_regime = "STARTUP"
-    
-    # Per-bar state tracking
-    regime_counts = {}; phase_counts = {}
-
-    for i in range(n):
-        result = det.process(i, O, H, L, C, ef, es, atr)
-        
-        r_key = f"{det.regime}/{det.phase}"
-        regime_counts[det.regime] = regime_counts.get(det.regime, 0) + 1
-        phase_counts[r_key] = phase_counts.get(r_key, 0) + 1
-        
-        if result:
-            ts = datetime.fromtimestamp(T[i]/1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
-            result["time"] = ts
-            result["o"] = round(O[i],2); result["h"] = round(H[i],2)
-            result["l"] = round(L[i],2); result["c"] = round(C[i],2)
-            result["ema_f"] = round(ef[i],2); result["ema_s"] = round(es[i],2)
-            result["atr"] = round(atr[i],2)
-            
-            if result["old_regime"] != result["new_regime"]:
-                dur = i - cur_regime_start
-                regime_log.append({"regime": cur_regime, "start": cur_regime_start, "end": i, "duration": dur})
-                cur_regime_start = i; cur_regime = result["new_regime"]
-            
-            transitions.append(result)
-            
-            for ev in result.get("events", []):
-                if "CONTINUATION" in ev:
-                    side = "BULL" if "BULL" in ev else "BEAR"
-                    prot = det.swing.protected_low if side == "BULL" else det.swing.protected_high
-                    tgt = det.swing.last_swing_high if side == "BULL" else det.swing.last_swing_low
-                    label = _forward_label(i, side, H, L, prot, tgt, n)
-                    ev_entry = dict(result)
-                    ev_entry["forward_label"] = label
-                    ev_entry["event"] = ev
-                    ev_entry["protected"] = round(prot,2) if prot else None
-                    ev_entry["target"] = round(tgt,2) if tgt else None
-                    cont_events.append(ev_entry)
-    
-    # Final regime
-    regime_log.append({"regime": cur_regime, "start": cur_regime_start, "end": n, "duration": n - cur_regime_start})
-
-    # Regime duration stats
-    regime_durations = {}
-    for rl in regime_log:
-        regime_durations.setdefault(rl["regime"], []).append(rl["duration"])
-    
-    dur_stats = {}
-    for r, durs in regime_durations.items():
-        dur_stats[r] = {
-            "count": len(durs), "avg": round(np.mean(durs),1),
-            "median": round(float(np.median(durs)),1),
-            "min": min(durs), "max": max(durs),
-        }
-
-    # One-bar transitions
-    one_bar = [t for t in transitions if t.get("old_regime") != t.get("new_regime") or t.get("old_phase") != t.get("new_phase")]
-    # Count transitions where previous duration was 1
-    fast_regimes = [rl for rl in regime_log if rl["duration"] <= 1 and rl["regime"] not in ("STARTUP",)]
-
-    # Event summary
-    bull_ev = [e for e in cont_events if "BULL" in e["event"]]
-    bear_ev = [e for e in cont_events if "BEAR" in e["event"]]
-    bull_true = sum(1 for e in bull_ev if e["forward_label"] == "TRUE")
-    bear_true = sum(1 for e in bear_ev if e["forward_label"] == "TRUE")
-
-    # Confirmed swings
-    swings_info = {
-        "confirmed_highs": len(det.swing.confirmed_highs),
-        "confirmed_lows": len(det.swing.confirmed_lows),
-        "last_5_highs": [(b, round(p,2)) for _,b,p in det.swing.confirmed_highs[-5:]],
-        "last_5_lows": [(b, round(p,2)) for _,b,p in det.swing.confirmed_lows[-5:]],
-    }
-
-    return {
-        "symbol": symbol, "days": days, "candles": n,
-        "config": {"ema_fast": ema_fast, "ema_slow": ema_slow, "swing_lb": swing_lb,
-                   "swing_atr_mult": swing_atr, "slope_lb": slope_lb},
-        "regime_distribution": regime_counts,
-        "phase_distribution": phase_counts,
-        "regime_duration_stats": dur_stats,
-        "total_transitions": len(transitions),
-        "fast_regime_changes": len(fast_regimes),
-        "swings": swings_info,
-        "continuation_events": {
-            "bull": {"total": len(bull_ev), "true": bull_true, "false": len(bull_ev)-bull_true,
-                     "accuracy": round(100*bull_true/len(bull_ev),1) if bull_ev else 0},
-            "bear": {"total": len(bear_ev), "true": bear_true, "false": len(bear_ev)-bear_true,
-                     "accuracy": round(100*bear_true/len(bear_ev),1) if bear_ev else 0},
-        },
-        "events": cont_events,
-        "transitions": transitions[-50:],
-        "regime_log": regime_log[-30:],
-    }
+    # Redirect to diagnostic for now
+    return v2_diagnostic(symbol, days, ema_fast, ema_slow, swing_lb, swing_atr, slope_lb)
