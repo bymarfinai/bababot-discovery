@@ -55,6 +55,7 @@ _try_mount("causal_parity_endpoint", "Causal BBC parity backtest")
 _try_mount("causal_state_reject_endpoint", "Causal 1H state + 15m EMA7 rejection")
 _try_mount("causal_state_mtf_reject_endpoint", "Causal 1H state + 15m EMA rejection")
 _try_mount("bbc_sweep_endpoint", "BBC Sweep")
+_try_mount("bbc_limit_sim", "BBC Limit Order Sim (/mode3_bbc/limit_sim)")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 
 # BBC Live Trading
