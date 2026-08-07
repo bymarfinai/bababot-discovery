@@ -51,6 +51,7 @@ _try_mount("v2_gated_endpoint", "V2 Gated Switcher")
 _try_mount("v2_excursion_endpoint", "V2 Excursion + 15m Exec")
 _try_mount("v2_m15_sweep_endpoint", "V2 15m Sweep")
 _try_mount("v2_m15_hold_endpoint", "V2 15m Hold Study")
+_try_mount("v25_detector_endpoint", "V2.5 Regime Expansion")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 _try_mount("bbc_live_endpoint", "BBC Live")
 
