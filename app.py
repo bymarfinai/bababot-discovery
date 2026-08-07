@@ -54,6 +54,7 @@ _try_mount("v2_m15_hold_endpoint", "V2 15m Hold Study")
 _try_mount("v25_detector_endpoint", "V2.5 Regime Expansion")
 _try_mount("v25_sweep_endpoint", "V2.5 Sweep")
 _try_mount("v25_triggers_endpoint", "V2.5 Entry Triggers")
+_try_mount("v25_forensic_endpoint", "V2.5 Forensic")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 _try_mount("bbc_live_endpoint", "BBC Live")
 
