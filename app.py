@@ -49,6 +49,7 @@ _try_mount("continuation_detector_endpoint", "Continuation Detector v1+v2")
 _try_mount("v2_audit_endpoint", "V2 Audit")
 _try_mount("v2_gated_endpoint", "V2 Gated Switcher")
 _try_mount("v2_excursion_endpoint", "V2 Excursion Audit")
+_try_mount("v2_entry_exit_endpoint", "V2 Entry×Exit Matrix")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 _try_mount("bbc_live_endpoint", "BBC Live")
 
