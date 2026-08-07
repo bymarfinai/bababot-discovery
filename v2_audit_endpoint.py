@@ -1,7 +1,13 @@
-"""V2 Audit — matched control base rate + alternative labels.
+"""V2 Final Audit — side-specific labels, MAE, time-to-invalidation, 3-timestamp comparison.
 
-FIX: event fires ON the bar where phase transitions from PULLBACK→TREND.
-Episode end is that same bar. Match must include ep["end"].
+Labels:
+  BULL: HH (higher high vs close), EMA hold above slow, protected low intact, MFE/MAE
+  BEAR: LL (lower low vs close), EMA hold below slow, protected high intact, MFE/MAE
+
+3 timestamps per episode:
+  A. pullback_start — first bar entering pullback
+  B. reclaim_event — bullish reclaim / bearish reject
+  C. structure_confirm — first bar where H > swing_high (BULL) or L < swing_low (BEAR)
 
 GET /continuation/v2/audit?symbol=SOLUSDT&days=971
 """
@@ -33,47 +39,84 @@ def _atr(H, L, C, period=14):
         else: atr[i] = atr[i-1] + (tr - atr[i-1]) / period
     return atr
 
-def _wilson_ci(successes, total, z=1.96):
-    if total == 0: return 0, 0, 0
-    p = successes / total
-    den = 1 + z*z/total
-    ctr = (p + z*z/(2*total)) / den
-    spr = z * math.sqrt((p*(1-p) + z*z/(4*total)) / total) / den
-    return round(100*p, 1), round(100*max(0, ctr-spr), 1), round(100*min(1, ctr+spr), 1)
+def _wilson(s, n, z=1.96):
+    if n == 0: return 0, 0, 0
+    p = s/n; d = 1+z*z/n; c = (p+z*z/(2*n))/d
+    sp = z*math.sqrt((p*(1-p)+z*z/(4*n))/n)/d
+    return round(100*p,1), round(100*max(0,c-sp),1), round(100*min(1,c+sp),1)
 
 from continuation_detector_endpoint import ContinuationDetectorV2
 
-def _eval_labels(i, side, H, L, C, ef, es, atr_arr, prot, n):
-    result = {}
-    for hz in [2, 4, 8]:
-        end = min(i + hz + 1, n)
-        if i + 1 >= n:
-            for k in ["ema_hold","hh_close","prot_intact","mfe_atr"]:
-                result[f"{k}_h{hz}"] = None
-            continue
+def _eval_at(i, side, H, L, C, ef, es, atr_arr, prot, swing_tgt, n):
+    """Evaluate all labels at bar i for given side. Returns dict with horizons 1,2,4,8."""
+    out = {}
+    atr_i = atr_arr[i] if atr_arr[i] > 0 else 1.0
+    for hz in [1, 2, 4, 8]:
+        end = min(i+hz+1, n)
+        if i+1 >= n:
+            out[hz] = None; continue
+        r = {}
         if side == "BULL":
-            ema_hold = all(C[j] > es[j] for j in range(i+1, end))
-            hh = any(H[j] > C[i] for j in range(i+1, end))
-            intact = all(L[j] >= prot for j in range(i+1, end)) if prot else True
-            mfe = 0; atr_at = atr_arr[i] if atr_arr[i] > 0 else 1
-            for j in range(i+1, min(i+hz+1, n)):
-                exc = (H[j] - C[i]) / atr_at
+            # HH: any future high > current close
+            r["hh"] = any(H[j] > C[i] for j in range(i+1, end))
+            # EMA hold: all future closes > EMA slow
+            r["ema_hold"] = all(C[j] > es[j] for j in range(i+1, end))
+            # Protected low intact
+            r["prot_intact"] = all(L[j] >= prot for j in range(i+1, end)) if prot else True
+            # MFE (max favorable = upside)
+            mfe = 0
+            for j in range(i+1, end):
+                exc = (H[j] - C[i]) / atr_i
                 if exc > mfe: mfe = exc
-                if prot and L[j] < prot: break
-        else:
-            ema_hold = all(C[j] < es[j] for j in range(i+1, end))
-            hh = any(L[j] < C[i] for j in range(i+1, end))
-            intact = all(H[j] <= prot for j in range(i+1, end)) if prot else True
-            mfe = 0; atr_at = atr_arr[i] if atr_arr[i] > 0 else 1
-            for j in range(i+1, min(i+hz+1, n)):
-                exc = (C[i] - L[j]) / atr_at
+            r["mfe"] = round(mfe, 3)
+            # MAE (max adverse = downside before end)
+            mae = 0
+            for j in range(i+1, end):
+                adv = (C[i] - L[j]) / atr_i
+                if adv > mae: mae = adv
+            r["mae"] = round(mae, 3)
+            # Time to invalidation: bars until L[j] < prot (or hz if never)
+            tti = hz
+            if prot:
+                for j in range(i+1, end):
+                    if L[j] < prot: tti = j - i; break
+            r["tti"] = tti
+        else:  # BEAR
+            # LL: any future low < current close
+            r["ll"] = any(L[j] < C[i] for j in range(i+1, end))
+            # EMA hold: all future closes < EMA slow
+            r["ema_hold"] = all(C[j] < es[j] for j in range(i+1, end))
+            # Protected high intact
+            r["prot_intact"] = all(H[j] <= prot for j in range(i+1, end)) if prot else True
+            # MFE (max favorable = downside)
+            mfe = 0
+            for j in range(i+1, end):
+                exc = (C[i] - L[j]) / atr_i
                 if exc > mfe: mfe = exc
-                if prot and H[j] > prot: break
-        result[f"ema_hold_h{hz}"] = ema_hold
-        result[f"hh_close_h{hz}"] = hh
-        result[f"prot_intact_h{hz}"] = intact
-        result[f"mfe_atr_h{hz}"] = round(mfe, 2)
-    return result
+            r["mfe"] = round(mfe, 3)
+            # MAE (max adverse = upside)
+            mae = 0
+            for j in range(i+1, end):
+                adv = (H[j] - C[i]) / atr_i
+                if adv > mae: mae = adv
+            r["mae"] = round(mae, 3)
+            # Time to invalidation: bars until H[j] > prot
+            tti = hz
+            if prot:
+                for j in range(i+1, end):
+                    if H[j] > prot: tti = j - i; break
+            r["tti"] = tti
+        out[hz] = r
+    return out
+
+def _find_struct_confirm(i, side, H, L, swing_tgt, n, max_bars=20):
+    """Find first bar after i where price breaks swing target. Returns bar or None."""
+    if swing_tgt is None: return None
+    end = min(i + max_bars + 1, n)
+    for j in range(i+1, end):
+        if side == "BULL" and H[j] > swing_tgt: return j
+        if side == "BEAR" and L[j] < swing_tgt: return j
+    return None
 
 
 @router_audit.get("/audit")
@@ -86,121 +129,138 @@ def v2_audit(
     if len(rows) < ema_slow*2+50: return {"error": f"Not enough: {len(rows)}"}
     O=np.array([r[1] for r in rows],dtype=float); H=np.array([r[2] for r in rows],dtype=float)
     L=np.array([r[3] for r in rows],dtype=float); C=np.array([r[4] for r in rows],dtype=float)
-    T=[r[0] for r in rows]; n=len(rows)
+    n=len(rows)
     ef=_ema(C,ema_fast); es=_ema(C,ema_slow); atr_arr=_atr(H,L,C,14)
 
     det = ContinuationDetectorV2(ema_fast, ema_slow, swing_lb, swing_atr, slope_lb, min_pb_bars=1)
 
-    # First pass: collect all events with their protected levels
     events_by_bar = {}
-    # Also track per-bar state for episode construction
-    bar_state = []  # (regime, phase) per bar
+    bar_state = []
 
     for i in range(n):
-        result = det.process(i, O, H, L, C, ef, es, atr_arr)
+        det.process(i, O, H, L, C, ef, es, atr_arr)
         bar_state.append((det.regime, det.phase))
-        if result:
-            for ev in result.get("events", []):
+        # Collect events with exact protected/target levels AT the moment they fire
+        if det.events:
+            for ev in det.events:
                 if "CONTINUATION" in ev:
                     side = "BULL" if "BULL" in ev else "BEAR"
-                    prot = det.swing.protected_low if side=="BULL" else det.swing.protected_high
-                    events_by_bar[i] = {"side": side, "prot": prot,
-                        "tgt": det.swing.last_swing_high if side=="BULL" else det.swing.last_swing_low}
+                    events_by_bar[i] = {
+                        "side": side,
+                        "prot": det.swing.protected_low if side=="BULL" else det.swing.protected_high,
+                        "tgt": det.swing.last_swing_high if side=="BULL" else det.swing.last_swing_low,
+                    }
 
-    # Build episodes from bar_state
+    # Build episodes
     episodes = []
     in_pb = False; pb_start = None; pb_side = None
     for i in range(n):
         regime, phase = bar_state[i]
         if regime in ("BULL","BEAR") and phase == "PULLBACK":
             if not in_pb:
-                in_pb = True; pb_start = i
-                pb_side = "BULL" if regime == "BULL" else "BEAR"
+                in_pb = True; pb_start = i; pb_side = "BULL" if regime=="BULL" else "BEAR"
         else:
             if in_pb:
-                # Episode ends. The reclaim bar (if any) is THIS bar (i) where phase just changed.
-                # Include i in the search since event fires on the transition bar.
-                episodes.append({"start": pb_start, "end": i, "side": pb_side, "duration": i - pb_start})
+                episodes.append({"start": pb_start, "end": i, "side": pb_side})
                 in_pb = False
     if in_pb:
-        episodes.append({"start": pb_start, "end": n-1, "side": pb_side, "duration": n-1 - pb_start})
+        episodes.append({"start": pb_start, "end": n-1, "side": pb_side})
 
-    # Match episodes to events — include ep["end"] in search!
+    # Match events + find structure confirmation
     for ep in episodes:
-        ep["had_event"] = False; ep["event_bar"] = None
-        # Search range: start to end INCLUSIVE (end is the transition bar where event fires)
+        ep["event_bar"] = None; ep["prot"] = None; ep["tgt"] = None; ep["confirm_bar"] = None
         for bar in range(ep["start"], ep["end"] + 1):
             if bar in events_by_bar and events_by_bar[bar]["side"] == ep["side"]:
-                ep["had_event"] = True; ep["event_bar"] = bar
+                ep["event_bar"] = bar
+                ep["prot"] = events_by_bar[bar]["prot"]
+                ep["tgt"] = events_by_bar[bar]["tgt"]
+                ep["confirm_bar"] = _find_struct_confirm(bar, ep["side"], H, L, ep["tgt"], n)
                 break
 
-    label_names = ["ema_hold","hh_close","prot_intact","mfe_atr"]
-    horizons = [2, 4, 8]
+    # For control prot/tgt: approximate from 20-bar lookback at pullback start
+    for ep in episodes:
+        bi = ep["start"]
+        if ep["prot"] is None:
+            if ep["side"]=="BULL": ep["prot"] = float(min(L[max(0,bi-20):bi+1]))
+            else: ep["prot"] = float(max(H[max(0,bi-20):bi+1]))
+        if ep["tgt"] is None:
+            if ep["side"]=="BULL": ep["tgt"] = float(max(H[max(0,bi-20):bi+1]))
+            else: ep["tgt"] = float(min(L[max(0,bi-20):bi+1]))
+
+    # Evaluate 3 timestamps per episode
     results = {}
+    bool_labels = ["hh","ema_hold","prot_intact"] if True else ["ll","ema_hold","prot_intact"]
 
     for side in ["BULL","BEAR"]:
-        side_eps = [ep for ep in episodes if ep["side"] == side]
-        event_eps = [ep for ep in side_eps if ep["had_event"]]
-        no_event_eps = [ep for ep in side_eps if not ep["had_event"]]
+        side_eps = [ep for ep in episodes if ep["side"]==side]
+        has_event = [ep for ep in side_eps if ep["event_bar"] is not None]
+        has_confirm = [ep for ep in has_event if ep["confirm_bar"] is not None]
 
-        # CONTROL: evaluate at pullback start
-        ctrl_labels = {f"{ln}_h{hz}": [] for ln in label_names for hz in horizons}
+        # Evaluate at each timestamp
+        ts_data = {"A_pullback": [], "B_reclaim": [], "C_confirm": []}
         for ep in side_eps:
             bi = ep["start"]
             if bi + 9 >= n: continue
-            if side == "BULL": prot = float(min(L[max(0,bi-20):bi+1]))
-            else: prot = float(max(H[max(0,bi-20):bi+1]))
-            labels = _eval_labels(bi, side, H, L, C, ef, es, atr_arr, prot, n)
-            for k, v in labels.items():
-                if v is not None and k in ctrl_labels: ctrl_labels[k].append(v)
-
-        # EVENT: evaluate at reclaim bar
-        evt_labels = {f"{ln}_h{hz}": [] for ln in label_names for hz in horizons}
-        for ep in event_eps:
+            ts_data["A_pullback"].append(_eval_at(bi, side, H, L, C, ef, es, atr_arr, ep["prot"], ep["tgt"], n))
+        for ep in has_event:
             bi = ep["event_bar"]
-            if bi is None or bi + 9 >= n: continue
-            ev_info = events_by_bar.get(bi, {})
-            prot = ev_info.get("prot")
-            if prot is None:
-                if side == "BULL": prot = float(min(L[max(0,bi-20):bi+1]))
-                else: prot = float(max(H[max(0,bi-20):bi+1]))
-            labels = _eval_labels(bi, side, H, L, C, ef, es, atr_arr, prot, n)
-            for k, v in labels.items():
-                if v is not None and k in evt_labels: evt_labels[k].append(v)
+            if bi + 9 >= n: continue
+            ts_data["B_reclaim"].append(_eval_at(bi, side, H, L, C, ef, es, atr_arr, ep["prot"], ep["tgt"], n))
+        for ep in has_confirm:
+            bi = ep["confirm_bar"]
+            if bi + 9 >= n: continue
+            ts_data["C_confirm"].append(_eval_at(bi, side, H, L, C, ef, es, atr_arr, ep["prot"], ep["tgt"], n))
 
-        side_result = {
-            "total_episodes": len(side_eps),
-            "episodes_with_event": len(event_eps),
-            "episodes_without_event": len(no_event_eps),
-            "event_rate_pct": round(100*len(event_eps)/len(side_eps),1) if side_eps else 0,
-        }
+        # Aggregate per timestamp × horizon × label
+        cont_label = "hh" if side == "BULL" else "ll"
+        bool_keys = [cont_label, "ema_hold", "prot_intact"]
+        float_keys = ["mfe", "mae", "tti"]
 
         comparison = {}
-        for ln in label_names:
-            for hz in horizons:
-                key = f"{ln}_h{hz}"
-                ctrl = ctrl_labels[key]; evt = evt_labels[key]
-                if ln == "mfe_atr":
-                    comparison[key] = {
-                        "ctrl_n": len(ctrl), "ctrl_mean": round(np.mean(ctrl),2) if ctrl else 0, "ctrl_med": round(float(np.median(ctrl)),2) if ctrl else 0,
-                        "evt_n": len(evt), "evt_mean": round(np.mean(evt),2) if evt else 0, "evt_med": round(float(np.median(evt)),2) if evt else 0,
-                        "lift_mean": round((np.mean(evt) if evt else 0) - (np.mean(ctrl) if ctrl else 0), 2),
-                    }
-                else:
-                    ct = sum(1 for v in ctrl if v); ca, clo, chi = _wilson_ci(ct, len(ctrl))
-                    et = sum(1 for v in evt if v); ea, elo, ehi = _wilson_ci(et, len(evt))
-                    lift = round(ea - ca, 1)
-                    comparison[key] = {
-                        "ctrl_n": len(ctrl), "ctrl_true": ct, "ctrl_acc": ca, "ctrl_ci": [clo, chi],
-                        "evt_n": len(evt), "evt_true": et, "evt_acc": ea, "evt_ci": [elo, ehi],
-                        "lift": lift, "significant": abs(lift) > 3 and (elo > chi or clo > ehi),
-                    }
-        side_result["comparison"] = comparison
-        results[side] = side_result
+        for hz in [1, 2, 4, 8]:
+            row = {}
+            for ts_name, ts_list in ts_data.items():
+                valid = [d[hz] for d in ts_list if d.get(hz) is not None]
+                ts_row = {"n": len(valid)}
+                for k in bool_keys:
+                    vals = [v[k] for v in valid if k in v]
+                    true_c = sum(1 for v in vals if v)
+                    acc, lo, hi = _wilson(true_c, len(vals))
+                    ts_row[k] = {"acc": acc, "ci": [lo, hi], "n": len(vals), "true": true_c}
+                for k in float_keys:
+                    vals = [v[k] for v in valid if k in v]
+                    ts_row[k] = {"mean": round(np.mean(vals),3) if vals else 0,
+                                 "med": round(float(np.median(vals)),3) if vals else 0,
+                                 "n": len(vals)}
+                row[ts_name] = ts_row
+            comparison[f"h{hz}"] = row
+
+        results[side] = {
+            "total_episodes": len(side_eps),
+            "with_event": len(has_event),
+            "with_confirm": len(has_confirm),
+            "event_rate": round(100*len(has_event)/len(side_eps),1) if side_eps else 0,
+            "confirm_rate": round(100*len(has_confirm)/len(has_event),1) if has_event else 0,
+            "cont_label_name": cont_label,
+            "comparison": comparison,
+        }
 
     return {
         "symbol": symbol, "days": days, "candles": n,
         "total_episodes": len(episodes),
-        "total_events_found": len(events_by_bar),
+        "events_found": len(events_by_bar),
+        "label_verification": {
+            "BULL_uses": "HH = any(H[j] > C[i]) for j in i+1..i+hz",
+            "BEAR_uses": "LL = any(L[j] < C[i]) for j in i+1..i+hz",
+            "ema_hold_BULL": "all(C[j] > EMA_slow[j])",
+            "ema_hold_BEAR": "all(C[j] < EMA_slow[j])",
+            "prot_intact_BULL": "all(L[j] >= protected_low)",
+            "prot_intact_BEAR": "all(H[j] <= protected_high)",
+            "MFE_BULL": "(H[j] - C[i]) / ATR[i]",
+            "MAE_BULL": "(C[i] - L[j]) / ATR[i]",
+            "MFE_BEAR": "(C[i] - L[j]) / ATR[i]",
+            "MAE_BEAR": "(H[j] - C[i]) / ATR[i]",
+            "no_same_bar": "range starts at i+1, not i",
+        },
         "results": results,
     }
