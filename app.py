@@ -47,6 +47,7 @@ _try_mount("filtered_switcher_endpoint", "Filtered Switcher")
 _try_mount("v4_sweep_endpoint", "V4 Frozen Sweep")
 _try_mount("continuation_detector_endpoint", "Continuation Detector v1+v2")
 _try_mount("v2_audit_endpoint", "V2 Audit")
+_try_mount("v2_gated_endpoint", "V2 Gated Switcher")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 _try_mount("bbc_live_endpoint", "BBC Live")
 
