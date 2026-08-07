@@ -55,6 +55,7 @@ _try_mount("v25_detector_endpoint", "V2.5 Regime Expansion")
 _try_mount("v25_sweep_endpoint", "V2.5 Sweep")
 _try_mount("v25_triggers_endpoint", "V2.5 Entry Triggers")
 _try_mount("v25_forensic_endpoint", "V2.5 Forensic")
+_try_mount("v3_entry_quality_endpoint", "V3 Entry Quality")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 _try_mount("bbc_live_endpoint", "BBC Live")
 
