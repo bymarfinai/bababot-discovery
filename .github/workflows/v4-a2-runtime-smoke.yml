@@ -1,4 +1,4 @@
-name: V4 A2 Runtime Smoke
+name: V4 A1.1 Liquidity Zone Runtime Screen
 
 on:
   push:
@@ -7,38 +7,53 @@ on:
   workflow_dispatch:
 
 jobs:
-  smoke:
+  screen:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
-      - name: Fetch BTC 5m 120d and run V4-A2
+      - name: Wait for deploy, refresh data, run four-pair liquidity-zone test
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
+          PAIRS='["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"]'
 
-          echo '=== START BTC 5M FETCH ==='
+          echo '=== WAIT FOR LIQUIDITY ENDPOINT DEPLOY ==='
+          READY=0
+          for i in $(seq 1 120); do
+            CODE=$(curl -sS -o /tmp/probe.json -w '%{http_code}' \
+              "$BASE/v4/liquidity-retest?symbol=BTCUSDT&days=30&rr=1.0&execution_tf=5m&sample_limit=0" || true)
+            if [ "$CODE" = '200' ]; then
+              echo "endpoint ready on probe $i"
+              READY=1
+              break
+            fi
+            echo "probe $i http=$CODE"
+            sleep 5
+          done
+          if [ "$READY" != '1' ]; then echo 'liquidity endpoint not deployed'; exit 1; fi
+
+          echo '=== REFRESH EXACT 120D 1H + 5M ==='
           curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
             -X POST -H 'Content-Type: application/json' \
-            -d '{"days":120,"pairs":["BTCUSDT"],"timeframes":["5m"]}' \
+            -d "{\"days\":120,\"pairs\":${PAIRS},\"timeframes\":[\"1h\",\"5m\"]}" \
             "$BASE/fetch-data"
           echo
 
-          echo '=== POLL FETCH ==='
-          for i in $(seq 1 180); do
+          for i in $(seq 1 300); do
             curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
-            python - <<'PY'
-          import json
-          d=json.load(open('/tmp/fetch-status.json'))
-          s=d.get('fetch_state',{})
-          print('FETCH', s.get('status'), s.get('progress'), 'candles=', s.get('total_candles'))
-          PY
             STATUS=$(python - <<'PY'
           import json
           d=json.load(open('/tmp/fetch-status.json'))
           print(d.get('fetch_state',{}).get('status',''))
           PY
           )
+            python - <<'PY'
+          import json
+          d=json.load(open('/tmp/fetch-status.json'))
+          s=d.get('fetch_state',{})
+          print('FETCH', s.get('status'), s.get('progress'), 'candles=', s.get('total_candles'))
+          PY
             if [ "$STATUS" = 'done' ]; then break; fi
             if [ "$STATUS" = 'error' ]; then cat /tmp/fetch-status.json; exit 1; fi
             sleep 5
@@ -52,22 +67,31 @@ jobs:
           )
           if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; cat /tmp/fetch-status.json; exit 1; fi
 
-          echo '=== DATA STATUS AFTER FETCH ==='
-          curl -fsS "$BASE/data/status" | tee /tmp/data-status.json
-          echo
+          echo '=== FOUR PAIR LIQUIDITY-CREATED ZONE RESULTS ==='
+          for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
+            OUT="/tmp/${SYM}.json"
+            curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
+              "$BASE/v4/liquidity-retest?symbol=${SYM}&days=120&rr=1.0&execution_tf=5m&sample_limit=0" \
+              > "$OUT"
+            python - "$SYM" "$OUT" <<'PY'
+          import json,sys
+          sym,path=sys.argv[1:]
+          d=json.load(open(path))
+          keep={k:d.get(k) for k in ['phase','status','symbol','error','data','zone_count','overall','demand','supply','diagnostics'] if k in d}
+          print('PAIR_RESULT',sym,json.dumps(keep,separators=(',',':')))
+          PY
+          done
 
-          echo '=== V4-A2 BTCUSDT 120D 5M RR1 ==='
-          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-            "$BASE/v4/first-retest?symbol=BTCUSDT&days=120&rr=1.0&execution_tf=5m&sample_limit=0" \
-            | tee /tmp/v4-a2-btc.json
-          echo
-
-          echo '=== COMPACT RESULT ==='
+          echo '=== AGGREGATE ==='
           python - <<'PY'
           import json
-          data=json.load(open('/tmp/data-status.json'))
-          a2=json.load(open('/tmp/v4-a2-btc.json'))
-          print('BTC_DATA', json.dumps(data.get('pairs',{}).get('BTCUSDT',{}), separators=(',',':')))
-          keep={k:a2.get(k) for k in ['phase','status','symbol','requested_days','execution_tf','error','data','overall','demand','supply','quality','verdict'] if k in a2}
-          print('A2_RESULT', json.dumps(keep, separators=(',',':')))
+          pairs=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
+          ds=[json.load(open(f'/tmp/{p}.json')) for p in pairs]
+          def agg(key):
+              wins=sum((d.get(key) or {}).get('bounce',0) or 0 for d in ds)
+              losses=sum((d.get(key) or {}).get('break',0) or 0 for d in ds)
+              resolved=wins+losses
+              zones=sum((d.get(key) or {}).get('zones',0) or 0 for d in ds)
+              return {'zones':zones,'resolved':resolved,'wins':wins,'losses':losses,'wr_pct':round(100*wins/resolved,2) if resolved else None}
+          print('AGG_RESULT',json.dumps({'overall':agg('overall'),'demand':agg('demand'),'supply':agg('supply')},separators=(',',':')))
           PY
