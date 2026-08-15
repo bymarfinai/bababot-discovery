@@ -1,21 +1,21 @@
-name: V5 A2.1 Natural Sign 2x2 Mechanism
+name: V5 B Price x OI Dynamics
 
 on:
   push:
     paths:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
-      - 'research/v5_a21_natural_2x2_mechanism.py'
+      - 'research/v5_b_price_oi_dynamics.py'
       - 'research/v5_a2_derivatives_forensic.py'
   workflow_dispatch:
 
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run frozen V5-A2.1 natural-sign 2x2 mechanism test
+      - name: Run frozen V5-B price x OI dynamics test
         shell: bash
         run: |
           set -euo pipefail
-          python research/v5_a21_natural_2x2_mechanism.py
+          python research/v5_b_price_oi_dynamics.py
