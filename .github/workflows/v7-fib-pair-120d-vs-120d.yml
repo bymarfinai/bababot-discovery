@@ -1,0 +1,19 @@
+name: V7 J FIB Pair 120d vs 120d
+
+on:
+  push:
+    paths:
+      - 'research/v7_j_fib_pair_120d_vs_120d.py'
+      - '.github/workflows/v7-fib-pair-120d-vs-120d.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install research dependencies
+        run: python -m pip install --disable-pip-version-check 'numpy>=1.26.0' 'fastapi>=0.110'
+      - name: Reconstruct official archive and compare adjacent 120d windows
+        run: PYTHONPATH=. python research/v7_j_fib_pair_120d_vs_120d.py
