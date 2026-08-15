@@ -1,4 +1,4 @@
-name: V4 A1.2 Liquidity Geometry Screen
+name: V4 A1.3 Liquidity Origin Screen
 
 on:
   push:
@@ -11,18 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Wait deploy, refresh data, compare three frozen geometries
+      - name: Wait deploy, refresh data, screen body and range origins
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
           PAIRS='["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"]'
 
-          echo '=== WAIT FOR A1.2 ENDPOINT ==='
+          echo '=== WAIT FOR A1.3 ENDPOINT ==='
           READY=0
           for i in $(seq 1 120); do
             CODE=$(curl -sS -o /tmp/probe.json -w '%{http_code}' \
-              "$BASE/v4/liquidity-retest?symbol=BTCUSDT&days=30&rr=1.0&execution_tf=5m&zone_mode=reaction_body&sample_limit=0" || true)
+              "$BASE/v4/liquidity-origin-retest?symbol=BTCUSDT&days=30&rr=1.0&execution_tf=5m&zone_mode=body&sample_limit=0" || true)
             if [ "$CODE" = '200' ]; then
               PHASE=$(python - <<'PY'
           import json
@@ -33,12 +33,12 @@ jobs:
               print('')
           PY
           )
-              if [ "$PHASE" = 'V4-A1.2' ]; then READY=1; echo "ready probe=$i"; break; fi
+              if [ "$PHASE" = 'V4-A1.3' ]; then READY=1; echo "ready probe=$i"; break; fi
             fi
             echo "probe $i http=$CODE"
             sleep 5
           done
-          if [ "$READY" != '1' ]; then echo 'A1.2 endpoint not ready'; cat /tmp/probe.json || true; exit 1; fi
+          if [ "$READY" != '1' ]; then echo 'A1.3 endpoint not ready'; cat /tmp/probe.json || true; exit 1; fi
 
           echo '=== REFRESH EXACT 120D 1H + 5M ==='
           curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
@@ -47,6 +47,7 @@ jobs:
             "$BASE/fetch-data"
           echo
 
+          STATUS=''
           for i in $(seq 1 300); do
             curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
             STATUS=$(python - <<'PY'
@@ -68,28 +69,45 @@ jobs:
           done
           if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; exit 1; fi
 
-          for MODE in pocket reaction_body reaction_range; do
-            echo "=== MODE $MODE ==="
+          for MODE in body range; do
+            echo "=== ORIGIN MODE $MODE ==="
             for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
               OUT="/tmp/${MODE}-${SYM}.json"
               curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-                "$BASE/v4/liquidity-retest?symbol=${SYM}&days=120&rr=1.0&execution_tf=5m&zone_mode=${MODE}&sample_limit=0" > "$OUT"
+                "$BASE/v4/liquidity-origin-retest?symbol=${SYM}&days=120&rr=1.0&execution_tf=5m&zone_mode=${MODE}&min_origin_displacement_atr=1.0&sample_limit=100" > "$OUT"
               python - "$MODE" "$SYM" "$OUT" <<'PY'
           import json,sys
           mode,sym,path=sys.argv[1:]
           d=json.load(open(path))
-          print('PAIR_RESULT',mode,sym,json.dumps({k:d.get(k) for k in ['zone_count','overall','demand','supply','diagnostics','error'] if k in d},separators=(',',':')))
+          keep={k:d.get(k) for k in ['phase','zone_count','overall','demand','supply','diagnostics','error'] if k in d}
+          print('PAIR_RESULT',mode,sym,json.dumps(keep,separators=(',',':')))
           PY
             done
           done
 
-          echo '=== AGGREGATES ==='
+          echo '=== AGGREGATES + TIME SPLITS ==='
           python - <<'PY'
           import json
+          from datetime import datetime
           pairs=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
-          modes=['pocket','reaction_body','reaction_range']
+          modes=['body','range']
+
+          def stat(rows):
+              resolved=[r for r in rows if r.get('outcome') in ('BOUNCE','BREAK')]
+              w=sum(r.get('outcome')=='BOUNCE' for r in resolved)
+              n=len(resolved)
+              return {'n':n,'wins':w,'losses':n-w,'wr_pct':round(100*w/n,2) if n else None}
+
           for mode in modes:
               ds=[json.load(open(f'/tmp/{mode}-{p}.json')) for p in pairs]
+              rows=[]
+              for p,d in zip(pairs,ds):
+                  for r in d.get('results_sample',[]):
+                      if r.get('outcome') in ('BOUNCE','BREAK'):
+                          x=dict(r); x['pair']=p
+                          rows.append(x)
+              rows.sort(key=lambda r: datetime.fromisoformat(r['retest_time']))
+              n=len(rows)
               def agg(key):
                   w=sum((d.get(key) or {}).get('bounce',0) or 0 for d in ds)
                   l=sum((d.get(key) or {}).get('break',0) or 0 for d in ds)
@@ -97,5 +115,16 @@ jobs:
                   amb=sum((d.get('diagnostics') or {}).get('ambiguous_entry_bars',0) or 0 for d in ds)
                   r=w+l
                   return {'zones':z,'resolved':r,'wins':w,'losses':l,'wr_pct':round(100*w/r,2) if r else None,'ambiguous_entry_bars':amb}
-              print('MODE_AGG',mode,json.dumps({'overall':agg('overall'),'demand':agg('demand'),'supply':agg('supply')},separators=(',',':')))
+              quarters=[]
+              for q in range(4):
+                  lo=n*q//4; hi=n*(q+1)//4
+                  quarters.append(stat(rows[lo:hi]))
+              print('MODE_AGG',mode,json.dumps({
+                  'overall':agg('overall'),
+                  'demand':agg('demand'),
+                  'supply':agg('supply'),
+                  'first_half':stat(rows[:n//2]),
+                  'second_half':stat(rows[n//2:]),
+                  'quarters':quarters,
+              },separators=(',',':')))
           PY
