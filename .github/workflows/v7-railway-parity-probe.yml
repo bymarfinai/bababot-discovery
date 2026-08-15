@@ -1,0 +1,35 @@
+name: V7 Railway Parity Probe
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/v7-railway-parity-probe.yml'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Probe historical BBC baseline on Railway DB
+        env:
+          BASE: https://web-production-b6a05.up.railway.app
+        run: |
+          python - <<'PY'
+          import json, os, urllib.parse, urllib.request
+          pairs=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
+          out={}; totals={'trades':0,'wins':0,'losses':0,'pnl':0.0}
+          for p in pairs:
+              q=dict(symbol=p,days=971,end_days_ago=11,ema_period=7,tp_pct=0.013,sl_pct=0.013,
+                     enable_sideways_trades='false',entry_usd=10,leverage=50,fee_pct=0.001,slippage_pct=0.0005,
+                     bull_mtf_15m_enabled='true',bear_mtf_15m_enabled='true',bull_body_ratio_min=0.5,bear_body_ratio_min=0.6,
+                     direct_transition_enabled='true',use_wick_exit='true')
+              url=os.environ['BASE']+'/mode3_bbc/backtest?'+urllib.parse.urlencode(q)
+              with urllib.request.urlopen(url,timeout=300) as r: d=json.load(r)
+              s=d.get('summary',{})
+              out[p]={'summary':s,'per_tool':d.get('per_tool',{}),'trade_count':len(d.get('trades',[]))}
+              totals['trades']+=s.get('total_trades',0); totals['wins']+=s.get('wins',0); totals['losses']+=s.get('losses',0); totals['pnl']+=s.get('total_pnl_usd',0)
+          totals['pnl']=round(totals['pnl'],2)
+          totals['wr']=round(100*totals['wins']/totals['trades'],2) if totals['trades'] else None
+          print('V7_RAILWAY_PARITY',json.dumps({'end_days_ago':11,'totals':totals,'pairs':out},separators=(',',':')))
+          PY
