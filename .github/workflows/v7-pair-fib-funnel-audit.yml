@@ -1,0 +1,19 @@
+name: V7 P Pair FIB Funnel Audit
+
+on:
+  push:
+    paths:
+      - 'research/v7_p_pair_fib_funnel_audit.py'
+      - '.github/workflows/v7-pair-fib-funnel-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install research dependencies
+        run: python -m pip install --disable-pip-version-check 'numpy>=1.26.0' 'fastapi>=0.110'
+      - name: Run pair FIB funnel audit
+        run: PYTHONPATH=. python research/v7_p_pair_fib_funnel_audit.py
