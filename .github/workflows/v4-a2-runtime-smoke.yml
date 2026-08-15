@@ -1,4 +1,4 @@
-name: Ratio Series Causal Workbook Audit
+name: V5 A1 Derivatives Data Feasibility Audit
 
 on:
   push:
@@ -9,20 +9,19 @@ on:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 15
     steps:
-      - name: Run faithful causal ratio-series test on 1D and 1H
+      - name: Probe Binance derivatives history and official archives
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
-          PAIRS='["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"]'
 
-          echo '=== WAIT FOR RATIO-SERIES ENDPOINT ==='
+          echo '=== WAIT FOR V5-A1 ENDPOINT ==='
           READY=0
           for i in $(seq 1 120); do
             CODE=$(curl -sS -o /tmp/probe.json -w '%{http_code}' \
-              "$BASE/research/ratio-series?symbols=BTCUSDT&timeframe=1h&days=60&sample_limit=0" || true)
+              "$BASE/v5/derivatives-feasibility?symbols=BTCUSDT&period=5m" || true)
             if [ "$CODE" = '200' ]; then
               PHASE=$(python - <<'PY'
           import json
@@ -30,57 +29,27 @@ jobs:
           except Exception: print('')
           PY
           )
-              if [ "$PHASE" = 'RATIO-SERIES-CAUSAL-1' ]; then READY=1; echo "ready probe=$i"; break; fi
+              if [ "$PHASE" = 'V5-A1' ]; then READY=1; echo "ready probe=$i"; break; fi
             fi
             echo "probe $i http=$CODE"
             sleep 5
           done
-          if [ "$READY" != '1' ]; then echo 'ratio-series endpoint not ready'; cat /tmp/probe.json || true; exit 1; fi
+          if [ "$READY" != '1' ]; then echo 'V5-A1 endpoint not ready'; cat /tmp/probe.json || true; exit 1; fi
 
-          echo '=== ENSURE EXACT 971D 1H + 1D DATA ==='
-          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-            -X POST -H 'Content-Type: application/json' \
-            -d "{\"days\":971,\"pairs\":${PAIRS},\"timeframes\":[\"1h\",\"1d\"]}" \
-            "$BASE/fetch-data"
-          echo
-
-          STATUS=''
-          for i in $(seq 1 600); do
-            curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
-            STATUS=$(python - <<'PY'
-          import json
-          print(json.load(open('/tmp/fetch-status.json')).get('fetch_state',{}).get('status',''))
-          PY
-          )
-            if [ $((i % 10)) -eq 0 ]; then
-              python - <<'PY'
-          import json
-          s=json.load(open('/tmp/fetch-status.json')).get('fetch_state',{})
-          print('FETCH',s.get('status'),s.get('progress'),'candles=',s.get('total_candles'))
-          PY
-            fi
-            if [ "$STATUS" = 'done' ]; then break; fi
-            if [ "$STATUS" = 'error' ]; then cat /tmp/fetch-status.json; exit 1; fi
-            sleep 5
-          done
-          if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; exit 1; fi
-
-          echo '=== RUN FAITHFUL 1D ==='
-          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-            "$BASE/research/ratio-series?symbols=BTCUSDT%2CETHUSDT%2CSOLUSDT%2CBNBUSDT&timeframe=1d&days=971&sample_limit=0" \
-            > /tmp/daily.json
-
-          echo '=== RUN BABA-BOT-RELEVANT 1H ==='
-          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-            "$BASE/research/ratio-series?symbols=BTCUSDT%2CETHUSDT%2CSOLUSDT%2CBNBUSDT&timeframe=1h&days=971&sample_limit=0" \
-            > /tmp/hourly.json
+          echo '=== RUN FOUR-PAIR V5-A1 ==='
+          curl -fsS --retry 4 --retry-delay 2 --retry-all-errors \
+            "$BASE/v5/derivatives-feasibility?symbols=BTCUSDT%2CETHUSDT%2CSOLUSDT%2CBNBUSDT&period=5m" \
+            > /tmp/v5.json
 
           python - <<'PY'
           import json
-          for label,path in [('DAILY','/tmp/daily.json'),('HOURLY','/tmp/hourly.json')]:
-              d=json.load(open(path))
-              print(label+'_DEFINITION',json.dumps(d.get('definition'),separators=(',',':')))
-              print(label+'_AGG',json.dumps(d.get('aggregate'),separators=(',',':')))
-              print(label+'_PAIR',json.dumps({k:v.get('lookbacks') for k,v in d.get('by_pair',{}).items()},separators=(',',':')))
-              print(label+'_ERRORS',json.dumps(d.get('errors'),separators=(',',':')))
+          d=json.load(open('/tmp/v5.json'))
+          print('PHASE',d.get('phase'),d.get('status'),d.get('as_of'))
+          print('CAUSALITY',json.dumps(d.get('causality_lock'),separators=(',',':')))
+          for sym,v in d.get('data',{}).items():
+              print('SYMBOL',sym)
+              print(' CURRENT_OI',json.dumps(v.get('current_open_interest'),separators=(',',':')))
+              for ds,windows in v.get('rest_history_probes',{}).items():
+                  print(' REST',ds,json.dumps({k:{'ok':x.get('ok'),'status':x.get('status'),'n':x.get('n'),'first_time':x.get('first_time'),'last_time':x.get('last_time')} for k,x in windows.items()},separators=(',',':')))
+              print(' ARCHIVE',json.dumps(v.get('official_public_archive_probes'),separators=(',',':')))
           PY
