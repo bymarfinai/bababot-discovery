@@ -3,28 +3,20 @@ name: V7 FIB 120D Block Audit
 on:
   push:
     paths:
+      - 'research/v7_f_fib_120d_archive_audit.py'
       - '.github/workflows/v7-fib-120d-block-audit.yml'
   workflow_dispatch:
 
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
-      - name: Diagnose and audit fixed FIB response
+      - uses: actions/checkout@v4
+      - name: Install research dependencies
+        run: python -m pip install --disable-pip-version-check 'numpy>=1.26.0' 'fastapi>=0.110'
+      - name: Reconstruct official archives and audit fixed FIB by 120d
         shell: bash
         run: |
           set -euo pipefail
-          BASE='https://web-production-b6a05.up.railway.app'
-          for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
-            curl -fsS --retry 8 --retry-delay 2 --retry-all-errors \
-              "$BASE/v4/context-fib-forensic?symbols=${SYM}&days=971&rr=1.0&confirm_bars=3&sample_limit=500" \
-              > "/tmp/${SYM}.json"
-          done
-          python - <<'PY'
-          import json
-          for p in ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']:
-              d=json.load(open(f'/tmp/{p}.json'))
-              s=d.get('sample') or []
-              print('SCHEMA',p,'phase=',d.get('phase'),'keys=',sorted(d.keys()),'overall=',d.get('overall'),'fib_bands=',d.get('fib_bands'),'errors=',d.get('errors'),'sample_n=',len(s),'sample0=',s[0] if s else None)
-          PY
+          PYTHONPATH=. python research/v7_f_fib_120d_archive_audit.py
