@@ -1,4 +1,4 @@
-name: V4 B1 Absorption Forensic
+name: V4 B2 Regime Fibonacci Forensic
 
 on:
   push:
@@ -11,18 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Wait deploy, refresh data, run frozen V4-B1 forensic
+      - name: Wait deploy, refresh data, run frozen V4-B2 forensic
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
           PAIRS='["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"]'
 
-          echo '=== WAIT FOR V4-B1 ENDPOINT ==='
+          echo '=== WAIT FOR V4-B2 ENDPOINT ==='
           READY=0
           for i in $(seq 1 120); do
             CODE=$(curl -sS -o /tmp/probe.json -w '%{http_code}' \
-              "$BASE/v4/absorption-forensic?symbols=BTCUSDT&days=30&rr=1.0&confirm_bars=3&sample_limit=0" || true)
+              "$BASE/v4/context-fib-forensic?symbols=BTCUSDT&days=30&rr=1.0&confirm_bars=3&sample_limit=0" || true)
             if [ "$CODE" = '200' ]; then
               PHASE=$(python - <<'PY'
           import json
@@ -30,12 +30,12 @@ jobs:
           except Exception: print('')
           PY
           )
-              if [ "$PHASE" = 'V4-B1' ]; then READY=1; echo "ready probe=$i"; break; fi
+              if [ "$PHASE" = 'V4-B2' ]; then READY=1; echo "ready probe=$i"; break; fi
             fi
             echo "probe $i http=$CODE"
             sleep 5
           done
-          if [ "$READY" != '1' ]; then echo 'V4-B1 endpoint not ready'; cat /tmp/probe.json || true; exit 1; fi
+          if [ "$READY" != '1' ]; then echo 'V4-B2 endpoint not ready'; cat /tmp/probe.json || true; exit 1; fi
 
           echo '=== REFRESH EXACT 120D 1H + 5M ==='
           curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
@@ -65,18 +65,20 @@ jobs:
           done
           if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; exit 1; fi
 
-          echo '=== V4-B1 FORENSIC ==='
+          echo '=== V4-B2 REGIME + FIB FORENSIC ==='
           curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-            "$BASE/v4/absorption-forensic?symbols=BTCUSDT%2CETHUSDT%2CSOLUSDT%2CBNBUSDT&days=120&rr=1.0&confirm_bars=3&sample_limit=0" \
+            "$BASE/v4/context-fib-forensic?symbols=BTCUSDT%2CETHUSDT%2CSOLUSDT%2CBNBUSDT&days=120&rr=1.0&confirm_bars=3&sample_limit=0" \
             > /tmp/forensic.json
 
           python - <<'PY'
           import json
           d=json.load(open('/tmp/forensic.json'))
           print('OVERALL',json.dumps(d.get('overall'),separators=(',',':')))
-          print('BY_PAIR',json.dumps(d.get('by_pair'),separators=(',',':')))
+          print('REGIME',json.dumps(d.get('regime_relation'),separators=(',',':')))
+          print('FIB_BANDS',json.dumps(d.get('fib_bands'),separators=(',',':')))
+          print('NEAREST_FIB',json.dumps(d.get('nearest_fib'),separators=(',',':')))
+          print('NEAR_FIB',json.dumps(d.get('near_fib_3pct'),separators=(',',':')))
           print('WIN_LOSS',json.dumps(d.get('winner_vs_loser'),separators=(',',':')))
-          print('QUARTILES',json.dumps(d.get('quartile_wr'),separators=(',',':')))
-          print('PAIR_DIRECTION',json.dumps(d.get('pair_direction_consistency'),separators=(',',':')))
+          print('BY_PAIR',json.dumps(d.get('by_pair'),separators=(',',':')))
           print('ERRORS',json.dumps(d.get('errors'),separators=(',',':')))
           PY
