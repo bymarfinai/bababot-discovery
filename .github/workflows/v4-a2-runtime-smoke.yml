@@ -11,34 +11,34 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Fetch BTC 5m 120d and run V4-A2
+      - name: Fetch remaining 5m data and run 4-pair V4-A2
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
 
-          echo '=== START BTC 5M FETCH ==='
+          echo '=== FETCH ETH SOL BNB 5M 120D ==='
           curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
             -X POST -H 'Content-Type: application/json' \
-            -d '{"days":120,"pairs":["BTCUSDT"],"timeframes":["5m"]}' \
+            -d '{"days":120,"pairs":["ETHUSDT","SOLUSDT","BNBUSDT"],"timeframes":["5m"]}' \
             "$BASE/fetch-data"
           echo
 
-          echo '=== POLL FETCH ==='
-          for i in $(seq 1 180); do
+          for i in $(seq 1 240); do
             curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
+            STATUS=$(python - <<'PY'
+          import json
+          d=json.load(open('/tmp/fetch-status.json'))
+          s=d.get('fetch_state',{})
+          print(s.get('status',''))
+          PY
+          )
             python - <<'PY'
           import json
           d=json.load(open('/tmp/fetch-status.json'))
           s=d.get('fetch_state',{})
           print('FETCH', s.get('status'), s.get('progress'), 'candles=', s.get('total_candles'))
           PY
-            STATUS=$(python - <<'PY'
-          import json
-          d=json.load(open('/tmp/fetch-status.json'))
-          print(d.get('fetch_state',{}).get('status',''))
-          PY
-          )
             if [ "$STATUS" = 'done' ]; then break; fi
             if [ "$STATUS" = 'error' ]; then cat /tmp/fetch-status.json; exit 1; fi
             sleep 5
@@ -52,22 +52,16 @@ jobs:
           )
           if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; cat /tmp/fetch-status.json; exit 1; fi
 
-          echo '=== DATA STATUS AFTER FETCH ==='
-          curl -fsS "$BASE/data/status" | tee /tmp/data-status.json
-          echo
-
-          echo '=== V4-A2 BTCUSDT 120D 5M RR1 ==='
-          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-            "$BASE/v4/first-retest?symbol=BTCUSDT&days=120&rr=1.0&execution_tf=5m&sample_limit=0" \
-            | tee /tmp/v4-a2-btc.json
-          echo
-
-          echo '=== COMPACT RESULT ==='
-          python - <<'PY'
-          import json
-          data=json.load(open('/tmp/data-status.json'))
-          a2=json.load(open('/tmp/v4-a2-btc.json'))
-          print('BTC_DATA', json.dumps(data.get('pairs',{}).get('BTCUSDT',{}), separators=(',',':')))
-          keep={k:a2.get(k) for k in ['phase','status','symbol','requested_days','execution_tf','error','data','overall','demand','supply','quality','verdict'] if k in a2}
-          print('A2_RESULT', json.dumps(keep, separators=(',',':')))
+          echo '=== FOUR PAIR V4-A2 RESULTS ==='
+          for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
+            OUT="/tmp/${SYM}.json"
+            curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
+              "$BASE/v4/first-retest?symbol=${SYM}&days=120&rr=1.0&execution_tf=5m&sample_limit=0" > "$OUT"
+            python - "$SYM" "$OUT" <<'PY'
+          import json,sys
+          sym,path=sys.argv[1:]
+          d=json.load(open(path))
+          keep={k:d.get(k) for k in ['phase','status','symbol','requested_days','execution_tf','error','data','zone_count','overall','demand','supply','diagnostics'] if k in d}
+          print('PAIR_RESULT', sym, json.dumps(keep,separators=(',',':')))
           PY
+          done
