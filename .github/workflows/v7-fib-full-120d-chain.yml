@@ -1,0 +1,19 @@
+name: V7 L FIB Full 120d Chain
+
+on:
+  push:
+    paths:
+      - 'research/v7_l_fib_frozen_candidate_full_120d_chain.py'
+      - '.github/workflows/v7-fib-full-120d-chain.yml'
+  workflow_dispatch:
+
+jobs:
+  chain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install research dependencies
+        run: python -m pip install --disable-pip-version-check 'numpy>=1.26.0' 'fastapi>=0.110'
+      - name: Reconstruct official archive and test frozen candidates across all blocks
+        run: PYTHONPATH=. python research/v7_l_fib_frozen_candidate_full_120d_chain.py
