@@ -1,22 +1,20 @@
-name: V5 D Derivatives Shock Capitulation
+name: V6 A Liquidation Feasibility
 
 on:
   push:
     paths:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
-      - 'research/v5_d_derivatives_shock.py'
-      - 'research/v5_c_derivatives_native.py'
-      - 'research/v5_a2_derivatives_forensic.py'
+      - 'research/v6_a_liquidation_feasibility.py'
   workflow_dispatch:
 
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Run frozen V5-D 2-sigma capitulation reversal screen
+      - name: Probe historical forced-liquidation data path
         shell: bash
         run: |
           set -euo pipefail
-          python research/v5_d_derivatives_shock.py
+          python research/v6_a_liquidation_feasibility.py
