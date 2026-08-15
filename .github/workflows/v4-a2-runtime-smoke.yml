@@ -1,4 +1,4 @@
-name: V4 B6 Market State Forensic
+name: V4 B7 Rolling Fibonacci Selection Bias Audit
 
 on:
   push:
@@ -7,35 +7,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  forensic:
+  audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 15
     steps:
-      - name: Diagnose causal market state behind recent 86pct window
+      - name: Audit rolling 120d Fibonacci winner selection and forward persistence
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
-          PAIRS='["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"]'
-
-          echo '=== WAIT FOR V4-B6 ENDPOINT ==='
-          READY=0
-          for i in $(seq 1 120); do
-            CODE=$(curl -sS -o /tmp/probe.json -w '%{http_code}' \
-              "$BASE/v4/market-state-forensic?days=240&recent_days=120&rr=1.0&confirm_bars=3&sample_limit=0" || true)
-            if [ "$CODE" = '200' ]; then
-              PHASE=$(python - <<'PY'
-          import json
-          try: print(json.load(open('/tmp/probe.json')).get('phase',''))
-          except Exception: print('')
-          PY
-          )
-              if [ "$PHASE" = 'V4-B6' ]; then READY=1; echo "ready probe=$i"; break; fi
-            fi
-            echo "probe $i http=$CODE"
-            sleep 5
-          done
-          if [ "$READY" != '1' ]; then echo 'V4-B6 endpoint not ready'; cat /tmp/probe.json || true; exit 1; fi
+          PAIRS='BTCUSDT ETHUSDT SOLUSDT BNBUSDT'
 
           echo '=== CHECK 971D DATA RESIDENCY ==='
           curl -fsS "$BASE/data/status" > /tmp/data-status.json
@@ -48,58 +29,150 @@ jobs:
           for p in need:
               for tf in ['1h','5m']:
                   days=float(((pairs.get(p) or {}).get(tf) or {}).get('days',0) or 0)
-                  if days < 969:
-                      ok=False
+                  if days < 969: ok=False
           print('1' if ok else '0')
           PY
           )
-
           if [ "$HAVE" != '1' ]; then
-            echo '=== REFRESH EXACT 971D 1H + 5M ==='
-            curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-              -X POST -H 'Content-Type: application/json' \
-              -d "{\"days\":971,\"pairs\":${PAIRS},\"timeframes\":[\"1h\",\"5m\"]}" \
-              "$BASE/fetch-data"
-            echo
-
-            STATUS=''
-            for i in $(seq 1 600); do
-              curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
-              STATUS=$(python - <<'PY'
-          import json
-          print(json.load(open('/tmp/fetch-status.json')).get('fetch_state',{}).get('status',''))
-          PY
-          )
-              if [ $((i % 10)) -eq 0 ]; then
-                python - <<'PY'
-          import json
-          s=json.load(open('/tmp/fetch-status.json')).get('fetch_state',{})
-          print('FETCH',s.get('status'),s.get('progress'),'candles=',s.get('total_candles'))
-          PY
-              fi
-              if [ "$STATUS" = 'done' ]; then break; fi
-              if [ "$STATUS" = 'error' ]; then cat /tmp/fetch-status.json; exit 1; fi
-              sleep 5
-            done
-            if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; exit 1; fi
-          else
-            echo '971d 1h+5m data already resident; skipping refresh.'
+            echo '971d dataset is not resident; abort rather than silently test a shorter history.'
+            exit 2
           fi
 
-          echo '=== RUN V4-B6 MARKET-STATE FORENSIC ==='
-          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-            "$BASE/v4/market-state-forensic?days=971&recent_days=120&rr=1.0&confirm_bars=3&sample_limit=0" \
-            > /tmp/b6.json
+          echo '=== LOAD ALL FROZEN V4-B EVENTS PER PAIR ==='
+          for SYM in $PAIRS; do
+            curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
+              "$BASE/v4/context-fib-forensic?symbols=${SYM}&days=971&rr=1.0&confirm_bars=3&sample_limit=500" \
+              > "/tmp/${SYM}.json"
+          done
 
           python - <<'PY'
           import json
-          d=json.load(open('/tmp/b6.json'))
-          print('OVERALL',json.dumps(d.get('overall'),separators=(',',':')))
-          print('RECENT',json.dumps(d.get('recent'),separators=(',',':')))
-          print('HISTORICAL',json.dumps(d.get('historical'),separators=(',',':')))
-          print('FEATURES',json.dumps(d.get('recent_vs_historical_features'),separators=(',',':')))
-          print('IQR_MATCH',json.dumps(d.get('historical_wr_when_matching_recent_iqr_one_feature'),separators=(',',':')))
-          print('STATE_BUCKETS',json.dumps(d.get('predeclared_state_buckets'),separators=(',',':')))
-          print('MULTIVARIATE',json.dumps(d.get('historical_multivariate_recent_similarity'),separators=(',',':')))
-          print('ERRORS',json.dumps(d.get('errors'),separators=(',',':')))
+          from collections import Counter
+          from datetime import datetime, timedelta
+
+          PAIRS=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
+          BANDS=['<38.2','38.2-50','50-61.8','61.8-70.5','70.5-78.6','>=78.6']
+          WINDOW_DAYS=120
+          STEP_DAYS=30
+          PRIMARY_MIN_N=10
+          RECENT_BAND='61.8-70.5'
+
+          rows=[]
+          for p in PAIRS:
+              d=json.load(open(f'/tmp/{p}.json'))
+              overall=d.get('overall',{})
+              sample=d.get('sample',[])
+              if int(overall.get('n',0) or 0) > len(sample):
+                  raise SystemExit(f'SAMPLE_TRUNCATED {p}: overall={overall.get("n")} sample={len(sample)}')
+              for x in sample:
+                  if x.get('outcome') not in ('BOUNCE','BREAK') or x.get('fib_band') not in BANDS:
+                      continue
+                  z=dict(x)
+                  z['pair']=p
+                  z['win']=1 if x['outcome']=='BOUNCE' else 0
+                  z['_t']=datetime.fromisoformat(x['confirm_time'])
+                  rows.append(z)
+          rows.sort(key=lambda r:r['_t'])
+          if not rows: raise SystemExit('NO_ROWS')
+
+          def stat(xs):
+              n=len(xs); w=sum(r['win'] for r in xs)
+              return {'n':n,'wins':w,'losses':n-w,'wr_pct':round(100*w/n,2) if n else None}
+
+          def band_stats(xs):
+              return {b:stat([r for r in xs if r['fib_band']==b]) for b in BANDS}
+
+          def choose_best(bs,min_n):
+              eligible=[(v['wr_pct'],v['n'],b) for b,v in bs.items() if v['n']>=min_n and v['wr_pct'] is not None]
+              if not eligible:return None
+              # deterministic: WR first, then sample size, then fixed band order preference.
+              eligible.sort(key=lambda x:(x[0],x[1],-BANDS.index(x[2])), reverse=True)
+              wr,n,b=eligible[0]
+              return {'band':b,'n':n,'wr_pct':wr}
+
+          # Rolling windows anchored to observed signal time span, every 30 days.
+          first=rows[0]['_t']; last=rows[-1]['_t']
+          windows=[]
+          start=first
+          while start+timedelta(days=WINDOW_DAYS) <= last+timedelta(seconds=1):
+              end=start+timedelta(days=WINDOW_DAYS)
+              xs=[r for r in rows if start <= r['_t'] < end]
+              bs=band_stats(xs)
+              windows.append({
+                  'start':start.isoformat(),'end':end.isoformat(),'all':stat(xs),
+                  'best_n10':choose_best(bs,10),'best_n8':choose_best(bs,8),'best_n5':choose_best(bs,5),
+                  'fixed_618_705':bs[RECENT_BAND],
+              })
+              start += timedelta(days=STEP_DAYS)
+
+          def best_summary(key):
+              picks=[w[key] for w in windows if w.get(key)]
+              return {
+                  'windows_with_candidate':len(picks),
+                  'best_band_frequency':dict(Counter(p['band'] for p in picks)),
+                  'windows_best_ge70':sum(p['wr_pct']>=70 for p in picks),
+                  'windows_best_ge75':sum(p['wr_pct']>=75 for p in picks),
+                  'windows_best_ge80':sum(p['wr_pct']>=80 for p in picks),
+                  'windows_best_ge85':sum(p['wr_pct']>=85 for p in picks),
+                  'max_observed_best_wr':max((p['wr_pct'] for p in picks),default=None),
+              }
+
+          fixed_windows=[w['fixed_618_705'] for w in windows if w['fixed_618_705']['n']>=PRIMARY_MIN_N]
+          fixed_summary={
+              'windows_n_ge10':len(fixed_windows),
+              'windows_wr_ge70':sum(x['wr_pct']>=70 for x in fixed_windows),
+              'windows_wr_ge75':sum(x['wr_pct']>=75 for x in fixed_windows),
+              'windows_wr_ge80':sum(x['wr_pct']>=80 for x in fixed_windows),
+              'max_wr':max((x['wr_pct'] for x in fixed_windows),default=None),
+              'min_wr':min((x['wr_pct'] for x in fixed_windows),default=None),
+          }
+
+          # Pseudo-forward test: non-overlapping 120d train then next 120d test.
+          # Select the best band on TRAIN (n>=10), freeze it, evaluate same band on TEST.
+          forwards=[]
+          train_start=first
+          while train_start+timedelta(days=240) <= last+timedelta(seconds=1):
+              train_end=train_start+timedelta(days=120)
+              test_end=train_end+timedelta(days=120)
+              train=[r for r in rows if train_start <= r['_t'] < train_end]
+              test=[r for r in rows if train_end <= r['_t'] < test_end]
+              pick=choose_best(band_stats(train),PRIMARY_MIN_N)
+              if pick:
+                  test_sel=[r for r in test if r['fib_band']==pick['band']]
+                  forwards.append({
+                      'train_start':train_start.isoformat(),'band':pick['band'],
+                      'train':pick,'test':stat(test_sel),
+                  })
+              train_start += timedelta(days=120)
+
+          train_agg_n=sum(f['train']['n'] for f in forwards)
+          train_agg_w=sum(round(f['train']['wr_pct']*f['train']['n']/100) for f in forwards)
+          test_agg_n=sum(f['test']['n'] for f in forwards)
+          test_agg_w=sum(f['test']['wins'] for f in forwards)
+
+          result={
+              'phase':'V4-B7',
+              'question':'Does a spectacular Fibonacci band routinely appear by selection inside 120d windows, and does it persist forward?',
+              'definition':{
+                  'history_days':971,'window_days':120,'rolling_step_days':30,
+                  'bands':BANDS,'primary_min_band_n':PRIMARY_MIN_N,
+                  'signal':'same frozen V4-B reaction/absorption, RR1, no new strategy filter',
+              },
+              'all_events':stat(rows),
+              'rolling_window_count':len(windows),
+              'selection_summary_n10':best_summary('best_n10'),
+              'selection_sensitivity_n8':best_summary('best_n8'),
+              'selection_sensitivity_n5':best_summary('best_n5'),
+              'fixed_618_705_rolling':fixed_summary,
+              'pseudo_forward':{
+                  'folds':len(forwards),
+                  'selected_band_frequency':dict(Counter(f['band'] for f in forwards)),
+                  'train_selected_aggregate':{'n':train_agg_n,'wins_approx':train_agg_w,'wr_pct':round(100*train_agg_w/train_agg_n,2) if train_agg_n else None},
+                  'next_120d_same_band_aggregate':{'n':test_agg_n,'wins':test_agg_w,'losses':test_agg_n-test_agg_w,'wr_pct':round(100*test_agg_w/test_agg_n,2) if test_agg_n else None},
+                  'folds_test_wr_ge70':sum((f['test']['wr_pct'] or 0)>=70 and f['test']['n']>=5 for f in forwards),
+                  'details':forwards,
+              },
+              'recent_rolling_windows':windows[-8:],
+          }
+          print('B7_RESULT',json.dumps(result,separators=(',',':')))
           PY
