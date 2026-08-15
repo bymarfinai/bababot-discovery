@@ -70,6 +70,7 @@ _try_mount("v4_market_state_forensic_endpoint", "V4-B6 Market-State Forensic")
 _try_mount("ratio_series_causal_endpoint", "Ratio-Series Causal Workbook Audit")
 _try_mount("v5_derivatives_feasibility_endpoint", "V5-A1 Derivatives Feasibility")
 _try_mount("v7_legacy_trigger_forensic_endpoint", "V7 Legacy Trigger Forensic")
+_try_mount("v7_causal_trigger_forensic_endpoint", "V7 Causal Trigger Forensic")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 _try_mount("bbc_live_endpoint", "BBC Live")
 
