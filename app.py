@@ -62,6 +62,7 @@ _try_mount("v4_structural_zone_endpoint", "V4-A1 Structural Zones")
 _try_mount("v4_first_retest_endpoint", "V4-A2 First Retest Quality")
 _try_mount("v4_liquidity_zone_endpoint", "V4-A1.1 Liquidity-Created Zones")
 _try_mount("v4_liquidity_retest_endpoint", "V4-A1.1 Liquidity First Retest")
+_try_mount("v4_liquidity_origin_retest_endpoint", "V4-A1.3 Liquidity-Validated Origin Retest")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 _try_mount("bbc_live_endpoint", "BBC Live")
 
