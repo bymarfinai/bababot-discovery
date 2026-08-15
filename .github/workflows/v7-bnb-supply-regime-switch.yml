@@ -1,0 +1,19 @@
+name: V7 M BNB Supply Regime Switch
+
+on:
+  push:
+    paths:
+      - 'research/v7_m_bnb_supply_regime_switch.py'
+      - '.github/workflows/v7-bnb-supply-regime-switch.yml'
+  workflow_dispatch:
+
+jobs:
+  forensic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install research dependencies
+        run: python -m pip install --disable-pip-version-check 'numpy>=1.26.0' 'fastapi>=0.110'
+      - name: Run frozen BNB supply regime-switch forensic
+        run: PYTHONPATH=. python research/v7_m_bnb_supply_regime_switch.py
