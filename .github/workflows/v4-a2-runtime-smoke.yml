@@ -1,21 +1,21 @@
-name: V5 A2 Derivatives Winner Loser Forensic
+name: V5 A2.1 Natural Sign 2x2 Mechanism
 
 on:
   push:
     paths:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
+      - 'research/v5_a21_natural_2x2_mechanism.py'
       - 'research/v5_a2_derivatives_forensic.py'
-      - 'research/v5_a2_funding_archive_runner.py'
   workflow_dispatch:
 
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Run frozen V5-A2 with official funding archive
+      - name: Run frozen V5-A2.1 natural-sign 2x2 mechanism test
         shell: bash
         run: |
           set -euo pipefail
-          python research/v5_a2_funding_archive_runner.py
+          python research/v5_a21_natural_2x2_mechanism.py
