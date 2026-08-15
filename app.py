@@ -67,6 +67,7 @@ _try_mount("v4_reaction_absorption_endpoint", "V4-B Reaction Absorption Confirma
 _try_mount("v4_absorption_forensic_endpoint", "V4-B1 Absorption Forensic")
 _try_mount("v4_context_fib_forensic_endpoint", "V4-B2 Regime + Fibonacci Forensic")
 _try_mount("v4_market_state_forensic_endpoint", "V4-B6 Market-State Forensic")
+_try_mount("ratio_series_causal_endpoint", "Ratio-Series Causal Workbook Audit")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 _try_mount("bbc_live_endpoint", "BBC Live")
 
