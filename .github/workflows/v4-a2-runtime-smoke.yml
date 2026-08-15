@@ -1,10 +1,10 @@
-name: V5 B Price x OI Dynamics
+name: V5 C Derivatives Native Setup
 
 on:
   push:
     paths:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
-      - 'research/v5_b_price_oi_dynamics.py'
+      - 'research/v5_c_derivatives_native.py'
       - 'research/v5_a2_derivatives_forensic.py'
   workflow_dispatch:
 
@@ -14,8 +14,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run frozen V5-B price x OI dynamics test
+      - name: Run frozen V5-C derivatives-native 120d screen
         shell: bash
         run: |
           set -euo pipefail
-          python research/v5_b_price_oi_dynamics.py
+          python research/v5_c_derivatives_native.py
