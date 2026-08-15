@@ -1,22 +1,26 @@
-"""V4-A2 First Retest Quality Test.
+"""V4-A2 First Retest Quality Test — 5m execution baseline.
 
 Purpose
 -------
 Measure whether V4-A1 structural demand/supply zones behave like real support/
 resistance on their FIRST future retest.
 
+Architecture:
+    1H causal structure -> V4-A1 zone -> first 5m/15m retest -> +/-R outcome
+
 This is still a research-quality test, NOT a trading strategy:
   - zones are generated causally using the frozen V4-A1 definition;
+  - 1H creates structure; child timeframe only observes the future retest;
+  - 5m is the default child timeframe; 15m is available as a robustness check;
   - no V2 regime gate;
   - no absorption/order-flow filter;
   - no fee/PnL optimization;
   - first retest only;
-  - geometric 1R test uses the zone width as risk;
-  - 1m child candles resolve intrahour barrier ordering;
-  - if ordering is unknowable inside the entry minute, result is AMBIGUOUS and
-    excluded from WR rather than guessed.
+  - geometric R uses full zone width as risk;
+  - if entry and TP/SL ordering is unknowable inside one child candle, the
+    observation is AMBIGUOUS and excluded from WR rather than guessed.
 
-GET /v4/first-retest?symbol=BTCUSDT&days=120&rr=1.0
+GET /v4/first-retest?symbol=BTCUSDT&days=120&rr=1.0&execution_tf=5m
 """
 
 import bisect
@@ -40,9 +44,10 @@ router = APIRouter(prefix="/v4/first-retest", tags=["v4_first_retest"])
 
 HOUR_MS = 3_600_000
 MINUTE_MS = 60_000
+TF_MS = {"5m": 5 * MINUTE_MS, "15m": 15 * MINUTE_MS}
 
 
-def _load_1m(symbol: str, start_ms: int, end_ms: int):
+def _load_child(symbol: str, timeframe: str, start_ms: int, end_ms: int):
     conn = sqlite3.connect(DB_PATH)
     try:
         cur = conn.cursor()
@@ -50,10 +55,10 @@ def _load_1m(symbol: str, start_ms: int, end_ms: int):
             """
             SELECT open_time, open, high, low, close
             FROM klines
-            WHERE symbol=? AND timeframe='1m' AND open_time>=? AND open_time<?
+            WHERE symbol=? AND timeframe=? AND open_time>=? AND open_time<?
             ORDER BY open_time ASC
             """,
-            (symbol, start_ms, end_ms),
+            (symbol, timeframe, start_ms, end_ms),
         )
         return cur.fetchall()
     finally:
@@ -112,19 +117,6 @@ def _build_a1_zones(rows, swing_lb, swing_atr, base_bars, base_search,
     return T, O, H, L, C, ATR, zones
 
 
-def _first_retest_index(zone, H, L, T, max_retest_hours):
-    """First future 1H candle whose range overlaps the zone interval."""
-    start = int(zone["bos_bar"]) + 1
-    max_ms = int(max_retest_hours * HOUR_MS)
-    bos_ms = T[int(zone["bos_bar"])]
-    for j in range(start, len(T)):
-        if T[j] - bos_ms > max_ms:
-            return None
-        if float(L[j]) <= float(zone["zone_high"]) and float(H[j]) >= float(zone["zone_low"]):
-            return j
-    return None
-
-
 def _levels(zone, rr):
     zlo = float(zone["zone_low"])
     zhi = float(zone["zone_high"])
@@ -133,7 +125,7 @@ def _levels(zone, rr):
         return None
     if zone["side"] == "DEMAND":
         entry = zhi                 # proximal edge approached from above
-        stop = zlo                  # distal edge = structural break
+        stop = zlo                  # distal edge = structural invalidation
         target = entry + rr * width
     else:
         entry = zlo                 # proximal edge approached from below
@@ -142,53 +134,95 @@ def _levels(zone, rr):
     return entry, stop, target, width
 
 
-def _resolve_with_1m(zone, retest_i, T1h, m_rows, m_times, rr, outcome_hours):
-    """Resolve entry -> +/-R ordering using 1m children.
+def _coverage(child_rows, start_ms, end_ms, execution_tf):
+    step = TF_MS[execution_tf]
+    expected = max(1, int((end_ms - start_ms) / step))
+    actual = len(child_rows)
+    return {
+        "expected_rows": expected,
+        "actual_rows": actual,
+        "coverage_pct": round(100.0 * actual / expected, 2),
+    }
 
-    We never award a target or stop inside the SAME 1m bar that first touches
-    the entry boundary because OHLC does not reveal whether that excursion was
-    before or after entry. Such cases are AMBIGUOUS_ENTRY_MINUTE.
+
+def _resolve_first_retest(zone, T1h, child_rows, child_times, execution_tf,
+                          rr, max_retest_hours, outcome_hours):
+    """Find first child-TF retest after BOS close, then resolve +/-R.
+
+    The structural BOS is known only after its 1H candle closes. Therefore the
+    child scan starts at bos_open_time + 1 hour. This prevents using any child
+    candle from inside the still-forming BOS hour.
     """
     lv = _levels(zone, rr)
     if lv is None:
         return {"outcome": "INVALID_ZONE"}
     entry, stop, target, width = lv
 
-    retest_ms = int(T1h[retest_i])
-    entry_window_end = retest_ms + HOUR_MS
-    horizon_end = retest_ms + int(outcome_hours * HOUR_MS)
+    bos_bar = int(zone["bos_bar"])
+    bos_close_ms = int(T1h[bos_bar]) + HOUR_MS
+    max_retest_ms = bos_close_ms + int(max_retest_hours * HOUR_MS)
+    step_ms = TF_MS[execution_tf]
 
-    k0 = bisect.bisect_left(m_times, retest_ms)
+    k0 = bisect.bisect_left(child_times, bos_close_ms)
     k_entry = None
-    k = k0
-    while k < len(m_rows) and m_times[k] < entry_window_end:
-        _, o, h, l, c = m_rows[k]
+    for k in range(k0, len(child_rows)):
+        t, _, h, l, _ = child_rows[k]
+        if t > max_retest_ms:
+            break
         if float(l) <= entry <= float(h):
             k_entry = k
             break
-        k += 1
 
     if k_entry is None:
-        return {"outcome": "NO_1M_ENTRY", "entry": entry, "stop": stop, "target": target}
-
-    # Entry minute itself has unknowable within-minute ordering.
-    _, _, eh, el, _ = m_rows[k_entry]
-    if zone["side"] == "DEMAND":
-        entry_minute_barrier = float(el) <= stop or float(eh) >= target
-    else:
-        entry_minute_barrier = float(eh) >= stop or float(el) <= target
-    if entry_minute_barrier:
         return {
-            "outcome": "AMBIGUOUS_ENTRY_MINUTE",
-            "entry_time": _ts(m_times[k_entry]),
-            "entry": entry, "stop": stop, "target": target, "risk": width,
+            "outcome": "NO_RETEST",
+            "entry": entry,
+            "stop": stop,
+            "target": target,
+            "risk": width,
         }
 
-    for k in range(k_entry + 1, len(m_rows)):
-        t, _, h, l, _ = m_rows[k]
+    entry_t, _, entry_h, entry_l, _ = child_rows[k_entry]
+    age_h = round((entry_t - bos_close_ms) / HOUR_MS, 4)
+
+    # We know the candle touched entry, but not the within-candle path. If that
+    # same candle also reaches stop/target, do not invent an ordering.
+    if zone["side"] == "DEMAND":
+        hit_stop_same = float(entry_l) <= stop
+        hit_target_same = float(entry_h) >= target
+        penetration = (entry - float(entry_l)) / width
+    else:
+        hit_stop_same = float(entry_h) >= stop
+        hit_target_same = float(entry_l) <= target
+        penetration = (float(entry_h) - entry) / width
+
+    base = {
+        "retest_time": _ts(entry_t),
+        "retest_age_hours": age_h,
+        "entry": entry,
+        "stop": stop,
+        "target": target,
+        "risk": width,
+        "first_touch_penetration_zone_width": round(float(penetration), 4),
+        "execution_tf": execution_tf,
+    }
+
+    if hit_stop_same or hit_target_same:
+        base.update({
+            "outcome": "AMBIGUOUS_ENTRY_BAR",
+            "same_bar_hit_stop": bool(hit_stop_same),
+            "same_bar_hit_target": bool(hit_target_same),
+        })
+        return base
+
+    horizon_end = entry_t + int(outcome_hours * HOUR_MS)
+    for k in range(k_entry + 1, len(child_rows)):
+        t, _, h, l, _ = child_rows[k]
         if t >= horizon_end:
             break
-        h = float(h); l = float(l)
+        h = float(h)
+        l = float(l)
+
         if zone["side"] == "DEMAND":
             hit_target = h >= target
             hit_stop = l <= stop
@@ -197,36 +231,29 @@ def _resolve_with_1m(zone, retest_i, T1h, m_rows, m_times, rr, outcome_hours):
             hit_stop = h >= stop
 
         if hit_target and hit_stop:
-            return {
-                "outcome": "AMBIGUOUS_1M",
-                "entry_time": _ts(m_times[k_entry]),
+            base.update({
+                "outcome": "AMBIGUOUS_CHILD_BAR",
                 "resolution_time": _ts(t),
-                "entry": entry, "stop": stop, "target": target, "risk": width,
-            }
+            })
+            return base
         if hit_target:
-            return {
+            base.update({
                 "outcome": "BOUNCE",
-                "entry_time": _ts(m_times[k_entry]),
                 "resolution_time": _ts(t),
-                "minutes_to_resolution": int((t - m_times[k_entry]) / MINUTE_MS),
-                "entry": entry, "stop": stop, "target": target, "risk": width,
-            }
+                "minutes_to_resolution": int((t - entry_t) / MINUTE_MS),
+            })
+            return base
         if hit_stop:
-            return {
+            base.update({
                 "outcome": "BREAK",
-                "entry_time": _ts(m_times[k_entry]),
                 "resolution_time": _ts(t),
-                "minutes_to_resolution": int((t - m_times[k_entry]) / MINUTE_MS),
-                "entry": entry, "stop": stop, "target": target, "risk": width,
-            }
+                "minutes_to_resolution": int((t - entry_t) / MINUTE_MS),
+            })
+            return base
 
-    data_end = m_times[-1] + MINUTE_MS if m_times else 0
-    outcome = "CENSORED" if data_end < horizon_end else "UNRESOLVED"
-    return {
-        "outcome": outcome,
-        "entry_time": _ts(m_times[k_entry]),
-        "entry": entry, "stop": stop, "target": target, "risk": width,
-    }
+    data_end = child_times[-1] + step_ms if child_times else 0
+    base["outcome"] = "CENSORED" if data_end < horizon_end else "UNRESOLVED"
+    return base
 
 
 def _stats(items, side=None):
@@ -250,11 +277,17 @@ def _stats(items, side=None):
     }
 
 
+def _median(vals):
+    vals = [v for v in vals if v is not None]
+    return round(float(np.median(vals)), 2) if vals else None
+
+
 @router.get("")
 def first_retest_quality(
     symbol: str = Query("BTCUSDT"),
     days: int = Query(120, ge=30, le=1500),
     rr: float = Query(1.0, ge=1.0, le=3.0),
+    execution_tf: str = Query("5m"),
     swing_lb: int = Query(10, ge=3, le=30),
     swing_atr: float = Query(0.5, ge=0.0, le=3.0),
     base_bars: int = Query(3, ge=2, le=5),
@@ -263,9 +296,13 @@ def first_retest_quality(
     bos_buffer_atr: float = Query(0.0, ge=0.0, le=2.0),
     max_retest_hours: int = Query(720, ge=1, le=2160),
     outcome_hours: int = Query(72, ge=1, le=720),
+    min_child_coverage_pct: float = Query(95.0, ge=50.0, le=100.0),
     sample_limit: int = Query(30, ge=0, le=100),
 ):
     symbol = symbol.upper().strip()
+    execution_tf = execution_tf.lower().strip()
+    if execution_tf not in TF_MS:
+        return {"error": "execution_tf must be 5m or 15m"}
 
     rows = _load(symbol, "1h", days)
     if len(rows) < max(100, swing_lb * 4 + base_search + 10):
@@ -277,49 +314,48 @@ def first_retest_quality(
     )
     if not zones:
         return {
-            "phase": "V4-A2", "symbol": symbol, "requested_days": days,
+            "phase": "V4-A2",
+            "symbol": symbol,
+            "requested_days": days,
             "error": "No V4-A1 zones generated with these frozen parameters",
         }
 
-    m_rows = _load_1m(symbol, T[0], T[-1] + HOUR_MS)
-    if not m_rows:
+    child_start = T[0]
+    child_end = T[-1] + HOUR_MS
+    child_rows = _load_child(symbol, execution_tf, child_start, child_end)
+    if not child_rows:
         return {
-            "phase": "V4-A2", "symbol": symbol,
-            "error": "No 1m child data available; refusing biased 1H intrabar assumptions",
+            "phase": "V4-A2",
+            "symbol": symbol,
+            "execution_tf": execution_tf,
+            "error": f"No {execution_tf} child data available. Fetch it before evaluating A2.",
+            "fetch_hint": {
+                "endpoint": "/fetch-data",
+                "days": days,
+                "pairs": [symbol],
+                "timeframes": [execution_tf],
+            },
         }
-    m_times = [int(r[0]) for r in m_rows]
 
+    coverage = _coverage(child_rows, child_start, child_end, execution_tf)
+    if coverage["coverage_pct"] < min_child_coverage_pct:
+        return {
+            "phase": "V4-A2",
+            "symbol": symbol,
+            "execution_tf": execution_tf,
+            "error": "Child timeframe coverage below required threshold; refusing a biased WR estimate",
+            "coverage": coverage,
+            "minimum_required_pct": min_child_coverage_pct,
+        }
+
+    child_times = [int(r[0]) for r in child_rows]
     results = []
-    no_retest = 0
     for z in zones:
-        r_i = _first_retest_index(z, H, L, T, max_retest_hours)
-        if r_i is None:
-            no_retest += 1
-            item = dict(z)
-            item.update({
-                "outcome": "NO_RETEST",
-                "retest_bar": None,
-                "retest_time": None,
-                "retest_age_hours": None,
-            })
-            results.append(item)
-            continue
-
-        age_h = round((T[r_i] - T[int(z["bos_bar"])]) / HOUR_MS, 2)
-        width = float(z["zone_high"]) - float(z["zone_low"])
-        if z["side"] == "DEMAND":
-            penetration = (float(z["zone_high"]) - float(L[r_i])) / width if width > 0 else None
-        else:
-            penetration = (float(H[r_i]) - float(z["zone_low"])) / width if width > 0 else None
-
-        resolution = _resolve_with_1m(z, r_i, T, m_rows, m_times, rr, outcome_hours)
+        resolution = _resolve_first_retest(
+            z, T, child_rows, child_times, execution_tf, rr,
+            max_retest_hours, outcome_hours,
+        )
         item = dict(z)
-        item.update({
-            "retest_bar": r_i,
-            "retest_time": _ts(T[r_i]),
-            "retest_age_hours": age_h,
-            "first_touch_penetration_zone_width": round(float(penetration), 4) if penetration is not None else None,
-        })
         item.update(resolution)
         results.append(item)
 
@@ -328,11 +364,8 @@ def first_retest_quality(
     supply = _stats(results, "SUPPLY")
 
     resolved_rows = [x for x in results if x["outcome"] in {"BOUNCE", "BREAK"}]
-    ages = [x["retest_age_hours"] for x in resolved_rows if x.get("retest_age_hours") is not None]
-    mins = [x.get("minutes_to_resolution") for x in resolved_rows if x.get("minutes_to_resolution") is not None]
-
-    def med(vals):
-        return round(float(np.median(vals)), 2) if vals else None
+    ages = [x.get("retest_age_hours") for x in resolved_rows]
+    mins = [x.get("minutes_to_resolution") for x in resolved_rows]
 
     sample = results[-sample_limit:] if sample_limit else []
     return {
@@ -342,7 +375,9 @@ def first_retest_quality(
         "requested_days": days,
         "data": {
             "one_hour_rows": len(rows),
-            "one_minute_rows": len(m_rows),
+            "child_timeframe": execution_tf,
+            "child_rows": len(child_rows),
+            "coverage": coverage,
             "start": _ts(T[0]),
             "end": _ts(T[-1]),
         },
@@ -355,41 +390,32 @@ def first_retest_quality(
             "bos_buffer_atr": bos_buffer_atr,
         },
         "a2_definition": {
-            "first_retest": "first future 1H candle overlapping the structural zone",
+            "structure_timeframe": "1h",
+            "execution_timeframe": execution_tf,
+            "first_retest": f"first {execution_tf} candle after 1H BOS close that touches the proximal zone edge",
             "entry_reference": "proximal zone edge",
             "risk": "full zone width to distal edge",
             "target": f"{rr:.2f}R from proximal edge",
             "rr": rr,
             "max_retest_hours": max_retest_hours,
             "outcome_horizon_hours": outcome_hours,
-            "same_entry_minute_barrier": "AMBIGUOUS; excluded rather than guessed",
-            "same_later_1m_bar_both_barriers": "AMBIGUOUS; excluded rather than guessed",
-        },
-        "causality": {
-            "zone_generation": "causal through BOS close",
-            "outcome_data": "future data used only for evaluation label",
-            "intrabar_order": "1m child candles",
+            "same_entry_bar_barrier": "AMBIGUOUS; excluded rather than guessed",
+            "same_child_bar_tp_and_sl": "AMBIGUOUS; excluded rather than guessed",
             "regime_gate": False,
             "absorption_filter": False,
-            "fees_or_pnl": False,
-            "live_trading_changes": False,
+            "fees_pnl": False,
         },
-        "zone_counts": {
-            "generated": len(zones),
-            "no_retest_within_limit": no_retest,
+        "zone_count": len(zones),
+        "overall": overall,
+        "demand": demand,
+        "supply": supply,
+        "diagnostics": {
+            "median_retest_age_hours_resolved": _median(ages),
+            "median_minutes_to_resolution": _median(mins),
+            "ambiguous_entry_bars": sum(1 for x in results if x["outcome"] == "AMBIGUOUS_ENTRY_BAR"),
+            "ambiguous_child_bars": sum(1 for x in results if x["outcome"] == "AMBIGUOUS_CHILD_BAR"),
+            "no_retest": sum(1 for x in results if x["outcome"] == "NO_RETEST"),
         },
-        "result": {
-            "overall": overall,
-            "demand": demand,
-            "supply": supply,
-            "median_retest_age_hours_resolved": med(ages),
-            "median_minutes_to_resolution": med(mins),
-        },
-        "interpretation_rule": {
-            "promising": "raw first-retest WR around 60-65%+ at 1R with healthy sample and both sides/pairs contributing",
-            "target_70pct": "reserved for later V4-B after 1m absorption confirmation; not required from raw zones",
-            "do_not_optimize_here": "do not tune many A1 parameters against this same 120d result",
-        },
-        "sample": sample,
-        "next_phase": "V4-A3 feature/bucket analysis if A2 shows separation; otherwise revise zone mechanism before adding absorption",
+        "results_sample": sample,
+        "next_phase": "V4-A3 feature separation only if A2 shows a meaningful raw structural-zone edge",
     }
