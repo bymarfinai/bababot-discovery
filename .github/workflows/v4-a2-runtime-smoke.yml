@@ -1,4 +1,4 @@
-name: V4 B3 Frozen Fibonacci Robustness
+name: V4 B4 Frozen Fibonacci 971d Validation
 
 on:
   push:
@@ -7,80 +7,114 @@ on:
   workflow_dispatch:
 
 jobs:
-  robustness:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
-      - name: Test frozen 61.8-70.5 retracement band by pair side and time
+      - name: Fetch exact 971d data and validate frozen 61.8-70.5 band
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
+          PAIRS='["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"]'
 
+          echo '=== REFRESH EXACT 971D 1H + 5M ==='
           curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-            "$BASE/v4/context-fib-forensic?symbols=BTCUSDT%2CETHUSDT%2CSOLUSDT%2CBNBUSDT&days=120&rr=1.0&confirm_bars=3&sample_limit=500" \
-            > /tmp/b2.json
+            -X POST -H 'Content-Type: application/json' \
+            -d "{\"days\":971,\"pairs\":${PAIRS},\"timeframes\":[\"1h\",\"5m\"]}" \
+            "$BASE/fetch-data"
+          echo
+
+          STATUS=''
+          for i in $(seq 1 600); do
+            curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
+            STATUS=$(python - <<'PY'
+          import json
+          s=json.load(open('/tmp/fetch-status.json')).get('fetch_state',{})
+          print(s.get('status',''))
+          PY
+          )
+            if [ $((i % 10)) -eq 0 ]; then
+              python - <<'PY'
+          import json
+          s=json.load(open('/tmp/fetch-status.json')).get('fetch_state',{})
+          print('FETCH',s.get('status'),s.get('progress'),'candles=',s.get('total_candles'))
+          PY
+            fi
+            if [ "$STATUS" = 'done' ]; then break; fi
+            if [ "$STATUS" = 'error' ]; then cat /tmp/fetch-status.json; exit 1; fi
+            sleep 5
+          done
+          if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; exit 1; fi
+
+          echo '=== RUN B2 PER PAIR TO AVOID 500-SAMPLE TRUNCATION ==='
+          for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
+            curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
+              "$BASE/v4/context-fib-forensic?symbols=${SYM}&days=971&rr=1.0&confirm_bars=3&sample_limit=500" \
+              > "/tmp/${SYM}.json"
+          done
 
           python - <<'PY'
           import json
-          from datetime import datetime, timezone, timedelta
-
-          d=json.load(open('/tmp/b2.json'))
-          rows=[]
-          for x in d.get('sample',[]):
-              if x.get('outcome') not in ('BOUNCE','BREAK'):
-                  continue
-              z=dict(x)
-              z['win']=1 if z['outcome']=='BOUNCE' else 0
-              z['_t']=datetime.fromisoformat(z['confirm_time'])
-              rows.append(z)
+          from datetime import datetime
 
           PAIRS=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
           SIDES=['DEMAND','SUPPLY']
-          FROZEN_BAND='61.8-70.5'
-          selected=[r for r in rows if r.get('fib_band')==FROZEN_BAND]
+          FROZEN='61.8-70.5'
+          rows=[]
+          pair_report={}
+          for p in PAIRS:
+              d=json.load(open(f'/tmp/{p}.json'))
+              if d.get('errors'):
+                  print('PAIR_ERRORS',p,json.dumps(d['errors'],separators=(',',':')))
+              sample=d.get('sample',[])
+              overall=d.get('overall',{})
+              if int(overall.get('n',0) or 0) > len(sample):
+                  raise SystemExit(f'SAMPLE_TRUNCATED {p}: overall={overall.get("n")} sample={len(sample)}')
+              for x in sample:
+                  if x.get('outcome') not in ('BOUNCE','BREAK'):
+                      continue
+                  z=dict(x); z['pair']=p; z['win']=1 if z['outcome']=='BOUNCE' else 0
+                  z['_t']=datetime.fromisoformat(z['confirm_time'])
+                  rows.append(z)
+              pair_report[p]={'baseline':overall,'fib_bands':d.get('fib_bands',{})}
+
+          selected=[r for r in rows if r.get('fib_band')==FROZEN]
+          rows.sort(key=lambda r:r['_t']); selected.sort(key=lambda r:r['_t'])
 
           def stat(xs):
               n=len(xs); w=sum(r['win'] for r in xs)
               return {'n':n,'wins':w,'losses':n-w,'wr_pct':round(100*w/n,2) if n else None}
 
-          # Fixed calendar windows tied to the 120-day research request, not equal-count buckets.
-          now=datetime.now(timezone.utc)
-          start=now-timedelta(days=120)
-          q1=start+timedelta(days=30)
-          q2=start+timedelta(days=60)
-          q3=start+timedelta(days=90)
+          # Chronological equal-duration-ish validation: 8 calendar blocks across the observed signal range.
+          blocks=[]
+          if selected:
+              t0=min(r['_t'] for r in rows); t1=max(r['_t'] for r in rows)
+              span=(t1-t0).total_seconds()
+              for q in range(8):
+                  a=t0 + (t1-t0)*(q/8)
+                  b=t0 + (t1-t0)*((q+1)/8)
+                  blocks.append([r for r in selected if a <= r['_t'] < b or (q==7 and r['_t']==b)])
 
-          first60=[r for r in selected if start <= r['_t'] < q2]
-          second60=[r for r in selected if q2 <= r['_t'] <= now]
-          quarters=[
-              [r for r in selected if start <= r['_t'] < q1],
-              [r for r in selected if q1 <= r['_t'] < q2],
-              [r for r in selected if q2 <= r['_t'] < q3],
-              [r for r in selected if q3 <= r['_t'] <= now],
-          ]
-
+          n=len(selected)
           result={
-              'phase':'V4-B3',
+              'phase':'V4-B4',
               'frozen_rule':{
+                  'days':971,
                   'fib_band':'61.8%-70.5%',
                   'baseline_signal':'V4-B 1H structural zone + first 5m absorption/reclaim confirmation',
-                  'rr':'1:1',
-                  'regime_gate':False,
-                  'other_filters':None,
+                  'rr':'1:1','confirm_bars':3,'regime_gate':False,'other_filters':None,
               },
-              'baseline_120d':stat(rows),
+              'baseline_all_signals':stat(rows),
               'frozen_band_overall':stat(selected),
-              'by_pair':{p:stat([r for r in selected if r.get('symbol')==p]) for p in PAIRS},
+              'by_pair':{p:stat([r for r in selected if r['pair']==p]) for p in PAIRS},
               'by_side':{s:stat([r for r in selected if r.get('side')==s]) for s in SIDES},
-              'first_60d':stat(first60),
-              'second_60d':stat(second60),
-              'calendar_quarters_30d':[stat(x) for x in quarters],
-              'selected_events':[{
-                  'symbol':r.get('symbol'),'side':r.get('side'),'confirm_time':r.get('confirm_time'),
-                  'retracement':r.get('fib_retracement'),'outcome':r.get('outcome')
-              } for r in sorted(selected,key=lambda x:x['_t'])],
+              'first_half_events':stat(selected[:n//2]),
+              'second_half_events':stat(selected[n//2:]),
+              'chronological_8_blocks':[stat(b) for b in blocks],
+              'pair_source_checks':pair_report,
+              'selected_first_time':selected[0]['confirm_time'] if selected else None,
+              'selected_last_time':selected[-1]['confirm_time'] if selected else None,
           }
-
-          print('B3_RESULT',json.dumps(result,separators=(',',':')))
+          print('B4_RESULT',json.dumps(result,separators=(',',':')))
           PY
