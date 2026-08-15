@@ -1,0 +1,115 @@
+name: V7 FIB 120D Block Audit
+
+on:
+  push:
+    paths:
+      - '.github/workflows/v7-fib-120d-block-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Audit fixed 61.8-70.5 FIB band by 120d block
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://web-production-b6a05.up.railway.app'
+          for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
+            curl -fsS --retry 8 --retry-delay 2 --retry-all-errors \
+              "$BASE/v4/context-fib-forensic?symbols=${SYM}&days=971&rr=1.0&confirm_bars=3&sample_limit=500" \
+              > "/tmp/${SYM}.json"
+          done
+          python - <<'PY'
+          import json, math
+          from datetime import datetime, timedelta
+
+          PAIRS=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
+          BAND='61.8-70.5'
+          BLOCK_DAYS=120
+          rows=[]
+          source_overall={}
+          for p in PAIRS:
+              d=json.load(open(f'/tmp/{p}.json'))
+              source_overall[p]=d.get('overall',{})
+              sample=d.get('sample',[])
+              if int(d.get('overall',{}).get('n',0) or 0) > len(sample):
+                  raise SystemExit(f'SAMPLE_TRUNCATED {p}')
+              for x in sample:
+                  if x.get('outcome') not in ('BOUNCE','BREAK') or x.get('fib_band') != BAND:
+                      continue
+                  rows.append({
+                      'pair':p,
+                      't':datetime.fromisoformat(x['confirm_time']),
+                      'win':1 if x['outcome']=='BOUNCE' else 0,
+                      'side':x.get('side'),
+                  })
+          rows.sort(key=lambda x:x['t'])
+          if not rows: raise SystemExit('NO_FIXED_BAND_ROWS')
+
+          def wilson(w,n,z=1.96):
+              if not n:return [None,None]
+              p=w/n; den=1+z*z/n
+              ctr=(p+z*z/(2*n))/den
+              rad=z*math.sqrt(p*(1-p)/n+z*z/(4*n*n))/den
+              return [round(100*(ctr-rad),2),round(100*(ctr+rad),2)]
+
+          def stat(xs):
+              n=len(xs);w=sum(x['win'] for x in xs)
+              return {'n':n,'wins':w,'losses':n-w,'wr_pct':round(100*w/n,2) if n else None,'wilson95_pct':wilson(w,n)}
+
+          first=rows[0]['t']
+          last=rows[-1]['t']
+          blocks=[]
+          start=first
+          idx=1
+          while start <= last:
+              end=start+timedelta(days=BLOCK_DAYS)
+              xs=[x for x in rows if start <= x['t'] < end]
+              b={
+                  'block':idx,'start':start.isoformat(),'end_exclusive':end.isoformat(),
+                  'fixed_band':stat(xs),
+                  'by_pair':{p:stat([x for x in xs if x['pair']==p]) for p in PAIRS},
+                  'by_side':{s:stat([x for x in xs if x['side']==s]) for s in ('demand','supply')},
+              }
+              blocks.append(b)
+              start=end;idx+=1
+
+          overall=stat(rows)
+          full_blocks=[b for b in blocks if datetime.fromisoformat(b['end_exclusive']) <= last+timedelta(seconds=1)]
+          # Keep final partial block too; explicitly label its observed span.
+          if blocks:
+              blocks[-1]['partial_final_block']=datetime.fromisoformat(blocks[-1]['end_exclusive']) > last+timedelta(seconds=1)
+              blocks[-1]['last_event']=last.isoformat()
+          for b in blocks[:-1]: b['partial_final_block']=False
+
+          nonempty=[b['fixed_band'] for b in blocks if b['fixed_band']['n']]
+          weighted_n=sum(x['n'] for x in nonempty);weighted_w=sum(x['wins'] for x in nonempty)
+          result={
+              'phase':'V7-F',
+              'definition':{
+                  'history_request_days':971,'fib_band':BAND,'rr':1.0,'confirm_bars':3,
+                  'block_days':BLOCK_DAYS,'overlap':False,'threshold_sweep':False,
+                  'bucketing':'one shared 971d event stream; bucket by confirm_time; event/outcome is never recomputed per block',
+              },
+              'first_fixed_band_event':first.isoformat(),'last_fixed_band_event':last.isoformat(),
+              'fixed_band_overall':overall,
+              'block_count':len(blocks),
+              'blocks':blocks,
+              'consistency_check':{
+                  'sum_block_n':weighted_n,'sum_block_wins':weighted_w,
+                  'matches_overall':weighted_n==overall['n'] and weighted_w==overall['wins'],
+              },
+              'dispersion':{
+                  'min_nonempty_wr_pct':min(x['wr_pct'] for x in nonempty),
+                  'max_nonempty_wr_pct':max(x['wr_pct'] for x in nonempty),
+                  'blocks_wr_ge70':sum((x['wr_pct'] or 0)>=70 for x in nonempty),
+                  'blocks_wr_ge80':sum((x['wr_pct'] or 0)>=80 for x in nonempty),
+                  'blocks_n_ge10':sum(x['n']>=10 for x in nonempty),
+              },
+              'source_pair_overall_all_fib_bands':source_overall,
+              'interpretation_lock':'Large block-to-block WR differences are not by themselves an implementation bug when n is small. A true bookkeeping anomaly would be block sums not matching the single 971d stream or identical events changing outcomes merely because of bucketing.',
+          }
+          print('V7_FIB120_RESULT',json.dumps(result,separators=(',',':')))
+          PY
