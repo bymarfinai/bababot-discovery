@@ -1,23 +1,29 @@
-name: V6 B Liquidation Cascade Mechanics
+name: V6 B Liquidation Cascade Screen
 
 on:
   push:
     paths:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
       - 'research/v6_b_liquidation_cascade.py'
+      - 'research/v6_b_continuous_120d.py'
       - 'research/v6_a_liquidation_feasibility.py'
   workflow_dispatch:
 
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       TARDIS_API_KEY: ${{ secrets.TARDIS_API_KEY }}
     steps:
       - uses: actions/checkout@v4
-      - name: Run actual-liquidation public-sample mechanics screen
+      - name: Run V6-B actual-liquidation screen
         shell: bash
         run: |
           set -euo pipefail
-          python research/v6_b_liquidation_cascade.py
+          if [[ -n "${TARDIS_API_KEY:-}" ]]; then
+            python research/v6_b_continuous_120d.py
+          else
+            echo "TARDIS_API_KEY not configured; scientific 120d screen is blocked."
+            python research/v6_b_liquidation_cascade.py
+          fi
