@@ -1,4 +1,4 @@
-name: V4 A3 Forensic Separation
+name: V4 A4 Frozen Demand Robustness
 
 on:
   push:
@@ -7,16 +7,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  forensic:
+  robustness:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Pull exact A2 observations and test feature separation
+      - name: Test three frozen demand hypotheses by pair and time
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
-
           for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
             curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
               "$BASE/v4/first-retest?symbol=${SYM}&days=120&rr=1.0&execution_tf=5m&sample_limit=100" \
@@ -24,110 +23,48 @@ jobs:
           done
 
           python - <<'PY'
-          import json, math, statistics
+          import json
+          from datetime import datetime
 
           PAIRS=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
-          FEATURES=[
-              'zone_width_atr','displacement_atr','bos_distance_atr',
-              'bos_body_ratio','bos_close_location','volume_expansion',
-              'base_to_bos_bars','retest_age_hours',
-              'first_touch_penetration_zone_width',
-          ]
-
           rows=[]
-          for sym in PAIRS:
-              d=json.load(open(f'/tmp/{sym}.json'))
-              obs=d.get('results_sample',[])
-              for x in obs:
-                  if x.get('outcome') not in ('BOUNCE','BREAK'):
+          for p in PAIRS:
+              d=json.load(open(f'/tmp/{p}.json'))
+              for x in d.get('results_sample',[]):
+                  if x.get('side')!='DEMAND' or x.get('outcome') not in ('BOUNCE','BREAK'):
                       continue
-                  z=dict(x)
-                  z['pair']=sym
-                  z['win']=1 if x['outcome']=='BOUNCE' else 0
+                  z=dict(x); z['pair']=p; z['win']=1 if x['outcome']=='BOUNCE' else 0
+                  z['_t']=datetime.fromisoformat(x['retest_time'])
                   rows.append(z)
+          rows.sort(key=lambda r:r['_t'])
 
-          print('A3_SAMPLE', json.dumps({
-              'resolved':len(rows),
-              'wins':sum(r['win'] for r in rows),
-              'losses':sum(1-r['win'] for r in rows),
-              'wr_pct':round(100*sum(r['win'] for r in rows)/len(rows),2) if rows else None,
-              'pairs':{p:sum(r['pair']==p for r in rows) for p in PAIRS},
-          },separators=(',',':')))
+          RULES={
+              'H1_BASE_GAP_GE5': lambda r: float(r['base_to_bos_bars'])>=5,
+              'H2_CLOSE_LOC_LE070': lambda r: float(r['bos_close_location'])<=0.70,
+              'H3_BOTH': lambda r: float(r['base_to_bos_bars'])>=5 and float(r['bos_close_location'])<=0.70,
+          }
 
-          def median(vals):
-              vals=[float(v) for v in vals if v is not None and math.isfinite(float(v))]
-              return statistics.median(vals) if vals else None
+          def stat(xs):
+              n=len(xs); w=sum(r['win'] for r in xs)
+              return {'n':n,'wins':w,'losses':n-w,'wr_pct':round(100*w/n,2) if n else None}
 
-          def wr(xs):
-              return 100*sum(r['win'] for r in xs)/len(xs) if xs else None
+          print('BASELINE_DEMAND',json.dumps(stat(rows),separators=(',',':')))
+          n=len(rows)
+          # chronological quarters use all demand observations in time order;
+          # rule is then evaluated inside each pre-defined time block.
+          blocks=[]
+          for q in range(4):
+              lo=(n*q)//4; hi=(n*(q+1))//4
+              blocks.append(rows[lo:hi])
 
-          def quartiles(xs, feat):
-              valid=[r for r in xs if r.get(feat) is not None and math.isfinite(float(r[feat]))]
-              valid.sort(key=lambda r: float(r[feat]))
-              n=len(valid)
-              out=[]
-              for q in range(4):
-                  lo=(n*q)//4
-                  hi=(n*(q+1))//4
-                  bucket=valid[lo:hi]
-                  if not bucket:
-                      out.append({'n':0,'wr':None,'lo':None,'hi':None})
-                  else:
-                      out.append({
-                          'n':len(bucket),
-                          'wr':round(wr(bucket),2),
-                          'lo':round(float(bucket[0][feat]),4),
-                          'hi':round(float(bucket[-1][feat]),4),
-                      })
-              return out
-
-          def analyze(scope_name, xs):
-              results=[]
-              for f in FEATURES:
-                  valid=[r for r in xs if r.get(f) is not None and math.isfinite(float(r[f]))]
-                  if len(valid)<20:
-                      continue
-                  wins=[float(r[f]) for r in valid if r['win']==1]
-                  losses=[float(r[f]) for r in valid if r['win']==0]
-                  if not wins or not losses:
-                      continue
-                  q=quartiles(valid,f)
-                  q1=q[0]['wr']; q4=q[3]['wr']
-                  endpoint_gap=(q4-q1) if q1 is not None and q4 is not None else None
-                  wrs=[b['wr'] for b in q if b['wr'] is not None]
-                  range_gap=max(wrs)-min(wrs) if wrs else None
-
-                  pooled_direction=1 if median(wins)>median(losses) else -1 if median(wins)<median(losses) else 0
-                  pair_signs={}
-                  consistent=0
-                  eligible=0
-                  for p in PAIRS:
-                      pv=[r for r in valid if r['pair']==p]
-                      pw=[float(r[f]) for r in pv if r['win']==1]
-                      pl=[float(r[f]) for r in pv if r['win']==0]
-                      if len(pw)>=3 and len(pl)>=3:
-                          eligible+=1
-                          sign=1 if median(pw)>median(pl) else -1 if median(pw)<median(pl) else 0
-                          pair_signs[p]=sign
-                          if pooled_direction and sign==pooled_direction:
-                              consistent+=1
-
-                  results.append({
-                      'feature':f,
-                      'n':len(valid),
-                      'winner_median':round(median(wins),4),
-                      'loser_median':round(median(losses),4),
-                      'quartiles':q,
-                      'q4_minus_q1_pp':round(endpoint_gap,2) if endpoint_gap is not None else None,
-                      'max_quartile_spread_pp':round(range_gap,2) if range_gap is not None else None,
-                      'pooled_median_direction':'HIGHER_IN_WINNERS' if pooled_direction>0 else 'LOWER_IN_WINNERS' if pooled_direction<0 else 'EQUAL',
-                      'pair_direction_consistency':f'{consistent}/{eligible}',
-                      'pair_signs':pair_signs,
-                  })
-              results.sort(key=lambda x: abs(x['q4_minus_q1_pp'] or 0), reverse=True)
-              print('A3_SCOPE',scope_name,json.dumps(results,separators=(',',':')))
-
-          analyze('ALL',rows)
-          analyze('DEMAND',[r for r in rows if r.get('side')=='DEMAND'])
-          analyze('SUPPLY',[r for r in rows if r.get('side')=='SUPPLY'])
+          for name,fn in RULES.items():
+              sel=[r for r in rows if fn(r)]
+              result={
+                  'overall':stat(sel),
+                  'by_pair':{p:stat([r for r in sel if r['pair']==p]) for p in PAIRS},
+                  'time_quarters':[stat([r for r in b if fn(r)]) for b in blocks],
+                  'first_half':stat([r for r in rows[:n//2] if fn(r)]),
+                  'second_half':stat([r for r in rows[n//2:] if fn(r)]),
+              }
+              print('A4_RULE',name,json.dumps(result,separators=(',',':')))
           PY
