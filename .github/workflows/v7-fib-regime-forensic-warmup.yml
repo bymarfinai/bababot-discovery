@@ -1,0 +1,19 @@
+name: V7 G2 FIB Regime Forensic Warmup
+
+on:
+  push:
+    paths:
+      - 'research/v7_g2_fib_regime_forensic_warmup.py'
+      - '.github/workflows/v7-fib-regime-forensic-warmup.yml'
+  workflow_dispatch:
+
+jobs:
+  forensic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install research dependencies
+        run: python -m pip install --disable-pip-version-check 'numpy>=1.26.0' 'fastapi>=0.110'
+      - name: Reconstruct archives with warmup and analyze FIB market state
+        run: PYTHONPATH=. python research/v7_g2_fib_regime_forensic_warmup.py
