@@ -1,0 +1,20 @@
+name: V7 Regime Failed Breakout Screen
+
+on:
+  push:
+    paths:
+      - 'research/v7_regime_failed_breakout.py'
+      - '.github/workflows/v7-regime-failed-breakout.yml'
+  workflow_dispatch:
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run frozen V7-A 120d screen
+        shell: bash
+        run: |
+          set -euo pipefail
+          python research/v7_regime_failed_breakout.py
