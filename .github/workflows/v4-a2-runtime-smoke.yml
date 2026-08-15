@@ -1,48 +1,20 @@
-name: V5 A1 Metrics Archive Verification
+name: V5 A2 Derivatives Winner Loser Forensic
 
 on:
   push:
     paths:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
+      - 'research/v5_a2_derivatives_forensic.py'
   workflow_dispatch:
 
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
-      - name: Verify 971d USD-M metrics archives and inspect schema
+      - uses: actions/checkout@v4
+      - name: Run frozen V5-A2 derivatives positioning forensic
         shell: bash
         run: |
           set -euo pipefail
-          DATE='2023-12-18'
-          BASE='https://data.binance.vision/data/futures/um/daily/metrics'
-          echo '=== VERIFY EXACT 971D-AREA METRICS FILES ==='
-          for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
-            URL="$BASE/$SYM/${SYM}-metrics-${DATE}.zip"
-            CODE=$(curl -sS -I -L -o /tmp/h.txt -w '%{http_code}' "$URL" || true)
-            LEN=$(awk 'tolower($1)=="content-length:" {gsub("\r",""); x=$2} END{print x}' /tmp/h.txt)
-            echo "$SYM http=$CODE content_length=${LEN:-NA}"
-          done
-
-          echo '=== INSPECT BTCUSDT METRICS SCHEMA + SAMPLE ==='
-          URL="$BASE/BTCUSDT/BTCUSDT-metrics-${DATE}.zip"
-          curl -fsSL "$URL" -o /tmp/metrics.zip
-          python - <<'PY'
-          import zipfile, csv, io, json
-          z=zipfile.ZipFile('/tmp/metrics.zip')
-          names=z.namelist(); print('FILES',names)
-          raw=z.read(names[0]).decode('utf-8-sig')
-          rows=list(csv.reader(io.StringIO(raw)))
-          print('HEADER',json.dumps(rows[0]))
-          print('ROW1',json.dumps(rows[1] if len(rows)>1 else []))
-          print('ROW2',json.dumps(rows[2] if len(rows)>2 else []))
-          print('ROWS',max(0,len(rows)-1))
-          PY
-
-          echo '=== VERIFY A FEW ADJACENT DAYS FOR CONTINUITY ==='
-          for DATE2 in 2023-12-17 2023-12-18 2023-12-19 2023-12-20; do
-            URL="$BASE/BTCUSDT/BTCUSDT-metrics-${DATE2}.zip"
-            CODE=$(curl -sS -I -L -o /dev/null -w '%{http_code}' "$URL" || true)
-            echo "BTCUSDT $DATE2 http=$CODE"
-          done
+          python research/v5_a2_derivatives_forensic.py
