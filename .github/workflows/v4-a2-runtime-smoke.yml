@@ -10,9 +10,40 @@ on:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      - name: Ensure exact 120d 1H + 5m base data
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://web-production-b6a05.up.railway.app'
+          PAIRS='["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"]'
+          curl -fsS --retry 6 --retry-delay 3 --retry-all-errors \
+            -X POST -H 'Content-Type: application/json' \
+            -d "{\"days\":120,\"pairs\":${PAIRS},\"timeframes\":[\"1h\",\"5m\"]}" \
+            "$BASE/fetch-data"
+          echo
+          STATUS=''
+          for i in $(seq 1 360); do
+            curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
+            STATUS=$(python - <<'PY'
+          import json
+          print(json.load(open('/tmp/fetch-status.json')).get('fetch_state',{}).get('status',''))
+          PY
+          )
+            if [ $((i % 10)) -eq 0 ]; then
+              python - <<'PY'
+          import json
+          s=json.load(open('/tmp/fetch-status.json')).get('fetch_state',{})
+          print('FETCH',s.get('status'),s.get('progress'),'candles=',s.get('total_candles'))
+          PY
+            fi
+            if [ "$STATUS" = 'done' ]; then break; fi
+            if [ "$STATUS" = 'error' ]; then cat /tmp/fetch-status.json; exit 1; fi
+            sleep 5
+          done
+          if [ "$STATUS" != 'done' ]; then echo '120d base-data fetch did not finish'; exit 1; fi
       - name: Run frozen V5-A2 derivatives positioning forensic
         shell: bash
         run: |
