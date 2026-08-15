@@ -1,4 +1,4 @@
-name: V4 A1.3 Liquidity Origin Screen
+name: V4 B Reaction Absorption Screen
 
 on:
   push:
@@ -11,34 +11,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Wait deploy, refresh data, screen body and range origins
+      - name: Wait deploy, refresh data, run frozen V4-B confirmation test
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
           PAIRS='["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"]'
 
-          echo '=== WAIT FOR A1.3 ENDPOINT ==='
+          echo '=== WAIT FOR V4-B ENDPOINT ==='
           READY=0
           for i in $(seq 1 120); do
             CODE=$(curl -sS -o /tmp/probe.json -w '%{http_code}' \
-              "$BASE/v4/liquidity-origin-retest?symbol=BTCUSDT&days=30&rr=1.0&execution_tf=5m&zone_mode=body&sample_limit=0" || true)
+              "$BASE/v4/reaction-absorption?symbol=BTCUSDT&days=30&rr=1.0&execution_tf=5m&confirm_bars=3&sample_limit=0" || true)
             if [ "$CODE" = '200' ]; then
               PHASE=$(python - <<'PY'
           import json
           try:
-              d=json.load(open('/tmp/probe.json'))
-              print(d.get('phase',''))
+              print(json.load(open('/tmp/probe.json')).get('phase',''))
           except Exception:
               print('')
           PY
           )
-              if [ "$PHASE" = 'V4-A1.3' ]; then READY=1; echo "ready probe=$i"; break; fi
+              if [ "$PHASE" = 'V4-B' ]; then READY=1; echo "ready probe=$i"; break; fi
             fi
             echo "probe $i http=$CODE"
             sleep 5
           done
-          if [ "$READY" != '1' ]; then echo 'A1.3 endpoint not ready'; cat /tmp/probe.json || true; exit 1; fi
+          if [ "$READY" != '1' ]; then echo 'V4-B endpoint not ready'; cat /tmp/probe.json || true; exit 1; fi
 
           echo '=== REFRESH EXACT 120D 1H + 5M ==='
           curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
@@ -52,8 +51,7 @@ jobs:
             curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
             STATUS=$(python - <<'PY'
           import json
-          d=json.load(open('/tmp/fetch-status.json'))
-          print(d.get('fetch_state',{}).get('status',''))
+          print(json.load(open('/tmp/fetch-status.json')).get('fetch_state',{}).get('status',''))
           PY
           )
             if [ $((i % 5)) -eq 0 ]; then
@@ -69,62 +67,67 @@ jobs:
           done
           if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; exit 1; fi
 
-          for MODE in body range; do
-            echo "=== ORIGIN MODE $MODE ==="
-            for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
-              OUT="/tmp/${MODE}-${SYM}.json"
-              curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-                "$BASE/v4/liquidity-origin-retest?symbol=${SYM}&days=120&rr=1.0&execution_tf=5m&zone_mode=${MODE}&min_origin_displacement_atr=1.0&sample_limit=100" > "$OUT"
-              python - "$MODE" "$SYM" "$OUT" <<'PY'
+          echo '=== FOUR PAIR V4-B RESULTS ==='
+          for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
+            OUT="/tmp/${SYM}.json"
+            curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
+              "$BASE/v4/reaction-absorption?symbol=${SYM}&days=120&rr=1.0&execution_tf=5m&confirm_bars=3&sample_limit=200" > "$OUT"
+            python - "$SYM" "$OUT" <<'PY'
           import json,sys
-          mode,sym,path=sys.argv[1:]
+          sym,path=sys.argv[1:]
           d=json.load(open(path))
           keep={k:d.get(k) for k in ['phase','zone_count','overall','demand','supply','diagnostics','error'] if k in d}
-          print('PAIR_RESULT',mode,sym,json.dumps(keep,separators=(',',':')))
+          print('PAIR_RESULT',sym,json.dumps(keep,separators=(',',':')))
           PY
-            done
           done
 
-          echo '=== AGGREGATES + TIME SPLITS ==='
+          echo '=== AGGREGATE + TIME ROBUSTNESS ==='
           python - <<'PY'
           import json
           from datetime import datetime
           pairs=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
-          modes=['body','range']
+          ds=[json.load(open(f'/tmp/{p}.json')) for p in pairs]
 
-          def stat(rows):
-              resolved=[r for r in rows if r.get('outcome') in ('BOUNCE','BREAK')]
-              w=sum(r.get('outcome')=='BOUNCE' for r in resolved)
-              n=len(resolved)
+          def agg(key):
+              z=sum((d.get(key) or {}).get('zones',0) or 0 for d in ds)
+              t=sum((d.get(key) or {}).get('touched',0) or 0 for d in ds)
+              s=sum((d.get(key) or {}).get('confirmed_signals',0) or 0 for d in ds)
+              w=sum((d.get(key) or {}).get('bounce',0) or 0 for d in ds)
+              l=sum((d.get(key) or {}).get('break',0) or 0 for d in ds)
+              r=w+l
+              return {
+                  'zones':z,'touched':t,'signals':s,'resolved':r,
+                  'wins':w,'losses':l,
+                  'confirmation_rate_touch_pct':round(100*s/t,2) if t else None,
+                  'wr_pct':round(100*w/r,2) if r else None,
+              }
+
+          rows=[]
+          for p,d in zip(pairs,ds):
+              for r in d.get('results_sample',[]):
+                  if r.get('outcome') in ('BOUNCE','BREAK'):
+                      x=dict(r); x['pair']=p
+                      rows.append(x)
+          rows.sort(key=lambda r: datetime.fromisoformat(r['confirm_time']))
+
+          def stat(xs):
+              n=len(xs); w=sum(x.get('outcome')=='BOUNCE' for x in xs)
               return {'n':n,'wins':w,'losses':n-w,'wr_pct':round(100*w/n,2) if n else None}
 
-          for mode in modes:
-              ds=[json.load(open(f'/tmp/{mode}-{p}.json')) for p in pairs]
-              rows=[]
-              for p,d in zip(pairs,ds):
-                  for r in d.get('results_sample',[]):
-                      if r.get('outcome') in ('BOUNCE','BREAK'):
-                          x=dict(r); x['pair']=p
-                          rows.append(x)
-              rows.sort(key=lambda r: datetime.fromisoformat(r['retest_time']))
-              n=len(rows)
-              def agg(key):
-                  w=sum((d.get(key) or {}).get('bounce',0) or 0 for d in ds)
-                  l=sum((d.get(key) or {}).get('break',0) or 0 for d in ds)
-                  z=sum((d.get(key) or {}).get('zones',0) or 0 for d in ds)
-                  amb=sum((d.get('diagnostics') or {}).get('ambiguous_entry_bars',0) or 0 for d in ds)
-                  r=w+l
-                  return {'zones':z,'resolved':r,'wins':w,'losses':l,'wr_pct':round(100*w/r,2) if r else None,'ambiguous_entry_bars':amb}
-              quarters=[]
-              for q in range(4):
-                  lo=n*q//4; hi=n*(q+1)//4
-                  quarters.append(stat(rows[lo:hi]))
-              print('MODE_AGG',mode,json.dumps({
-                  'overall':agg('overall'),
-                  'demand':agg('demand'),
-                  'supply':agg('supply'),
-                  'first_half':stat(rows[:n//2]),
-                  'second_half':stat(rows[n//2:]),
-                  'quarters':quarters,
-              },separators=(',',':')))
+          n=len(rows)
+          quarters=[]
+          for q in range(4):
+              lo=n*q//4; hi=n*(q+1)//4
+              quarters.append(stat(rows[lo:hi]))
+
+          by_pair={p:stat([x for x in rows if x['pair']==p]) for p in pairs}
+          print('AGG_RESULT',json.dumps({
+              'overall':agg('overall'),
+              'demand':agg('demand'),
+              'supply':agg('supply'),
+              'by_pair':by_pair,
+              'first_half':stat(rows[:n//2]),
+              'second_half':stat(rows[n//2:]),
+              'quarters':quarters,
+          },separators=(',',':')))
           PY
