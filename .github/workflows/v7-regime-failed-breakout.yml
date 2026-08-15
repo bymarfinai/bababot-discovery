@@ -19,4 +19,4 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python research/v7_regime_failed_breakout.py
+          PYTHONPATH=. python research/v7_regime_failed_breakout.py
