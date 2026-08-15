@@ -1,4 +1,4 @@
-name: V4 B5 Recent Edge Regime Forensic
+name: V4 B6 Market State Forensic
 
 on:
   push:
@@ -9,162 +9,97 @@ on:
 jobs:
   forensic:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
-      - name: Compare latest 120d Fibonacci winners with prior 851d history
+      - name: Diagnose causal market state behind recent 86pct window
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
+          PAIRS='["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"]'
 
-          # 971d data is already resident from B4. Pull both frozen forensics
-          # per pair so no 500-sample truncation occurs.
-          for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
-            curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-              "$BASE/v4/context-fib-forensic?symbols=${SYM}&days=971&rr=1.0&confirm_bars=3&sample_limit=500" \
-              > "/tmp/b2_${SYM}.json"
-            curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-              "$BASE/v4/absorption-forensic?symbols=${SYM}&days=971&rr=1.0&confirm_bars=3&sample_limit=500" \
-              > "/tmp/b1_${SYM}.json"
+          echo '=== WAIT FOR V4-B6 ENDPOINT ==='
+          READY=0
+          for i in $(seq 1 120); do
+            CODE=$(curl -sS -o /tmp/probe.json -w '%{http_code}' \
+              "$BASE/v4/market-state-forensic?days=240&recent_days=120&rr=1.0&confirm_bars=3&sample_limit=0" || true)
+            if [ "$CODE" = '200' ]; then
+              PHASE=$(python - <<'PY'
+          import json
+          try: print(json.load(open('/tmp/probe.json')).get('phase',''))
+          except Exception: print('')
+          PY
+          )
+              if [ "$PHASE" = 'V4-B6' ]; then READY=1; echo "ready probe=$i"; break; fi
+            fi
+            echo "probe $i http=$CODE"
+            sleep 5
           done
+          if [ "$READY" != '1' ]; then echo 'V4-B6 endpoint not ready'; cat /tmp/probe.json || true; exit 1; fi
+
+          echo '=== CHECK 971D DATA RESIDENCY ==='
+          curl -fsS "$BASE/data/status" > /tmp/data-status.json
+          HAVE=$(python - <<'PY'
+          import json
+          d=json.load(open('/tmp/data-status.json'))
+          pairs=d.get('pairs',{})
+          need=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
+          ok=True
+          for p in need:
+              for tf in ['1h','5m']:
+                  days=float(((pairs.get(p) or {}).get(tf) or {}).get('days',0) or 0)
+                  if days < 969:
+                      ok=False
+          print('1' if ok else '0')
+          PY
+          )
+
+          if [ "$HAVE" != '1' ]; then
+            echo '=== REFRESH EXACT 971D 1H + 5M ==='
+            curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
+              -X POST -H 'Content-Type: application/json' \
+              -d "{\"days\":971,\"pairs\":${PAIRS},\"timeframes\":[\"1h\",\"5m\"]}" \
+              "$BASE/fetch-data"
+            echo
+
+            STATUS=''
+            for i in $(seq 1 600); do
+              curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
+              STATUS=$(python - <<'PY'
+          import json
+          print(json.load(open('/tmp/fetch-status.json')).get('fetch_state',{}).get('status',''))
+          PY
+          )
+              if [ $((i % 10)) -eq 0 ]; then
+                python - <<'PY'
+          import json
+          s=json.load(open('/tmp/fetch-status.json')).get('fetch_state',{})
+          print('FETCH',s.get('status'),s.get('progress'),'candles=',s.get('total_candles'))
+          PY
+              fi
+              if [ "$STATUS" = 'done' ]; then break; fi
+              if [ "$STATUS" = 'error' ]; then cat /tmp/fetch-status.json; exit 1; fi
+              sleep 5
+            done
+            if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; exit 1; fi
+          else
+            echo '971d 1h+5m data already resident; skipping refresh.'
+          fi
+
+          echo '=== RUN V4-B6 MARKET-STATE FORENSIC ==='
+          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
+            "$BASE/v4/market-state-forensic?days=971&recent_days=120&rr=1.0&confirm_bars=3&sample_limit=0" \
+            > /tmp/b6.json
 
           python - <<'PY'
-          import json, math, statistics
-          from datetime import datetime, timezone, timedelta
-
-          PAIRS=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
-          FROZEN='61.8-70.5'
-          cutoff=datetime.now(timezone.utc)-timedelta(days=120)
-
-          rows=[]
-          for p in PAIRS:
-              b2=json.load(open(f'/tmp/b2_{p}.json'))
-              b1=json.load(open(f'/tmp/b1_{p}.json'))
-              # Both endpoints use the exact same frozen V4-B events/outcomes.
-              b1map={x.get('zone_id'):x for x in b1.get('sample',[]) if x.get('zone_id')}
-              if int((b2.get('overall') or {}).get('n',0) or 0)>len(b2.get('sample',[])):
-                  raise SystemExit(f'B2_TRUNCATED {p}')
-              if int((b1.get('overall') or {}).get('resolved',0) or 0)>len(b1.get('sample',[])):
-                  raise SystemExit(f'B1_TRUNCATED {p}')
-              for x in b2.get('sample',[]):
-                  if x.get('fib_band')!=FROZEN or x.get('outcome') not in ('BOUNCE','BREAK'):
-                      continue
-                  z=dict(x)
-                  extra=b1map.get(x.get('zone_id'),{})
-                  for k,v in extra.items():
-                      if k not in z:
-                          z[k]=v
-                  z['pair']=p
-                  z['win']=1 if z['outcome']=='BOUNCE' else 0
-                  z['_t']=datetime.fromisoformat(z['confirm_time'])
-                  rows.append(z)
-
-          rows.sort(key=lambda r:r['_t'])
-          recent=[r for r in rows if r['_t']>=cutoff]
-          hist=[r for r in rows if r['_t']<cutoff]
-
-          def stat(xs):
-              n=len(xs); w=sum(r['win'] for r in xs)
-              return {'n':n,'wins':w,'losses':n-w,'wr_pct':round(100*w/n,2) if n else None}
-
-          def vals(xs,f):
-              out=[]
-              for r in xs:
-                  v=r.get(f)
-                  try:
-                      v=float(v)
-                      if math.isfinite(v): out.append(v)
-                  except: pass
-              return out
-
-          def med(xs,f):
-              v=vals(xs,f)
-              return round(statistics.median(v),6) if v else None
-
-          def quantile(v,p):
-              if not v:return None
-              s=sorted(v)
-              pos=(len(s)-1)*p
-              lo=int(math.floor(pos)); hi=int(math.ceil(pos))
-              if lo==hi:return s[lo]
-              return s[lo]+(s[hi]-s[lo])*(pos-lo)
-
-          FEATURES=[
-              'fib_retracement','bars_to_confirm','abs_delta_pct','penetration_zone_x',
-              'reclaim_extension_zone_x','confirm_body_ratio','confirm_close_location',
-              'quote_volume_expansion','zone_width_pct'
-          ]
-
-          compare={}
-          signature_test={}
-          for f in FEATURES:
-              rv=vals(recent,f); hv=vals(hist,f)
-              rm=med(recent,f); hm=med(hist,f)
-              q1=quantile(rv,.25); q3=quantile(rv,.75)
-              matched=[r for r in hist if r.get(f) is not None and q1 is not None and q3 is not None and q1<=float(r[f])<=q3]
-              compare[f]={
-                  'recent_median':rm,'historical_median':hm,
-                  'recent_q25':round(q1,6) if q1 is not None else None,
-                  'recent_q75':round(q3,6) if q3 is not None else None,
-                  'median_shift_pct':round(100*(rm-hm)/abs(hm),2) if rm is not None and hm not in (None,0) else None,
-              }
-              signature_test[f]=stat(matched)
-
-          # Categorical composition: does the recent window simply contain a
-          # different mix of pair/side/regime than history?
-          def cat_report(field, cats):
-              out={}
-              for c in cats:
-                  rr=[r for r in recent if r.get(field)==c]
-                  hh=[r for r in hist if r.get(field)==c]
-                  out[str(c)]={'recent':stat(rr),'historical':stat(hh)}
-              return out
-
-          categorical={
-              'pair':cat_report('pair',PAIRS),
-              'side':cat_report('side',['DEMAND','SUPPLY']),
-              'regime_relation':cat_report('regime_relation',['ALIGNED','SIDEWAYS','OPPOSED']),
-          }
-
-          # Find combinations of *predefined* broad properties, not threshold
-          # sweeps: recent IQR match count across features. This is descriptive
-          # only; report historical WR by number of recent-like features.
-          bounds={}
-          for f in FEATURES:
-              rv=vals(recent,f)
-              if rv:
-                  bounds[f]=(quantile(rv,.25),quantile(rv,.75))
-          similarity=[]
-          for r in hist:
-              score=0; total=0
-              for f,(a,b) in bounds.items():
-                  try:
-                      v=float(r[f]); total+=1
-                      if a<=v<=b: score+=1
-                  except: pass
-              z=dict(r); z['_similarity']=score; z['_similarity_total']=total
-              similarity.append(z)
-          sim_stats={str(k):stat([r for r in similarity if r['_similarity']>=k]) for k in [2,3,4,5,6]}
-
-          result={
-              'phase':'V4-B5',
-              'question':'Why did frozen 61.8-70.5 V4-B jump to ~86% in the latest 120d?',
-              'frozen_rule':'same V4-B signal + fib 61.8-70.5 + RR1; no strategy filtering added',
-              'cutoff_utc':cutoff.isoformat(),
-              'overall_971d':stat(rows),
-              'recent_120d':stat(recent),
-              'historical_pre_120d':stat(hist),
-              'recent_vs_history_features':compare,
-              'historical_wr_when_matching_recent_iqr_one_feature':signature_test,
-              'categorical_mix':categorical,
-              'historical_recent_similarity':sim_stats,
-              'recent_events':[{
-                  'pair':r['pair'],'side':r.get('side'),'time':r.get('confirm_time'),
-                  'outcome':r.get('outcome'),'regime':r.get('regime_relation'),
-                  'fib':r.get('fib_retracement'),'delta':r.get('abs_delta_pct'),
-                  'penetration':r.get('penetration_zone_x'),'reclaim':r.get('reclaim_extension_zone_x'),
-                  'vol_exp':r.get('quote_volume_expansion'),'zone_width_pct':r.get('zone_width_pct')
-              } for r in recent],
-          }
-          print('B5_RESULT',json.dumps(result,separators=(',',':')))
+          import json
+          d=json.load(open('/tmp/b6.json'))
+          print('OVERALL',json.dumps(d.get('overall'),separators=(',',':')))
+          print('RECENT',json.dumps(d.get('recent'),separators=(',',':')))
+          print('HISTORICAL',json.dumps(d.get('historical'),separators=(',',':')))
+          print('FEATURES',json.dumps(d.get('recent_vs_historical_features'),separators=(',',':')))
+          print('IQR_MATCH',json.dumps(d.get('historical_wr_when_matching_recent_iqr_one_feature'),separators=(',',':')))
+          print('STATE_BUCKETS',json.dumps(d.get('predeclared_state_buckets'),separators=(',',':')))
+          print('MULTIVARIATE',json.dumps(d.get('historical_multivariate_recent_similarity'),separators=(',',':')))
+          print('ERRORS',json.dumps(d.get('errors'),separators=(',',':')))
           PY
