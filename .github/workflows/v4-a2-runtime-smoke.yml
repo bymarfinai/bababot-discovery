@@ -1,4 +1,4 @@
-name: V4 A4 Frozen Demand Robustness
+name: V4 B3 Frozen Fibonacci Robustness
 
 on:
   push:
@@ -11,60 +11,76 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Test three frozen demand hypotheses by pair and time
+      - name: Test frozen 61.8-70.5 retracement band by pair side and time
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
-          for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
-            curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-              "$BASE/v4/first-retest?symbol=${SYM}&days=120&rr=1.0&execution_tf=5m&sample_limit=100" \
-              > "/tmp/${SYM}.json"
-          done
+
+          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
+            "$BASE/v4/context-fib-forensic?symbols=BTCUSDT%2CETHUSDT%2CSOLUSDT%2CBNBUSDT&days=120&rr=1.0&confirm_bars=3&sample_limit=500" \
+            > /tmp/b2.json
 
           python - <<'PY'
           import json
-          from datetime import datetime
+          from datetime import datetime, timezone, timedelta
+
+          d=json.load(open('/tmp/b2.json'))
+          rows=[]
+          for x in d.get('sample',[]):
+              if x.get('outcome') not in ('BOUNCE','BREAK'):
+                  continue
+              z=dict(x)
+              z['win']=1 if z['outcome']=='BOUNCE' else 0
+              z['_t']=datetime.fromisoformat(z['confirm_time'])
+              rows.append(z)
 
           PAIRS=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
-          rows=[]
-          for p in PAIRS:
-              d=json.load(open(f'/tmp/{p}.json'))
-              for x in d.get('results_sample',[]):
-                  if x.get('side')!='DEMAND' or x.get('outcome') not in ('BOUNCE','BREAK'):
-                      continue
-                  z=dict(x); z['pair']=p; z['win']=1 if x['outcome']=='BOUNCE' else 0
-                  z['_t']=datetime.fromisoformat(x['retest_time'])
-                  rows.append(z)
-          rows.sort(key=lambda r:r['_t'])
-
-          RULES={
-              'H1_BASE_GAP_GE5': lambda r: float(r['base_to_bos_bars'])>=5,
-              'H2_CLOSE_LOC_LE070': lambda r: float(r['bos_close_location'])<=0.70,
-              'H3_BOTH': lambda r: float(r['base_to_bos_bars'])>=5 and float(r['bos_close_location'])<=0.70,
-          }
+          SIDES=['DEMAND','SUPPLY']
+          FROZEN_BAND='61.8-70.5'
+          selected=[r for r in rows if r.get('fib_band')==FROZEN_BAND]
 
           def stat(xs):
               n=len(xs); w=sum(r['win'] for r in xs)
               return {'n':n,'wins':w,'losses':n-w,'wr_pct':round(100*w/n,2) if n else None}
 
-          print('BASELINE_DEMAND',json.dumps(stat(rows),separators=(',',':')))
-          n=len(rows)
-          # chronological quarters use all demand observations in time order;
-          # rule is then evaluated inside each pre-defined time block.
-          blocks=[]
-          for q in range(4):
-              lo=(n*q)//4; hi=(n*(q+1))//4
-              blocks.append(rows[lo:hi])
+          # Fixed calendar windows tied to the 120-day research request, not equal-count buckets.
+          now=datetime.now(timezone.utc)
+          start=now-timedelta(days=120)
+          q1=start+timedelta(days=30)
+          q2=start+timedelta(days=60)
+          q3=start+timedelta(days=90)
 
-          for name,fn in RULES.items():
-              sel=[r for r in rows if fn(r)]
-              result={
-                  'overall':stat(sel),
-                  'by_pair':{p:stat([r for r in sel if r['pair']==p]) for p in PAIRS},
-                  'time_quarters':[stat([r for r in b if fn(r)]) for b in blocks],
-                  'first_half':stat([r for r in rows[:n//2] if fn(r)]),
-                  'second_half':stat([r for r in rows[n//2:] if fn(r)]),
-              }
-              print('A4_RULE',name,json.dumps(result,separators=(',',':')))
+          first60=[r for r in selected if start <= r['_t'] < q2]
+          second60=[r for r in selected if q2 <= r['_t'] <= now]
+          quarters=[
+              [r for r in selected if start <= r['_t'] < q1],
+              [r for r in selected if q1 <= r['_t'] < q2],
+              [r for r in selected if q2 <= r['_t'] < q3],
+              [r for r in selected if q3 <= r['_t'] <= now],
+          ]
+
+          result={
+              'phase':'V4-B3',
+              'frozen_rule':{
+                  'fib_band':'61.8%-70.5%',
+                  'baseline_signal':'V4-B 1H structural zone + first 5m absorption/reclaim confirmation',
+                  'rr':'1:1',
+                  'regime_gate':False,
+                  'other_filters':None,
+              },
+              'baseline_120d':stat(rows),
+              'frozen_band_overall':stat(selected),
+              'by_pair':{p:stat([r for r in selected if r.get('symbol')==p]) for p in PAIRS},
+              'by_side':{s:stat([r for r in selected if r.get('side')==s]) for s in SIDES},
+              'first_60d':stat(first60),
+              'second_60d':stat(second60),
+              'calendar_quarters_30d':[stat(x) for x in quarters],
+              'selected_events':[{
+                  'symbol':r.get('symbol'),'side':r.get('side'),'confirm_time':r.get('confirm_time'),
+                  'retracement':r.get('fib_retracement'),'outcome':r.get('outcome')
+              } for r in sorted(selected,key=lambda x:x['_t'])],
+          }
+
+          print('B3_RESULT',json.dumps(result,separators=(',',':')))
           PY
