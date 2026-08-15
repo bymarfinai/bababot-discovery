@@ -66,7 +66,7 @@ def _pair(symbol,start,end):
 def close_trigger_forensic(days:int=Query(971,ge=30,le=1500),end_ts_ms:int=Query(CANONICAL_END_MS,ge=1)):
     start=end_ts_ms-days*86400000;allx=[];coverage={};errors={}
     for p in PAIRS:
-        try:x,c=_pair(p,start,end);allx+=x;coverage[p]=c
+        try:x,c=_pair(p,start,end_ts_ms);allx+=x;coverage[p]=c
         except Exception as e:errors[p]=str(e)
     gs=sorted(set(x["trigger"] for x in allx));overall=_stat(allx)
     by_pair={p:_stat([x for x in allx if x["symbol"]==p]) for p in PAIRS}
