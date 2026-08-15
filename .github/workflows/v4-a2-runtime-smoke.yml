@@ -1,20 +1,23 @@
-name: V6 A Liquidation Feasibility
+name: V6 B Liquidation Cascade Mechanics
 
 on:
   push:
     paths:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
+      - 'research/v6_b_liquidation_cascade.py'
       - 'research/v6_a_liquidation_feasibility.py'
   workflow_dispatch:
 
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    env:
+      TARDIS_API_KEY: ${{ secrets.TARDIS_API_KEY }}
     steps:
       - uses: actions/checkout@v4
-      - name: Probe historical forced-liquidation data path
+      - name: Run actual-liquidation public-sample mechanics screen
         shell: bash
         run: |
           set -euo pipefail
-          python research/v6_a_liquidation_feasibility.py
+          python research/v6_b_liquidation_cascade.py
