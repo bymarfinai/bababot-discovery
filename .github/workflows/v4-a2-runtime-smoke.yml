@@ -1,4 +1,4 @@
-name: V5 A1 Derivatives Data Feasibility Audit
+name: V5 A1 Metrics Archive Verification
 
 on:
   push:
@@ -9,47 +9,40 @@ on:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - name: Probe Binance derivatives history and official archives
+      - name: Verify 971d USD-M metrics archives and inspect schema
         shell: bash
         run: |
           set -euo pipefail
-          BASE='https://web-production-b6a05.up.railway.app'
-
-          echo '=== WAIT FOR V5-A1 ENDPOINT ==='
-          READY=0
-          for i in $(seq 1 120); do
-            CODE=$(curl -sS -o /tmp/probe.json -w '%{http_code}' \
-              "$BASE/v5/derivatives-feasibility?symbols=BTCUSDT&period=5m" || true)
-            if [ "$CODE" = '200' ]; then
-              PHASE=$(python - <<'PY'
-          import json
-          try: print(json.load(open('/tmp/probe.json')).get('phase',''))
-          except Exception: print('')
-          PY
-          )
-              if [ "$PHASE" = 'V5-A1' ]; then READY=1; echo "ready probe=$i"; break; fi
-            fi
-            echo "probe $i http=$CODE"
-            sleep 5
+          DATE='2023-12-18'
+          BASE='https://data.binance.vision/data/futures/um/daily/metrics'
+          echo '=== VERIFY EXACT 971D-AREA METRICS FILES ==='
+          for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
+            URL="$BASE/$SYM/${SYM}-metrics-${DATE}.zip"
+            CODE=$(curl -sS -I -L -o /tmp/h.txt -w '%{http_code}' "$URL" || true)
+            LEN=$(awk 'tolower($1)=="content-length:" {gsub("\r",""); x=$2} END{print x}' /tmp/h.txt)
+            echo "$SYM http=$CODE content_length=${LEN:-NA}"
           done
-          if [ "$READY" != '1' ]; then echo 'V5-A1 endpoint not ready'; cat /tmp/probe.json || true; exit 1; fi
 
-          echo '=== RUN FOUR-PAIR V5-A1 ==='
-          curl -fsS --retry 4 --retry-delay 2 --retry-all-errors \
-            "$BASE/v5/derivatives-feasibility?symbols=BTCUSDT%2CETHUSDT%2CSOLUSDT%2CBNBUSDT&period=5m" \
-            > /tmp/v5.json
-
+          echo '=== INSPECT BTCUSDT METRICS SCHEMA + SAMPLE ==='
+          URL="$BASE/BTCUSDT/BTCUSDT-metrics-${DATE}.zip"
+          curl -fsSL "$URL" -o /tmp/metrics.zip
           python - <<'PY'
-          import json
-          d=json.load(open('/tmp/v5.json'))
-          print('PHASE',d.get('phase'),d.get('status'),d.get('as_of'))
-          print('CAUSALITY',json.dumps(d.get('causality_lock'),separators=(',',':')))
-          for sym,v in d.get('data',{}).items():
-              print('SYMBOL',sym)
-              print(' CURRENT_OI',json.dumps(v.get('current_open_interest'),separators=(',',':')))
-              for ds,windows in v.get('rest_history_probes',{}).items():
-                  print(' REST',ds,json.dumps({k:{'ok':x.get('ok'),'status':x.get('status'),'n':x.get('n'),'first_time':x.get('first_time'),'last_time':x.get('last_time')} for k,x in windows.items()},separators=(',',':')))
-              print(' ARCHIVE',json.dumps(v.get('official_public_archive_probes'),separators=(',',':')))
+          import zipfile, csv, io, json
+          z=zipfile.ZipFile('/tmp/metrics.zip')
+          names=z.namelist(); print('FILES',names)
+          raw=z.read(names[0]).decode('utf-8-sig')
+          rows=list(csv.reader(io.StringIO(raw)))
+          print('HEADER',json.dumps(rows[0]))
+          print('ROW1',json.dumps(rows[1] if len(rows)>1 else []))
+          print('ROW2',json.dumps(rows[2] if len(rows)>2 else []))
+          print('ROWS',max(0,len(rows)-1))
           PY
+
+          echo '=== VERIFY A FEW ADJACENT DAYS FOR CONTINUITY ==='
+          for DATE2 in 2023-12-17 2023-12-18 2023-12-19 2023-12-20; do
+            URL="$BASE/BTCUSDT/BTCUSDT-metrics-${DATE2}.zip"
+            CODE=$(curl -sS -I -L -o /dev/null -w '%{http_code}' "$URL" || true)
+            echo "BTCUSDT $DATE2 http=$CODE"
+          done
