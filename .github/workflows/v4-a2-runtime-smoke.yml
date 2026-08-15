@@ -1,4 +1,4 @@
-name: V4 B4 Frozen Fibonacci 971d Validation
+name: V4 B5 Recent Edge Regime Forensic
 
 on:
   push:
@@ -7,114 +7,164 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate:
+  forensic:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
-      - name: Fetch exact 971d data and validate frozen 61.8-70.5 band
+      - name: Compare latest 120d Fibonacci winners with prior 851d history
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
-          PAIRS='["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"]'
 
-          echo '=== REFRESH EXACT 971D 1H + 5M ==='
-          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-            -X POST -H 'Content-Type: application/json' \
-            -d "{\"days\":971,\"pairs\":${PAIRS},\"timeframes\":[\"1h\",\"5m\"]}" \
-            "$BASE/fetch-data"
-          echo
-
-          STATUS=''
-          for i in $(seq 1 600); do
-            curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
-            STATUS=$(python - <<'PY'
-          import json
-          s=json.load(open('/tmp/fetch-status.json')).get('fetch_state',{})
-          print(s.get('status',''))
-          PY
-          )
-            if [ $((i % 10)) -eq 0 ]; then
-              python - <<'PY'
-          import json
-          s=json.load(open('/tmp/fetch-status.json')).get('fetch_state',{})
-          print('FETCH',s.get('status'),s.get('progress'),'candles=',s.get('total_candles'))
-          PY
-            fi
-            if [ "$STATUS" = 'done' ]; then break; fi
-            if [ "$STATUS" = 'error' ]; then cat /tmp/fetch-status.json; exit 1; fi
-            sleep 5
-          done
-          if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; exit 1; fi
-
-          echo '=== RUN B2 PER PAIR TO AVOID 500-SAMPLE TRUNCATION ==='
+          # 971d data is already resident from B4. Pull both frozen forensics
+          # per pair so no 500-sample truncation occurs.
           for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
             curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
               "$BASE/v4/context-fib-forensic?symbols=${SYM}&days=971&rr=1.0&confirm_bars=3&sample_limit=500" \
-              > "/tmp/${SYM}.json"
+              > "/tmp/b2_${SYM}.json"
+            curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
+              "$BASE/v4/absorption-forensic?symbols=${SYM}&days=971&rr=1.0&confirm_bars=3&sample_limit=500" \
+              > "/tmp/b1_${SYM}.json"
           done
 
           python - <<'PY'
-          import json
-          from datetime import datetime
+          import json, math, statistics
+          from datetime import datetime, timezone, timedelta
 
           PAIRS=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
-          SIDES=['DEMAND','SUPPLY']
           FROZEN='61.8-70.5'
+          cutoff=datetime.now(timezone.utc)-timedelta(days=120)
+
           rows=[]
-          pair_report={}
           for p in PAIRS:
-              d=json.load(open(f'/tmp/{p}.json'))
-              if d.get('errors'):
-                  print('PAIR_ERRORS',p,json.dumps(d['errors'],separators=(',',':')))
-              sample=d.get('sample',[])
-              overall=d.get('overall',{})
-              if int(overall.get('n',0) or 0) > len(sample):
-                  raise SystemExit(f'SAMPLE_TRUNCATED {p}: overall={overall.get("n")} sample={len(sample)}')
-              for x in sample:
-                  if x.get('outcome') not in ('BOUNCE','BREAK'):
+              b2=json.load(open(f'/tmp/b2_{p}.json'))
+              b1=json.load(open(f'/tmp/b1_{p}.json'))
+              # Both endpoints use the exact same frozen V4-B events/outcomes.
+              b1map={x.get('zone_id'):x for x in b1.get('sample',[]) if x.get('zone_id')}
+              if int((b2.get('overall') or {}).get('n',0) or 0)>len(b2.get('sample',[])):
+                  raise SystemExit(f'B2_TRUNCATED {p}')
+              if int((b1.get('overall') or {}).get('resolved',0) or 0)>len(b1.get('sample',[])):
+                  raise SystemExit(f'B1_TRUNCATED {p}')
+              for x in b2.get('sample',[]):
+                  if x.get('fib_band')!=FROZEN or x.get('outcome') not in ('BOUNCE','BREAK'):
                       continue
-                  z=dict(x); z['pair']=p; z['win']=1 if z['outcome']=='BOUNCE' else 0
+                  z=dict(x)
+                  extra=b1map.get(x.get('zone_id'),{})
+                  for k,v in extra.items():
+                      if k not in z:
+                          z[k]=v
+                  z['pair']=p
+                  z['win']=1 if z['outcome']=='BOUNCE' else 0
                   z['_t']=datetime.fromisoformat(z['confirm_time'])
                   rows.append(z)
-              pair_report[p]={'baseline':overall,'fib_bands':d.get('fib_bands',{})}
 
-          selected=[r for r in rows if r.get('fib_band')==FROZEN]
-          rows.sort(key=lambda r:r['_t']); selected.sort(key=lambda r:r['_t'])
+          rows.sort(key=lambda r:r['_t'])
+          recent=[r for r in rows if r['_t']>=cutoff]
+          hist=[r for r in rows if r['_t']<cutoff]
 
           def stat(xs):
               n=len(xs); w=sum(r['win'] for r in xs)
               return {'n':n,'wins':w,'losses':n-w,'wr_pct':round(100*w/n,2) if n else None}
 
-          # Chronological equal-duration-ish validation: 8 calendar blocks across the observed signal range.
-          blocks=[]
-          if selected:
-              t0=min(r['_t'] for r in rows); t1=max(r['_t'] for r in rows)
-              span=(t1-t0).total_seconds()
-              for q in range(8):
-                  a=t0 + (t1-t0)*(q/8)
-                  b=t0 + (t1-t0)*((q+1)/8)
-                  blocks.append([r for r in selected if a <= r['_t'] < b or (q==7 and r['_t']==b)])
+          def vals(xs,f):
+              out=[]
+              for r in xs:
+                  v=r.get(f)
+                  try:
+                      v=float(v)
+                      if math.isfinite(v): out.append(v)
+                  except: pass
+              return out
 
-          n=len(selected)
-          result={
-              'phase':'V4-B4',
-              'frozen_rule':{
-                  'days':971,
-                  'fib_band':'61.8%-70.5%',
-                  'baseline_signal':'V4-B 1H structural zone + first 5m absorption/reclaim confirmation',
-                  'rr':'1:1','confirm_bars':3,'regime_gate':False,'other_filters':None,
-              },
-              'baseline_all_signals':stat(rows),
-              'frozen_band_overall':stat(selected),
-              'by_pair':{p:stat([r for r in selected if r['pair']==p]) for p in PAIRS},
-              'by_side':{s:stat([r for r in selected if r.get('side')==s]) for s in SIDES},
-              'first_half_events':stat(selected[:n//2]),
-              'second_half_events':stat(selected[n//2:]),
-              'chronological_8_blocks':[stat(b) for b in blocks],
-              'pair_source_checks':pair_report,
-              'selected_first_time':selected[0]['confirm_time'] if selected else None,
-              'selected_last_time':selected[-1]['confirm_time'] if selected else None,
+          def med(xs,f):
+              v=vals(xs,f)
+              return round(statistics.median(v),6) if v else None
+
+          def quantile(v,p):
+              if not v:return None
+              s=sorted(v)
+              pos=(len(s)-1)*p
+              lo=int(math.floor(pos)); hi=int(math.ceil(pos))
+              if lo==hi:return s[lo]
+              return s[lo]+(s[hi]-s[lo])*(pos-lo)
+
+          FEATURES=[
+              'fib_retracement','bars_to_confirm','abs_delta_pct','penetration_zone_x',
+              'reclaim_extension_zone_x','confirm_body_ratio','confirm_close_location',
+              'quote_volume_expansion','zone_width_pct'
+          ]
+
+          compare={}
+          signature_test={}
+          for f in FEATURES:
+              rv=vals(recent,f); hv=vals(hist,f)
+              rm=med(recent,f); hm=med(hist,f)
+              q1=quantile(rv,.25); q3=quantile(rv,.75)
+              matched=[r for r in hist if r.get(f) is not None and q1 is not None and q3 is not None and q1<=float(r[f])<=q3]
+              compare[f]={
+                  'recent_median':rm,'historical_median':hm,
+                  'recent_q25':round(q1,6) if q1 is not None else None,
+                  'recent_q75':round(q3,6) if q3 is not None else None,
+                  'median_shift_pct':round(100*(rm-hm)/abs(hm),2) if rm is not None and hm not in (None,0) else None,
+              }
+              signature_test[f]=stat(matched)
+
+          # Categorical composition: does the recent window simply contain a
+          # different mix of pair/side/regime than history?
+          def cat_report(field, cats):
+              out={}
+              for c in cats:
+                  rr=[r for r in recent if r.get(field)==c]
+                  hh=[r for r in hist if r.get(field)==c]
+                  out[str(c)]={'recent':stat(rr),'historical':stat(hh)}
+              return out
+
+          categorical={
+              'pair':cat_report('pair',PAIRS),
+              'side':cat_report('side',['DEMAND','SUPPLY']),
+              'regime_relation':cat_report('regime_relation',['ALIGNED','SIDEWAYS','OPPOSED']),
           }
-          print('B4_RESULT',json.dumps(result,separators=(',',':')))
+
+          # Find combinations of *predefined* broad properties, not threshold
+          # sweeps: recent IQR match count across features. This is descriptive
+          # only; report historical WR by number of recent-like features.
+          bounds={}
+          for f in FEATURES:
+              rv=vals(recent,f)
+              if rv:
+                  bounds[f]=(quantile(rv,.25),quantile(rv,.75))
+          similarity=[]
+          for r in hist:
+              score=0; total=0
+              for f,(a,b) in bounds.items():
+                  try:
+                      v=float(r[f]); total+=1
+                      if a<=v<=b: score+=1
+                  except: pass
+              z=dict(r); z['_similarity']=score; z['_similarity_total']=total
+              similarity.append(z)
+          sim_stats={str(k):stat([r for r in similarity if r['_similarity']>=k]) for k in [2,3,4,5,6]}
+
+          result={
+              'phase':'V4-B5',
+              'question':'Why did frozen 61.8-70.5 V4-B jump to ~86% in the latest 120d?',
+              'frozen_rule':'same V4-B signal + fib 61.8-70.5 + RR1; no strategy filtering added',
+              'cutoff_utc':cutoff.isoformat(),
+              'overall_971d':stat(rows),
+              'recent_120d':stat(recent),
+              'historical_pre_120d':stat(hist),
+              'recent_vs_history_features':compare,
+              'historical_wr_when_matching_recent_iqr_one_feature':signature_test,
+              'categorical_mix':categorical,
+              'historical_recent_similarity':sim_stats,
+              'recent_events':[{
+                  'pair':r['pair'],'side':r.get('side'),'time':r.get('confirm_time'),
+                  'outcome':r.get('outcome'),'regime':r.get('regime_relation'),
+                  'fib':r.get('fib_retracement'),'delta':r.get('abs_delta_pct'),
+                  'penetration':r.get('penetration_zone_x'),'reclaim':r.get('reclaim_extension_zone_x'),
+                  'vol_exp':r.get('quote_volume_expansion'),'zone_width_pct':r.get('zone_width_pct')
+              } for r in recent],
+          }
+          print('B5_RESULT',json.dumps(result,separators=(',',':')))
           PY
