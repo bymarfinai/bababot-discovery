@@ -1,9 +1,10 @@
-name: V5 C Derivatives Native Setup
+name: V5 D Derivatives Shock Capitulation
 
 on:
   push:
     paths:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
+      - 'research/v5_d_derivatives_shock.py'
       - 'research/v5_c_derivatives_native.py'
       - 'research/v5_a2_derivatives_forensic.py'
   workflow_dispatch:
@@ -11,11 +12,11 @@ on:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - name: Run frozen V5-C derivatives-native 120d screen
+      - name: Run frozen V5-D 2-sigma capitulation reversal screen
         shell: bash
         run: |
           set -euo pipefail
-          python research/v5_c_derivatives_native.py
+          python research/v5_d_derivatives_shock.py
