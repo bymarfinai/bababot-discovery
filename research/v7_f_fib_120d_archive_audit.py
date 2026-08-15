@@ -39,7 +39,6 @@ def http_bytes(url, tries=2, timeout=35):
             with urlopen(req,timeout=timeout) as r:return r.read()
         except (HTTPError,URLError,TimeoutError) as e:
             last=e
-            # Do not waste retries on archive 404s.
             if isinstance(e,HTTPError) and e.code==404:break
             time.sleep(min(i+1,2))
     raise RuntimeError(f"GET failed {url}: {last}")
@@ -69,13 +68,15 @@ def parse_zip(raw,symbol,tf,start_ms,end_ms):
     z=zipfile.ZipFile(io.BytesIO(raw)); txt=z.read(z.namelist()[0]).decode("utf-8-sig")
     out=[]
     for r in csv.reader(io.StringIO(txt)):
-        if len(r)<6:continue
+        if len(r)<11:continue
         try:
             t=int(float(r[0])); o=float(r[1]); h=float(r[2]); l=float(r[3]); c=float(r[4]); v=float(r[5])
+            close_t=int(float(r[6])); quote_v=float(r[7]); trades=int(float(r[8])); taker_v=float(r[9]); taker_q=float(r[10])
         except Exception:continue
-        # Safety for possible microsecond timestamps.
         if t>10_000_000_000_000:t//=1000
-        if start_ms<=t<end_ms:out.append((symbol,tf,t,o,h,l,c,v))
+        if close_t>10_000_000_000_000:close_t//=1000
+        if start_ms<=t<end_ms:
+            out.append((symbol,tf,t,o,h,l,c,v,close_t,quote_v,trades,taker_v,taker_q))
     return out
 
 
@@ -108,22 +109,25 @@ def wilson(w,n,z=1.96):
 
 
 def main():
-    # Freeze a common temporal boundary for data construction and block labels.
     end=datetime.now(timezone.utc)
     start=end-timedelta(days=DAYS)
     if os.path.exists(DB):os.unlink(DB)
     conn=sqlite3.connect(DB)
-    conn.execute("CREATE TABLE klines(symbol TEXT,timeframe TEXT,open_time INTEGER,open REAL,high REAL,low REAL,close REAL,volume REAL,PRIMARY KEY(symbol,timeframe,open_time))")
+    conn.execute("""CREATE TABLE klines(
+        symbol TEXT,timeframe TEXT,open_time INTEGER,
+        open REAL,high REAL,low REAL,close REAL,volume REAL,
+        close_time INTEGER,quote_volume REAL,trades INTEGER,
+        taker_buy_volume REAL,taker_buy_quote_volume REAL,
+        PRIMARY KEY(symbol,timeframe,open_time))""")
     coverage={}
     for p in PAIRS:
         coverage[p]={}
         for tf in TFS:
             rows=load_series(p,tf,start,end)
-            conn.executemany("INSERT OR REPLACE INTO klines VALUES(?,?,?,?,?,?,?,?)",rows); conn.commit()
+            conn.executemany("INSERT OR REPLACE INTO klines VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",rows); conn.commit()
             coverage[p][tf]={"rows":len(rows),"first":datetime.fromtimestamp(rows[0][2]/1000,tz=timezone.utc).isoformat() if rows else None,"last":datetime.fromtimestamp(rows[-1][2]/1000,tz=timezone.utc).isoformat() if rows else None}
     conn.close()
 
-    # DB_PATH must be set before importing V4 modules.
     os.environ["DB_PATH"]=DB
     from v4_context_fib_forensic_endpoint import context_fib_forensic
 
