@@ -1,16 +1,13 @@
-"""V4-A1.1 liquidity-created zone first-retest evaluator.
+"""V4-A1.2 liquidity-created zone first-retest evaluator.
 
-Architecture:
-    1H confirmed liquidity sweep/reclaim -> opposing BOS -> liquidity pocket zone
-    -> first future 5m retest -> +/-1R outcome
-
-No regime, absorption, fee/PnL, or parameter optimization is applied here.
+Same causal sweep+BOS events are evaluated under three frozen zone geometries:
+pocket, reaction_body, reaction_range. 5m remains the execution baseline.
 """
 
 from fastapi import APIRouter, Query
 
 from v4_structural_zone_endpoint import _load, _ts
-from v4_liquidity_zone_endpoint import build_liquidity_zones
+from v4_liquidity_zone_endpoint import build_liquidity_zones, ZONE_MODES
 from v4_first_retest_endpoint import (
     HOUR_MS,
     TF_MS,
@@ -30,6 +27,7 @@ def liquidity_first_retest(
     days: int = Query(120, ge=30, le=1500),
     rr: float = Query(1.0, ge=1.0, le=3.0),
     execution_tf: str = Query("5m"),
+    zone_mode: str = Query("pocket"),
     swing_lb: int = Query(10, ge=3, le=30),
     swing_atr: float = Query(0.5, ge=0.0, le=3.0),
     min_sweep_depth_atr: float = Query(0.0, ge=0.0, le=2.0),
@@ -42,8 +40,11 @@ def liquidity_first_retest(
 ):
     symbol = symbol.upper().strip()
     execution_tf = execution_tf.lower().strip()
+    zone_mode = zone_mode.lower().strip()
     if execution_tf not in TF_MS:
         return {"error": "execution_tf must be 5m or 15m"}
+    if zone_mode not in ZONE_MODES:
+        return {"error": f"zone_mode must be one of {sorted(ZONE_MODES)}"}
 
     rows = _load(symbol, "1h", days)
     if len(rows) < max(100, swing_lb * 4 + 20):
@@ -51,13 +52,14 @@ def liquidity_first_retest(
 
     T, O, H, L, C, ATR, zones, rejected = build_liquidity_zones(
         rows, swing_lb, swing_atr, min_sweep_depth_atr,
-        max_bos_bars, min_displacement_atr,
+        max_bos_bars, min_displacement_atr, zone_mode,
     )
     if not zones:
         return {
-            "phase": "V4-A1.1",
+            "phase": "V4-A1.2",
             "status": "LIQUIDITY_FIRST_RETEST_TEST",
             "symbol": symbol,
+            "zone_mode": zone_mode,
             "requested_days": days,
             "zone_count": 0,
             "rejected": rejected,
@@ -69,8 +71,9 @@ def liquidity_first_retest(
     child_rows = _load_child(symbol, execution_tf, child_start, child_end)
     if not child_rows:
         return {
-            "phase": "V4-A1.1",
+            "phase": "V4-A1.2",
             "symbol": symbol,
+            "zone_mode": zone_mode,
             "execution_tf": execution_tf,
             "error": f"No {execution_tf} child data available. Fetch it before evaluation.",
         }
@@ -78,8 +81,9 @@ def liquidity_first_retest(
     coverage = _coverage(child_rows, child_start, child_end, execution_tf)
     if coverage["coverage_pct"] < min_child_coverage_pct:
         return {
-            "phase": "V4-A1.1",
+            "phase": "V4-A1.2",
             "symbol": symbol,
+            "zone_mode": zone_mode,
             "execution_tf": execution_tf,
             "error": "Child timeframe coverage below required threshold; refusing biased WR estimate",
             "coverage": coverage,
@@ -102,10 +106,16 @@ def liquidity_first_retest(
     supply = _stats(results, "SUPPLY")
     resolved = [x for x in results if x["outcome"] in {"BOUNCE", "BREAK"}]
 
+    geometry_desc = {
+        "pocket": "wick extreme to swept swing level",
+        "reaction_body": "wick extreme to far body edge of sweep candle",
+        "reaction_range": "full sweep candle high-low range",
+    }
     return {
-        "phase": "V4-A1.1",
+        "phase": "V4-A1.2",
         "status": "LIQUIDITY_FIRST_RETEST_TEST",
         "symbol": symbol,
+        "zone_mode": zone_mode,
         "requested_days": days,
         "data": {
             "one_hour_rows": len(rows),
@@ -118,6 +128,8 @@ def liquidity_first_retest(
         "frozen_definition": {
             "structure_timeframe": "1h",
             "execution_timeframe": execution_tf,
+            "zone_mode": zone_mode,
+            "zone_geometry": geometry_desc[zone_mode],
             "swing_lb": swing_lb,
             "swing_atr": swing_atr,
             "same_candle_sweep_reclaim": True,
@@ -125,9 +137,8 @@ def liquidity_first_retest(
             "opposing_structure_frozen_at_sweep": True,
             "max_bos_bars": max_bos_bars,
             "min_displacement_atr": min_displacement_atr,
-            "zone": "swept liquidity pocket between wick extreme and swept swing level",
             "first_retest": "first child-TF touch after validating 1H BOS close",
-            "risk": "full liquidity-pocket width",
+            "risk": "full selected zone width",
             "target": f"{rr:.2f}R from proximal edge",
             "rr": rr,
             "regime_gate": False,
