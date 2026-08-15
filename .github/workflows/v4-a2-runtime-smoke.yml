@@ -9,28 +9,65 @@ on:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Check deployed data status and V4-A2 BTC 120d
+      - name: Fetch BTC 5m 120d and run V4-A2
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
-          echo '=== DATA STATUS ==='
-          curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "$BASE/data/status" | tee /tmp/data-status.json
+
+          echo '=== START BTC 5M FETCH ==='
+          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
+            -X POST -H 'Content-Type: application/json' \
+            -d '{"days":120,"pairs":["BTCUSDT"],"timeframes":["5m"]}' \
+            "$BASE/fetch-data"
           echo
+
+          echo '=== POLL FETCH ==='
+          for i in $(seq 1 180); do
+            curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
+            python - <<'PY'
+          import json
+          d=json.load(open('/tmp/fetch-status.json'))
+          s=d.get('fetch_state',{})
+          print('FETCH', s.get('status'), s.get('progress'), 'candles=', s.get('total_candles'))
+          PY
+            STATUS=$(python - <<'PY'
+          import json
+          d=json.load(open('/tmp/fetch-status.json'))
+          print(d.get('fetch_state',{}).get('status',''))
+          PY
+          )
+            if [ "$STATUS" = 'done' ]; then break; fi
+            if [ "$STATUS" = 'error' ]; then cat /tmp/fetch-status.json; exit 1; fi
+            sleep 5
+          done
+
+          STATUS=$(python - <<'PY'
+          import json
+          d=json.load(open('/tmp/fetch-status.json'))
+          print(d.get('fetch_state',{}).get('status',''))
+          PY
+          )
+          if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; cat /tmp/fetch-status.json; exit 1; fi
+
+          echo '=== DATA STATUS AFTER FETCH ==='
+          curl -fsS "$BASE/data/status" | tee /tmp/data-status.json
+          echo
+
           echo '=== V4-A2 BTCUSDT 120D 5M RR1 ==='
-          curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "$BASE/v4/first-retest?symbol=BTCUSDT&days=120&rr=1.0&execution_tf=5m&sample_limit=0" | tee /tmp/v4-a2-btc.json
+          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
+            "$BASE/v4/first-retest?symbol=BTCUSDT&days=120&rr=1.0&execution_tf=5m&sample_limit=0" \
+            | tee /tmp/v4-a2-btc.json
           echo
+
           echo '=== COMPACT RESULT ==='
           python - <<'PY'
           import json
-          from pathlib import Path
-          for label, path in [('data', '/tmp/data-status.json'), ('a2', '/tmp/v4-a2-btc.json')]:
-              d=json.loads(Path(path).read_text())
-              if label=='data':
-                  btc=d.get('pairs',{}).get('BTCUSDT',{})
-                  print('BTC_DATA', json.dumps(btc, separators=(',',':')))
-              else:
-                  keep={k:d.get(k) for k in ['phase','status','symbol','requested_days','execution_tf','error','data','overall','demand','supply','quality','verdict'] if k in d}
-                  print('A2_RESULT', json.dumps(keep, separators=(',',':')))
+          data=json.load(open('/tmp/data-status.json'))
+          a2=json.load(open('/tmp/v4-a2-btc.json'))
+          print('BTC_DATA', json.dumps(data.get('pairs',{}).get('BTCUSDT',{}), separators=(',',':')))
+          keep={k:a2.get(k) for k in ['phase','status','symbol','requested_days','execution_tf','error','data','overall','demand','supply','quality','verdict'] if k in a2}
+          print('A2_RESULT', json.dumps(keep, separators=(',',':')))
           PY
