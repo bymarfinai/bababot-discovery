@@ -1,0 +1,19 @@
+name: V7 K FIB Third Prior 120d
+
+on:
+  push:
+    paths:
+      - 'research/v7_k_fib_candidate_third_120d.py'
+      - '.github/workflows/v7-fib-third-120d.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install research dependencies
+        run: python -m pip install --disable-pip-version-check 'numpy>=1.26.0' 'fastapi>=0.110'
+      - name: Reconstruct official archive and test frozen candidates
+        run: PYTHONPATH=. python research/v7_k_fib_candidate_third_120d.py
