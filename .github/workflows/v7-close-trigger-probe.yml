@@ -1,0 +1,30 @@
+name: V7 1H Close Trigger Probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/v7-close-trigger-probe.yml'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Probe frozen 1H-close trigger forensic
+        env:
+          URL: https://web-production-b6a05.up.railway.app/v7/close-trigger-forensic?days=971&end_ts_ms=1785852000000
+        run: |
+          python - <<'PY'
+          import json, os, time, urllib.request
+          url=os.environ['URL'];last=None
+          for _ in range(60):
+              try:
+                  with urllib.request.urlopen(url,timeout=300) as r:
+                      if r.status==200:
+                          print('V7_CLOSE_RESULT',json.dumps(json.load(r),separators=(',',':')))
+                          raise SystemExit(0)
+              except Exception as e:last=repr(e)
+              time.sleep(5)
+          raise SystemExit('endpoint_not_ready: '+str(last))
+          PY
