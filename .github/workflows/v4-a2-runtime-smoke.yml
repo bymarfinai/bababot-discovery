@@ -1,4 +1,4 @@
-name: V4 A2 Runtime Smoke
+name: V4 A3 Forensic Separation
 
 on:
   push:
@@ -7,71 +7,127 @@ on:
   workflow_dispatch:
 
 jobs:
-  smoke:
+  forensic:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     steps:
-      - name: Refresh exact 120d 1h+5m and run 4-pair V4-A2
+      - name: Pull exact A2 observations and test feature separation
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://web-production-b6a05.up.railway.app'
-          PAIRS='["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"]'
 
-          echo '=== REFRESH 1H + 5M ALL FOUR PAIRS, 120D ==='
-          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-            -X POST -H 'Content-Type: application/json' \
-            -d "{\"days\":120,\"pairs\":${PAIRS},\"timeframes\":[\"1h\",\"5m\"]}" \
-            "$BASE/fetch-data"
-          echo
-
-          for i in $(seq 1 300); do
-            curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
-            STATUS=$(python - <<'PY'
-          import json
-          d=json.load(open('/tmp/fetch-status.json'))
-          print(d.get('fetch_state',{}).get('status',''))
-          PY
-          )
-            python - <<'PY'
-          import json
-          d=json.load(open('/tmp/fetch-status.json'))
-          s=d.get('fetch_state',{})
-          print('FETCH', s.get('status'), s.get('progress'), 'new=', s.get('total_candles'))
-          PY
-            if [ "$STATUS" = 'done' ]; then break; fi
-            if [ "$STATUS" = 'error' ]; then cat /tmp/fetch-status.json; exit 1; fi
-            sleep 5
-          done
-
-          STATUS=$(python - <<'PY'
-          import json
-          d=json.load(open('/tmp/fetch-status.json'))
-          print(d.get('fetch_state',{}).get('status',''))
-          PY
-          )
-          if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; cat /tmp/fetch-status.json; exit 1; fi
-
-          echo '=== DATA STATUS ==='
-          curl -fsS "$BASE/data/status" > /tmp/data.json
-          python - <<'PY'
-          import json
-          d=json.load(open('/tmp/data.json'))
-          for s in ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']:
-              t=d.get('pairs',{}).get(s,{})
-              print('DATA', s, json.dumps({'1h':t.get('1h'),'5m':t.get('5m')},separators=(',',':')))
-          PY
-
-          echo '=== FOUR PAIR EXACT-WINDOW V4-A2 ==='
           for SYM in BTCUSDT ETHUSDT SOLUSDT BNBUSDT; do
-            OUT="/tmp/${SYM}.json"
             curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-              "$BASE/v4/first-retest?symbol=${SYM}&days=120&rr=1.0&execution_tf=5m&sample_limit=0" > "$OUT"
-            python - "$SYM" "$OUT" <<'PY'
-          import json,sys
-          sym,path=sys.argv[1:]
-          d=json.load(open(path))
-          keep={k:d.get(k) for k in ['phase','status','symbol','requested_days','execution_tf','error','data','zone_count','overall','demand','supply','diagnostics'] if k in d}
-          print('PAIR_RESULT', sym, json.dumps(keep,separators=(',',':')))
-          PY
+              "$BASE/v4/first-retest?symbol=${SYM}&days=120&rr=1.0&execution_tf=5m&sample_limit=100" \
+              > "/tmp/${SYM}.json"
           done
+
+          python - <<'PY'
+          import json, math, statistics
+
+          PAIRS=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT']
+          FEATURES=[
+              'zone_width_atr','displacement_atr','bos_distance_atr',
+              'bos_body_ratio','bos_close_location','volume_expansion',
+              'base_to_bos_bars','retest_age_hours',
+              'first_touch_penetration_zone_width',
+          ]
+
+          rows=[]
+          for sym in PAIRS:
+              d=json.load(open(f'/tmp/{sym}.json'))
+              obs=d.get('results_sample',[])
+              for x in obs:
+                  if x.get('outcome') not in ('BOUNCE','BREAK'):
+                      continue
+                  z=dict(x)
+                  z['pair']=sym
+                  z['win']=1 if x['outcome']=='BOUNCE' else 0
+                  rows.append(z)
+
+          print('A3_SAMPLE', json.dumps({
+              'resolved':len(rows),
+              'wins':sum(r['win'] for r in rows),
+              'losses':sum(1-r['win'] for r in rows),
+              'wr_pct':round(100*sum(r['win'] for r in rows)/len(rows),2) if rows else None,
+              'pairs':{p:sum(r['pair']==p for r in rows) for p in PAIRS},
+          },separators=(',',':')))
+
+          def median(vals):
+              vals=[float(v) for v in vals if v is not None and math.isfinite(float(v))]
+              return statistics.median(vals) if vals else None
+
+          def wr(xs):
+              return 100*sum(r['win'] for r in xs)/len(xs) if xs else None
+
+          def quartiles(xs, feat):
+              valid=[r for r in xs if r.get(feat) is not None and math.isfinite(float(r[feat]))]
+              valid.sort(key=lambda r: float(r[feat]))
+              n=len(valid)
+              out=[]
+              for q in range(4):
+                  lo=(n*q)//4
+                  hi=(n*(q+1))//4
+                  bucket=valid[lo:hi]
+                  if not bucket:
+                      out.append({'n':0,'wr':None,'lo':None,'hi':None})
+                  else:
+                      out.append({
+                          'n':len(bucket),
+                          'wr':round(wr(bucket),2),
+                          'lo':round(float(bucket[0][feat]),4),
+                          'hi':round(float(bucket[-1][feat]),4),
+                      })
+              return out
+
+          def analyze(scope_name, xs):
+              results=[]
+              for f in FEATURES:
+                  valid=[r for r in xs if r.get(f) is not None and math.isfinite(float(r[f]))]
+                  if len(valid)<20:
+                      continue
+                  wins=[float(r[f]) for r in valid if r['win']==1]
+                  losses=[float(r[f]) for r in valid if r['win']==0]
+                  if not wins or not losses:
+                      continue
+                  q=quartiles(valid,f)
+                  q1=q[0]['wr']; q4=q[3]['wr']
+                  endpoint_gap=(q4-q1) if q1 is not None and q4 is not None else None
+                  wrs=[b['wr'] for b in q if b['wr'] is not None]
+                  range_gap=max(wrs)-min(wrs) if wrs else None
+
+                  pooled_direction=1 if median(wins)>median(losses) else -1 if median(wins)<median(losses) else 0
+                  pair_signs={}
+                  consistent=0
+                  eligible=0
+                  for p in PAIRS:
+                      pv=[r for r in valid if r['pair']==p]
+                      pw=[float(r[f]) for r in pv if r['win']==1]
+                      pl=[float(r[f]) for r in pv if r['win']==0]
+                      if len(pw)>=3 and len(pl)>=3:
+                          eligible+=1
+                          sign=1 if median(pw)>median(pl) else -1 if median(pw)<median(pl) else 0
+                          pair_signs[p]=sign
+                          if pooled_direction and sign==pooled_direction:
+                              consistent+=1
+
+                  results.append({
+                      'feature':f,
+                      'n':len(valid),
+                      'winner_median':round(median(wins),4),
+                      'loser_median':round(median(losses),4),
+                      'quartiles':q,
+                      'q4_minus_q1_pp':round(endpoint_gap,2) if endpoint_gap is not None else None,
+                      'max_quartile_spread_pp':round(range_gap,2) if range_gap is not None else None,
+                      'pooled_median_direction':'HIGHER_IN_WINNERS' if pooled_direction>0 else 'LOWER_IN_WINNERS' if pooled_direction<0 else 'EQUAL',
+                      'pair_direction_consistency':f'{consistent}/{eligible}',
+                      'pair_signs':pair_signs,
+                  })
+              results.sort(key=lambda x: abs(x['q4_minus_q1_pp'] or 0), reverse=True)
+              print('A3_SCOPE',scope_name,json.dumps(results,separators=(',',':')))
+
+          analyze('ALL',rows)
+          analyze('DEMAND',[r for r in rows if r.get('side')=='DEMAND'])
+          analyze('SUPPLY',[r for r in rows if r.get('side')=='SUPPLY'])
+          PY
