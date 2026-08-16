@@ -1,0 +1,18 @@
+name: V9 D BTC Shortlist 8x120d Ranking
+
+on:
+  push:
+    branches: [v7-regime-failed-breakout]
+    paths:
+      - 'research/v9_d_btc_shortlist_8x120d_ranking.py'
+      - '.github/workflows/v9-btc-shortlist-8x120d-ranking.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rank frozen BTC time-slot shortlist
+        run: PYTHONPATH=. python research/v9_d_btc_shortlist_8x120d_ranking.py
