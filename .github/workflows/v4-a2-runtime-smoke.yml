@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.11 Runner Recovery
+name: BTC Temporal Saturday18 A7.12 Loss Taxonomy
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a711:
+  saturday18-a712:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.11 runner recovery
+      - name: Run Saturday18 A7.12 loss taxonomy
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a711_runner_recovery.py
+          python btc_temporal_saturday18_a712_loss_taxonomy.py
