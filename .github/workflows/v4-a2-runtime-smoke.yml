@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.10 Dynamic Thesis
+name: BTC Temporal Friday15 A6.11 State Followup
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a610:
+  friday15-a611:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.10 dynamic thesis
+      - name: Run Friday15 A6.11 state followup
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a610_dynamic_thesis.py
+          python btc_temporal_friday15_a611_recovery_confirmation.py
