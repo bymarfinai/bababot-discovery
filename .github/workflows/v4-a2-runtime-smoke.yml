@@ -1,4 +1,4 @@
-name: BTC Temporal Friday A6.3 Walk Forward Clock
+name: BTC Temporal Friday15 A6.4 Short Horizon
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday-a63:
+  friday15-a64:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday A6.3 walk-forward clock rotation
+      - name: Run Friday15 A6.4 short-horizon geometry
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday_a63_walkforward_clock.py
+          python btc_temporal_friday15_a64_short_horizon.py
