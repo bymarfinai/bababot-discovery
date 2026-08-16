@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.32 EMA Failure Structure
+name: BTC Temporal Friday15 A6.33 EMA Early Warning Union
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a632:
+  friday15-a633:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.32 EMA failure structure (fixed)
+      - name: Run Friday15 A6.33 EMA early warning union
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a632_ema_failure_structure.py
+          python btc_temporal_friday15_a633_ema_early_warning_union.py
