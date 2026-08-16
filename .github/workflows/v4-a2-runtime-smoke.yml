@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.16 Distribution Robustness
+name: BTC Temporal Friday15 A6.17 Failed Thesis Router Atlas
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a616:
+  friday15-a617:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.16 distribution robustness
+      - name: Run Friday15 A6.17 failed-thesis router atlas
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a616_distribution_robustness.py
+          python btc_temporal_friday15_a617_failed_thesis_router_atlas.py
