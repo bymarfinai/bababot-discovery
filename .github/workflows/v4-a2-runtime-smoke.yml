@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.17 Failed Thesis Router Atlas
+name: BTC Temporal Friday15 A6.17b Wrongway Parity Repair
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a617:
+  friday15-a617b:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.17 failed-thesis router atlas
+      - name: Run Friday15 A6.17b wrong-way parity repair
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a617_failed_thesis_router_atlas.py
+          python btc_temporal_friday15_a617b_wrongway_parity_repair.py
