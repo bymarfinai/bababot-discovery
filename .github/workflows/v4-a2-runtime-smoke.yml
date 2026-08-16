@@ -1,4 +1,4 @@
-name: BTC Temporal A3 Fast Walkforward Run
+name: BTC Temporal A3 Offline Binance Run
 
 on:
   push:
@@ -6,51 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a3-fast:
+  temporal-a3-offline:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - name: Run optimized 971d BTC Tuesday dynamic direction
+      - uses: actions/checkout@v4
+      - name: Run A3 offline from Binance Futures archives
         shell: bash
         run: |
           set -euo pipefail
-          URL='https://web-production-b6a05.up.railway.app/research/btc-temporal-a3-fast?days=971&blocks=8&warmup=20'
-          READY=0
-          for i in $(seq 1 60); do
-            CODE=$(curl --max-time 120 -L -sS -o /tmp/a3.json -w '%{http_code}' "$URL" || true)
-            STATUS=$(python - <<'PY'
-          import json
-          try: print(json.load(open('/tmp/a3.json')).get('status',''))
-          except Exception: print('')
-          PY
-          )
-            if [ "$CODE" = '200' ] && [ "$STATUS" = 'BTC_TEMPORAL_A3_FAST_WALKFORWARD' ]; then READY=1; break; fi
-            echo "probe=$i http=$CODE status=$STATUS"
-            sleep 10
-          done
-          if [ "$READY" != '1' ]; then echo 'A3 fast endpoint not ready'; cat /tmp/a3.json || true; exit 1; fi
-          python - <<'PY'
-          import json
-          d=json.load(open('/tmp/a3.json'))
-          print('DATA',json.dumps(d.get('data',{}),separators=(',',':')))
-          print('COUNTS',json.dumps({
-              'engine_count':d.get('engine_count'),
-              'dir70':len(d.get('target70_directional',[])),
-              'ft05_70':len(d.get('target70_ft05',[])),
-              'ft08_70':len(d.get('target70_ft08',[]))
-          },separators=(',',':')))
-          print('BASELINE')
-          for r in d.get('baseline',[]): print(json.dumps(r,separators=(',',':')))
-          print('DIR70')
-          for i,r in enumerate(d.get('target70_directional',[])[:20],1): print(i,json.dumps(r,separators=(',',':')))
-          print('FT05_70')
-          for i,r in enumerate(d.get('target70_ft05',[])[:20],1): print(i,json.dumps(r,separators=(',',':')))
-          print('FT08_70')
-          for i,r in enumerate(d.get('target70_ft08',[])[:20],1): print(i,json.dumps(r,separators=(',',':')))
-          print('TOP_DIR')
-          for i,r in enumerate(d.get('top_directional',[])[:12],1): print(i,json.dumps(r,separators=(',',':')))
-          print('TOP_FT05')
-          for i,r in enumerate(d.get('top_ft05',[])[:12],1): print(i,json.dumps(r,separators=(',',':')))
-          print('TOP_FT08')
-          for i,r in enumerate(d.get('top_ft08',[])[:12],1): print(i,json.dumps(r,separators=(',',':')))
-          PY
+          python btc_temporal_a3_offline.py
