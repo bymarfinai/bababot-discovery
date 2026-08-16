@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.0 Money Geometry
+name: BTC Temporal Friday A6.1 Cluster Stability
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a60:
+  friday-a61:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.0 money geometry
+      - name: Run Friday A6.1 cluster stability
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a60_money_geometry.py
+          python btc_temporal_friday_a61_cluster_stability.py
