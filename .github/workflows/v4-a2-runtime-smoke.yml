@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.20 Parity Correct Combined
+name: BTC Temporal Friday15 A6.21 Validation Loss Attribution
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a620:
+  friday15-a621:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.20 parity-correct combined engine
+      - name: Run Friday15 A6.21 validation loss attribution
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a620_parity_combined.py
+          python btc_temporal_friday15_a621_validation_loss_attribution.py
