@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.32 EMA failure structure
+      - name: Run Friday15 A6.32 EMA failure structure (fixed)
         shell: bash
         run: |
           set -euo pipefail
