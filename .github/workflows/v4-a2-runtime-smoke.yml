@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.7 Pullback Selector
+name: BTC Temporal Friday15 A6.8 Pullback Robustness
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a67:
+  friday15-a68:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.7 pullback selector
+      - name: Run Friday15 A6.8 frozen pullback robustness
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a67_pullback_selector.py
+          python btc_temporal_friday15_a68_pullback_robustness.py
