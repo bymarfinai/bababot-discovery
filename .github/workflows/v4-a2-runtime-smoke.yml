@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.17 Lockable Profit Protection
+name: BTC Temporal Saturday18 A7.18 Lock Signal Forensics
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a717:
+  saturday18-a718:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.17 lockable profit protection
+      - name: Run Saturday18 A7.18 lock signal forensics
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a717_lockable_profit_protection.py
+          python btc_temporal_saturday18_a718_lock_signal_forensics.py
