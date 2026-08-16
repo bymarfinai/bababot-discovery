@@ -1,4 +1,4 @@
-name: BTC Temporal A4.3b Static Frontier
+name: BTC Temporal A5 Champion Loss Forensics
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a43b:
+  temporal-a5:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A4.3b static WR PnL frontier
+      - name: Run A5 champion loss forensics
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a43b_static_frontier.py
+          python btc_temporal_a5_champion_forensics.py
