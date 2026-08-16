@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.19 Sequential Short Geometry
+name: BTC Temporal Friday15 A6.20 Parity Correct Combined
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a619:
+  friday15-a620:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.19 sequential short geometry
+      - name: Run Friday15 A6.20 parity-correct combined engine
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a619_sequential_short_geometry.py
+          python btc_temporal_friday15_a620_parity_combined.py
