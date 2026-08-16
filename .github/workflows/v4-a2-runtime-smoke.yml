@@ -1,4 +1,4 @@
-name: BTC Temporal A5.6 Post-Hinge EMA Exit
+name: BTC Temporal A5.7 Giveback Sequence
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a56:
+  temporal-a57:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A5.6 post-hinge EMA exit
+      - name: Run A5.7 giveback sequence forensics
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a56_posthinge_ema_exit.py
+          python btc_temporal_a57_giveback_sequence.py
