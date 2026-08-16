@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.13b Strict Causal Separability
+name: BTC Temporal Saturday18 A7.14 Thesis Failure Intervention
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a713b:
+  saturday18-a714:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.13b strict causal separability
+      - name: Run Saturday18 A7.14 thesis-failure intervention
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a713b_strict_causal_separability.py
+          python btc_temporal_saturday18_a714_thesis_failure_intervention.py
