@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.4 Short Horizon
+name: BTC Temporal Saturday18 A7.0 Money Geometry
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a64:
+  saturday18-a70:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.4 short-horizon geometry
+      - name: Run Saturday18 A7.0 money geometry
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a64_short_horizon.py
+          python btc_temporal_saturday18_a70_money_geometry.py
