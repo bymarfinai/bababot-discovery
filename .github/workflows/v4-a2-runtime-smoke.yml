@@ -1,4 +1,4 @@
-name: BTC Temporal A4.1 Rescue Rules Run
+name: BTC Temporal A4.2 Rescue Local Refine
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a41:
+  temporal-a42:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A4.1 interpretable rescue rules
+      - name: Run A4.2 local rescue refinement
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a41_rescue_rules.py
+          python btc_temporal_a42_rescue_local_refine.py
