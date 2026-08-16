@@ -1,4 +1,4 @@
-name: BTC Temporal A4.3 Static TP SL vs Rescue
+name: BTC Temporal A4.3b Static Frontier
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a43:
+  temporal-a43b:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A4.3 dense static TP SL comparison
+      - name: Run A4.3b static WR PnL frontier
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a43_static_tpsl_vs_rescue.py
+          python btc_temporal_a43b_static_frontier.py
