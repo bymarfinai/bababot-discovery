@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.25 Economic Recovery Lock
+name: BTC Temporal Friday15 A6.26 Online Regime Policy
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a625:
+  friday15-a626:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.25 economic recovery lock
+      - name: Run Friday15 A6.26 online regime policy
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a625_poststop_economic_lock.py
+          python btc_temporal_friday15_a626_online_regime_policy.py
