@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.6 Winner Loss Atlas
+name: BTC Temporal Friday15 A6.7 Pullback Selector
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a66:
+  friday15-a67:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.6 winner loss atlas
+      - name: Run Friday15 A6.7 pullback selector
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a66_winner_loss_atlas.py
+          python btc_temporal_friday15_a67_pullback_selector.py
