@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.23 A719 Robustness
+name: BTC Temporal Saturday18 A7.24 Preentry Wrongway Atlas
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a723:
+  saturday18-a724:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.23 A7.19 robustness
+      - name: Run Saturday18 A7.24 pre-entry wrong-way atlas
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a723_a719_robustness.py
+          python btc_temporal_saturday18_a724_preentry_wrongway_atlas.py
