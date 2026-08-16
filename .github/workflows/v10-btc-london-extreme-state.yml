@@ -1,0 +1,15 @@
+name: V10 G BTC London Extreme State
+on:
+  push:
+    branches: [v7-regime-failed-breakout]
+    paths:
+      - 'research/v10_g_btc_london_extreme_accept_reject_state.py'
+      - '.github/workflows/v10-btc-london-extreme-state.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: PYTHONPATH=. python research/v10_g_btc_london_extreme_accept_reject_state.py
