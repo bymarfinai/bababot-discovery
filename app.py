@@ -75,6 +75,7 @@ _try_mount("v7_close_trigger_forensic_endpoint", "V7 1H-Close Trigger Forensic")
 _try_mount("btc_temporal_discovery_endpoint", "BTC Temporal Discovery A1")
 _try_mount("btc_temporal_a2_sequence_endpoint", "BTC Temporal Dynamic Sequence A2")
 _try_mount("btc_temporal_a2_refine_endpoint", "BTC Temporal Dynamic Sequence A2.1")
+_try_mount("btc_temporal_a3_direction_endpoint", "BTC Temporal Dynamic Direction A3")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 _try_mount("bbc_live_endpoint", "BBC Live")
 
