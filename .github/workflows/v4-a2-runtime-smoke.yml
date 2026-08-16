@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.11 State Followup
+name: BTC Temporal Friday15 A6.12 Wrongway Robustness
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a611:
+  friday15-a612:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.11 state followup
+      - name: Run Friday15 A6.12 wrongway robustness
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a611_recovery_confirmation.py
+          python btc_temporal_friday15_a612_wrongway_robustness.py
