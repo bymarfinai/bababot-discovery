@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.26 Prepump Action Test
+name: BTC Temporal Saturday18 A7.27 Prepump Skip Robustness
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a726:
+  saturday18-a727:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.26 pre-pump action test
+      - name: Run Saturday18 A7.27 pre-pump skip robustness
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a726_prepump_action_test.py
+          python btc_temporal_saturday18_a727_prepump_skip_robustness.py
