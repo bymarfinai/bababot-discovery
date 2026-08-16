@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.6 Hinge Statistics
+name: BTC Temporal Saturday18 A7.7 Giveback Statistics
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a76:
+  saturday18-a77:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.6 hinge statistics
+      - name: Run Saturday18 A7.7 giveback statistics
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a76_hinge_statistics.py
+          python btc_temporal_saturday18_a77_giveback_statistics.py
