@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.31 Tight-Stop Robustness
+name: BTC Temporal Friday15 A6.32 EMA Failure Structure
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a631:
+  friday15-a632:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.31 tight-stop robustness
+      - name: Run Friday15 A6.32 EMA failure structure
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a631_tight_stop_robustness.py
+          python btc_temporal_friday15_a632_ema_failure_structure.py
