@@ -1,0 +1,18 @@
+name: V9 A Time Of Week Directional 971d
+
+on:
+  push:
+    branches: [v7-regime-failed-breakout]
+    paths:
+      - 'research/v9_a_time_of_week_directional_971d.py'
+      - '.github/workflows/v9-time-of-week-directional-971d.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run causal time-of-week directional audit
+        run: PYTHONPATH=. python research/v9_a_time_of_week_directional_971d.py
