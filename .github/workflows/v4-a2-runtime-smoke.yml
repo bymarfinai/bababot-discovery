@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.10 Runner Recovery Forensics
+name: BTC Temporal Saturday18 A7.11 Runner Recovery
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a710:
+  saturday18-a711:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.10 runner recovery forensics
+      - name: Run Saturday18 A7.11 runner recovery
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a710_runner_recovery_forensics.py
+          python btc_temporal_saturday18_a711_runner_recovery.py
