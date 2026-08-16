@@ -1,4 +1,4 @@
-name: BTC Temporal A5.3 Frozen Robustness
+name: BTC Temporal A5.4 EMA Failure-State
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a53:
+  temporal-a54:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A5.3 frozen robustness
+      - name: Run A5.4 EMA failure-state forensics
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a53_frozen_robustness.py
+          python btc_temporal_a54_ema_failure_state.py
