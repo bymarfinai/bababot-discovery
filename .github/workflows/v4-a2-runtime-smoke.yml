@@ -1,4 +1,4 @@
-name: BTC Temporal A5 Champion Loss Forensics
+name: BTC Temporal A5.1 Champion Interventions
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a5:
+  temporal-a51:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A5 champion loss forensics
+      - name: Run A5.1 champion interventions
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a5_champion_forensics.py
+          python btc_temporal_a51_champion_interventions.py
