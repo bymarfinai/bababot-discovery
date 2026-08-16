@@ -34,7 +34,7 @@ def passes(g,speed,cond):
  return False
 def stats(q,lvl,speed,cond):
  z=[r for r in q if r['h'] and passes(r['gb'].get(lvl),speed,cond)];los=sum(r['loss'] for r in z);win=len(z)-los
- all_los=sum(r['loss'] and r['h'] for r in q)
+ all_los=sum(bool(r['loss'] and r['h']) for r in q)
  return {'n':len(z),'losers':los,'winners':win,'loser_precision':rnd(100*los/len(z),2) if z else None,'hinge_loser_recall':rnd(100*los/all_los,2) if all_los else None}
 def main():
  rec=build();d=rec[:83];v=rec[83:];c=[]
@@ -43,7 +43,6 @@ def main():
    for cond in CONDS:
     ds=stats(d,lvl,sp,cond)
     if ds['n']>=5:c.append({'level':lvl,'speed':sp,'cond':cond,'discovery':ds})
- # Discovery-only ranking: precision, then loser capture, then sample size.
  c.sort(key=lambda x:(x['discovery']['loser_precision'] or 0,x['discovery']['losers'],x['discovery']['n']),reverse=True)
  out=[]
  for x in c[:20]:
