@@ -1,4 +1,4 @@
-name: BTC Temporal A3.3 Microflow Direction Run
+name: BTC Temporal A3.4 5m Event Direction Run
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a33:
+  temporal-a34:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Run A3.3 taker-flow dynamic direction
+      - name: Run A3.4 5m event-sequence dynamic direction
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a33_microflow.py
+          python btc_temporal_a34_5m_events.py
