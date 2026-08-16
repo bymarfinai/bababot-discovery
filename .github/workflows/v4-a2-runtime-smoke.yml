@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.27 Prepump Skip Robustness
+name: BTC Temporal Friday15 A6.5 Prepump Transfer
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a727:
+  friday15-a65:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.27 pre-pump skip robustness
+      - name: Run Friday15 A6.5 frozen pre-pump transfer
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a727_prepump_skip_robustness.py
+          python btc_temporal_friday15_a65_prepump_transfer.py
