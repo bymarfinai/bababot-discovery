@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.9 Loss Forensics
+name: BTC Temporal Friday15 A6.9b Full Loss Forensics
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a69:
+  friday15-a69b:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.9 loss forensics
+      - name: Run Friday15 full 138-trade loss forensics
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a69_loss_forensics.py
+          python btc_temporal_friday15_a69b_full_loss_forensics.py
