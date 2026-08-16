@@ -1,4 +1,4 @@
-name: BTC Temporal A3.6 Direct First-Touch Run
+name: BTC Temporal A3.7 Tuesday Money Optimizer
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a36:
+  temporal-a37:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Run A3.6 direct first-touch classifier
+      - name: Run A3.7 money-first TP SL optimizer
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a36_firsttouch.py
+          python btc_temporal_a37_money_optimizer.py
