@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.8 Pullback Robustness
+name: BTC Temporal Friday15 A6.9 Loss Forensics
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a68:
+  friday15-a69:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.8 frozen pullback robustness
+      - name: Run Friday15 A6.9 loss forensics
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a68_pullback_robustness.py
+          python btc_temporal_friday15_a69_loss_forensics.py
