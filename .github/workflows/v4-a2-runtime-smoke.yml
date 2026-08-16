@@ -1,4 +1,4 @@
-name: BTC Temporal A3 Offline Binance Run
+name: BTC Temporal A3.1 Dynamic Observation Run
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a3-offline:
+  temporal-a31:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - name: Run A3 offline from Binance Futures archives
+      - name: Run A3.1 dynamic observation-depth path learner
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a3_offline.py
+          python btc_temporal_a31_pathscan.py
