@@ -1,0 +1,18 @@
+name: V9 C BTC Weekday Hour Sequential 120d
+
+on:
+  push:
+    branches: [v7-regime-failed-breakout]
+    paths:
+      - 'research/v9_c_btc_weekday_hour_sequential_120d.py'
+      - '.github/workflows/v9-btc-weekday-hour-sequential-120d.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run sequential BTC weekday/hour audit
+        run: PYTHONPATH=. python research/v9_c_btc_weekday_hour_sequential_120d.py
