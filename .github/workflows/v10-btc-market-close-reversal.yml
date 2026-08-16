@@ -1,0 +1,13 @@
+name: V10 D BTC Market Close Reversal
+on:
+  push:
+    paths:
+      - 'research/v10_d_btc_market_close_reversal_120d.py'
+      - '.github/workflows/v10-btc-market-close-reversal.yml'
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run BTC market-close reversal audit
+        run: PYTHONPATH=. python research/v10_d_btc_market_close_reversal_120d.py
