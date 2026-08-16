@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.20 Weak Pop Sequence
+name: BTC Temporal Saturday18 A7.21 Weak Pop Failure Classifier
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a720:
+  saturday18-a721:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.20 weak-pop sequence
+      - name: Run Saturday18 A7.21 weak-pop failure classifier
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a720_weakpop_sequence.py
+          python btc_temporal_saturday18_a721_weakpop_failure_classifier.py
