@@ -18,7 +18,7 @@ import btc_temporal_friday15_a617b_wrongway_parity_repair as a617b
 import btc_temporal_friday15_a620_parity_combined as a620
 import btc_temporal_friday15_a630_conditional_tight_stop as a630
 import btc_temporal_saturday18_a74_loss_forensics as a74
-from btc_temporal_a34_5m_events import load, ldt, rnd, EVAL_START, EVAL_END
+from btc_temporal_a34_5m_events import load, ldt, rnd, TF, EVAL_START, EVAL_END
 
 HOLD=360; CAP=.50
 RULE=next(r for r in a613.RULES if r[0]=='GB30_60')
@@ -35,7 +35,7 @@ def ema_state(rows,r,e7,e20,h):
  i=r['i'];j=i+h//5
  if j>=len(rows) or j<=i:return None
  last=j-1;prev=max(i,last-3)
- if rows[j][0]!=rows[i][0]+(h//5)*5*60:return None
+ if rows[j][0]!=rows[i][0]+(h//5)*TF:return None
  op=rows[j][1];c=rows[last][4];o=rows[last][1];hi=rows[last][2]
  e7l=e7[last];e20l=e20[last];e7p=e7[prev];e20p=e20[prev]
  spread=(e7l-e20l)/e20l if e20l else 0
@@ -92,7 +92,6 @@ def main():
   rec.append(r)
  assert len(rec)==138
  variants=[]
- # Reference evaluated only at 60; EMA candidates at 30/45/60.
  specs=[(60,'REF_FULL')]+[(h,k) for h in CHECKS for k in KINDS if k!='REF_FULL']
  for h,kind in specs:
   for r in rec:r['new'],r['action']=managed(rows,r,h,kind)
