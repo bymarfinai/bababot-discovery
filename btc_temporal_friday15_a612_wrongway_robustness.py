@@ -38,10 +38,10 @@ def main():
   c60=a69.checkpoint(rows,r,e7,e20,60);c120=a69.checkpoint(rows,r,e7,e20,120)
   if c60 is None or c120 is None:continue
   r['signal']=initial(c60) and confirmed(c120)
+  r['confirmed']=r['signal']
   r['new']=a611.action(rows,r,120,'FLIP',FLIP) if r['signal'] else t['net_usd']
   r['base']=t['net_usd'];rec.append(r)
  base=[r['base'] for r in rec];new=[r['new'] for r in rec]
- # chronological 8 equal-count blocks
  blocks=[]
  for b in range(8):
   lo=round(len(rec)*b/8);hi=round(len(rec)*(b+1)/8);q=rec[lo:hi]
@@ -51,11 +51,9 @@ def main():
   q=[r for r in rec if ldt(r['ts']).year==y];years[str(y)]={'n':len(q),'signals':sum(r['signal'] for r in q),'base':econ([r['base'] for r in q]),'new':econ([r['new'] for r in q]),'delta':rnd(sum(r['new']-r['base'] for r in q),3)}
  sig=[r for r in rec if r['signal']]
  trans={'actions':len(sig),'loss_to_win':sum(r['base']<=0 and r['new']>0 for r in sig),'win_to_loss':sum(r['base']>0 and r['new']<=0 for r in sig),'loss_to_loss':sum(r['base']<=0 and r['new']<=0 for r in sig),'win_to_win':sum(r['base']>0 and r['new']>0 for r in sig)}
- # leave one intervention undone
  loo=[]
  for z in sig:
   p=[(r['base'] if r is z else r['new']) for r in rec];loo.append(sum(p))
- # extra execution cost on intervention only, USD equivalent per notional percentage; baseline flip already has both RT fees
  stress=[]
  for pct in (0,.02,.05,.10,.15):
   extra=500*pct/100
