@@ -1,4 +1,4 @@
-name: BTC Temporal A5.5 EMA Overextension
+name: BTC Temporal A5.6 Post-Hinge EMA Exit
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a55:
+  temporal-a56:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A5.5 EMA overextension
+      - name: Run A5.6 post-hinge EMA exit
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a55_ema_overextension.py
+          python btc_temporal_a56_posthinge_ema_exit.py
