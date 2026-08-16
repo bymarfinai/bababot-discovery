@@ -1,4 +1,4 @@
-name: BTC Temporal A5.7 Giveback Sequence
+name: BTC Temporal A5.8 Fast Mean Reversion
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a57:
+  temporal-a58:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A5.7 giveback sequence forensics
+      - name: Run A5.8 fast mean-reversion rescue
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a57_giveback_sequence.py
+          python btc_temporal_a58_fast_mean_reversion.py
