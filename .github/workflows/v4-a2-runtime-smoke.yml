@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.22 Poststop Rescue Geometry
+name: BTC Temporal Friday15 A6.23 Stillopen Failure Policy
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a622:
+  friday15-a623:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.22 post-stop rescue geometry
+      - name: Run Friday15 A6.23 still-open failure policy
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a622_poststop_rescue_geometry.py
+          python btc_temporal_friday15_a623_stillopen_failure_policy.py
