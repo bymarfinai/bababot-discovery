@@ -50,15 +50,17 @@ def parent_record(rows,i,funding,tsmap,e7,e20):
     if h:
         for name,lvl,speed in CLASSIFIERS:
             g=a77.first_giveback(rows,i,h,lvl,e7,e20)
-            triggers[name]=g if (g and g['since']<=speed) else None
+            if g and g['since']<=speed:
+                # A7.7 stores elapsed minutes from hinge, not an absolute bar index.
+                triggers[name]={**g,'j':h['j']+int(g['since']//5)}
+            else:
+                triggers[name]=None
     else:
         triggers={name:None for name,_,_ in CLASSIFIERS}
     return {'ts':t['ts'],'i':i,'entry':t['entry'],'base':base,'reason':t['reason'],'bars':t['bars'],'triggers':triggers}
 
 def managed_trade(rows,r,trigger,lock,funding,tsmap):
-    """Return funding-adjusted PnL under a real-style profit lock."""
     if trigger is None:return r['base'],False,'NO_TRIGGER'
-    # first_giveback j is the completed signal bar. Decision is next 5m open.
     j=trigger['j']+1
     end=min(len(rows),r['i']+HOLD//5)
     if j>=end:return r['base'],False,'TOO_LATE'
@@ -71,8 +73,7 @@ def managed_trade(rows,r,trigger,lock,funding,tsmap):
         for k in range(j,end):
             x=rows[k]
             if x[0]!=rows[j][0]+(k-j)*TF:return r['base'],False,'DATA_GAP'
-            hit_lock=x[3]<=lock_px
-            hit_tp=x[2]>=tp_px
+            hit_lock=x[3]<=lock_px; hit_tp=x[2]>=tp_px
             if hit_lock and hit_tp:
                 exit_px=lock_px;exit_i=k;reason='LOCK_AMBIG';break
             if hit_lock:
@@ -123,12 +124,10 @@ def main():
         for lock in LOCKS:
             d=evaluate(rows,disc,name,lock,funding,tsmap)
             allres.append({'classifier':name,'lock':lock,'discovery':d})
-    # Discovery-only economic ranking; prefer positive delta, PF, lower DD, fewer damaged winners.
     allres.sort(key=lambda x:(x['discovery']['delta'],x['discovery']['pf'] or 0,-x['discovery']['mdd'],-x['discovery']['damaged']),reverse=True)
     audit=[]
     for x in allres:
         y=dict(x);y['validation']=evaluate(rows,val,y['classifier'],y['lock'],funding,tsmap);y['full']=evaluate(rows,recs,y['classifier'],y['lock'],funding,tsmap);audit.append(y)
-    # Best discovery-only per classifier, plus global discovery champion.
     selected=[]
     for name,_,_ in CLASSIFIERS:
         q=[x for x in audit if x['classifier']==name]
