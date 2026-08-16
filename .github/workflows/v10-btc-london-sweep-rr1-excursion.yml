@@ -1,0 +1,13 @@
+name: V10 C BTC London Sweep RR1 Excursion
+on:
+  push:
+    paths:
+      - 'research/v10_c_btc_london_sweep_rr1_excursion.py'
+      - '.github/workflows/v10-btc-london-sweep-rr1-excursion.yml'
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run BTC London sweep RR1 excursion audit
+        run: PYTHONPATH=. python research/v10_c_btc_london_sweep_rr1_excursion.py
