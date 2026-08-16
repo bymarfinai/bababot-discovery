@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.14 Thesis Failure Intervention
+name: BTC Temporal Saturday18 A7.15 Runner Failure Separability
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a714:
+  saturday18-a715:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.14 thesis-failure intervention
+      - name: Run Saturday18 A7.15 runner-failure separability
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a714_thesis_failure_intervention.py
+          python btc_temporal_saturday18_a715_runner_failure_separability.py
