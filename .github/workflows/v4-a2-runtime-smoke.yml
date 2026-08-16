@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.21 Validation Loss Attribution
+name: BTC Temporal Friday15 A6.22 Poststop Rescue Geometry
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a621:
+  friday15-a622:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.21 validation loss attribution
+      - name: Run Friday15 A6.22 post-stop rescue geometry
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a621_validation_loss_attribution.py
+          python btc_temporal_friday15_a622_poststop_rescue_geometry.py
