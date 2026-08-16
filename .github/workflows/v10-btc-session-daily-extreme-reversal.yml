@@ -1,0 +1,11 @@
+name: V10 B BTC Session Daily Extreme Reversal
+on:
+  push:
+    branches: [v7-regime-failed-breakout]
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: PYTHONPATH=. python research/v10_b_btc_session_daily_extreme_reversal.py
