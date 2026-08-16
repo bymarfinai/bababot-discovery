@@ -1,4 +1,4 @@
-name: BTC Temporal A5.9 Frozen FastMR Robustness
+name: BTC Temporal A5.10 Runner Recovery
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a59:
+  temporal-a510:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A5.9 frozen fastMR robustness
+      - name: Run A5.10 runner recovery
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a59_frozen_fastmr_robustness.py
+          python btc_temporal_a510_runner_recovery.py
