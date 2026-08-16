@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.1 Boundary Extension
+name: BTC Temporal Saturday18 A7.2 Local Plateau
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a71:
+  saturday18-a72:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.1 boundary extension
+      - name: Run Saturday18 A7.2 local plateau
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a71_boundary_extension.py
+          python btc_temporal_saturday18_a72_local_plateau.py
