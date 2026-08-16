@@ -72,6 +72,7 @@ _try_mount("v5_derivatives_feasibility_endpoint", "V5-A1 Derivatives Feasibility
 _try_mount("v7_legacy_trigger_forensic_endpoint", "V7 Legacy Trigger Forensic")
 _try_mount("v7_causal_trigger_forensic_endpoint", "V7 Causal Trigger Forensic")
 _try_mount("v7_close_trigger_forensic_endpoint", "V7 1H-Close Trigger Forensic")
+_try_mount("btc_temporal_discovery_endpoint", "BTC Temporal Discovery A1")
 _try_mount("orchestrator_endpoint", "Orchestrator")
 _try_mount("bbc_live_endpoint", "BBC Live")
 
