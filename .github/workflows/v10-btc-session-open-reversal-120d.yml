@@ -1,0 +1,18 @@
+name: V10 A BTC Session Open Reversal 120d
+
+on:
+  push:
+    branches: [v7-regime-failed-breakout]
+    paths:
+      - 'research/v10_a_btc_session_open_reversal_120d.py'
+      - '.github/workflows/v10-btc-session-open-reversal-120d.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run BTC session-open reversal audit
+        run: PYTHONPATH=. python research/v10_a_btc_session_open_reversal_120d.py
