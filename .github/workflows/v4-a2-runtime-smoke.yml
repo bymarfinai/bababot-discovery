@@ -1,4 +1,4 @@
-name: BTC Temporal Friday A6.2 All Clock Discovery
+name: BTC Temporal Friday A6.3 Walk Forward Clock
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday-a62:
+  friday-a63:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday A6.2 all-clock discovery validation
+      - name: Run Friday A6.3 walk-forward clock rotation
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday_a62_allclock_discovery.py
+          python btc_temporal_friday_a63_walkforward_clock.py
