@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.13 Giveback Rescue
+name: BTC Temporal Friday15 A6.14 Shallow Giveback
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a613:
+  friday15-a614:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.13 executable giveback rescue
+      - name: Run Friday15 A6.14 shallow giveback discrimination
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a613_giveback_rescue.py
+          python btc_temporal_friday15_a614_shallow_giveback.py
