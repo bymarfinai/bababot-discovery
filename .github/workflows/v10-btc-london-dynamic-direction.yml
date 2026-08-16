@@ -1,0 +1,16 @@
+name: V10 E BTC London Dynamic Direction
+on:
+  push:
+    branches: [v7-regime-failed-breakout]
+    paths:
+      - 'research/v10_e_btc_london_dynamic_direction_tree.py'
+      - '.github/workflows/v10-btc-london-dynamic-direction.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python -m pip install -q scikit-learn
+      - run: PYTHONPATH=. python research/v10_e_btc_london_dynamic_direction_tree.py
