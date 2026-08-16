@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.5b Funding Parity
+name: BTC Temporal Saturday18 A7.5 Early Failure Parity Rerun
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a75b:
+  saturday18-a75:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.5b funding parity
+      - name: Run Saturday18 A7.5 early-failure interventions
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a75b_consistency.py
+          python btc_temporal_saturday18_a75_early_failure.py
