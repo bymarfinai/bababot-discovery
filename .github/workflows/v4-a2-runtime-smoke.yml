@@ -1,4 +1,4 @@
-name: BTC Temporal A5.10 Runner Recovery
+name: BTC Temporal A5.11 Frozen Runner Recovery
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a510:
+  temporal-a511:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A5.10 runner recovery
+      - name: Run A5.11 frozen runner recovery
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a510_runner_recovery.py
+          python btc_temporal_a511_frozen_runner_recovery.py
