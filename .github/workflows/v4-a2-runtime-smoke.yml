@@ -1,4 +1,4 @@
-name: BTC Temporal A1 Discovery Run
+name: BTC Temporal A2 Sequence Run
 
 on:
   push:
@@ -6,40 +6,42 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a1:
+  temporal-a2:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Run 971d BTC weekday-hour discovery
+      - name: Run 971d BTC Tuesday dynamic sequence discovery
         shell: bash
         run: |
           set -euo pipefail
-          URL='https://web-production-b6a05.up.railway.app/research/btc-temporal?days=971&tz_offset_hours=7&blocks=8&top_n=30&min_n=80'
+          URL='https://web-production-b6a05.up.railway.app/research/btc-temporal-a2?days=971&blocks=8&min_n=20'
           READY=0
-          for i in $(seq 1 36); do
-            CODE=$(curl -L -sS -o /tmp/a1.json -w '%{http_code}' "$URL" || true)
+          for i in $(seq 1 48); do
+            CODE=$(curl -L -sS -o /tmp/a2.json -w '%{http_code}' "$URL" || true)
             STATUS=$(python - <<'PY'
           import json
-          try: print(json.load(open('/tmp/a1.json')).get('status',''))
+          try: print(json.load(open('/tmp/a2.json')).get('status',''))
           except Exception: print('')
           PY
           )
-            if [ "$CODE" = '200' ] && [ "$STATUS" = 'BTC_WEEKDAY_HOUR_FULL_DISCOVERY' ]; then READY=1; break; fi
+            if [ "$CODE" = '200' ] && [ "$STATUS" = 'BTC_TEMPORAL_A2_DYNAMIC_SEQUENCE' ]; then READY=1; break; fi
             echo "probe=$i http=$CODE status=$STATUS"
             sleep 10
           done
-          if [ "$READY" != '1' ]; then echo 'A1 endpoint not ready'; cat /tmp/a1.json || true; exit 1; fi
+          if [ "$READY" != '1' ]; then echo 'A2 endpoint not ready'; cat /tmp/a2.json || true; exit 1; fi
           python - <<'PY'
           import json
-          d=json.load(open('/tmp/a1.json'))
+          d=json.load(open('/tmp/a2.json'))
           print('DATA',json.dumps(d.get('data',{}),separators=(',',':')))
-          print('SLOTS',d.get('slot_count_evaluated'))
-          print('STABILITY_FIRST')
-          for i,r in enumerate(d.get('leaderboard_stability_first',[]),1):
-              print(i,json.dumps(r,separators=(',',':')))
-          print('RAW_WR')
-          for i,r in enumerate(d.get('leaderboard_raw_wr',[]),1):
-              print(i,json.dumps(r,separators=(',',':')))
-          print('TRACKED')
-          print(json.dumps(d.get('tracked_candidates',{}),separators=(',',':')))
+          print('BASELINE')
+          for h,r in d.get('baseline_exact_0600',{}).items(): print(h,json.dumps(r,separators=(',',':')))
+          print('COUNTS',json.dumps({k:d.get(k) for k in ['candidate_count','target70_count','target65_count']},separators=(',',':')))
+          print('TARGET70')
+          for i,r in enumerate(d.get('target70',[]),1): print(i,json.dumps(r,separators=(',',':')))
+          print('TARGET65')
+          for i,r in enumerate(d.get('target65',[])[:15],1): print(i,json.dumps(r,separators=(',',':')))
+          print('TOP_WR')
+          for i,r in enumerate(d.get('leaderboard_wr',[])[:20],1): print(i,json.dumps(r,separators=(',',':')))
+          print('TOP_STABILITY')
+          for i,r in enumerate(d.get('leaderboard_stability',[])[:20],1): print(i,json.dumps(r,separators=(',',':')))
           PY
