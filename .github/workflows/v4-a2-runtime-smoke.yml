@@ -1,4 +1,4 @@
-name: BTC Temporal A3.9 Tuesday Money Local Refine
+name: BTC Temporal A4 Post-Entry Rescue Run
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a39:
+  temporal-a4:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A3.9 local money refinement
+      - name: Run A4 post-entry rescue engine
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a39_local_refine.py
+          python btc_temporal_a4_rescue_engine.py
