@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.12 wrongway robustness
+      - name: Run Friday15 A6.12 wrongway robustness (fixed plumbing)
         shell: bash
         run: |
           set -euo pipefail
