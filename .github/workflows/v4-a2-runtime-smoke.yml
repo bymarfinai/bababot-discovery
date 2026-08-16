@@ -1,4 +1,4 @@
-name: BTC Temporal A4.2 Rescue Local Refine
+name: BTC Temporal A4.3 Static TP SL vs Rescue
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a42:
+  temporal-a43:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A4.2 local rescue refinement
+      - name: Run A4.3 dense static TP SL comparison
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a42_rescue_local_refine.py
+          python btc_temporal_a43_static_tpsl_vs_rescue.py
