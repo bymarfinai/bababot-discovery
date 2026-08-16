@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.13 Wrong-Way Separability
+name: BTC Temporal Saturday18 A7.13b Strict Causal Separability
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a713:
+  saturday18-a713b:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.13 wrong-way separability
+      - name: Run Saturday18 A7.13b strict causal separability
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a713_wrongway_separability.py
+          python btc_temporal_saturday18_a713b_strict_causal_separability.py
