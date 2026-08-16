@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.30 Conditional Tight Stop
+name: BTC Temporal Friday15 A6.31 Tight-Stop Robustness
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a630:
+  friday15-a631:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.30 conditional tight stop
+      - name: Run Friday15 A6.31 tight-stop robustness
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a630_conditional_tight_stop.py
+          python btc_temporal_friday15_a631_tight_stop_robustness.py
