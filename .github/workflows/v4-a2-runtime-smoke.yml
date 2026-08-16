@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.7 Giveback Statistics
+name: BTC Temporal Saturday18 A7.8 Fast Giveback Classifier
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a77:
+  saturday18-a78:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.7 giveback statistics
+      - name: Run Saturday18 A7.8 fast-giveback classifier
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a77_giveback_statistics.py
+          python btc_temporal_saturday18_a78_fast_giveback_classifier.py
