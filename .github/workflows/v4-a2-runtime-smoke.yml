@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.15 Runner Failure Separability
+name: BTC Temporal Saturday18 A7.16 Lockable Runner Failure
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a715:
+  saturday18-a716:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.15 runner-failure separability
+      - name: Run Saturday18 A7.16 lockable runner failure
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a715_runner_failure_separability.py
+          python btc_temporal_saturday18_a716_lockable_runner_failure.py
