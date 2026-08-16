@@ -1,4 +1,4 @@
-name: BTC Temporal A4 Cached Rescue Run
+name: BTC Temporal A4.1 Rescue Rules Run
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a4-fast:
+  temporal-a41:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run cached A4 post-entry rescue engine
+      - name: Run A4.1 interpretable rescue rules
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a4_rescue_fast.py
+          python btc_temporal_a41_rescue_rules.py
