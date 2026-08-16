@@ -1,4 +1,4 @@
-name: BTC Temporal A5.8 Fast Mean Reversion
+name: BTC Temporal A5.9 Frozen FastMR Robustness
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a58:
+  temporal-a59:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A5.8 fast mean-reversion rescue
+      - name: Run A5.9 frozen fastMR robustness
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a58_fast_mean_reversion.py
+          python btc_temporal_a59_frozen_fastmr_robustness.py
