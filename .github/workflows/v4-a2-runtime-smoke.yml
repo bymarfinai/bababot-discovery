@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.3 Funding Cost Stress
+name: BTC Temporal Saturday18 A7.4 Loss Forensics
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a73:
+  saturday18-a74:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.3 funding and cost stress
+      - name: Run Saturday18 A7.4 loss forensics
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a73_funding_cost_stress.py
+          python btc_temporal_saturday18_a74_loss_forensics.py
