@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.26 Online Regime Policy
+name: BTC Temporal Friday15 A6.27 Runner Failure 120m
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a626:
+  friday15-a627:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.26 online regime policy
+      - name: Run Friday15 A6.27 runner failure at 120m
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a626_online_regime_policy.py
+          python btc_temporal_friday15_a627_runner_failure_120.py
