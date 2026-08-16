@@ -1,4 +1,4 @@
-name: BTC Temporal A5.4 EMA Failure-State
+name: BTC Temporal A5.5 EMA Overextension
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a54:
+  temporal-a55:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A5.4 EMA failure-state forensics
+      - name: Run A5.5 EMA overextension
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a54_ema_failure_state.py
+          python btc_temporal_a55_ema_overextension.py
