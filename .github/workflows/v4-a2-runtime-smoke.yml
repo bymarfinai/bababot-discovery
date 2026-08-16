@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.18 Lock Signal Forensics
+name: BTC Temporal Saturday18 A7.19 Shallow Runner Protection
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a718:
+  saturday18-a719:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.18 lock signal forensics
+      - name: Run Saturday18 A7.19 shallow-runner protection
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a718_lock_signal_forensics.py
+          python btc_temporal_saturday18_a719_shallow_runner_protection.py
