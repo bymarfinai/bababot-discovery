@@ -1,0 +1,15 @@
+name: V10 H2 BTC London First Event High Accept Trap
+on:
+  push:
+    branches: [v7-regime-failed-breakout]
+    paths:
+      - 'research/v10_h2_btc_london_first_event_high_accept_trap.py'
+      - '.github/workflows/v10-btc-london-first-event-high-accept-trap.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: PYTHONPATH=. python research/v10_h2_btc_london_first_event_high_accept_trap.py
