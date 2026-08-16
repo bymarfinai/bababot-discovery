@@ -1,4 +1,4 @@
-name: BTC Temporal A5.1 Champion Interventions
+name: BTC Temporal A5.2 Runner vs Protect
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a51:
+  temporal-a52:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A5.1 champion interventions
+      - name: Run A5.2 conditional runner vs protect
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a51_champion_interventions.py
+          python btc_temporal_a52_runner_protect.py
