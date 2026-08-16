@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.28 Early Damage Control
+name: BTC Temporal Friday15 A6.29 Two-Stage Damage Control
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a628:
+  friday15-a629:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.28 early damage control
+      - name: Run Friday15 A6.29 two-stage damage control
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a628_early_damage_control.py
+          python btc_temporal_friday15_a629_two_stage_damage_control.py
