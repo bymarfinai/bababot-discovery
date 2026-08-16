@@ -1,84 +1,45 @@
-name: V4 B2 Regime Fibonacci Forensic
+name: BTC Temporal A1 Discovery Run
 
 on:
   push:
     paths:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
-  workflow_dispatch:
 
 jobs:
-  forensic:
+  temporal-a1:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
-      - name: Wait deploy, refresh data, run frozen V4-B2 forensic
+      - name: Run 971d BTC weekday-hour discovery
         shell: bash
         run: |
           set -euo pipefail
-          BASE='https://web-production-b6a05.up.railway.app'
-          PAIRS='["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"]'
-
-          echo '=== WAIT FOR V4-B2 ENDPOINT ==='
+          URL='https://web-production-b6a05.up.railway.app/research/btc-temporal?days=971&tz_offset_hours=7&blocks=8&top_n=30&min_n=80'
           READY=0
-          for i in $(seq 1 120); do
-            CODE=$(curl -sS -o /tmp/probe.json -w '%{http_code}' \
-              "$BASE/v4/context-fib-forensic?symbols=BTCUSDT&days=30&rr=1.0&confirm_bars=3&sample_limit=0" || true)
-            if [ "$CODE" = '200' ]; then
-              PHASE=$(python - <<'PY'
+          for i in $(seq 1 36); do
+            CODE=$(curl -L -sS -o /tmp/a1.json -w '%{http_code}' "$URL" || true)
+            STATUS=$(python - <<'PY'
           import json
-          try: print(json.load(open('/tmp/probe.json')).get('phase',''))
+          try: print(json.load(open('/tmp/a1.json')).get('status',''))
           except Exception: print('')
           PY
           )
-              if [ "$PHASE" = 'V4-B2' ]; then READY=1; echo "ready probe=$i"; break; fi
-            fi
-            echo "probe $i http=$CODE"
-            sleep 5
+            if [ "$CODE" = '200' ] && [ "$STATUS" = 'BTC_WEEKDAY_HOUR_FULL_DISCOVERY' ]; then READY=1; break; fi
+            echo "probe=$i http=$CODE status=$STATUS"
+            sleep 10
           done
-          if [ "$READY" != '1' ]; then echo 'V4-B2 endpoint not ready'; cat /tmp/probe.json || true; exit 1; fi
-
-          echo '=== REFRESH EXACT 120D 1H + 5M ==='
-          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-            -X POST -H 'Content-Type: application/json' \
-            -d "{\"days\":120,\"pairs\":${PAIRS},\"timeframes\":[\"1h\",\"5m\"]}" \
-            "$BASE/fetch-data"
-          echo
-
-          STATUS=''
-          for i in $(seq 1 300); do
-            curl -fsS --retry 4 --retry-delay 2 --retry-all-errors "$BASE/fetch-status" > /tmp/fetch-status.json
-            STATUS=$(python - <<'PY'
-          import json
-          print(json.load(open('/tmp/fetch-status.json')).get('fetch_state',{}).get('status',''))
-          PY
-          )
-            if [ $((i % 5)) -eq 0 ]; then
-              python - <<'PY'
-          import json
-          s=json.load(open('/tmp/fetch-status.json')).get('fetch_state',{})
-          print('FETCH',s.get('status'),s.get('progress'),'candles=',s.get('total_candles'))
-          PY
-            fi
-            if [ "$STATUS" = 'done' ]; then break; fi
-            if [ "$STATUS" = 'error' ]; then cat /tmp/fetch-status.json; exit 1; fi
-            sleep 5
-          done
-          if [ "$STATUS" != 'done' ]; then echo 'Fetch did not finish'; exit 1; fi
-
-          echo '=== V4-B2 REGIME + FIB FORENSIC ==='
-          curl -fsS --retry 8 --retry-delay 3 --retry-all-errors \
-            "$BASE/v4/context-fib-forensic?symbols=BTCUSDT%2CETHUSDT%2CSOLUSDT%2CBNBUSDT&days=120&rr=1.0&confirm_bars=3&sample_limit=0" \
-            > /tmp/forensic.json
-
+          if [ "$READY" != '1' ]; then echo 'A1 endpoint not ready'; cat /tmp/a1.json || true; exit 1; fi
           python - <<'PY'
           import json
-          d=json.load(open('/tmp/forensic.json'))
-          print('OVERALL',json.dumps(d.get('overall'),separators=(',',':')))
-          print('REGIME',json.dumps(d.get('regime_relation'),separators=(',',':')))
-          print('FIB_BANDS',json.dumps(d.get('fib_bands'),separators=(',',':')))
-          print('NEAREST_FIB',json.dumps(d.get('nearest_fib'),separators=(',',':')))
-          print('NEAR_FIB',json.dumps(d.get('near_fib_3pct'),separators=(',',':')))
-          print('WIN_LOSS',json.dumps(d.get('winner_vs_loser'),separators=(',',':')))
-          print('BY_PAIR',json.dumps(d.get('by_pair'),separators=(',',':')))
-          print('ERRORS',json.dumps(d.get('errors'),separators=(',',':')))
+          d=json.load(open('/tmp/a1.json'))
+          print('DATA',json.dumps(d.get('data',{}),separators=(',',':')))
+          print('SLOTS',d.get('slot_count_evaluated'))
+          print('STABILITY_FIRST')
+          for i,r in enumerate(d.get('leaderboard_stability_first',[]),1):
+              print(i,json.dumps(r,separators=(',',':')))
+          print('RAW_WR')
+          for i,r in enumerate(d.get('leaderboard_raw_wr',[]),1):
+              print(i,json.dumps(r,separators=(',',':')))
+          print('TRACKED')
+          print(json.dumps(d.get('tracked_candidates',{}),separators=(',',':')))
           PY
