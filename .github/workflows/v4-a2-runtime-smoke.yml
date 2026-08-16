@@ -1,4 +1,4 @@
-name: BTC Temporal A2.1 Refine Run
+name: BTC Temporal A3 Dynamic Direction Run
 
 on:
   push:
@@ -6,41 +6,51 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a21:
+  temporal-a3:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
-      - name: Run 971d BTC Tuesday sequence refinement
+      - name: Run 971d BTC Tuesday walk-forward dynamic direction
         shell: bash
         run: |
           set -euo pipefail
-          URL='https://web-production-b6a05.up.railway.app/research/btc-temporal-a2-refine?days=971&blocks=8&min_n=12'
+          URL='https://web-production-b6a05.up.railway.app/research/btc-temporal-a3-direction?days=971&blocks=8&warmup=20'
           READY=0
-          for i in $(seq 1 48); do
-            CODE=$(curl -L -sS -o /tmp/a21.json -w '%{http_code}' "$URL" || true)
+          for i in $(seq 1 60); do
+            CODE=$(curl -L -sS -o /tmp/a3.json -w '%{http_code}' "$URL" || true)
             STATUS=$(python - <<'PY'
           import json
-          try: print(json.load(open('/tmp/a21.json')).get('status',''))
+          try: print(json.load(open('/tmp/a3.json')).get('status',''))
           except Exception: print('')
           PY
           )
-            if [ "$CODE" = '200' ] && [ "$STATUS" = 'BTC_TEMPORAL_A2_REFINED_SEQUENCE' ]; then READY=1; break; fi
+            if [ "$CODE" = '200' ] && [ "$STATUS" = 'BTC_TEMPORAL_A3_DYNAMIC_DIRECTION_WALKFORWARD' ]; then READY=1; break; fi
             echo "probe=$i http=$CODE status=$STATUS"
             sleep 10
           done
-          if [ "$READY" != '1' ]; then echo 'A2.1 endpoint not ready'; cat /tmp/a21.json || true; exit 1; fi
+          if [ "$READY" != '1' ]; then echo 'A3 endpoint not ready'; cat /tmp/a3.json || true; exit 1; fi
           python - <<'PY'
           import json
-          d=json.load(open('/tmp/a21.json'))
+          d=json.load(open('/tmp/a3.json'))
           print('DATA',json.dumps(d.get('data',{}),separators=(',',':')))
-          print('COUNTS',json.dumps({k:d.get(k) for k in ['candidate_count','viable70_directional_count','viable70_ft05_count','viable70_ft08_count']},separators=(',',':')))
-          for label,key in [('DIR70','viable70_directional'),('FT05_70','viable70_ft05'),('FT08_70','viable70_ft08')]:
-              print(label)
-              for i,r in enumerate(d.get(key,[])[:20],1): print(i,json.dumps(r,separators=(',',':')))
+          print('COUNTS',json.dumps({
+              'candidate_engine_count':d.get('candidate_engine_count'),
+              'target70_directional':len(d.get('target70_directional',[])),
+              'target70_ft05':len(d.get('target70_ft05',[])),
+              'target70_ft08':len(d.get('target70_ft08',[]))
+          },separators=(',',':')))
+          print('BASELINE')
+          for r in d.get('baseline_same_entry',[]): print(json.dumps(r,separators=(',',':')))
+          print('DIR70')
+          for i,r in enumerate(d.get('target70_directional',[])[:20],1): print(i,json.dumps(r,separators=(',',':')))
+          print('FT05_70')
+          for i,r in enumerate(d.get('target70_ft05',[])[:20],1): print(i,json.dumps(r,separators=(',',':')))
+          print('FT08_70')
+          for i,r in enumerate(d.get('target70_ft08',[])[:20],1): print(i,json.dumps(r,separators=(',',':')))
           print('TOP_DIR')
           for i,r in enumerate(d.get('top_directional',[])[:15],1): print(i,json.dumps(r,separators=(',',':')))
           print('TOP_FT05')
-          for i,r in enumerate(d.get('top_ft05',[])[:15],1): print(i,json.dumps(r,separators=(',',':')))
+          for i,r in enumerate(d.get('top_first_touch_05',[])[:15],1): print(i,json.dumps(r,separators=(',',':')))
           print('TOP_FT08')
-          for i,r in enumerate(d.get('top_ft08',[])[:15],1): print(i,json.dumps(r,separators=(',',':')))
+          for i,r in enumerate(d.get('top_first_touch_08',[])[:15],1): print(i,json.dumps(r,separators=(',',':')))
           PY
