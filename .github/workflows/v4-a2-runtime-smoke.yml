@@ -1,4 +1,4 @@
-name: BTC Temporal Saturday18 A7.2 Local Plateau
+name: BTC Temporal Saturday18 A7.3 Funding Cost Stress
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  saturday18-a72:
+  saturday18-a73:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Saturday18 A7.2 local plateau
+      - name: Run Saturday18 A7.3 funding and cost stress
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_saturday18_a72_local_plateau.py
+          python btc_temporal_saturday18_a73_funding_cost_stress.py
