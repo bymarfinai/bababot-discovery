@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.17b Wrongway Parity Repair
+name: BTC Temporal Friday15 A6.18 Wrongway Stretch Router
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a617b:
+  friday15-a618:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.17b wrong-way parity repair
+      - name: Run Friday15 A6.18 wrong-way stretch router
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a617b_wrongway_parity_repair.py
+          python btc_temporal_friday15_a618_wrongway_stretch_router.py
