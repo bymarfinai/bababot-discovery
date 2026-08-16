@@ -1,0 +1,18 @@
+name: V9 B BNB Friday 04 WIB Prewindow Holdout
+
+on:
+  push:
+    branches: [v7-regime-failed-breakout]
+    paths:
+      - 'research/v9_b_bnb_fri04_prewindow_holdout.py'
+      - '.github/workflows/v9-bnb-fri04-prewindow-holdout.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run frozen BNB Friday 04 WIB holdout
+        run: PYTHONPATH=. python research/v9_b_bnb_fri04_prewindow_holdout.py
