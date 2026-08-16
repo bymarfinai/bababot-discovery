@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.15 Distribution Giveback
+name: BTC Temporal Friday15 A6.16 Distribution Robustness
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a615:
+  friday15-a616:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.15 selective distribution giveback
+      - name: Run Friday15 A6.16 distribution robustness
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a615_distribution_giveback.py
+          python btc_temporal_friday15_a616_distribution_robustness.py
