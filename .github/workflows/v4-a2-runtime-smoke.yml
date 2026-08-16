@@ -1,4 +1,4 @@
-name: BTC Temporal A5.2 Runner vs Protect
+name: BTC Temporal A5.3 Frozen Robustness
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  temporal-a52:
+  temporal-a53:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run A5.2 conditional runner vs protect
+      - name: Run A5.3 frozen robustness
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_a52_runner_protect.py
+          python btc_temporal_a53_frozen_robustness.py
