@@ -1,0 +1,28 @@
+name: F6.0 Friday Adaptive Restart Atlas
+
+on:
+  push:
+    paths:
+      - '.github/workflows/f60-once.yml'
+  workflow_dispatch:
+
+jobs:
+  f60:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy requests
+      - name: Run F6.0
+        env:
+          F60_OUT: f60_out
+        run: python research/f60_friday_adaptive_restart_atlas.py
+      - name: Upload F6.0 outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: f60-output
+          path: f60_out/
