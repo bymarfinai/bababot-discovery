@@ -1,0 +1,28 @@
+name: F6.21 Friday Trajectory Persistence Forensic
+on:
+  push:
+    paths:
+      - 'research/f621_friday_low_giveback_trajectory_forensic.py'
+      - '.github/workflows/f621-analysis.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          F621_OUT=f621_out python f621_friday_low_giveback_trajectory_forensic.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f621-output
+          path: |
+            research/f621_out/F6.21_CHECKPOINT.md
+            research/f621_out/f621_summary.json
+            research/f621_out/f621_rows.csv
+            research/f621_out/f621_trajectory_atlas.csv
