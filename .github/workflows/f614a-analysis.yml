@@ -1,0 +1,22 @@
+name: F6.14A Friday Remaining Loss Anatomy Fast
+on:
+  push:
+    paths:
+      - '.github/workflows/f614a-analysis.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          python f614a_friday_remaining_loss_anatomy_fast.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f614a-output
+          path: research/f614a_out/*
