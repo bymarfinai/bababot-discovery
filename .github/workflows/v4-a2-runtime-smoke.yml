@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 T-Method F5.1 Parent Interventions
+name: BTC Temporal Friday15 T-Method F5.2 Runner vs Protect
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-f51:
+  friday15-f52:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday T-Method F5.1 parent interventions
+      - name: Run Friday T-Method F5.2 runner vs protect
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_f51_parent_interventions.py
+          python btc_temporal_friday15_f52_runner_protect.py
