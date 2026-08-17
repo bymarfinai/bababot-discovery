@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/f615-analysis.yml'
+      - 'research/f615_friday_giveback_momentum_forensic.py'
   workflow_dispatch:
 jobs:
   run:
