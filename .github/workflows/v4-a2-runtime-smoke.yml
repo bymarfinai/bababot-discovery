@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 T-Method F5.6 Fresh OOS
+name: BTC Temporal Friday15 T-Method F5.7 Reversal Pivot Atlas
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-f56:
+  friday15-f57:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday T-Method F5.6 fresh OOS
+      - name: Run Friday T-Method F5.7 reversal pivot atlas
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_f56_fresh_oos_jul31_aug14.py
+          python btc_temporal_friday15_f57_reversal_pivot_atlas.py
