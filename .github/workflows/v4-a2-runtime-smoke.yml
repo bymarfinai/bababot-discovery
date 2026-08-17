@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.42 Pre-Entry Microstructure Attribution
+name: BTC Temporal Friday15 A6.43 Composite Stress Regime
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a642:
+  friday15-a643:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.42 pre-entry microstructure attribution
+      - name: Run Friday15 A6.43 composite stress regime
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a642_preentry_microstructure_attribution.py
+          python btc_temporal_friday15_a643_composite_stress_regime.py
