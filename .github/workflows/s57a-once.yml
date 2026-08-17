@@ -1,0 +1,27 @@
+name: S5.7A Saturday Runner Confidence A7.19 Conflict
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s57a-once.yml'
+      - 'research/s57a_runner_confidence_a719_conflict_atlas.py'
+  workflow_dispatch:
+
+jobs:
+  s57a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run S5.7A
+        run: python research/s57a_runner_confidence_a719_conflict_atlas.py
+      - name: Upload S5.7A outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s57a-output
+          path: s57a_out/
