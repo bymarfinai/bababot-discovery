@@ -1,0 +1,27 @@
+name: S5.7B Saturday Candle Morphology Atlas
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s57b-once.yml'
+      - 'research/s57b_candle_morphology_sequence_atlas.py'
+  workflow_dispatch:
+
+jobs:
+  s57b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run S5.7B
+        run: python research/s57b_candle_morphology_sequence_atlas.py
+      - name: Upload S5.7B outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s57b-output
+          path: s57b_out/
