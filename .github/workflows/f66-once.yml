@@ -1,0 +1,26 @@
+name: F6.6 Friday Immediate Sink Forensic
+on:
+  push:
+    paths:
+      - '.github/workflows/f66-once.yml'
+  workflow_dispatch:
+jobs:
+  f66:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run F6.6
+        env:
+          PYTHONPATH: research
+        run: python research/f66_friday_immediate_sink_forensic.py
+      - name: Upload F6.6 outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: f66-output
+          path: f66_out/
