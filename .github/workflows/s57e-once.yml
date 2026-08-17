@@ -20,7 +20,7 @@ jobs:
       - name: Run S5.7E
         env:
           S57E_OUT: s57e_out
-        run: python research/s57e_post_rejection_expansion_stall_atlas.py
+        run: python research/s57e_post_rejection_expansion_stall_atlas_v2.py
       - name: Upload S5.7E outputs
         uses: actions/upload-artifact@v4
         with:
