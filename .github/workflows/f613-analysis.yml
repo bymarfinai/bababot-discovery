@@ -1,0 +1,24 @@
+name: F6.13 Analysis
+on:
+  push:
+    paths:
+      - 'research/f613_friday_three_layer_integration.py'
+      - '.github/workflows/f613-analysis.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          python f613_friday_three_layer_integration.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f613-output
+          path: research/f613_out/
