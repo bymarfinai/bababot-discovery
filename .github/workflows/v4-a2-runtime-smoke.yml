@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.49 Regime Direction Switch
+name: BTC Temporal Friday15 A6.50 Regime Risk Scaling
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a649:
+  friday15-a650:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.49 regime direction switch
+      - name: Run Friday15 A6.50 regime risk scaling
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a649_regime_direction_switch.py
+          python btc_temporal_friday15_a650_regime_risk_scaling.py
