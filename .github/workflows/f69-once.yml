@@ -1,0 +1,24 @@
+name: F6.9 Research Test
+on:
+  push:
+    paths:
+      - 'research/f69_friday_early_sink_candidate_robustness.py'
+      - '.github/workflows/f69-once.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          python f69_friday_early_sink_candidate_robustness.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f69-output
+          path: research/f69_out/
