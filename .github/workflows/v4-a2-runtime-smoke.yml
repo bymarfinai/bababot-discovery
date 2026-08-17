@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.47 Online Response Regime Detector
+name: BTC Temporal Friday15 A6.48 Time-Decay Hysteresis Detector
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a647:
+  friday15-a648:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.47 online response regime detector
+      - name: Run Friday15 A6.48 time-decay hysteresis detector
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a647_online_response_regime_detector.py
+          python btc_temporal_friday15_a648_time_decay_hysteresis_detector.py
