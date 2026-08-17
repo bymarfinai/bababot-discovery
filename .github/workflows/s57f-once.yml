@@ -1,0 +1,28 @@
+name: S5.7F Saturday Frozen Recovery Management Counterfactual
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s57f-once.yml'
+  workflow_dispatch:
+
+jobs:
+  s57f:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy requests
+      - name: Run S5.7F
+        env:
+          S57F_OUT: s57f_out
+        run: python research/s57f_frozen_recovery_management_counterfactual.py
+      - name: Upload S5.7F outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s57f-output
+          path: s57f_out/
