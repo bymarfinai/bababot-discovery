@@ -1,0 +1,23 @@
+name: F6.14 Friday Remaining Loss Anatomy
+on:
+  push:
+    paths:
+      - '.github/workflows/f614-analysis.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          python f614_friday_remaining_loss_anatomy.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f614-output
+          path: |
+            research/f614_out/*
