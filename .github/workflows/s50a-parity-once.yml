@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/s50a-parity-once.yml'
+      - 'research/s50a_parity_probe.py'
   workflow_dispatch:
 jobs:
   parity:
