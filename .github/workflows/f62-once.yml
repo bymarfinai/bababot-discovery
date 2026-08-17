@@ -1,0 +1,23 @@
+name: F62 Friday Research
+on:
+  push:
+    paths:
+      - '.github/workflows/f62-once.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - env:
+          PYTHONPATH: research
+        run: python research/f62_friday_false_failure_recovery_forensic.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f62-output
+          path: f62_out/
