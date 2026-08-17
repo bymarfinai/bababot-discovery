@@ -1,0 +1,22 @@
+name: F6.16 Friday Post1R Profit Protection
+on:
+  push:
+    paths:
+      - '.github/workflows/f616-analysis.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          F616_OUT=../f616_out python f616_friday_post1r_profit_protection.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f616-output
+          path: f616_out/
