@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 T-Method F5.12 Hidden-State Transition Detector
+name: BTC Temporal Friday15 T-Method F5.13 Post-Warning Confirmation Timing
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-f512:
+  friday15-f513:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday T-Method F5.12 hidden-state transition detector
+      - name: Run Friday T-Method F5.13 post-warning confirmation timing
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_f512_hidden_state_transition_detector.py
+          python btc_temporal_friday15_f513_postwarning_confirmation_timing.py
