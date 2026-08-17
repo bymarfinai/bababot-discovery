@@ -1,0 +1,24 @@
+name: F6.10 Friday True OOS
+on:
+  push:
+    paths:
+      - 'research/f610_friday_early_sink_true_oos.py'
+      - '.github/workflows/f610-once.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          python f610_friday_early_sink_true_oos.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f610-output
+          path: research/f610_out/
