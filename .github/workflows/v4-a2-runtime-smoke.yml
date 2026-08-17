@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 T-Method F5.5 Fixed Conjunction Robustness
+name: BTC Temporal Friday15 T-Method F5.6 Fresh OOS
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-f55:
+  friday15-f56:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday T-Method F5.5 fixed conjunction robustness
+      - name: Run Friday T-Method F5.6 fresh OOS
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_f55_fixed_conjunction_robustness.py
+          python btc_temporal_friday15_f56_fresh_oos_jul31_aug14.py
