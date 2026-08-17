@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 T-Method F5.3 Separability Attribution
+name: BTC Temporal Friday15 T-Method F5.4 High-Confidence Conjunction
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-f53:
+  friday15-f54:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday T-Method F5.3 separability attribution
+      - name: Run Friday T-Method F5.4 high-confidence conjunction
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_f53_separability_attribution.py
+          python btc_temporal_friday15_f54_highconfidence_conjunction.py
