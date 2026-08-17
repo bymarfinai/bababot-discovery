@@ -1,0 +1,26 @@
+name: S5.0A Saturday Adaptive Atlas
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s50a-once.yml'
+  workflow_dispatch:
+
+jobs:
+  s50a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run S5.0A
+        run: python research/s50a_saturday_adaptive_atlas.py
+      - name: Upload S5.0A outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s50a-output
+          path: s50a_out/
