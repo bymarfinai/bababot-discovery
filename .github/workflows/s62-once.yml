@@ -1,0 +1,28 @@
+name: S6.2 Saturday Low-Dimensional Direction Walkforward
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s62-once.yml'
+  workflow_dispatch:
+
+jobs:
+  s62:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy requests scikit-learn
+      - name: Run S6.2
+        env:
+          S62_OUT: s62_out
+        run: python research/s62_lowdim_direction_walkforward.py
+      - name: Upload S6.2 outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s62-output
+          path: s62_out/
