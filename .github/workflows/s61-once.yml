@@ -1,0 +1,26 @@
+name: S6.1 Saturday Pre-Entry Direction Atlas
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s61-once.yml'
+
+jobs:
+  s61:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy requests
+      - name: Run S6.1
+        env:
+          S61_OUT: s61_out
+        run: python research/s61_preentry_direction_feature_atlas.py
+      - name: Upload S6.1 outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s61-output
+          path: s61_out/
