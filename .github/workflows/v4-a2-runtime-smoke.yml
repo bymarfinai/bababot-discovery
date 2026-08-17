@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 T-Method F5.8 Pre-Pivot Causal Signature
+name: BTC Temporal Friday15 T-Method F5.9 Causal Reversal Router
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-f58:
+  friday15-f59:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday T-Method F5.8 pre-pivot causal signature
+      - name: Run Friday T-Method F5.9 causal reversal router
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_f58_prepivot_causal_signature.py
+          python btc_temporal_friday15_f59_causal_reversal_router.py
