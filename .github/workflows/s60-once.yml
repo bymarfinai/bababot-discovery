@@ -1,0 +1,28 @@
+name: S6.0 Saturday Dynamic Direction Oracle
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s60-once.yml'
+  workflow_dispatch:
+
+jobs:
+  s60:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy requests
+      - name: Run S6.0
+        env:
+          S60_OUT: s60_out
+        run: python research/s60_saturday_dynamic_direction_oracle.py
+      - name: Upload S6.0 outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s60-output
+          path: s60_out/
