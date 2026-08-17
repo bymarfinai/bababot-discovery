@@ -1,0 +1,28 @@
+name: S5.7G Saturday Frozen Candidate Robustness
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s57g-once.yml'
+  workflow_dispatch:
+
+jobs:
+  s57g:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy requests
+      - name: Run S5.7G
+        env:
+          S57G_OUT: s57g_out
+        run: python research/s57g_frozen_candidate_robustness.py
+      - name: Upload S5.7G outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s57g-output
+          path: s57g_out/
