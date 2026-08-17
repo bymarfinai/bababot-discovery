@@ -1,0 +1,27 @@
+name: S5.2E Saturday Timing Path Robustness
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s52e-once.yml'
+      - 'research/s52e_timing_path_robustness.py'
+  workflow_dispatch:
+
+jobs:
+  s52e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run S5.2E
+        run: python research/s52e_timing_path_robustness.py
+      - name: Upload S5.2E outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s52e-output
+          path: s52e_out/
