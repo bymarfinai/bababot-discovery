@@ -1,0 +1,26 @@
+name: S5.1A Saturday Adaptive Failure Timing
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s51a-once.yml'
+  workflow_dispatch:
+
+jobs:
+  s51a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run S5.1A
+        run: python research/s51a_adaptive_failure_timing_atlas.py
+      - name: Upload S5.1A outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s51a-output
+          path: s51a_out/
