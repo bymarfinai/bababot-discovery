@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.48 Time-Decay Hysteresis Detector
+name: BTC Temporal Friday15 A6.49 Regime Direction Switch
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a648:
+  friday15-a649:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.48 time-decay hysteresis detector
+      - name: Run Friday15 A6.49 regime direction switch
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a648_time_decay_hysteresis_detector.py
+          python btc_temporal_friday15_a649_regime_direction_switch.py
