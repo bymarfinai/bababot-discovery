@@ -1,0 +1,46 @@
+name: F6.21b Friday Trajectory Cross-Control Check
+on:
+  push:
+    paths:
+      - 'research/f621b_friday_trajectory_crosscontrol.py'
+      - '.github/workflows/f621b-analysis.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mark workflow start
+        run: |
+          printf 'F6.21b workflow started from %s\n' "$GITHUB_SHA" > BTC_Temporal_Friday_F621B_WORKFLOW_STARTED.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_Temporal_Friday_F621B_WORKFLOW_STARTED.txt
+          git diff --cached --quiet || git commit -m "ci: mark Friday F6.21b workflow start"
+          git push
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          F621B_OUT=f621b_out F621B_BASE_OUT=f621b_base python f621b_friday_trajectory_crosscontrol.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f621b-output
+          path: |
+            research/f621b_out/F6.21B_CHECKPOINT.md
+            research/f621b_out/f621b_summary.json
+            research/f621b_out/f621b_crosscontrol.csv
+      - name: Persist cross-control checkpoint
+        run: |
+          cp research/f621b_out/F6.21B_CHECKPOINT.md BTC_Temporal_Friday_F621B_Trajectory_CrossControl_Checkpoint.md
+          cp research/f621b_out/f621b_summary.json BTC_Temporal_Friday_F621B_Trajectory_CrossControl_Summary.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_Temporal_Friday_F621B_Trajectory_CrossControl_Checkpoint.md BTC_Temporal_Friday_F621B_Trajectory_CrossControl_Summary.json
+          git diff --cached --quiet || git commit -m "research: persist Friday F6.21b cross-control check"
+          git push
