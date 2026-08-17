@@ -1,0 +1,27 @@
+name: S5.2C Saturday Runner Recovery Forensic
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s52c-once.yml'
+      - 'research/s52c_false_failure_runner_recovery_forensics.py'
+  workflow_dispatch:
+
+jobs:
+  s52c:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run S5.2C
+        run: python research/s52c_false_failure_runner_recovery_forensics.py
+      - name: Upload S5.2C outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s52c-output
+          path: s52c_out/
