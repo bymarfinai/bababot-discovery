@@ -1,0 +1,198 @@
+{
+  "rule_definition": {
+    "milestone": "+0.5R",
+    "decision": "65m after first causal +0.5R hit",
+    "ema7_persistence": "final 4 completed 5m bars all close below EMA7",
+    "flow": "mean taker imbalance of final 2 completed 5m bars < 0",
+    "exit": "actual +65m 5m open"
+  },
+  "parent": {
+    "n": 138,
+    "wins": 66,
+    "losses": 72,
+    "wr": 0.4782608695652174,
+    "pnl": 64.63040513030225,
+    "pf": 1.266393644020513,
+    "dd": 56.52951853630975,
+    "ls": 8
+  },
+  "frozen_four_layer": {
+    "n": 138,
+    "wins": 71,
+    "losses": 67,
+    "wr": 0.5144927536231884,
+    "pnl": 123.23164842693332,
+    "pf": 1.6796695636193477,
+    "dd": 28.69918862104835,
+    "ls": 8
+  },
+  "managed": {
+    "n": 138,
+    "wins": 68,
+    "losses": 70,
+    "wr": 0.4927536231884058,
+    "pnl": 118.14218444560572,
+    "pf": 1.699105565832138,
+    "dd": 27.14263797890817,
+    "ls": 9
+  },
+  "actions": 14,
+  "actions_D": 9,
+  "actions_V": 5,
+  "parent_winners_acted": 7,
+  "parent_losses_acted": 7,
+  "low_givebacks_acted": 5,
+  "high_givebacks_acted": 2,
+  "loss_to_positive": 2,
+  "winner_to_nonpositive": 5,
+  "positive_increment_actions": 8,
+  "negative_increment_actions": 6,
+  "incremental_vs_frozen": -5.089463981327597,
+  "incremental_D": -5.88997060155,
+  "incremental_V": 0.8005066202224018,
+  "wr_gain_pp": -2.1739130434782536,
+  "dd_improvement": 1.5565506421401807,
+  "screen_pass": false,
+  "action_dates": [
+    {
+      "date": "2024-02-23",
+      "period": "discovery",
+      "parent_pnl": 0.5796750097639976,
+      "parent_mfe_r": 0.9748613619292738,
+      "frozen_pnl": 0.5796750097639976,
+      "managed_pnl": -0.4389247394131761,
+      "incremental": -1.0185997491771737,
+      "tail2_taker_mean": -0.04760338390391716
+    },
+    {
+      "date": "2024-06-14",
+      "period": "discovery",
+      "parent_pnl": 0.44420742142373193,
+      "parent_mfe_r": 0.9826108623979732,
+      "frozen_pnl": 0.44420742142373193,
+      "managed_pnl": 0.5323904475363079,
+      "incremental": 0.088183026112576,
+      "tail2_taker_mean": -0.05466039409058682
+    },
+    {
+      "date": "2024-07-12",
+      "period": "discovery",
+      "parent_pnl": 5.775159712220119,
+      "parent_mfe_r": 2.2710899980425494,
+      "frozen_pnl": 5.775159712220119,
+      "managed_pnl": -0.8533792757844099,
+      "incremental": -6.628538988004529,
+      "tail2_taker_mean": -0.2099531347328098
+    },
+    {
+      "date": "2024-07-19",
+      "period": "discovery",
+      "parent_pnl": 9.25,
+      "parent_mfe_r": 2.8829933233464216,
+      "frozen_pnl": 9.25,
+      "managed_pnl": -0.29219860884918614,
+      "incremental": -9.542198608849187,
+      "tail2_taker_mean": -0.11981639390251048
+    },
+    {
+      "date": "2024-08-23",
+      "period": "discovery",
+      "parent_pnl": -0.36258088295512625,
+      "parent_mfe_r": 0.6381709043679707,
+      "frozen_pnl": -0.36258088295512625,
+      "managed_pnl": -0.6189491358833115,
+      "incremental": -0.2563682529281852,
+      "tail2_taker_mean": -0.20765198456218198
+    },
+    {
+      "date": "2024-09-13",
+      "period": "discovery",
+      "parent_pnl": -4.25,
+      "parent_mfe_r": 0.5957331046820359,
+      "frozen_pnl": -4.25,
+      "managed_pnl": -1.6797568685788793,
+      "incremental": 2.5702431314211207,
+      "tail2_taker_mean": -0.07629461077044891
+    },
+    {
+      "date": "2024-12-13",
+      "period": "discovery",
+      "parent_pnl": 0.12262824438394393,
+      "parent_mfe_r": 0.956330340275789,
+      "frozen_pnl": 0.12262824438394393,
+      "managed_pnl": 0.46778343434908454,
+      "incremental": 0.3451551899651406,
+      "tail2_taker_mean": -0.1973794318624575
+    },
+    {
+      "date": "2025-03-21",
+      "period": "discovery",
+      "parent_pnl": -4.25,
+      "parent_mfe_r": 0.7746585005955962,
+      "frozen_pnl": -4.25,
+      "managed_pnl": -0.39357875538656373,
+      "incremental": 3.8564212446134363,
+      "tail2_taker_mean": -0.23628457526075197
+    },
+    {
+      "date": "2025-05-23",
+      "period": "discovery",
+      "parent_pnl": -4.25,
+      "parent_mfe_r": 0.8553207026717072,
+      "frozen_pnl": -4.25,
+      "managed_pnl": 0.445732405296801,
+      "incremental": 4.695732405296801,
+      "tail2_taker_mean": -0.25814227272637263
+    },
+    {
+      "date": "2025-09-26",
+      "period": "validation",
+      "parent_pnl": 0.9153334236399475,
+      "parent_mfe_r": 0.634020474324196,
+      "frozen_pnl": 0.9153334236399475,
+      "managed_pnl": -1.9686817551945728,
+      "incremental": -2.8840151788345203,
+      "tail2_taker_mean": -0.17191110269648452
+    },
+    {
+      "date": "2026-03-20",
+      "period": "validation",
+      "parent_pnl": -4.25,
+      "parent_mfe_r": 1.0696330726834054,
+      "frozen_pnl": -4.25,
+      "managed_pnl": -0.2599700615714955,
+      "incremental": 3.9900299384285045,
+      "tail2_taker_mean": -0.21111294974206546
+    },
+    {
+      "date": "2026-04-03",
+      "period": "validation",
+      "parent_pnl": -4.25,
+      "parent_mfe_r": 0.727409790100061,
+      "frozen_pnl": -4.25,
+      "managed_pnl": -1.893879609842302,
+      "incremental": 2.356120390157698,
+      "tail2_taker_mean": -0.314597081445539
+    },
+    {
+      "date": "2026-04-24",
+      "period": "validation",
+      "parent_pnl": 2.0173101822328627,
+      "parent_mfe_r": 1.4951867465056485,
+      "frozen_pnl": 2.0173101822328627,
+      "managed_pnl": -1.7845205197080931,
+      "incremental": -3.801830701940956,
+      "tail2_taker_mean": -0.013724366248638986
+    },
+    {
+      "date": "2026-05-08",
+      "period": "validation",
+      "parent_pnl": -0.8918974069191115,
+      "parent_mfe_r": 1.5122568145736284,
+      "frozen_pnl": -0.8918974069191115,
+      "managed_pnl": 0.24830476549256364,
+      "incremental": 1.140202172411675,
+      "tail2_taker_mean": -0.12314734789412213
+    }
+  ]
+}
