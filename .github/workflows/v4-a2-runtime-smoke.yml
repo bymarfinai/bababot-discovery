@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 T-Method F5.11 Hidden-State Reversal Forensics
+name: BTC Temporal Friday15 T-Method F5.12 Hidden-State Transition Detector
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-f511:
+  friday15-f512:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday T-Method F5.11 hidden-state reversal forensics
+      - name: Run Friday T-Method F5.12 hidden-state transition detector
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_f511_hidden_state_reversal_forensics.py
+          python btc_temporal_friday15_f512_hidden_state_transition_detector.py
