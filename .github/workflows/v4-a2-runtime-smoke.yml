@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 T-Method F5.2 Runner vs Protect
+name: BTC Temporal Friday15 T-Method F5.2T Exact Tuesday Transfer
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-f52:
+  friday15-f52t:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday T-Method F5.2 runner vs protect
+      - name: Run Friday F5.2T exact Tuesday transfer control
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_f52_runner_protect.py
+          python btc_temporal_friday15_f52t_exact_tuesday_transfer.py
