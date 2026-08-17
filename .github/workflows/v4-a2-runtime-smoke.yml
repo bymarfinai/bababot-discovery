@@ -1,4 +1,4 @@
-name: BTC Temporal Friday16 A6.34 Independent Discovery
+name: BTC Temporal Friday17 A6.35 Independent Discovery
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday16-a634:
+  friday17-a635:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday16 A6.34 independent discovery
+      - name: Run Friday17 A6.35 independent discovery
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday16_a634_independent_discovery.py
+          python btc_temporal_friday17_a635_independent_discovery.py
