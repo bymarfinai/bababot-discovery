@@ -1,0 +1,22 @@
+name: F6.17 Friday Post1R False Positive Forensic
+on:
+  push:
+    paths:
+      - '.github/workflows/f617-analysis.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          F617_OUT=../f617_out python f617_friday_post1r_falsepositive_forensic.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f617-output
+          path: f617_out/
