@@ -1,0 +1,27 @@
+name: F6.7 Friday Early Sink Cut
+
+on:
+  push:
+    paths:
+      - 'research/f67_friday_early_sink_cut.py'
+      - '.github/workflows/f67-once.yml'
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - name: Run F6.7
+        run: |
+          cd research
+          python f67_friday_early_sink_cut.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f67-output
+          path: research/f67_out/
