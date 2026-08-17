@@ -1,0 +1,26 @@
+name: F6.5 Friday Upper-Wick Robust Tradeoff
+on:
+  push:
+    paths:
+      - '.github/workflows/f65-once.yml'
+  workflow_dispatch:
+jobs:
+  f65:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run F6.5
+        env:
+          PYTHONPATH: research
+        run: python research/f65_friday_upperwick_robust_tradeoff.py
+      - name: Upload F6.5 outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: f65-output
+          path: f65_out/
