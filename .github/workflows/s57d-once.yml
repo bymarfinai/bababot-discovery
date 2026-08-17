@@ -1,0 +1,28 @@
+name: S5.7D Saturday Rejected-Hinge Excursion Atlas
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s57d-once.yml'
+  workflow_dispatch:
+
+jobs:
+  s57d:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy requests
+      - name: Run S5.7D
+        env:
+          S57D_OUT: s57d_out
+        run: python research/s57d_rejected_hinge_excursion_monetization_atlas.py
+      - name: Upload S5.7D outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s57d-output
+          path: s57d_out/
