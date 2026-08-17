@@ -1,0 +1,27 @@
+name: S5.2D Saturday Latent Runner Immunity Atlas
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s52d-once.yml'
+      - 'research/s52d_pre_warning_latent_runner_immunity_atlas.py'
+  workflow_dispatch:
+
+jobs:
+  s52d:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run S5.2D
+        run: python research/s52d_pre_warning_latent_runner_immunity_atlas.py
+      - name: Upload S5.2D outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s52d-output
+          path: s52d_out/
