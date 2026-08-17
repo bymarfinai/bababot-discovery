@@ -1,0 +1,27 @@
+name: F6.8 Friday Early Sink Recovery Guard
+
+on:
+  push:
+    paths:
+      - 'research/f68_friday_early_sink_recovery_guard.py'
+      - '.github/workflows/f68-once.yml'
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - name: Run F6.8
+        run: |
+          cd research
+          python f68_friday_early_sink_recovery_guard.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f68-output
+          path: research/f68_out/
