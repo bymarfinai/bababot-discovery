@@ -1,0 +1,26 @@
+name: S5.2A Saturday Recovery Quality Forensic
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s52a-once.yml'
+  workflow_dispatch:
+
+jobs:
+  s52a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run S5.2A
+        run: python research/s52a_post_failure_recovery_forensics.py
+      - name: Upload S5.2A outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s52a-output
+          path: s52a_out/
