@@ -1,0 +1,28 @@
+name: F6.19b Friday Remaining Giveback Forensic Corrected
+on:
+  push:
+    paths:
+      - 'research/f619b_friday_remaining_giveback_forensic_corrected.py'
+      - '.github/workflows/f619b-analysis.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          F619B_OUT=f619b_out python f619b_friday_remaining_giveback_forensic_corrected.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f619b-output
+          path: |
+            research/f619b_out/F6.19B_CHECKPOINT.md
+            research/f619b_out/f619b_summary.json
+            research/f619b_out/f619b_rows.csv
+            research/f619b_out/f619b_low_atlas.csv
