@@ -1,0 +1,33 @@
+name: F5.17 Friday Regime Attribution
+
+on:
+  push:
+    paths:
+      - '.github/workflows/f517-once.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  f517:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: python -m pip install --upgrade pip pandas numpy requests
+      - name: Run F5.17 reproducibility and regime attribution
+        run: python research/f517_regime_attribution.py
+      - name: Upload F5.17 outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f517-output
+          path: |
+            f517_result.json
+            f517_rows.csv
+          if-no-files-found: ignore
