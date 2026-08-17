@@ -1,8 +1,9 @@
-name: F6.21 Friday Trajectory Persistence Forensic
+name: F6.21-F6.22 Friday Research Runner
 on:
   push:
     paths:
       - 'research/f621_friday_low_giveback_trajectory_forensic.py'
+      - 'research/f622_friday_persistent_failure65_management.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -15,33 +16,41 @@ jobs:
       - uses: actions/checkout@v4
       - name: Mark workflow start
         run: |
-          printf 'F6.21 workflow started from %s\n' "$GITHUB_SHA" > BTC_Temporal_Friday_F621_WORKFLOW_STARTED.txt
+          printf 'F6.21/F6.22 workflow started from %s\n' "$GITHUB_SHA" > BTC_Temporal_Friday_F622_WORKFLOW_STARTED.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Temporal_Friday_F621_WORKFLOW_STARTED.txt
-          git diff --cached --quiet || git commit -m "ci: mark Friday F6.21 workflow start"
+          git add BTC_Temporal_Friday_F622_WORKFLOW_STARTED.txt
+          git diff --cached --quiet || git commit -m "ci: mark Friday F6.22 workflow start"
           git push
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - run: |
+      - name: Run F6.21 forensic parity
+        run: |
           cd research
           F621_OUT=f621_out python f621_friday_low_giveback_trajectory_forensic.py
+      - name: Run F6.22 management
+        run: |
+          cd research
+          F622_OUT=f622_out python f622_friday_persistent_failure65_management.py
       - uses: actions/upload-artifact@v4
         with:
-          name: f621-output
+          name: friday-f621-f622-output
           path: |
             research/f621_out/F6.21_CHECKPOINT.md
             research/f621_out/f621_summary.json
-            research/f621_out/f621_rows.csv
-            research/f621_out/f621_trajectory_atlas.csv
-      - name: Persist forensic checkpoint
+            research/f622_out/F6.22_CHECKPOINT.md
+            research/f622_out/f622_summary.json
+            research/f622_out/f622_rows.csv
+      - name: Persist research checkpoints
         run: |
           cp research/f621_out/F6.21_CHECKPOINT.md BTC_Temporal_Friday_F621_Trajectory_Persistence_Forensic_Checkpoint.md
           cp research/f621_out/f621_summary.json BTC_Temporal_Friday_F621_Trajectory_Persistence_Forensic_Summary.json
+          cp research/f622_out/F6.22_CHECKPOINT.md BTC_Temporal_Friday_F622_Persistent_Failure65_Management_Checkpoint.md
+          cp research/f622_out/f622_summary.json BTC_Temporal_Friday_F622_Persistent_Failure65_Management_Summary.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Temporal_Friday_F621_Trajectory_Persistence_Forensic_Checkpoint.md BTC_Temporal_Friday_F621_Trajectory_Persistence_Forensic_Summary.json
-          git diff --cached --quiet || git commit -m "research: persist Friday F6.21 trajectory forensic"
+          git add BTC_Temporal_Friday_F621_Trajectory_Persistence_Forensic_Checkpoint.md BTC_Temporal_Friday_F621_Trajectory_Persistence_Forensic_Summary.json BTC_Temporal_Friday_F622_Persistent_Failure65_Management_Checkpoint.md BTC_Temporal_Friday_F622_Persistent_Failure65_Management_Summary.json
+          git diff --cached --quiet || git commit -m "research: persist Friday F6.22 management result"
           git push
