@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 T-Method F5.15 Warning Persistence Recovery Atlas
+name: BTC Temporal Friday15 T-Method F5.16 Persistent-State Economic Management
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-f515:
+  friday15-f516:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday T-Method F5.15 warning persistence recovery atlas
+      - name: Run Friday T-Method F5.16 persistent-state economic management
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_f515_warning_persistence_recovery_atlas.py
+          python btc_temporal_friday15_f516_persistent_state_economic_management.py
