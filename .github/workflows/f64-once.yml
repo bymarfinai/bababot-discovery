@@ -1,0 +1,26 @@
+name: F6.4 Friday Upper-Wick Failure Cut
+on:
+  push:
+    paths:
+      - '.github/workflows/f64-once.yml'
+  workflow_dispatch:
+jobs:
+  f64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run F6.4
+        env:
+          PYTHONPATH: research
+        run: python research/f64_friday_failure60_upperwick_cut.py
+      - name: Upload F6.4 outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: f64-output
+          path: f64_out/
