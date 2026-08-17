@@ -1,0 +1,22 @@
+name: F6.18 Friday Bearish Displacement Protection
+on:
+  push:
+    paths:
+      - '.github/workflows/f618-analysis.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          F618_OUT=../f618_out python f618_friday_bearish_displacement_protection.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f618-output
+          path: f618_out/
