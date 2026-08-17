@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/s50a-once.yml'
+      - 'research/s50a_saturday_adaptive_atlas_v2.py'
   workflow_dispatch:
 
 jobs:
@@ -18,7 +19,7 @@ jobs:
       - name: Install research dependencies
         run: pip install numpy pandas requests
       - name: Run S5.0A
-        run: python research/s50a_saturday_adaptive_atlas.py
+        run: python research/s50a_saturday_adaptive_atlas_v2.py
       - name: Upload S5.0A outputs
         uses: actions/upload-artifact@v4
         with:
