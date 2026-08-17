@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.51 Fresh OOS Jul31-Aug14
+name: BTC Temporal Friday15 T-Method F5.0 Parent Forensics
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a651:
+  friday15-f50:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.51 fresh OOS Jul31-Aug14
+      - name: Run Friday T-Method F5.0 parent forensics
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a651_fresh_oos_jul31_aug14.py
+          python btc_temporal_friday15_f50_parent_forensics.py
