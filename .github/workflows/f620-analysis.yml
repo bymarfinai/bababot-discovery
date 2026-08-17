@@ -1,0 +1,27 @@
+name: F6.20 Friday Failure-to-Accelerate Management
+on:
+  push:
+    paths:
+      - 'research/f620_friday_failure_to_accelerate_management.py'
+      - '.github/workflows/f620-analysis.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          F620_OUT=f620_out python f620_friday_failure_to_accelerate_management.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f620-output
+          path: |
+            research/f620_out/F6.20_CHECKPOINT.md
+            research/f620_out/f620_summary.json
+            research/f620_out/f620_rows.csv
