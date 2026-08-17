@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.38 Targeted Post-Stop Risk
+name: BTC Temporal Friday15 A6.39 DD Causal Attribution
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a638:
+  friday15-a639:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.38 targeted post-stop risk
+      - name: Run Friday15 A6.39 DD causal attribution
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a638_targeted_poststop_risk.py
+          python btc_temporal_friday15_a639_dd_causal_attribution.py
