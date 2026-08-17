@@ -1,0 +1,27 @@
+name: S5.4 Saturday EMA Failure Forensic
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s54-once.yml'
+      - 'research/s54_saturday_ema_failure_forensics.py'
+  workflow_dispatch:
+
+jobs:
+  s54:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run S5.4
+        run: python research/s54_saturday_ema_failure_forensics.py
+      - name: Upload S5.4 outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s54-output
+          path: s54_out/
