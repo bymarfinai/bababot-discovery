@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.37 Drawdown-Aware Risk
+name: BTC Temporal Friday15 A6.38 Targeted Post-Stop Risk
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a637:
+  friday15-a638:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.37 drawdown-aware risk
+      - name: Run Friday15 A6.38 targeted post-stop risk
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a637_drawdown_aware_risk.py
+          python btc_temporal_friday15_a638_targeted_poststop_risk.py
