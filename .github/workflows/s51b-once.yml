@@ -1,0 +1,27 @@
+name: S5.1B Saturday No EMA Reclaim CUT
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s51b-once.yml'
+      - 'research/s51b_failure_no_ema_reclaim_cut.py'
+  workflow_dispatch:
+
+jobs:
+  s51b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run S5.1B
+        run: python research/s51b_failure_no_ema_reclaim_cut.py
+      - name: Upload S5.1B outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s51b-output
+          path: s51b_out/
