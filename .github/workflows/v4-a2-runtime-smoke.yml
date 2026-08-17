@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.40 Pre-Entry Regime Attribution
+name: BTC Temporal Friday15 A6.41 Causal Volatility Regime
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a640:
+  friday15-a641:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.40 pre-entry regime attribution
+      - name: Run Friday15 A6.41 causal volatility regime
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a640_preentry_regime_attribution.py
+          python btc_temporal_friday15_a641_causal_vol_regime.py
