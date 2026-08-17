@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Parity-only probe for S5.0A.
-Reconstruct exact A7.26 pre-entry state convention and A7.13 60m decision-price convention
+Reconstruct exact A7.26 pre-entry state convention and A7.13 60m taker-edge convention
 from frozen checkpoint aggregates. No new threshold selection and no new trading rule.
 """
 from __future__ import annotations
@@ -54,11 +54,18 @@ def pre_variant(k,t,kind):
     near=(ph/op-1)<=.001
     return bool(pre1>0 and pre4>0 and op>ema and slope>0 and near)
 
-def fail60(k,t,tr,use_open):
+def fail60(k,t,tr,price_mode,taker_mode):
     d=t+pd.Timedelta(minutes=60)
     bars=k[(k.index>=t)&(k.index<d)]
-    taker=float(np.nanmean(bars.taker_imb.to_numpy()))
-    px=float(k.loc[d,'open']) if use_open else float(bars.iloc[-1].close)
+    if taker_mode=='mean_bar':
+        taker=float(np.nanmean(bars.taker_imb.to_numpy()))
+    elif taker_mode=='volume_weighted':
+        q=float(bars.quote_volume.sum()); tb=float(bars.taker_buy_quote.sum())
+        taker=(2.0*tb/q-1.0) if q>0 else np.nan
+    elif taker_mode=='sum_signed_quote':
+        taker=float((2.0*bars.taker_buy_quote-bars.quote_volume).sum())
+    else: raise ValueError(taker_mode)
+    px=float(k.loc[d,'open']) if price_mode=='open' else float(bars.iloc[-1].close)
     prog=px/tr.entry-1
     return bool(prog<=-.001 and taker<0),prog,taker
 
@@ -75,13 +82,14 @@ def main():
         kd=[a[i][0] for i,s in enumerate(sig[:83]) if not s]
         kv=[a[i+83][0] for i,s in enumerate(sig[83:]) if not s]
         print('PRE',kind,'signals',sum(sig),'D',sum(sig[:83]),'V',sum(sig[83:]),'kept',len(kept),'pnl',sum(kept),'D',sum(kd),'V',sum(kv),'dates',[str(ents[i].date()) for i,s in enumerate(sig) if s])
-    for use_open in [False,True]:
-        sig=[]
-        for t,tr in zip(ents,trs):
-            s,_,_=fail60(k,t,tr,use_open); sig.append(s)
-        losses=sum(s and tr.pnl<=0 for s,tr in zip(sig,trs))
-        dl=sum(sig[:83]); vl=sum(sig[83:])
-        dloss=sum(sig[i] and trs[i].pnl<=0 for i in range(83)); vloss=sum(sig[i] and trs[i].pnl<=0 for i in range(83,139))
-        print('F60','OPEN' if use_open else 'CLOSE','N',sum(sig),'loss',losses,'D',dl,dloss,'V',vl,vloss)
+    for price_mode in ['close','open']:
+        for taker_mode in ['mean_bar','volume_weighted','sum_signed_quote']:
+            sig=[]
+            for t,tr in zip(ents,trs):
+                s,_,_=fail60(k,t,tr,price_mode,taker_mode); sig.append(s)
+            losses=sum(s and tr.pnl<=0 for s,tr in zip(sig,trs))
+            dl=sum(sig[:83]); vl=sum(sig[83:])
+            dloss=sum(sig[i] and trs[i].pnl<=0 for i in range(83)); vloss=sum(sig[i] and trs[i].pnl<=0 for i in range(83,139))
+            print('F60',price_mode,taker_mode,'N',sum(sig),'loss',losses,'D',dl,dloss,'V',vl,vloss,'dates',[str(ents[i].date()) for i,s in enumerate(sig) if s])
 
 if __name__=='__main__': main()
