@@ -1,0 +1,22 @@
+name: F6.15 Friday Giveback Momentum Forensic
+on:
+  push:
+    paths:
+      - '.github/workflows/f615-analysis.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          F615_OUT=../f615_out python f615_friday_giveback_momentum_forensic.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f615-output
+          path: f615_out/
