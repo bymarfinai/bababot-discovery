@@ -38,7 +38,7 @@ from collections import defaultdict
 
 import btc_temporal_friday15_f511_hidden_state_reversal_forensics as F
 import btc_temporal_friday15_f57_reversal_pivot_atlas as F57
-from btc_temporal_friday15_a34_5m_events import rnd, ldt, TF
+from btc_temporal_a34_5m_events import rnd, ldt, TF
 from btc_temporal_friday15_a60_money_geometry import trade, NOTIONAL, FEE_PCT, max_dd, loss_streak
 
 BUY_TP=2.0; BUY_SL=0.7; BUY_HOLD=360
@@ -94,13 +94,11 @@ def managed_leg(rows,i,j,stop_gross_pct,events_by_ts=None,temporary=False):
     active_stop=stop_px;released=False
     for k in range(j,end):
         if rows[k][0] != rows[i][0]+(k-i)*TF:return None
-        # At each open after warning, causal hidden-state recovery can release protection.
         if temporary and k>j and not released and events_by_ts is not None:
             ev=events_by_ts.get(rows[k][0])
             if ev is not None and not warning(ev):
                 active_stop=parent_sl;released=True
         op=rows[k][1]
-        # If newly imposed stop is already through the market, only the current open is executable.
         if op<=active_stop:
             return {'net':pnl_at(entry,op),'reason':'OPEN_STOP','exit':op,'released':released}
         x=rows[k];hit_tp=x[2]>=tp_px;hit_sl=x[3]<=active_stop
@@ -171,7 +169,6 @@ def evaluate(rows,all_entries,groups,keys,kind):
             a=apply_policy(rows,i,p,we,q,kind)
             if a is not None:
                 managed,reason,released=a
-                # Count only actual economic changes; conditional NO_ACTION remains a warned but untouched trade.
                 changed=abs(managed-base)>1e-12
                 if changed:
                     acts.append({'date':ldt(ts).strftime('%Y-%m-%d'),'entry_ts':ts,
@@ -207,7 +204,6 @@ def main():
         v=evaluate(rows,all_entries,groups,val_keys,kind)
         full=evaluate(rows,all_entries,groups,all_keys,kind)
         result[kind]={'discovery':d,'validation':v,'full':full}
-    # Select on discovery only. No threshold tuning and no validation selection.
     eligible=[k for k in policies() if result[k]['discovery']['actions']>=MIN_ACTIONS and result[k]['discovery']['delta']>0]
     ranked=sorted(eligible,key=lambda k:result[k]['discovery']['delta'],reverse=True)
     selected=ranked[0] if ranked else None
