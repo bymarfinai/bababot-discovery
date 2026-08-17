@@ -1,0 +1,24 @@
+name: S6.3A Saturday FIB5 Fast Static
+on:
+  push:
+    paths:
+      - 'research/s63a_saturday_fib5_fast_static.py'
+      - '.github/workflows/s63a-analysis.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: |
+          cd research
+          python s63a_saturday_fib5_fast_static.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: s63a-output
+          path: research/s63a_out/
