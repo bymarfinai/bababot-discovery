@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 A6.44 Funding Regime Attribution
+name: BTC Temporal Friday15 A6.45 Positioning Attribution
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-a644:
+  friday15-a645:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday15 A6.44 funding regime attribution
+      - name: Run Friday15 A6.45 positioning attribution
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_a644_funding_regime_attribution.py
+          python btc_temporal_friday15_a645_positioning_attribution.py
