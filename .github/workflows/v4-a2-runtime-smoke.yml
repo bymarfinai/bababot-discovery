@@ -1,4 +1,4 @@
-name: BTC Temporal Friday17 A6.35 Independent Discovery
+name: BTC Temporal Friday15 A6.36 Max Drawdown Forensics
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday17-a635:
+  friday15-a636:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday17 A6.35 independent discovery
+      - name: Run Friday15 A6.36 max drawdown forensics
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday17_a635_independent_discovery.py
+          python btc_temporal_friday15_a636_maxdd_forensics.py
