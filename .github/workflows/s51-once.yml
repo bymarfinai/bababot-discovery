@@ -1,0 +1,26 @@
+name: S5.1 Saturday Adaptive Early Failure
+
+on:
+  push:
+    paths:
+      - '.github/workflows/s51-once.yml'
+  workflow_dispatch:
+
+jobs:
+  s51:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install numpy pandas requests
+      - name: Run S5.1
+        run: python research/s51_saturday_adaptive_early_failure.py
+      - name: Upload S5.1 outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: s51-output
+          path: s51_out/
