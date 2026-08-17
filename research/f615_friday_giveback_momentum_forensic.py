@@ -32,17 +32,14 @@ def pre_fib_resistance(k,t,event_px,hours):
     hi=float(w.high.max()); lo=float(w.low.min()); thi=w.high.idxmax(); tlo=w.low.idxmin(); span=hi-lo
     if span<=0:return None
     candidates=[]
-    # retracement resistance only if a pre-entry downswing high->low is chronologically present
     if thi<tlo:
         for r in [0.382,0.5,0.618,0.786,1.0]: candidates.append((f'retr_{r}',lo+r*span))
-    # range-extension resistance off the fully known pre-entry range
     for x in [1.272,1.618]: candidates.append((f'ext_{x}',lo+x*span))
     if not candidates:return None
     name,level=min(candidates,key=lambda z:abs(event_px-z[1])/event_px)
     return {'name':name,'level':level,'dist_pct':abs(event_px-level)/event_px,'downswing':bool(thi<tlo)}
 
 def post_event(k,tr,hit_t,minutes):
-    # causal information available at hit bar close + subsequent completed bars through minutes
     end=min(hit_t+pd.Timedelta(minutes=minutes+5),tr.exit_t)
     w=k[(k.index>=hit_t)&(k.index<end)]
     if w.empty:return {}
@@ -81,8 +78,7 @@ def main():
             if not (is_giveback or is_control): continue
             b=k.loc[ht]; cf=candle_feat(b); event_px=float(b.high)
             f2=pre_fib_resistance(k,t,event_px,2); f4=pre_fib_resistance(k,t,event_px,4)
-            row={'i':i,'period':'discovery' if i<f517.SPLIT_N else 'validation','date':tr.date,'tag':tag,'group':'GIVEBACK' if is_giveback else 'WINNER_CONTROL','parent_pnl':tr.pnl,'mfe_r':tr.mfe/R,'hit_t':str(ht),'peak_min':int((tr.exit_t-tr.entry_t).total_seconds()/60) if False else np.nan,
-                 **{f'event_{kk}':vv for kk,vv in cf.items()}}
+            row={'i':i,'period':'discovery' if i<f517.SPLIT_N else 'validation','date':tr.date,'tag':tag,'group':'GIVEBACK' if is_giveback else 'WINNER_CONTROL','parent_pnl':tr.pnl,'mfe_r':tr.mfe/R,'hit_t':str(ht),**{f'event_{kk}':vv for kk,vv in cf.items()}}
             for pref,fv in [('fib2h',f2),('fib4h',f4)]:
                 row[f'{pref}_dist_pct']=np.nan if fv is None else fv['dist_pct']; row[f'{pref}_level']=None if fv is None else fv['name']; row[f'{pref}_downswing']=False if fv is None else fv['downswing']
             for m in [5,10,15,30]: row.update(post_event(k,tr,ht,m))
@@ -90,13 +86,12 @@ def main():
     df=pd.DataFrame(rows); df.to_csv(OUT/'f615_events.csv',index=False)
     out={}
     for tag in ['R05','R10']:
-        sub=df[df.tag==tag]
-        out[tag]={}
-        for g in ['GIVEBACK','WINNER_CONTROL']:
-            out[tag][g]=summarize(sub[sub.group==g],g)
-        out[tag]['counts_by_period']=sub.groupby(['group','period']).size().to_dict()
-    (OUT/'f615_summary.json').write_text(json.dumps(out,indent=2,default=str))
-    md=['# Friday F6.15 — Giveback Momentum Forensic','', '**Status: FORENSIC ONLY — no management rule tuned.**','', 'Anchors are causal first-hit milestones (+0.5R and +1R), not hindsight peaks.','', '```json',json.dumps(out,indent=2,default=str),'```']
-    (OUT/'F6.15_CHECKPOINT.md').write_text('\n'.join(md)+'\n')
-    print(json.dumps(out,indent=2,default=str),flush=True)
+        sub=df[df.tag==tag]; out[tag]={}
+        for g in ['GIVEBACK','WINNER_CONTROL']: out[tag][g]=summarize(sub[sub.group==g],g)
+        counts=sub.groupby(['group','period']).size()
+        out[tag]['counts_by_period']={f'{g}|{p}':int(n) for (g,p),n in counts.items()}
+    payload=json.dumps(out,indent=2,default=str)
+    (OUT/'f615_summary.json').write_text(payload)
+    (OUT/'F6.15_CHECKPOINT.md').write_text('# Friday F6.15 — Giveback Momentum Forensic\n\n**Status: FORENSIC ONLY — no management rule tuned.**\n\nAnchors are causal first-hit milestones (+0.5R and +1R), not hindsight peaks.\n\n```json\n'+payload+'\n```\n')
+    print(payload,flush=True)
 if __name__=='__main__': main()
