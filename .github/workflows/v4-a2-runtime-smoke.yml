@@ -1,4 +1,4 @@
-name: BTC Temporal Friday15 T-Method F5.2T Exact Tuesday Transfer
+name: BTC Temporal Friday15 T-Method F5.3 Separability Attribution
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - '.github/workflows/v4-a2-runtime-smoke.yml'
 
 jobs:
-  friday15-f52t:
+  friday15-f53:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Run Friday F5.2T exact Tuesday transfer control
+      - name: Run Friday T-Method F5.3 separability attribution
         shell: bash
         run: |
           set -euo pipefail
-          python btc_temporal_friday15_f52t_exact_tuesday_transfer.py
+          python btc_temporal_friday15_f53_separability_attribution.py
