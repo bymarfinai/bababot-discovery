@@ -1,8 +1,8 @@
-name: F6.39 Friday Exact Balance-Gate Robustness Audit
+name: F6.40 Friday Balance-Only Architecture Simplification
 on:
   push:
     paths:
-      - 'research/f639_friday_exact_balance_gate_robustness_audit.py'
+      - 'research/f640_friday_balance_only_architecture_simplification.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,31 +17,31 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run F6.39 and persist once
+      - name: Run F6.40 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          F639_OUT=f639_out python f639_friday_exact_balance_gate_robustness_audit.py > ../F639_RUN.log 2>&1
+          F640_OUT=f640_out python f640_friday_balance_only_architecture_simplification.py > ../F640_RUN.log 2>&1
           rc=$?
           cd ..
-          cat F639_RUN.log
-          printf '%s\n' "$rc" > F639_EXIT_CODE.txt
+          cat F640_RUN.log
+          printf '%s\n' "$rc" > F640_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/f639_out/F6.39_CHECKPOINT.md BTC_Temporal_Friday_F639_Exact_Balance_Gate_Robustness_Audit_Checkpoint.md
-            cp research/f639_out/f639_summary.json BTC_Temporal_Friday_F639_Exact_Balance_Gate_Robustness_Audit_Summary.json
-            rm -f BTC_Temporal_Friday_F639_ERROR.log
-            git add BTC_Temporal_Friday_F639_Exact_Balance_Gate_Robustness_Audit_Checkpoint.md BTC_Temporal_Friday_F639_Exact_Balance_Gate_Robustness_Audit_Summary.json F639_EXIT_CODE.txt
-            git add -u BTC_Temporal_Friday_F639_ERROR.log 2>/dev/null || true
-            msg="research: persist Friday F6.39 exact balance gate robustness audit"
+            cp research/f640_out/F6.40_CHECKPOINT.md BTC_Temporal_Friday_F640_Balance_Only_Architecture_Simplification_Checkpoint.md
+            cp research/f640_out/f640_summary.json BTC_Temporal_Friday_F640_Balance_Only_Architecture_Simplification_Summary.json
+            rm -f BTC_Temporal_Friday_F640_ERROR.log
+            git add BTC_Temporal_Friday_F640_Balance_Only_Architecture_Simplification_Checkpoint.md BTC_Temporal_Friday_F640_Balance_Only_Architecture_Simplification_Summary.json F640_EXIT_CODE.txt
+            git add -u BTC_Temporal_Friday_F640_ERROR.log 2>/dev/null || true
+            msg="research: persist Friday F6.40 balance-only architecture simplification"
           else
-            cp F639_RUN.log BTC_Temporal_Friday_F639_ERROR.log
-            git add BTC_Temporal_Friday_F639_ERROR.log F639_EXIT_CODE.txt
-            msg="ci: persist Friday F6.39 traceback"
+            cp F640_RUN.log BTC_Temporal_Friday_F640_ERROR.log
+            git add BTC_Temporal_Friday_F640_ERROR.log F640_EXIT_CODE.txt
+            msg="ci: persist Friday F6.40 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,10 +51,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: f639-output
+          name: f640-output
           path: |
-            F639_RUN.log
-            F639_EXIT_CODE.txt
-            research/f639_out/F6.39_CHECKPOINT.md
-            research/f639_out/f639_summary.json
-            research/f639_out/f639_rows.csv
+            F640_RUN.log
+            F640_EXIT_CODE.txt
+            research/f640_out/F6.40_CHECKPOINT.md
+            research/f640_out/f640_summary.json
+            research/f640_out/f640_rows.csv
