@@ -1,8 +1,8 @@
-name: SUN1.2 Sunday Hold-Exit and All-Hour Surface
+name: SUN1.3 Sunday 09:00 TP-SL Deep Dive
 on:
   push:
     paths:
-      - 'research/sun12_sunday_hold_exit_and_allhour_surface.py'
+      - 'research/sun13_sunday09_tpsl_deepdive.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,31 +17,31 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run SUN1.2 and persist once
+      - name: Run SUN1.3 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUN12_OUT=sun12_out python sun12_sunday_hold_exit_and_allhour_surface.py > ../SUN12_RUN.log 2>&1
+          SUN13_OUT=sun13_out python sun13_sunday09_tpsl_deepdive.py > ../SUN13_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUN12_RUN.log
-          printf '%s\n' "$rc" > SUN12_EXIT_CODE.txt
+          cat SUN13_RUN.log
+          printf '%s\n' "$rc" > SUN13_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sun12_out/SUN1.2_CHECKPOINT.md BTC_Temporal_Sunday_SUN12_Hold_Exit_AllHour_Surface_Checkpoint.md
-            cp research/sun12_out/sun12_summary.json BTC_Temporal_Sunday_SUN12_Hold_Exit_AllHour_Surface_Summary.json
-            rm -f BTC_Temporal_Sunday_SUN12_ERROR.log
-            git add BTC_Temporal_Sunday_SUN12_Hold_Exit_AllHour_Surface_Checkpoint.md BTC_Temporal_Sunday_SUN12_Hold_Exit_AllHour_Surface_Summary.json SUN12_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday_SUN12_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday SUN1.2 hold-exit and all-hour surface"
+            cp research/sun13_out/SUN1.3_CHECKPOINT.md BTC_Temporal_Sunday09_SUN13_TPSL_DeepDive_Checkpoint.md
+            cp research/sun13_out/sun13_summary.json BTC_Temporal_Sunday09_SUN13_TPSL_DeepDive_Summary.json
+            rm -f BTC_Temporal_Sunday09_SUN13_ERROR.log
+            git add BTC_Temporal_Sunday09_SUN13_TPSL_DeepDive_Checkpoint.md BTC_Temporal_Sunday09_SUN13_TPSL_DeepDive_Summary.json SUN13_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday09_SUN13_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday SUN1.3 09:00 TP-SL deep dive"
           else
-            cp SUN12_RUN.log BTC_Temporal_Sunday_SUN12_ERROR.log
-            git add BTC_Temporal_Sunday_SUN12_ERROR.log SUN12_EXIT_CODE.txt
-            msg="ci: persist Sunday SUN1.2 traceback"
+            cp SUN13_RUN.log BTC_Temporal_Sunday09_SUN13_ERROR.log
+            git add BTC_Temporal_Sunday09_SUN13_ERROR.log SUN13_EXIT_CODE.txt
+            msg="ci: persist Sunday SUN1.3 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,10 +51,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sun12-output
+          name: sun13-output
           path: |
-            SUN12_RUN.log
-            SUN12_EXIT_CODE.txt
-            research/sun12_out/SUN1.2_CHECKPOINT.md
-            research/sun12_out/sun12_summary.json
-            research/sun12_out/sun12_all_surface.csv
+            SUN13_RUN.log
+            SUN13_EXIT_CODE.txt
+            research/sun13_out/SUN1.3_CHECKPOINT.md
+            research/sun13_out/sun13_summary.json
