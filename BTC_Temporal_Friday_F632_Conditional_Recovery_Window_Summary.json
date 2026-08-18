@@ -1,0 +1,170 @@
+{
+  "status": "SAME_SAMPLE_DIAGNOSTIC_ONLY",
+  "rule_definition": {
+    "candidate": "F6.29 +20m cut candidate",
+    "guard20": "F6.31 lower-low + improving-taker divergence",
+    "grace": "guarded cases defer cut for max 10m",
+    "confirm25": "EMA7 recovery_chain_now at +25m -> frozen HOLD",
+    "confirm30": "if not confirmed at +25m, same recovery_chain_now at +30m -> frozen HOLD",
+    "fail30": "if still unconfirmed/alive at +30m -> actual +30m-open cut",
+    "priority": "parent/frozen exit before checkpoint wins",
+    "tuning": "none; fixed sequential +25/+30 natural-state checkpoints"
+  },
+  "frozen_five_layer": {
+    "n": 138,
+    "wins": 73,
+    "losses": 65,
+    "wr": 0.5289855072463768,
+    "pnl": 138.32913165461423,
+    "pf": 1.8270660296408894,
+    "dd": 24.258622800073653,
+    "ls": 8
+  },
+  "f629_diagnostic": {
+    "n": 138,
+    "wins": 70,
+    "losses": 68,
+    "wr": 0.5072463768115942,
+    "pnl": 147.53962822082755,
+    "pf": 1.9612442230522669,
+    "dd": 16.67023428974416,
+    "ls": 8
+  },
+  "f631_guard": {
+    "n": 138,
+    "wins": 72,
+    "losses": 66,
+    "wr": 0.5217391304347826,
+    "pnl": 146.37917878649426,
+    "pf": 1.9232001087600021,
+    "dd": 22.67507921411098,
+    "ls": 8
+  },
+  "conditional_window": {
+    "n": 138,
+    "wins": 70,
+    "losses": 68,
+    "wr": 0.5072463768115942,
+    "pnl": 139.88386904132489,
+    "pf": 1.8680678159393387,
+    "dd": 20.153920014596594,
+    "ls": 8
+  },
+  "active_watches": 26,
+  "f629_actions": 12,
+  "guarded20": 6,
+  "unguarded_cut20": 6,
+  "confirm25": 2,
+  "confirm30": 1,
+  "cut30": 3,
+  "frozen_during_grace": 0,
+  "guarded_winner_n": 2,
+  "guarded_loser_n": 4,
+  "confirm25_winner_loser": [
+    0,
+    2
+  ],
+  "confirm30_winner_loser": [
+    0,
+    1
+  ],
+  "cut30_winner_loser": [
+    2,
+    1
+  ],
+  "parent_winners_acted": 3,
+  "parent_winners_preserved_positive": 0,
+  "failure_to_develop_defensively_cut": 5,
+  "f625_target_n": 24,
+  "saved_on_parent_losers_vs_frozen": 12.621883751044882,
+  "damage_on_parent_winners_vs_frozen": -11.067146364334256,
+  "incremental_vs_frozen": 1.5547373867106558,
+  "incremental_vs_f629": -7.655759179502667,
+  "incremental_vs_f631": -6.495309745169379,
+  "incremental_vs_frozen_D": -4.885527854598787,
+  "incremental_vs_frozen_V": 6.440265241309412,
+  "delta_vs_f629_D": -3.442124008796951,
+  "delta_vs_f629_V": -4.213635170705722,
+  "delta_vs_f631_D": -9.046890513707329,
+  "delta_vs_f631_V": 2.55158076853795,
+  "baseline_positive_to_nonpositive": 3,
+  "wr_gain_pp_vs_frozen": -2.1739130434782594,
+  "dd_improvement_vs_frozen": 4.104702785477059,
+  "jackknife_min_remaining_incremental_vs_frozen": -1.6812598487412118,
+  "screen_pass": false,
+  "guarded_detail": [
+    {
+      "date": "2024-03-08",
+      "period": "discovery",
+      "parent_pnl": 3.1752100403366352,
+      "base_pnl": 3.1752100403366352,
+      "f629_pnl": -1.7669592250606763,
+      "f631_pnl": 3.1752100403366352,
+      "managed_pnl": -2.3500950845732054,
+      "action": "CUT30",
+      "incremental_vs_base": -5.52530512490984,
+      "taker_change20": 0.10030903283726478
+    },
+    {
+      "date": "2024-11-22",
+      "period": "discovery",
+      "parent_pnl": -4.25,
+      "base_pnl": -4.25,
+      "f629_pnl": -2.1902645371506817,
+      "f631_pnl": -4.25,
+      "managed_pnl": -4.25,
+      "action": "CONFIRM30_HOLD",
+      "incremental_vs_base": 0.0,
+      "taker_change20": 0.05202269893047917
+    },
+    {
+      "date": "2025-02-14",
+      "period": "discovery",
+      "parent_pnl": -1.5199460934524338,
+      "base_pnl": -1.5199460934524338,
+      "f629_pnl": -1.2180570420652619,
+      "f631_pnl": -1.5199460934524338,
+      "managed_pnl": -1.5199460934524338,
+      "action": "CONFIRM25_HOLD",
+      "incremental_vs_base": 0.0,
+      "taker_change20": 0.1647808553121427
+    },
+    {
+      "date": "2025-05-16",
+      "period": "discovery",
+      "parent_pnl": 0.7324427259965134,
+      "base_pnl": 0.7324427259965134,
+      "f629_pnl": -2.291779027753043,
+      "f631_pnl": 0.7324427259965134,
+      "managed_pnl": -2.7891426628009746,
+      "action": "CUT30",
+      "incremental_vs_base": -3.521585388797488,
+      "taker_change20": 0.2839217960738881
+    },
+    {
+      "date": "2025-07-04",
+      "period": "validation",
+      "parent_pnl": -4.166125918106861,
+      "base_pnl": -4.166125918106861,
+      "f629_pnl": -0.9428012876733498,
+      "f631_pnl": -4.166125918106861,
+      "managed_pnl": -4.166125918106861,
+      "action": "CONFIRM25_HOLD",
+      "incremental_vs_base": 0.0,
+      "taker_change20": 0.3596465615465252
+    },
+    {
+      "date": "2025-07-18",
+      "period": "validation",
+      "parent_pnl": -4.25,
+      "base_pnl": -4.25,
+      "f629_pnl": -0.7081086911898398,
+      "f631_pnl": -4.25,
+      "managed_pnl": -1.6984192314620499,
+      "action": "CUT30",
+      "incremental_vs_base": 2.55158076853795,
+      "taker_change20": 0.01878376215604871
+    }
+  ],
+  "guardrail": "F6.32 is motivated by F6.30/F6.31 on the same sample. D/V are robustness slices only. Do not tune confirmation timing or add magnitude thresholds from this run."
+}
