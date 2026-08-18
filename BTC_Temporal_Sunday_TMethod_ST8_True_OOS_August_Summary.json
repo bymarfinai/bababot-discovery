@@ -1,0 +1,100 @@
+{
+  "status": "COMPLETE_TRUE_OOS_FROZEN_SUNDAY_FASTMR",
+  "research_cutoff": "2026-07-30 00:00:00+00:00",
+  "dates": [
+    "2026-08-02",
+    "2026-08-09",
+    "2026-08-16"
+  ],
+  "frozen_rule": {
+    "entry": "Sunday 16:00 WIB SELL",
+    "tp_pct": 2.5,
+    "sl_pct": 1.4,
+    "max_hold_h": 18,
+    "hinge_mfe_pct": 1.0,
+    "ema20_overextension_pct": 0.6,
+    "giveback_progress_pct": 0.6,
+    "giveback_latency_h": 2,
+    "profit_lock_pct": 0.4,
+    "runner_recovery": false
+  },
+  "parent": {
+    "n": 3,
+    "wins": 0,
+    "wr": 0.0,
+    "pnl": -6.604168233767668,
+    "pf": 0.0,
+    "exp": -2.201389411255889
+  },
+  "fastmr": {
+    "n": 3,
+    "wins": 0,
+    "wr": 0.0,
+    "pnl": -6.604168233767668,
+    "pf": 0.0,
+    "exp": -2.201389411255889
+  },
+  "fastmr_delta_vs_parent": 0.0,
+  "fastmr_arms": 0,
+  "lock_actions": 0,
+  "rows": [
+    {
+      "date": "2026-08-02",
+      "entry_t": "2026-08-02 09:00:00+00:00",
+      "entry": 63171.2,
+      "parent_reason": "TIMEOUT",
+      "parent_exit_t": "2026-08-03 03:00:00+00:00",
+      "parent_pnl": -0.24251637682997865,
+      "parent_mfe_pct": 0.33258826807152087,
+      "parent_mae_pct": 0.9621473076338649,
+      "reached_1pct_hinge": false,
+      "hinge_t": null,
+      "hinge_ema20_overextension_pct": null,
+      "fastmr_armed": false,
+      "fastmr_decision_t": null,
+      "giveback_progress_pct": null,
+      "lock_action": false,
+      "managed_pnl": -0.24251637682997865,
+      "delta_vs_parent": 0.0
+    },
+    {
+      "date": "2026-08-09",
+      "entry_t": "2026-08-09 09:00:00+00:00",
+      "entry": 64792.5,
+      "parent_reason": "TIMEOUT",
+      "parent_exit_t": "2026-08-10 03:00:00+00:00",
+      "parent_pnl": -2.9153759446540404,
+      "parent_mfe_pct": 0.027780993170500867,
+      "parent_mae_pct": 1.065246749237958,
+      "reached_1pct_hinge": false,
+      "hinge_t": null,
+      "hinge_ema20_overextension_pct": null,
+      "fastmr_armed": false,
+      "fastmr_decision_t": null,
+      "giveback_progress_pct": null,
+      "lock_action": false,
+      "managed_pnl": -2.9153759446540404,
+      "delta_vs_parent": 0.0
+    },
+    {
+      "date": "2026-08-16",
+      "entry_t": "2026-08-16 09:00:00+00:00",
+      "entry": 63039.6,
+      "parent_reason": "TIMEOUT",
+      "parent_exit_t": "2026-08-17 03:00:00+00:00",
+      "parent_pnl": -3.446275912283649,
+      "parent_mfe_pct": 0.5686901566634317,
+      "parent_mae_pct": 0.7017811026719833,
+      "reached_1pct_hinge": false,
+      "hinge_t": null,
+      "hinge_ema20_overextension_pct": null,
+      "fastmr_armed": false,
+      "fastmr_decision_t": null,
+      "giveback_progress_pct": null,
+      "lock_action": false,
+      "managed_pnl": -3.446275912283649,
+      "delta_vs_parent": 0.0
+    }
+  ],
+  "guardrail": "Only three post-cutoff Sundays exist. Rule is replayed unchanged; N=3 cannot confirm or reject the edge and must not be used to retune the frozen settings."
+}
