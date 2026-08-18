@@ -1,0 +1,156 @@
+{
+  "status": "COMPLETE_SUNDAY_FROZEN_SF68_PLUS_FIXED_FASTMR",
+  "frozen_definition": "Sunday16 SELL TP2.5 SL1.4 18h + frozen SF6-SF8 confirmed-failure management",
+  "fastmr_definition": "+1.0% MFE hinge; hinge >=0.60% below EMA20; <=+0.60% progress giveback within2h; arm +0.40% lock; no runner recovery",
+  "parent": {
+    "full": {
+      "n": 139,
+      "wins": 66,
+      "losses": 73,
+      "wr": 0.4748201438848921,
+      "pnl": 63.59937913207399,
+      "pf": 1.1383037313997062,
+      "dd": 61.50231108925164,
+      "ls": 7,
+      "exp": 0.4575494901588057
+    },
+    "D": {
+      "n": 83,
+      "wins": 40,
+      "losses": 43,
+      "wr": 0.4819277108433735,
+      "pnl": 53.90104552445012,
+      "pf": 1.2017960263755962,
+      "dd": 46.52311634268662,
+      "ls": 6,
+      "exp": 0.6494101870415677
+    },
+    "V": {
+      "n": 56,
+      "wins": 26,
+      "losses": 30,
+      "wr": 0.4642857142857143,
+      "pnl": 9.698333607623884,
+      "pf": 1.0503165547657785,
+      "dd": 37.383716221670134,
+      "ls": 6,
+      "exp": 0.17318452870756934
+    }
+  },
+  "standalone_old_fastmr": {
+    "full": {
+      "n": 139,
+      "wins": 73,
+      "losses": 66,
+      "wr": 0.5251798561151079,
+      "pnl": 68.17389596982794,
+      "pf": 1.1594812476446656,
+      "dd": 59.41935613210037,
+      "ls": 6,
+      "exp": 0.49045968323617223
+    },
+    "D": {
+      "n": 83,
+      "wins": 44,
+      "losses": 39,
+      "wr": 0.5301204819277109,
+      "pnl": 56.68848673251933,
+      "pf": 1.2328814089893259,
+      "dd": 43.07821963530188,
+      "ls": 6,
+      "exp": 0.6829938160544498
+    },
+    "V": {
+      "n": 56,
+      "wins": 29,
+      "losses": 27,
+      "wr": 0.5178571428571429,
+      "pnl": 11.485409237308597,
+      "pf": 1.0624035138848902,
+      "dd": 35.30076126451886,
+      "ls": 3,
+      "exp": 0.2050965935233678
+    }
+  },
+  "frozen_sf68": {
+    "full": {
+      "n": 139,
+      "wins": 66,
+      "losses": 73,
+      "wr": 0.4748201438848921,
+      "pnl": 75.24595313839245,
+      "pf": 1.1678823793297979,
+      "dd": 56.53218820395433,
+      "ls": 7,
+      "exp": 0.5413377923625357
+    },
+    "D": {
+      "n": 83,
+      "wins": 40,
+      "losses": 43,
+      "wr": 0.4819277108433735,
+      "pnl": 58.49371058267385,
+      "pf": 1.2228213755135136,
+      "dd": 41.5231192974565,
+      "ls": 6,
+      "exp": 0.7047435009960704
+    },
+    "V": {
+      "n": 56,
+      "wins": 26,
+      "losses": 30,
+      "wr": 0.4642857142857143,
+      "pnl": 16.752242555718574,
+      "pf": 1.090214981679989,
+      "dd": 33.454554455241656,
+      "ls": 6,
+      "exp": 0.2991471884949745
+    }
+  },
+  "combined": {
+    "full": {
+      "n": 139,
+      "wins": 72,
+      "losses": 67,
+      "wr": 0.5179856115107914,
+      "pnl": 77.73751501899508,
+      "pf": 1.1865958795239688,
+      "dd": 56.53218820395433,
+      "ls": 7,
+      "exp": 0.5592626979783819
+    },
+    "D": {
+      "n": 83,
+      "wins": 44,
+      "losses": 39,
+      "wr": 0.5301204819277109,
+      "pnl": 61.28115179074306,
+      "pf": 1.256589587378782,
+      "dd": 38.078222590071775,
+      "ls": 6,
+      "exp": 0.7383271300089526
+    },
+    "V": {
+      "n": 56,
+      "wins": 28,
+      "losses": 28,
+      "wr": 0.5,
+      "pnl": 16.456363228252016,
+      "pf": 1.0925661456003282,
+      "dd": 30.502814711044103,
+      "ls": 6,
+      "exp": 0.29386362907592883
+    }
+  },
+  "fastmr_arms": 14,
+  "fastmr_arms_D": 10,
+  "fastmr_arms_V": 4,
+  "fastmr_lock_exits": 14,
+  "incremental_full": 2.491561880602651,
+  "incremental_D": 2.7874412080692075,
+  "incremental_V": -0.2958793274665561,
+  "frozen_winner_to_nonpositive": 0,
+  "frozen_loss_to_positive": 6,
+  "positive_blocks": 6,
+  "guardrail": "SF6-SF8 was frozen before this test. FastMR parameters are reused unchanged from prior Sunday T-method selection; no new threshold/timing selection is performed here. D/V remain robustness slices, not untouched OOS."
+}
