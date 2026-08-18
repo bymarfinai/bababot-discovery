@@ -1,8 +1,8 @@
-name: Sunday T-Method ST0-ST3 Reset
+name: Sunday T-Method ST4-ST11
 on:
   push:
     paths:
-      - 'research/sunday_tmethod_st0_st3_reset.py'
+      - 'research/sunday_tmethod_st4_st11.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,31 +17,31 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run Sunday T-Method ST0-ST3 and persist once
+      - name: Run Sunday T-Method ST4-ST11 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUNT03_OUT=sunt03_out python sunday_tmethod_st0_st3_reset.py > ../SUNT03_RUN.log 2>&1
+          SUNT11_OUT=sunt11_out python sunday_tmethod_st4_st11.py > ../SUNT11_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUNT03_RUN.log
-          printf '%s\n' "$rc" > SUNT03_EXIT_CODE.txt
+          cat SUNT11_RUN.log
+          printf '%s\n' "$rc" > SUNT11_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sunt03_out/SUNDAY_TMETHOD_ST0_ST3_CHECKPOINT.md BTC_Temporal_Sunday_TMethod_ST0_ST3_Reset_Checkpoint.md
-            cp research/sunt03_out/sunt03_summary.json BTC_Temporal_Sunday_TMethod_ST0_ST3_Reset_Summary.json
-            rm -f BTC_Temporal_Sunday_TMethod_ST0_ST3_Reset_ERROR.log
-            git add BTC_Temporal_Sunday_TMethod_ST0_ST3_Reset_Checkpoint.md BTC_Temporal_Sunday_TMethod_ST0_ST3_Reset_Summary.json SUNT03_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday_TMethod_ST0_ST3_Reset_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday T-Method ST0-ST3 reset"
+            cp research/sunt11_out/SUNDAY_TMETHOD_ST4_ST11_CHECKPOINT.md BTC_Temporal_Sunday_TMethod_ST4_ST11_Checkpoint.md
+            cp research/sunt11_out/sunt11_summary.json BTC_Temporal_Sunday_TMethod_ST4_ST11_Summary.json
+            rm -f BTC_Temporal_Sunday_TMethod_ST4_ST11_ERROR.log
+            git add BTC_Temporal_Sunday_TMethod_ST4_ST11_Checkpoint.md BTC_Temporal_Sunday_TMethod_ST4_ST11_Summary.json SUNT11_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday_TMethod_ST4_ST11_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday T-Method ST4-ST11"
           else
-            cp SUNT03_RUN.log BTC_Temporal_Sunday_TMethod_ST0_ST3_Reset_ERROR.log
-            git add BTC_Temporal_Sunday_TMethod_ST0_ST3_Reset_ERROR.log SUNT03_EXIT_CODE.txt
-            msg="ci: persist Sunday T-Method ST0-ST3 traceback"
+            cp SUNT11_RUN.log BTC_Temporal_Sunday_TMethod_ST4_ST11_ERROR.log
+            git add BTC_Temporal_Sunday_TMethod_ST4_ST11_ERROR.log SUNT11_EXIT_CODE.txt
+            msg="ci: persist Sunday T-Method ST4-ST11 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,9 +51,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sunt03-output
+          name: sunt11-output
           path: |
-            SUNT03_RUN.log
-            SUNT03_EXIT_CODE.txt
-            research/sunt03_out/SUNDAY_TMETHOD_ST0_ST3_CHECKPOINT.md
-            research/sunt03_out/sunt03_summary.json
+            SUNT11_RUN.log
+            SUNT11_EXIT_CODE.txt
+            research/sunt11_out/SUNDAY_TMETHOD_ST4_ST11_CHECKPOINT.md
+            research/sunt11_out/sunt11_summary.json
