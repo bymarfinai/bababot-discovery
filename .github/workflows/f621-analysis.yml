@@ -1,8 +1,8 @@
-name: Sunday Friday-Method SF6-SF8
+name: Sunday Frozen SF6-SF8 + FastMR
 on:
   push:
     paths:
-      - 'research/sunday_fridaymethod_sf6_sf8_confirmed_failure.py'
+      - 'research/sunday_fridaymethod_sf9_fastmr_overlay.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,32 +17,32 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run Sunday SF6-SF8 and persist once
+      - name: Run Sunday SF9 FastMR overlay and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUNFM68_OUT=sunfm68_out python sunday_fridaymethod_sf6_sf8_confirmed_failure.py > ../SUNFM68_RUN.log 2>&1
+          SUNFM9_OUT=sunfm9_out python sunday_fridaymethod_sf9_fastmr_overlay.py > ../SUNFM9_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUNFM68_RUN.log
-          printf '%s\n' "$rc" > SUNFM68_EXIT_CODE.txt
+          cat SUNFM9_RUN.log
+          printf '%s\n' "$rc" > SUNFM9_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sunfm68_out/SUNDAY_FRIDAY_METHOD_SF6_SF8_CHECKPOINT.md BTC_Temporal_Sunday_FridayMethod_SF6_SF8_Checkpoint.md
-            cp research/sunfm68_out/sunfm68_summary.json BTC_Temporal_Sunday_FridayMethod_SF6_SF8_Summary.json
-            cp research/sunfm68_out/sunfm68_rows.csv BTC_Temporal_Sunday_FridayMethod_SF6_SF8_Rows.csv
-            rm -f BTC_Temporal_Sunday_FridayMethod_SF6_SF8_ERROR.log
-            git add BTC_Temporal_Sunday_FridayMethod_SF6_SF8_Checkpoint.md BTC_Temporal_Sunday_FridayMethod_SF6_SF8_Summary.json BTC_Temporal_Sunday_FridayMethod_SF6_SF8_Rows.csv SUNFM68_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday_FridayMethod_SF6_SF8_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday Friday-method SF6-SF8"
+            cp research/sunfm9_out/SUNDAY_FRIDAY_METHOD_SF9_FASTMR_CHECKPOINT.md BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_Checkpoint.md
+            cp research/sunfm9_out/sunfm9_summary.json BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_Summary.json
+            cp research/sunfm9_out/sunfm9_rows.csv BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_Rows.csv
+            rm -f BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_ERROR.log
+            git add BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_Checkpoint.md BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_Summary.json BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_Rows.csv SUNFM9_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday frozen SF6-SF8 plus FastMR"
           else
-            cp SUNFM68_RUN.log BTC_Temporal_Sunday_FridayMethod_SF6_SF8_ERROR.log
-            git add BTC_Temporal_Sunday_FridayMethod_SF6_SF8_ERROR.log SUNFM68_EXIT_CODE.txt
-            msg="ci: persist Sunday Friday-method SF6-SF8 traceback"
+            cp SUNFM9_RUN.log BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_ERROR.log
+            git add BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_ERROR.log SUNFM9_EXIT_CODE.txt
+            msg="ci: persist Sunday SF9 FastMR traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -52,10 +52,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sunfm68-output
+          name: sunfm9-output
           path: |
-            SUNFM68_RUN.log
-            SUNFM68_EXIT_CODE.txt
-            research/sunfm68_out/SUNDAY_FRIDAY_METHOD_SF6_SF8_CHECKPOINT.md
-            research/sunfm68_out/sunfm68_summary.json
-            research/sunfm68_out/sunfm68_rows.csv
+            SUNFM9_RUN.log
+            SUNFM9_EXIT_CODE.txt
+            research/sunfm9_out/SUNDAY_FRIDAY_METHOD_SF9_FASTMR_CHECKPOINT.md
+            research/sunfm9_out/sunfm9_summary.json
+            research/sunfm9_out/sunfm9_rows.csv
