@@ -1,8 +1,8 @@
-name: SUN1.4 Sunday09 Reverse After 0.4
+name: SUN1.5 Tuesday Geometry Transfer to Sunday
 on:
   push:
     paths:
-      - 'research/sun14_sunday09_reverse_after_04.py'
+      - 'research/sun15_tuesday_geometry_transfer.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,31 +17,31 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run SUN1.4 and persist once
+      - name: Run SUN1.5 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUN14_OUT=sun14_out python sun14_sunday09_reverse_after_04.py > ../SUN14_RUN.log 2>&1
+          SUN15_OUT=sun15_out python sun15_tuesday_geometry_transfer.py > ../SUN15_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUN14_RUN.log
-          printf '%s\n' "$rc" > SUN14_EXIT_CODE.txt
+          cat SUN15_RUN.log
+          printf '%s\n' "$rc" > SUN15_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sun14_out/SUN1.4_CHECKPOINT.md BTC_Temporal_Sunday09_SUN14_Reverse_After_04_Checkpoint.md
-            cp research/sun14_out/sun14_summary.json BTC_Temporal_Sunday09_SUN14_Reverse_After_04_Summary.json
-            rm -f BTC_Temporal_Sunday09_SUN14_ERROR.log
-            git add BTC_Temporal_Sunday09_SUN14_Reverse_After_04_Checkpoint.md BTC_Temporal_Sunday09_SUN14_Reverse_After_04_Summary.json SUN14_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday09_SUN14_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday SUN1.4 reverse-after-0.4 test"
+            cp research/sun15_out/SUN1.5_CHECKPOINT.md BTC_Temporal_Sunday_SUN15_Tuesday_Geometry_Transfer_Checkpoint.md
+            cp research/sun15_out/sun15_summary.json BTC_Temporal_Sunday_SUN15_Tuesday_Geometry_Transfer_Summary.json
+            rm -f BTC_Temporal_Sunday_SUN15_ERROR.log
+            git add BTC_Temporal_Sunday_SUN15_Tuesday_Geometry_Transfer_Checkpoint.md BTC_Temporal_Sunday_SUN15_Tuesday_Geometry_Transfer_Summary.json SUN15_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday_SUN15_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday SUN1.5 Tuesday geometry transfer"
           else
-            cp SUN14_RUN.log BTC_Temporal_Sunday09_SUN14_ERROR.log
-            git add BTC_Temporal_Sunday09_SUN14_ERROR.log SUN14_EXIT_CODE.txt
-            msg="ci: persist Sunday SUN1.4 traceback"
+            cp SUN15_RUN.log BTC_Temporal_Sunday_SUN15_ERROR.log
+            git add BTC_Temporal_Sunday_SUN15_ERROR.log SUN15_EXIT_CODE.txt
+            msg="ci: persist Sunday SUN1.5 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,10 +51,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sun14-output
+          name: sun15-output
           path: |
-            SUN14_RUN.log
-            SUN14_EXIT_CODE.txt
-            research/sun14_out/SUN1.4_CHECKPOINT.md
-            research/sun14_out/sun14_summary.json
-            research/sun14_out/sun14_surface.csv
+            SUN15_RUN.log
+            SUN15_EXIT_CODE.txt
+            research/sun15_out/SUN1.5_CHECKPOINT.md
+            research/sun15_out/sun15_summary.json
