@@ -1,8 +1,8 @@
-name: Sunday SF10 True-OOS August Comparison
+name: Sunday SF11-SF12 Preentry Regime
 on:
   push:
     paths:
-      - 'research/sunday_fridaymethod_sf10_true_oos_august.py'
+      - 'research/sunday_fridaymethod_sf11_sf12_preentry_regime.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,32 +17,32 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run Sunday SF10 true-OOS comparison and persist once
+      - name: Run Sunday SF11-SF12 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUNFM10_OUT=sunfm10_out python sunday_fridaymethod_sf10_true_oos_august.py > ../SUNFM10_RUN.log 2>&1
+          SUNFM1112_OUT=sunfm1112_out python sunday_fridaymethod_sf11_sf12_preentry_regime.py > ../SUNFM1112_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUNFM10_RUN.log
-          printf '%s\n' "$rc" > SUNFM10_EXIT_CODE.txt
+          cat SUNFM1112_RUN.log
+          printf '%s\n' "$rc" > SUNFM1112_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sunfm10_out/SUNDAY_FRIDAY_METHOD_SF10_TRUE_OOS_AUGUST.md BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August.md
-            cp research/sunfm10_out/sunfm10_true_oos_august_summary.json BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_Summary.json
-            cp research/sunfm10_out/sunfm10_true_oos_august_rows.csv BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_Rows.csv
-            rm -f BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_ERROR.log
-            git add BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August.md BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_Summary.json BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_Rows.csv SUNFM10_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday SF10 true-OOS August comparison"
+            cp research/sunfm1112_out/SUNDAY_FRIDAY_METHOD_SF11_SF12_PREENTRY_REGIME.md BTC_Temporal_Sunday_FridayMethod_SF11_SF12_Preentry_Regime.md
+            cp research/sunfm1112_out/sunfm1112_summary.json BTC_Temporal_Sunday_FridayMethod_SF11_SF12_Preentry_Regime_Summary.json
+            cp research/sunfm1112_out/sunfm1112_rows.csv BTC_Temporal_Sunday_FridayMethod_SF11_SF12_Preentry_Regime_Rows.csv
+            rm -f BTC_Temporal_Sunday_FridayMethod_SF11_SF12_Preentry_Regime_ERROR.log
+            git add BTC_Temporal_Sunday_FridayMethod_SF11_SF12_Preentry_Regime.md BTC_Temporal_Sunday_FridayMethod_SF11_SF12_Preentry_Regime_Summary.json BTC_Temporal_Sunday_FridayMethod_SF11_SF12_Preentry_Regime_Rows.csv SUNFM1112_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday_FridayMethod_SF11_SF12_Preentry_Regime_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday SF11-SF12 preentry regime"
           else
-            cp SUNFM10_RUN.log BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_ERROR.log
-            git add BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_ERROR.log SUNFM10_EXIT_CODE.txt
-            msg="ci: persist Sunday SF10 true-OOS traceback"
+            cp SUNFM1112_RUN.log BTC_Temporal_Sunday_FridayMethod_SF11_SF12_Preentry_Regime_ERROR.log
+            git add BTC_Temporal_Sunday_FridayMethod_SF11_SF12_Preentry_Regime_ERROR.log SUNFM1112_EXIT_CODE.txt
+            msg="ci: persist Sunday SF11-SF12 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -52,10 +52,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sunfm10-output
+          name: sunfm1112-output
           path: |
-            SUNFM10_RUN.log
-            SUNFM10_EXIT_CODE.txt
-            research/sunfm10_out/SUNDAY_FRIDAY_METHOD_SF10_TRUE_OOS_AUGUST.md
-            research/sunfm10_out/sunfm10_true_oos_august_summary.json
-            research/sunfm10_out/sunfm10_true_oos_august_rows.csv
+            SUNFM1112_RUN.log
+            SUNFM1112_EXIT_CODE.txt
+            research/sunfm1112_out/SUNDAY_FRIDAY_METHOD_SF11_SF12_PREENTRY_REGIME.md
+            research/sunfm1112_out/sunfm1112_summary.json
+            research/sunfm1112_out/sunfm1112_rows.csv
