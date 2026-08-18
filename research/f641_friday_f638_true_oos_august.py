@@ -41,7 +41,6 @@ def metrics(a):
 
 
 def apply_f638(k,t,tr):
-    # Exact frozen five-layer base used by F6.38.
     bst=f624.state(k,tr)
     base_pnl,base_layer,base_dt=f624.apply(k,t,tr,bst)
 
@@ -88,7 +87,7 @@ def apply_f638(k,t,tr):
 def main():
     k=f610.load_extended(); rows=[]
     for ds in DATES:
-        t=pd.Timestamp(ds,tz='UTC')+pd.Timedelta(hours=8)  # Friday 15:00 WIB
+        t=pd.Timestamp(ds,tz='UTC')+pd.Timedelta(hours=8)
         tr=f517.simulate_parent(k,t)
         m=apply_f638(k,t,tr)
         rows.append({
@@ -127,13 +126,14 @@ def main():
 
     a=out['august']; am=a['f638']
     def wr(m): return '-' if m['wr'] is None else f"{100*m['wr']:.1f}%"
+    def pf(m): return '-' if m['pf'] is None else f"{m['pf']:.3f}"
     md=['# Friday F6.41 — F6.38 Frozen True-OOS August Replay','',
         '**Status: COMPLETE — TRUE-OOS OBSERVATION; F6.38 unchanged; live BBC untouched.**','',
         '## August headline',
         f"- August Fridays available: **2** (2026-08-07, 2026-08-14).",
         f"- Parent: {a['parent']['wins']}/{a['parent']['n']} wins, WR **{wr(a['parent'])}**, PnL **${a['parent']['pnl']:+.3f}**.",
         f"- Frozen five-layer: WR **{wr(a['five_layer'])}**, PnL **${a['five_layer']['pnl']:+.3f}**.",
-        f"- F6.38: {am['wins']}/{am['n']} wins, WR **{wr(am)}**, PnL **${am['pnl']:+.3f}**, PF **{'-' if am['pf'] is None else f'{am['pf']:.3f}'}**.",
+        f"- F6.38: {am['wins']}/{am['n']} wins, WR **{wr(am)}**, PnL **${am['pnl']:+.3f}**, PF **{pf(am)}**.",
         f"- F6.38 delta vs five-layer: **${a['f638_delta_vs_five_layer']:+.3f}**; vs parent **${a['f638_delta_vs_parent']:+.3f}**.",
         f"- WATCH active {a['watch_active']}; F6.29 actions {a['f629_actions']}; routed +35 {a['route35_actions']}.",'',
         '## Trade by trade','',
