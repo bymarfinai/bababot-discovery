@@ -1,8 +1,8 @@
-name: Sunday Friday-Method SF5 Forensic
+name: Sunday Friday-Method SF6-SF8
 on:
   push:
     paths:
-      - 'research/sunday_fridaymethod_sf5_failure_forensic.py'
+      - 'research/sunday_fridaymethod_sf6_sf8_confirmed_failure.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,32 +17,32 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run Sunday SF5 forensic and persist once
+      - name: Run Sunday SF6-SF8 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUNFM5_OUT=sunfm5_out python sunday_fridaymethod_sf5_failure_forensic.py > ../SUNFM5_RUN.log 2>&1
+          SUNFM68_OUT=sunfm68_out python sunday_fridaymethod_sf6_sf8_confirmed_failure.py > ../SUNFM68_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUNFM5_RUN.log
-          printf '%s\n' "$rc" > SUNFM5_EXIT_CODE.txt
+          cat SUNFM68_RUN.log
+          printf '%s\n' "$rc" > SUNFM68_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sunfm5_out/SUNDAY_FRIDAY_METHOD_SF5_FORENSIC.md BTC_Temporal_Sunday_FridayMethod_SF5_Forensic.md
-            cp research/sunfm5_out/sunfm5_summary.json BTC_Temporal_Sunday_FridayMethod_SF5_Summary.json
-            cp research/sunfm5_out/sunfm5_rows.csv BTC_Temporal_Sunday_FridayMethod_SF5_Rows.csv
-            rm -f BTC_Temporal_Sunday_FridayMethod_SF5_ERROR.log
-            git add BTC_Temporal_Sunday_FridayMethod_SF5_Forensic.md BTC_Temporal_Sunday_FridayMethod_SF5_Summary.json BTC_Temporal_Sunday_FridayMethod_SF5_Rows.csv SUNFM5_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday_FridayMethod_SF5_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday Friday-method SF5 forensic"
+            cp research/sunfm68_out/SUNDAY_FRIDAY_METHOD_SF6_SF8_CHECKPOINT.md BTC_Temporal_Sunday_FridayMethod_SF6_SF8_Checkpoint.md
+            cp research/sunfm68_out/sunfm68_summary.json BTC_Temporal_Sunday_FridayMethod_SF6_SF8_Summary.json
+            cp research/sunfm68_out/sunfm68_rows.csv BTC_Temporal_Sunday_FridayMethod_SF6_SF8_Rows.csv
+            rm -f BTC_Temporal_Sunday_FridayMethod_SF6_SF8_ERROR.log
+            git add BTC_Temporal_Sunday_FridayMethod_SF6_SF8_Checkpoint.md BTC_Temporal_Sunday_FridayMethod_SF6_SF8_Summary.json BTC_Temporal_Sunday_FridayMethod_SF6_SF8_Rows.csv SUNFM68_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday_FridayMethod_SF6_SF8_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday Friday-method SF6-SF8"
           else
-            cp SUNFM5_RUN.log BTC_Temporal_Sunday_FridayMethod_SF5_ERROR.log
-            git add BTC_Temporal_Sunday_FridayMethod_SF5_ERROR.log SUNFM5_EXIT_CODE.txt
-            msg="ci: persist Sunday Friday-method SF5 traceback"
+            cp SUNFM68_RUN.log BTC_Temporal_Sunday_FridayMethod_SF6_SF8_ERROR.log
+            git add BTC_Temporal_Sunday_FridayMethod_SF6_SF8_ERROR.log SUNFM68_EXIT_CODE.txt
+            msg="ci: persist Sunday Friday-method SF6-SF8 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -52,10 +52,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sunfm5-output
+          name: sunfm68-output
           path: |
-            SUNFM5_RUN.log
-            SUNFM5_EXIT_CODE.txt
-            research/sunfm5_out/SUNDAY_FRIDAY_METHOD_SF5_FORENSIC.md
-            research/sunfm5_out/sunfm5_summary.json
-            research/sunfm5_out/sunfm5_rows.csv
+            SUNFM68_RUN.log
+            SUNFM68_EXIT_CODE.txt
+            research/sunfm68_out/SUNDAY_FRIDAY_METHOD_SF6_SF8_CHECKPOINT.md
+            research/sunfm68_out/sunfm68_summary.json
+            research/sunfm68_out/sunfm68_rows.csv
