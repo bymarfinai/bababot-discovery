@@ -31,7 +31,7 @@ import pandas as pd
 
 import f517_regime_attribution as f517
 import s50_saturday_parent_forensics as s50
-import sun17_sunday16_loss_prevday_forensics as sun17
+from sun17b_sunday16_loss_prevday_forensics_exactfunding import base as sun17
 
 OUT=Path(os.getenv('SUN18_OUT','sun18_out')); OUT.mkdir(parents=True,exist_ok=True)
 NOTIONAL=500.0; FEE=0.0015*NOTIONAL; DISC_N=83
