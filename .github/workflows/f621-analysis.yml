@@ -1,8 +1,8 @@
-name: SUN1.7 Sunday16 Loss Previous-Day Forensics
+name: SUN1.7b Sunday16 Loss Previous-Day Forensics
 on:
   push:
     paths:
-      - 'research/sun17_sunday16_loss_prevday_forensics.py'
+      - 'research/sun17b_sunday16_loss_prevday_forensics_exactfunding.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,12 +17,12 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run SUN1.7 and persist once
+      - name: Run SUN1.7b and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUN17_OUT=sun17_out python sun17_sunday16_loss_prevday_forensics.py > ../SUN17_RUN.log 2>&1
+          SUN17_OUT=sun17_out python sun17b_sunday16_loss_prevday_forensics_exactfunding.py > ../SUN17_RUN.log 2>&1
           rc=$?
           cd ..
           cat SUN17_RUN.log
@@ -37,11 +37,11 @@ jobs:
             rm -f BTC_Temporal_Sunday16_SUN17_ERROR.log
             git add BTC_Temporal_Sunday16_SUN17_Loss_PreviousDay_Forensics_Checkpoint.md BTC_Temporal_Sunday16_SUN17_Loss_PreviousDay_Forensics_Summary.json SUN17_EXIT_CODE.txt
             git add -u BTC_Temporal_Sunday16_SUN17_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday SUN1.7 loss previous-day forensics"
+            msg="research: persist Sunday SUN1.7b loss previous-day forensics"
           else
             cp SUN17_RUN.log BTC_Temporal_Sunday16_SUN17_ERROR.log
             git add BTC_Temporal_Sunday16_SUN17_ERROR.log SUN17_EXIT_CODE.txt
-            msg="ci: persist Sunday SUN1.7 traceback"
+            msg="ci: persist Sunday SUN1.7b traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sun17-output
+          name: sun17b-output
           path: |
             SUN17_RUN.log
             SUN17_EXIT_CODE.txt
