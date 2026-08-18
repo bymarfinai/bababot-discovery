@@ -1,4 +1,5 @@
 name: F6.35 Friday Remaining Cut20 False-Winner Forensic
+# retrigger after billing fix; frozen F6.35 methodology unchanged
 on:
   push:
     paths:
