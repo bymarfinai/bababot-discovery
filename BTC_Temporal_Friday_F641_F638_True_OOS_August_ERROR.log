@@ -1,4 +1,0 @@
-  File "/home/runner/work/bababot-discovery/bababot-discovery/research/f641_friday_f638_true_oos_august.py", line 136
-    ('-' if am['pf'] is None else f'{am['pf']:.3f}')
-                                         ^^
-SyntaxError: f-string: f-string: unmatched '['

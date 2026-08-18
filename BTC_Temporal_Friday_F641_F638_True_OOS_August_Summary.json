@@ -1,0 +1,149 @@
+{
+  "status": "COMPLETE_TRUE_OOS_F638_REPLAY",
+  "research_last_same_sample_friday": "2026-07-24",
+  "dates": [
+    "2026-07-31",
+    "2026-08-07",
+    "2026-08-14"
+  ],
+  "august_dates": [
+    "2026-08-07",
+    "2026-08-14"
+  ],
+  "august": {
+    "parent": {
+      "n": 2,
+      "wins": 1,
+      "wr": 0.5,
+      "pnl": 1.9381339306873149,
+      "pf": 1.7112575810432826,
+      "exp": 0.9690669653436574
+    },
+    "five_layer": {
+      "n": 2,
+      "wins": 1,
+      "wr": 0.5,
+      "pnl": 1.9381339306873149,
+      "pf": 1.7112575810432826,
+      "exp": 0.9690669653436574
+    },
+    "f638": {
+      "n": 2,
+      "wins": 1,
+      "wr": 0.5,
+      "pnl": 1.9381339306873149,
+      "pf": 1.7112575810432826,
+      "exp": 0.9690669653436574
+    },
+    "f638_delta_vs_five_layer": 0.0,
+    "f638_delta_vs_parent": 0.0,
+    "watch_active": 0,
+    "f629_actions": 0,
+    "route35_actions": 0
+  },
+  "post_cutoff_all3": {
+    "parent": {
+      "n": 3,
+      "wins": 1,
+      "wr": 0.3333333333333333,
+      "pnl": -2.311866069312685,
+      "pf": 0.6685467960812151,
+      "exp": -0.7706220231042283
+    },
+    "five_layer": {
+      "n": 3,
+      "wins": 1,
+      "wr": 0.3333333333333333,
+      "pnl": -2.311866069312685,
+      "pf": 0.6685467960812151,
+      "exp": -0.7706220231042283
+    },
+    "f638": {
+      "n": 3,
+      "wins": 1,
+      "wr": 0.3333333333333333,
+      "pnl": -2.311866069312685,
+      "pf": 0.6685467960812151,
+      "exp": -0.7706220231042283
+    },
+    "f638_delta_vs_five_layer": 0.0
+  },
+  "rows": [
+    {
+      "date": "2026-07-31",
+      "period": "POST_CUTOFF_JULY",
+      "entry": 63909.1,
+      "parent_reason": "SL",
+      "parent_pnl": -4.25,
+      "parent_mfe_pct": 0.11438120705815624,
+      "parent_mae_pct": 0.7491890826188952,
+      "base_pnl": -4.25,
+      "base_layer": "PARENT",
+      "base_dt": null,
+      "watch_active": true,
+      "f629_action": false,
+      "guarded20": false,
+      "rel_last_upper": 0.0,
+      "rel_body_delta_prev3median": 0.37098942812208746,
+      "balance_margin": -0.37098942812208746,
+      "balance_gate": false,
+      "route35": "NONE",
+      "action": "BASE",
+      "managed_pnl": -4.25,
+      "higher_close35": null,
+      "delta_vs_parent": 0.0,
+      "delta_vs_base": 0.0
+    },
+    {
+      "date": "2026-08-07",
+      "period": "AUGUST",
+      "entry": 64288.8,
+      "parent_reason": "TIMEOUT",
+      "parent_pnl": 4.6630735058049995,
+      "parent_mfe_pct": 1.6631201702318243,
+      "parent_mae_pct": 0.030954069760213976,
+      "base_pnl": 4.6630735058049995,
+      "base_layer": "PARENT",
+      "base_dt": null,
+      "watch_active": false,
+      "f629_action": false,
+      "guarded20": false,
+      "rel_last_upper": 0.001503759398474358,
+      "rel_body_delta_prev3median": 0.4460778812706318,
+      "balance_margin": -0.44457412187215745,
+      "balance_gate": false,
+      "route35": "NONE",
+      "action": "BASE",
+      "managed_pnl": 4.6630735058049995,
+      "higher_close35": null,
+      "delta_vs_parent": 0.0,
+      "delta_vs_base": 0.0
+    },
+    {
+      "date": "2026-08-14",
+      "period": "AUGUST",
+      "entry": 62888.0,
+      "parent_reason": "TIMEOUT",
+      "parent_pnl": -2.7249395751176846,
+      "parent_mfe_pct": 0.13738710087776163,
+      "parent_mae_pct": 0.5287177203918025,
+      "base_pnl": -2.7249395751176846,
+      "base_layer": "PARENT",
+      "base_dt": null,
+      "watch_active": false,
+      "f629_action": false,
+      "guarded20": false,
+      "rel_last_upper": 0.143055555555596,
+      "rel_body_delta_prev3median": 0.454471544715561,
+      "balance_margin": -0.31141598915996505,
+      "balance_gate": false,
+      "route35": "NONE",
+      "action": "BASE",
+      "managed_pnl": -2.7249395751176846,
+      "higher_close35": null,
+      "delta_vs_parent": 0.0,
+      "delta_vs_base": 0.0
+    }
+  ],
+  "guardrail": "Only two August Fridays are available as of 2026-08-18. Rule is replayed unchanged; N=2 cannot confirm or reject the edge."
+}
