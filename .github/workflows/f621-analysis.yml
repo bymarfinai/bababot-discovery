@@ -1,8 +1,8 @@
-name: F6.34 Friday +35 Higher-Close Continuation Management
+name: F6.35 Friday Remaining Cut20 False-Winner Forensic
 on:
   push:
     paths:
-      - 'research/f634_friday_higher_close35_continuation_management.py'
+      - 'research/f635_friday_remaining_cut20_false_winner_forensic.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -15,49 +15,49 @@ jobs:
       - uses: actions/checkout@v4
       - name: Mark workflow start
         run: |
-          printf 'F6.34 workflow started from %s\n' "$GITHUB_SHA" > BTC_Temporal_Friday_F634_WORKFLOW_STARTED.txt
+          printf 'F6.35 workflow started from %s\n' "$GITHUB_SHA" > BTC_Temporal_Friday_F635_WORKFLOW_STARTED.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Temporal_Friday_F634_WORKFLOW_STARTED.txt
-          git diff --cached --quiet || git commit -m "ci: mark Friday F6.34 workflow start"
+          git add BTC_Temporal_Friday_F635_WORKFLOW_STARTED.txt
+          git diff --cached --quiet || git commit -m "ci: mark Friday F6.35 workflow start"
           git push
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run F6.34 with persisted log
+      - name: Run F6.35 with persisted log
         shell: bash
         run: |
           set +e
           cd research
-          F634_OUT=f634_out python f634_friday_higher_close35_continuation_management.py > ../F634_RUN.log 2>&1
+          F635_OUT=f635_out python f635_friday_remaining_cut20_false_winner_forensic.py > ../F635_RUN.log 2>&1
           rc=$?
           cd ..
-          cat F634_RUN.log
-          printf '%s\n' "$rc" > F634_EXIT_CODE.txt
+          cat F635_RUN.log
+          printf '%s\n' "$rc" > F635_EXIT_CODE.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [ "$rc" -eq 0 ]; then
-            cp research/f634_out/F6.34_CHECKPOINT.md BTC_Temporal_Friday_F634_Higher_Close35_Continuation_Management_Checkpoint.md
-            cp research/f634_out/f634_summary.json BTC_Temporal_Friday_F634_Higher_Close35_Continuation_Management_Summary.json
-            rm -f BTC_Temporal_Friday_F634_ERROR.log
-            git add BTC_Temporal_Friday_F634_Higher_Close35_Continuation_Management_Checkpoint.md BTC_Temporal_Friday_F634_Higher_Close35_Continuation_Management_Summary.json F634_EXIT_CODE.txt
-            git add -u BTC_Temporal_Friday_F634_ERROR.log 2>/dev/null || true
-            git diff --cached --quiet || git commit -m "research: persist Friday F6.34 +35 continuation management result"
+            cp research/f635_out/F6.35_CHECKPOINT.md BTC_Temporal_Friday_F635_Remaining_Cut20_False_Winner_Forensic_Checkpoint.md
+            cp research/f635_out/f635_summary.json BTC_Temporal_Friday_F635_Remaining_Cut20_False_Winner_Forensic_Summary.json
+            rm -f BTC_Temporal_Friday_F635_ERROR.log
+            git add BTC_Temporal_Friday_F635_Remaining_Cut20_False_Winner_Forensic_Checkpoint.md BTC_Temporal_Friday_F635_Remaining_Cut20_False_Winner_Forensic_Summary.json F635_EXIT_CODE.txt
+            git add -u BTC_Temporal_Friday_F635_ERROR.log 2>/dev/null || true
+            git diff --cached --quiet || git commit -m "research: persist Friday F6.35 remaining cut20 false-winner forensic"
           else
-            cp F634_RUN.log BTC_Temporal_Friday_F634_ERROR.log
-            git add BTC_Temporal_Friday_F634_ERROR.log F634_EXIT_CODE.txt
-            git diff --cached --quiet || git commit -m "ci: persist Friday F6.34 traceback"
+            cp F635_RUN.log BTC_Temporal_Friday_F635_ERROR.log
+            git add BTC_Temporal_Friday_F635_ERROR.log F635_EXIT_CODE.txt
+            git diff --cached --quiet || git commit -m "ci: persist Friday F6.35 traceback"
           fi
           git push
           exit "$rc"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: f634-output
+          name: f635-output
           path: |
-            F634_RUN.log
-            F634_EXIT_CODE.txt
-            research/f634_out/F6.34_CHECKPOINT.md
-            research/f634_out/f634_summary.json
-            research/f634_out/f634_rows.csv
+            F635_RUN.log
+            F635_EXIT_CODE.txt
+            research/f635_out/F6.35_CHECKPOINT.md
+            research/f635_out/f635_summary.json
+            research/f635_out/f635_rows.csv
