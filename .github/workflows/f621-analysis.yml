@@ -1,8 +1,8 @@
-name: SUN1.6 Sunday16 TP Boundary Extension
+name: SUN1.7 Sunday16 Loss Previous-Day Forensics
 on:
   push:
     paths:
-      - 'research/sun16_sunday16_tp_boundary_extension.py'
+      - 'research/sun17_sunday16_loss_prevday_forensics.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,31 +17,31 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run SUN1.6 and persist once
+      - name: Run SUN1.7 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUN16_OUT=sun16_out python sun16_sunday16_tp_boundary_extension.py > ../SUN16_RUN.log 2>&1
+          SUN17_OUT=sun17_out python sun17_sunday16_loss_prevday_forensics.py > ../SUN17_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUN16_RUN.log
-          printf '%s\n' "$rc" > SUN16_EXIT_CODE.txt
+          cat SUN17_RUN.log
+          printf '%s\n' "$rc" > SUN17_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sun16_out/SUN1.6_CHECKPOINT.md BTC_Temporal_Sunday16_SUN16_TP_Boundary_Extension_Checkpoint.md
-            cp research/sun16_out/sun16_summary.json BTC_Temporal_Sunday16_SUN16_TP_Boundary_Extension_Summary.json
-            rm -f BTC_Temporal_Sunday16_SUN16_ERROR.log
-            git add BTC_Temporal_Sunday16_SUN16_TP_Boundary_Extension_Checkpoint.md BTC_Temporal_Sunday16_SUN16_TP_Boundary_Extension_Summary.json SUN16_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday16_SUN16_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday SUN1.6 TP boundary extension"
+            cp research/sun17_out/SUN1.7_CHECKPOINT.md BTC_Temporal_Sunday16_SUN17_Loss_PreviousDay_Forensics_Checkpoint.md
+            cp research/sun17_out/sun17_summary.json BTC_Temporal_Sunday16_SUN17_Loss_PreviousDay_Forensics_Summary.json
+            rm -f BTC_Temporal_Sunday16_SUN17_ERROR.log
+            git add BTC_Temporal_Sunday16_SUN17_Loss_PreviousDay_Forensics_Checkpoint.md BTC_Temporal_Sunday16_SUN17_Loss_PreviousDay_Forensics_Summary.json SUN17_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday16_SUN17_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday SUN1.7 loss previous-day forensics"
           else
-            cp SUN16_RUN.log BTC_Temporal_Sunday16_SUN16_ERROR.log
-            git add BTC_Temporal_Sunday16_SUN16_ERROR.log SUN16_EXIT_CODE.txt
-            msg="ci: persist Sunday SUN1.6 traceback"
+            cp SUN17_RUN.log BTC_Temporal_Sunday16_SUN17_ERROR.log
+            git add BTC_Temporal_Sunday16_SUN17_ERROR.log SUN17_EXIT_CODE.txt
+            msg="ci: persist Sunday SUN1.7 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,9 +51,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sun16-output
+          name: sun17-output
           path: |
-            SUN16_RUN.log
-            SUN16_EXIT_CODE.txt
-            research/sun16_out/SUN1.6_CHECKPOINT.md
-            research/sun16_out/sun16_summary.json
+            SUN17_RUN.log
+            SUN17_EXIT_CODE.txt
+            research/sun17_out/SUN1.7_CHECKPOINT.md
+            research/sun17_out/sun17_summary.json
+            research/sun17_out/sun17_trades.csv
