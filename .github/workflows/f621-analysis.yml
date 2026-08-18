@@ -1,4 +1,5 @@
 name: F6.35 Friday Remaining Cut20 False-Winner Forensic
+# retrigger: same frozen F6.35 methodology, no research-rule change
 on:
   push:
     paths:
