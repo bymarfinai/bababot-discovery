@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'research/f635_friday_remaining_cut20_false_winner_forensic.py'
+      - 'research/F635_TRIGGER.txt'
       - '.github/workflows/f630-analysis.yml'
   workflow_dispatch:
 permissions:
