@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sunday_fridaymethod_sf11_sf12_preentry_regime.py", line 279, in <module>
+    if __name__=='__main__': main()
+                             ^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sunday_fridaymethod_sf11_sf12_preentry_regime.py", line 232, in main
+    if not eligible: raise RuntimeError('no eligible natural gate')
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: no eligible natural gate
