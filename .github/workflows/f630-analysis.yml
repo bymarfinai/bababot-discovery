@@ -1,0 +1,63 @@
+name: F6.30 Friday F6.29 False Positive Forensic
+on:
+  push:
+    paths:
+      - 'research/f630_friday_f629_false_positive_forensic.py'
+      - '.github/workflows/f630-analysis.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mark workflow start
+        run: |
+          printf 'F6.30 workflow started from %s\n' "$GITHUB_SHA" > BTC_Temporal_Friday_F630_WORKFLOW_STARTED.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_Temporal_Friday_F630_WORKFLOW_STARTED.txt
+          git diff --cached --quiet || git commit -m "ci: mark Friday F6.30 workflow start"
+          git push
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - name: Run F6.30 with persisted log
+        shell: bash
+        run: |
+          set +e
+          cd research
+          F630_OUT=f630_out python f630_friday_f629_false_positive_forensic.py > ../F630_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat F630_RUN.log
+          printf '%s\n' "$rc" > F630_EXIT_CODE.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$rc" -eq 0 ]; then
+            cp research/f630_out/F6.30_CHECKPOINT.md BTC_Temporal_Friday_F630_F629_False_Positive_Forensic_Checkpoint.md
+            cp research/f630_out/f630_summary.json BTC_Temporal_Friday_F630_F629_False_Positive_Forensic_Summary.json
+            rm -f BTC_Temporal_Friday_F630_ERROR.log
+            git add BTC_Temporal_Friday_F630_F629_False_Positive_Forensic_Checkpoint.md BTC_Temporal_Friday_F630_F629_False_Positive_Forensic_Summary.json F630_EXIT_CODE.txt
+            git add -u BTC_Temporal_Friday_F630_ERROR.log 2>/dev/null || true
+            git diff --cached --quiet || git commit -m "research: persist Friday F6.30 false-positive forensic"
+          else
+            cp F630_RUN.log BTC_Temporal_Friday_F630_ERROR.log
+            git add BTC_Temporal_Friday_F630_ERROR.log F630_EXIT_CODE.txt
+            git diff --cached --quiet || git commit -m "ci: persist Friday F6.30 traceback"
+          fi
+          git push
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: f630-output
+          path: |
+            F630_RUN.log
+            F630_EXIT_CODE.txt
+            research/f630_out/F6.30_CHECKPOINT.md
+            research/f630_out/f630_summary.json
+            research/f630_out/f630_rows.csv
