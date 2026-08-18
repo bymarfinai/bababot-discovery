@@ -1,0 +1,2136 @@
+{
+  "status": "FORENSIC_ONLY_NO_RULE",
+  "question": "After +30m, what separates F6.32 slow winners from fake structural-recovery losers?",
+  "checkpoints": [
+    35,
+    40,
+    45,
+    50,
+    55,
+    60
+  ],
+  "cohort_counts": {
+    "slow_winner": 2,
+    "fake_confirm_loser": 3,
+    "all_guarded_loser": 4,
+    "external_future_winner": 13,
+    "external_true_dead": 9
+  },
+  "guarded_cases": [
+    {
+      "date": "2024-03-08",
+      "period": "discovery",
+      "parent_pnl": 3.1752100403366352,
+      "parent_mfe_r": 1.3615346819919922,
+      "parent_mae_r": 0.4573822665148481,
+      "f632_action": "CUT30",
+      "taker_change20": 0.10030903283726478
+    },
+    {
+      "date": "2024-11-22",
+      "period": "discovery",
+      "parent_pnl": -4.25,
+      "parent_mfe_r": 0.12579735226798355,
+      "parent_mae_r": 1.1386531507918842,
+      "f632_action": "CONFIRM30_HOLD",
+      "taker_change20": 0.05202269893047917
+    },
+    {
+      "date": "2025-02-14",
+      "period": "discovery",
+      "parent_pnl": -1.5199460934524338,
+      "parent_mfe_r": 0.3834986191248367,
+      "parent_mae_r": 0.7102317755956568,
+      "f632_action": "CONFIRM25_HOLD",
+      "taker_change20": 0.1647808553121427
+    },
+    {
+      "date": "2025-05-16",
+      "period": "discovery",
+      "parent_pnl": 0.7324427259965134,
+      "parent_mfe_r": 0.5611105329860993,
+      "parent_mae_r": 0.8052094654150688,
+      "f632_action": "CUT30",
+      "taker_change20": 0.2839217960738881
+    },
+    {
+      "date": "2025-07-04",
+      "period": "validation",
+      "parent_pnl": -4.166125918106861,
+      "parent_mfe_r": 0.5390284892332937,
+      "parent_mae_r": 0.9861591945704891,
+      "f632_action": "CONFIRM25_HOLD",
+      "taker_change20": 0.3596465615465252
+    },
+    {
+      "date": "2025-07-18",
+      "period": "validation",
+      "parent_pnl": -4.25,
+      "parent_mfe_r": 0.15164653789279114,
+      "parent_mae_r": 1.1632618009312923,
+      "f632_action": "CUT30",
+      "taker_change20": 0.01878376215604871
+    }
+  ],
+  "checkpoints_detail": {
+    "35": {
+      "alive": {
+        "slow_winner": 2,
+        "fake_confirm_loser": 3,
+        "all_guarded_loser": 4,
+        "external_winner": 13,
+        "external_true_dead": 8
+      },
+      "top_continuous": [
+        {
+          "feature": "m35_post30_higher_close_share",
+          "subset": {
+            "strength": 1.0,
+            "direction": "higher=winner",
+            "winner_median": 1.0,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 1.0,
+          "loo_median_strength": 1.0,
+          "external": {
+            "strength": 0.7836538461538461,
+            "direction": "higher=winner",
+            "winner_median": 1.0,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 8
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_close_share"
+        },
+        {
+          "feature": "m35_post30_cum_taker",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.21387850047551082,
+            "loss_median": -0.11714909540125718,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666666,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.6346153846153846,
+            "direction": "higher=winner",
+            "winner_median": 0.045478436992602456,
+            "loss_median": -0.10794043186987196,
+            "n_winner": 13,
+            "n_loss": 8
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_cum_taker"
+        },
+        {
+          "feature": "m35_post30_current_taker",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.21387850047551082,
+            "loss_median": -0.11714909540125718,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666666,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.6346153846153846,
+            "direction": "higher=winner",
+            "winner_median": 0.045478436992602456,
+            "loss_median": -0.10794043186987196,
+            "n_winner": 13,
+            "n_loss": 8
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_current_taker"
+        },
+        {
+          "feature": "m35_post30_positive_flow_share",
+          "subset": {
+            "strength": 0.5833333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.6666666666666667,
+          "external": {
+            "strength": 0.6201923076923077,
+            "direction": "higher=winner",
+            "winner_median": 1.0,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 8
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_positive_flow_share"
+        },
+        {
+          "feature": "m35_post30_higher_low_share",
+          "subset": {
+            "strength": 0.5833333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.6666666666666667,
+          "external": {
+            "strength": 0.7836538461538461,
+            "direction": "higher=winner",
+            "winner_median": 1.0,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 8
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_low_share"
+        },
+        {
+          "feature": "m35_post30_higher_high_share",
+          "subset": {
+            "strength": 0.6666666666666666,
+            "direction": "higher=winner",
+            "winner_median": 1.0,
+            "loss_median": 1.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.6666666666666666,
+          "external": {
+            "strength": 0.7836538461538461,
+            "direction": "higher=winner",
+            "winner_median": 1.0,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 8
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_high_share"
+        },
+        {
+          "feature": "m35_post30_taker_change",
+          "subset": {
+            "strength": 0.5,
+            "direction": "higher=winner",
+            "winner_median": 0.0,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.5,
+          "external": {
+            "strength": 0.5,
+            "direction": "higher=winner",
+            "winner_median": 0.0,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 8
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_taker_change"
+        },
+        {
+          "feature": "m35_post30_chain_share",
+          "subset": {
+            "strength": 0.5,
+            "direction": "higher=winner",
+            "winner_median": 0.0,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.5,
+          "external": {
+            "strength": 0.7307692307692307,
+            "direction": "higher=winner",
+            "winner_median": 0.0,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 8
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_chain_share"
+        },
+        {
+          "feature": "m35_post30_full_chain_share",
+          "subset": {
+            "strength": 0.5,
+            "direction": "higher=winner",
+            "winner_median": 0.0,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.5,
+          "external": {
+            "strength": 0.7307692307692307,
+            "direction": "higher=winner",
+            "winner_median": 0.0,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 8
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_full_chain_share"
+        },
+        {
+          "feature": "m35_progress_r",
+          "subset": {
+            "strength": 1.0,
+            "direction": "lower=winner",
+            "winner_median": -0.3510881475631991,
+            "loss_median": -0.038335117636464515,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 1.0,
+          "loo_median_strength": 1.0,
+          "external": {
+            "strength": 0.7115384615384616,
+            "direction": "higher=winner",
+            "winner_median": 0.061851416009434904,
+            "loss_median": -0.09288562598941397,
+            "n_winner": 13,
+            "n_loss": 8
+          },
+          "direction_agrees_external": false,
+          "metric": "progress_r"
+        }
+      ],
+      "top_boolean": [
+        {
+          "metric": "current_higher_close",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 1.0,
+          "external_winner_rate": 0.6923076923076923,
+          "external_dead_rate": 0.125,
+          "external_gap_winner_minus_dead": 0.5673076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_green",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 1.0,
+          "external_winner_rate": 0.6923076923076923,
+          "external_dead_rate": 0.125,
+          "external_gap_winner_minus_dead": 0.5673076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "new_low_after30_vs_25_30",
+          "winner_rate": 0.0,
+          "fake_confirm_loss_rate": 0.6666666666666666,
+          "gap_winner_minus_loss": -0.6666666666666666,
+          "external_winner_rate": 0.23076923076923078,
+          "external_dead_rate": 0.875,
+          "external_gap_winner_minus_dead": -0.6442307692307692,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_higher_high",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.6666666666666666,
+          "gap_winner_minus_loss": 0.33333333333333337,
+          "external_winner_rate": 0.6923076923076923,
+          "external_dead_rate": 0.125,
+          "external_gap_winner_minus_dead": 0.5673076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_higher_low",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.6923076923076923,
+          "external_dead_rate": 0.125,
+          "external_gap_winner_minus_dead": 0.5673076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_flow_positive",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.6153846153846154,
+          "external_dead_rate": 0.375,
+          "external_gap_winner_minus_dead": 0.24038461538461542,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "flow_positive_after30_any",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.6153846153846154,
+          "external_dead_rate": 0.375,
+          "external_gap_winner_minus_dead": 0.24038461538461542,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "flow_persistent_after_turn",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.6153846153846154,
+          "external_dead_rate": 0.375,
+          "external_gap_winner_minus_dead": 0.24038461538461542,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_chain",
+          "winner_rate": 0.0,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.0,
+          "external_winner_rate": 0.46153846153846156,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.46153846153846156,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_full_chain",
+          "winner_rate": 0.0,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.0,
+          "external_winner_rate": 0.46153846153846156,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.46153846153846156,
+          "direction_agrees_external": true
+        }
+      ]
+    },
+    "40": {
+      "alive": {
+        "slow_winner": 2,
+        "fake_confirm_loser": 3,
+        "all_guarded_loser": 3,
+        "external_winner": 13,
+        "external_true_dead": 6
+      },
+      "top_continuous": [
+        {
+          "feature": "m40_post30_higher_close_share",
+          "subset": {
+            "strength": 0.9166666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.75,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.8333333333333334,
+          "loo_median_strength": 0.875,
+          "external": {
+            "strength": 0.8974358974358975,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 6
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_close_share"
+        },
+        {
+          "feature": "m40_post30_higher_high_share",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 1.0,
+            "loss_median": 0.5,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.75,
+          "loo_median_strength": 0.8333333333333334,
+          "external": {
+            "strength": 0.8076923076923077,
+            "direction": "higher=winner",
+            "winner_median": 1.0,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 6
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_high_share"
+        },
+        {
+          "feature": "m40_post30_cum_taker",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.14110032271752881,
+            "loss_median": -0.10809696341739006,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666666,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.7692307692307693,
+            "direction": "higher=winner",
+            "winner_median": 0.03638100425438262,
+            "loss_median": -0.12223291421758925,
+            "n_winner": 13,
+            "n_loss": 6
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_cum_taker"
+        },
+        {
+          "feature": "m40_post30_full_chain_share",
+          "subset": {
+            "strength": 0.75,
+            "direction": "higher=winner",
+            "winner_median": 0.25,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.8076923076923077,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 6
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_full_chain_share"
+        },
+        {
+          "feature": "m40_post30_current_taker",
+          "subset": {
+            "strength": 0.6666666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.09915454018587627,
+            "loss_median": -0.058360889579867514,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.6794871794871795,
+            "direction": "higher=winner",
+            "winner_median": -0.0017491555101070144,
+            "loss_median": -0.057089120901212154,
+            "n_winner": 13,
+            "n_loss": 6
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_current_taker"
+        },
+        {
+          "feature": "m40_post30_chain_share",
+          "subset": {
+            "strength": 0.5833333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.25,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.6666666666666667,
+          "external": {
+            "strength": 0.8076923076923077,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 6
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_chain_share"
+        },
+        {
+          "feature": "m40_post30_entry_hold_share",
+          "subset": {
+            "strength": 0.5,
+            "direction": "higher=winner",
+            "winner_median": 0.25,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.625,
+          "loo_median_strength": 0.6666666666666666,
+          "external": {
+            "strength": 0.8525641025641025,
+            "direction": "higher=winner",
+            "winner_median": 1.0,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 6
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_entry_hold_share"
+        },
+        {
+          "feature": "m40_post30_positive_flow_share",
+          "subset": {
+            "strength": 0.5833333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.5,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.625,
+          "external": {
+            "strength": 0.6602564102564102,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.25,
+            "n_winner": 13,
+            "n_loss": 6
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_positive_flow_share"
+        },
+        {
+          "feature": "m40_ema7_dist_r",
+          "subset": {
+            "strength": 0.5,
+            "direction": "higher=winner",
+            "winner_median": -0.007977218429655597,
+            "loss_median": -0.018584472539011947,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.5,
+          "external": {
+            "strength": 0.8846153846153846,
+            "direction": "higher=winner",
+            "winner_median": 0.04063379776694401,
+            "loss_median": -0.18522380445070075,
+            "n_winner": 13,
+            "n_loss": 6
+          },
+          "direction_agrees_external": true,
+          "metric": "ema7_dist_r"
+        },
+        {
+          "feature": "m40_post30_higher_low_share",
+          "subset": {
+            "strength": 0.5,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.5,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.5,
+          "external": {
+            "strength": 0.8461538461538461,
+            "direction": "higher=winner",
+            "winner_median": 1.0,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 6
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_low_share"
+        }
+      ],
+      "top_boolean": [
+        {
+          "metric": "new_low_after30_vs_25_30",
+          "winner_rate": 0.0,
+          "fake_confirm_loss_rate": 1.0,
+          "gap_winner_minus_loss": -1.0,
+          "external_winner_rate": 0.3076923076923077,
+          "external_dead_rate": 1.0,
+          "external_gap_winner_minus_dead": -0.6923076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_higher_high",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.6666666666666667,
+          "external_winner_rate": 0.5384615384615384,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.5384615384615384,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "persistent_recovery_flow_now",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.46153846153846156,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.46153846153846156,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_full_chain",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.3076923076923077,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.3076923076923077,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "ema7_failed_after_reclaim",
+          "winner_rate": 0.0,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": -0.3333333333333333,
+          "external_winner_rate": 0.0,
+          "external_dead_rate": 0.16666666666666666,
+          "external_gap_winner_minus_dead": -0.16666666666666666,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "fake_bounce_now",
+          "winner_rate": 0.0,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": -0.3333333333333333,
+          "external_winner_rate": 0.0,
+          "external_dead_rate": 0.16666666666666666,
+          "external_gap_winner_minus_dead": -0.16666666666666666,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_above_ema7",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.7692307692307693,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.7692307692307693,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "ema7_persistent_after_reclaim",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.7692307692307693,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.7692307692307693,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "persistent_recovery_now",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.7692307692307693,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.7692307692307693,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "entry_reclaim_after30_any",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.7692307692307693,
+          "external_dead_rate": 0.16666666666666666,
+          "external_gap_winner_minus_dead": 0.6025641025641026,
+          "direction_agrees_external": true
+        }
+      ]
+    },
+    "45": {
+      "alive": {
+        "slow_winner": 2,
+        "fake_confirm_loser": 3,
+        "all_guarded_loser": 3,
+        "external_winner": 13,
+        "external_true_dead": 5
+      },
+      "top_continuous": [
+        {
+          "feature": "m45_cum_taker_after10",
+          "subset": {
+            "strength": 1.0,
+            "direction": "higher=winner",
+            "winner_median": 0.03142472686867548,
+            "loss_median": -0.01783880783426728,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 1.0,
+          "loo_median_strength": 1.0,
+          "external": {
+            "strength": 0.7076923076923077,
+            "direction": "higher=winner",
+            "winner_median": 0.04155754270581924,
+            "loss_median": -0.01783880783426728,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "cum_taker_after10"
+        },
+        {
+          "feature": "m45_post30_cum_taker",
+          "subset": {
+            "strength": 1.0,
+            "direction": "higher=winner",
+            "winner_median": 0.2337458133026139,
+            "loss_median": -0.1123821159395374,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 1.0,
+          "loo_median_strength": 1.0,
+          "external": {
+            "strength": 0.8,
+            "direction": "higher=winner",
+            "winner_median": 0.04098759142597164,
+            "loss_median": -0.08744226726079385,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_cum_taker"
+        },
+        {
+          "feature": "m45_post30_higher_close_share",
+          "subset": {
+            "strength": 0.9166666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.8333333333333333,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.8333333333333334,
+          "loo_median_strength": 0.875,
+          "external": {
+            "strength": 0.8153846153846154,
+            "direction": "higher=winner",
+            "winner_median": 0.6666666666666666,
+            "loss_median": 0.3333333333333333,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_close_share"
+        },
+        {
+          "feature": "m45_post30_higher_low_share",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.6666666666666666,
+            "loss_median": 0.3333333333333333,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.75,
+          "loo_median_strength": 0.8333333333333334,
+          "external": {
+            "strength": 0.8076923076923077,
+            "direction": "higher=winner",
+            "winner_median": 1.0,
+            "loss_median": 0.3333333333333333,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_low_share"
+        },
+        {
+          "feature": "m45_ema7_dist_r",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.0675049295229784,
+            "loss_median": -0.02721202596743323,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666666,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.9076923076923077,
+            "direction": "higher=winner",
+            "winner_median": 0.044062276742743274,
+            "loss_median": -0.07107146796029148,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "ema7_dist_r"
+        },
+        {
+          "feature": "m45_post30_current_taker",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.3390792023797451,
+            "loss_median": -0.17005307506167455,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666666,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.6307692307692307,
+            "direction": "higher=winner",
+            "winner_median": 0.05989648374556911,
+            "loss_median": -0.007271991313910764,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_current_taker"
+        },
+        {
+          "feature": "m45_post30_positive_flow_share",
+          "subset": {
+            "strength": 0.75,
+            "direction": "higher=winner",
+            "winner_median": 0.6666666666666666,
+            "loss_median": 0.3333333333333333,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.7230769230769231,
+            "direction": "higher=winner",
+            "winner_median": 0.6666666666666666,
+            "loss_median": 0.3333333333333333,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_positive_flow_share"
+        },
+        {
+          "feature": "m45_post30_full_chain_share",
+          "subset": {
+            "strength": 0.6666666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.3333333333333333,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.625,
+          "loo_median_strength": 0.6666666666666667,
+          "external": {
+            "strength": 0.8461538461538461,
+            "direction": "higher=winner",
+            "winner_median": 0.3333333333333333,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_full_chain_share"
+        },
+        {
+          "feature": "m45_post30_chain_share",
+          "subset": {
+            "strength": 0.5833333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.3333333333333333,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.6666666666666667,
+          "external": {
+            "strength": 0.8461538461538461,
+            "direction": "higher=winner",
+            "winner_median": 0.3333333333333333,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_chain_share"
+        },
+        {
+          "feature": "m45_progress_r",
+          "subset": {
+            "strength": 0.5,
+            "direction": "higher=winner",
+            "winner_median": -0.2085547137925525,
+            "loss_median": -0.058829661295952844,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.6666666666666667,
+          "external": {
+            "strength": 0.8615384615384616,
+            "direction": "higher=winner",
+            "winner_median": 0.0919009380050882,
+            "loss_median": -0.13442458522261447,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "progress_r"
+        }
+      ],
+      "top_boolean": [
+        {
+          "metric": "new_low_after30_vs_25_30",
+          "winner_rate": 0.0,
+          "fake_confirm_loss_rate": 1.0,
+          "gap_winner_minus_loss": -1.0,
+          "external_winner_rate": 0.3076923076923077,
+          "external_dead_rate": 1.0,
+          "external_gap_winner_minus_dead": -0.6923076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_flow_positive",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.6666666666666667,
+          "external_winner_rate": 0.6923076923076923,
+          "external_dead_rate": 0.4,
+          "external_gap_winner_minus_dead": 0.29230769230769227,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_higher_low",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.6666666666666667,
+          "external_winner_rate": 0.7692307692307693,
+          "external_dead_rate": 0.6,
+          "external_gap_winner_minus_dead": 0.1692307692307693,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_higher_close",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.6666666666666667,
+          "external_winner_rate": 0.5384615384615384,
+          "external_dead_rate": 0.4,
+          "external_gap_winner_minus_dead": 0.1384615384615384,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_green",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.6666666666666667,
+          "external_winner_rate": 0.5384615384615384,
+          "external_dead_rate": 0.4,
+          "external_gap_winner_minus_dead": 0.1384615384615384,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_above_entry",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.7692307692307693,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.7692307692307693,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "entry_persistent_after_reclaim",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.6923076923076923,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.6923076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_above_ema7",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.6153846153846154,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.6153846153846154,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "ema7_persistent_after_reclaim",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.6153846153846154,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.6153846153846154,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "persistent_recovery_now",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.6153846153846154,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.6153846153846154,
+          "direction_agrees_external": true
+        }
+      ]
+    },
+    "50": {
+      "alive": {
+        "slow_winner": 2,
+        "fake_confirm_loser": 3,
+        "all_guarded_loser": 3,
+        "external_winner": 13,
+        "external_true_dead": 5
+      },
+      "top_continuous": [
+        {
+          "feature": "m50_cum_taker_after10",
+          "subset": {
+            "strength": 1.0,
+            "direction": "higher=winner",
+            "winner_median": 0.05901952855292447,
+            "loss_median": -0.010673886142751443,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 1.0,
+          "loo_median_strength": 1.0,
+          "external": {
+            "strength": 0.7076923076923077,
+            "direction": "higher=winner",
+            "winner_median": 0.05497516750055076,
+            "loss_median": -0.022333525873727056,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "cum_taker_after10"
+        },
+        {
+          "feature": "m50_post30_cum_taker",
+          "subset": {
+            "strength": 1.0,
+            "direction": "higher=winner",
+            "winner_median": 0.24404885821953126,
+            "loss_median": -0.05409412687385862,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 1.0,
+          "loo_median_strength": 1.0,
+          "external": {
+            "strength": 0.7538461538461538,
+            "direction": "higher=winner",
+            "winner_median": 0.021719758670930567,
+            "loss_median": -0.08135776818280072,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_cum_taker"
+        },
+        {
+          "feature": "m50_post30_positive_flow_share",
+          "subset": {
+            "strength": 0.9166666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.75,
+            "loss_median": 0.25,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.8333333333333334,
+          "loo_median_strength": 0.875,
+          "external": {
+            "strength": 0.6923076923076923,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.25,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_positive_flow_share"
+        },
+        {
+          "feature": "m50_post30_higher_close_share",
+          "subset": {
+            "strength": 0.9166666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.75,
+            "loss_median": 0.25,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.8333333333333334,
+          "loo_median_strength": 0.875,
+          "external": {
+            "strength": 0.8076923076923077,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.25,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_close_share"
+        },
+        {
+          "feature": "m50_post30_higher_high_share",
+          "subset": {
+            "strength": 0.9166666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.875,
+            "loss_median": 0.25,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.8333333333333334,
+          "loo_median_strength": 0.875,
+          "external": {
+            "strength": 0.8692307692307693,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.25,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_high_share"
+        },
+        {
+          "feature": "m50_post30_higher_low_share",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.75,
+            "loss_median": 0.5,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.75,
+          "loo_median_strength": 0.8333333333333334,
+          "external": {
+            "strength": 0.8307692307692308,
+            "direction": "higher=winner",
+            "winner_median": 0.75,
+            "loss_median": 0.5,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_low_share"
+        },
+        {
+          "feature": "m50_ema7_dist_r",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.03265345925542094,
+            "loss_median": -0.07560013488957676,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666666,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.8923076923076924,
+            "direction": "higher=winner",
+            "winner_median": 0.11067317876830732,
+            "loss_median": -0.08046857242706627,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "ema7_dist_r"
+        },
+        {
+          "feature": "m50_post30_chain_share",
+          "subset": {
+            "strength": 0.6666666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.375,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.625,
+          "loo_median_strength": 0.6666666666666667,
+          "external": {
+            "strength": 0.8769230769230769,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_chain_share"
+        },
+        {
+          "feature": "m50_post30_full_chain_share",
+          "subset": {
+            "strength": 0.6666666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.375,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.625,
+          "loo_median_strength": 0.6666666666666667,
+          "external": {
+            "strength": 0.9230769230769231,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_full_chain_share"
+        },
+        {
+          "feature": "m50_post30_entry_hold_share",
+          "subset": {
+            "strength": 0.5,
+            "direction": "higher=winner",
+            "winner_median": 0.375,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.625,
+          "loo_median_strength": 0.6666666666666666,
+          "external": {
+            "strength": 0.9,
+            "direction": "higher=winner",
+            "winner_median": 1.0,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_entry_hold_share"
+        }
+      ],
+      "top_boolean": [
+        {
+          "metric": "new_low_after30_vs_25_30",
+          "winner_rate": 0.0,
+          "fake_confirm_loss_rate": 1.0,
+          "gap_winner_minus_loss": -1.0,
+          "external_winner_rate": 0.3076923076923077,
+          "external_dead_rate": 1.0,
+          "external_gap_winner_minus_dead": -0.6923076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "flow_persistent_after_turn",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 1.0,
+          "external_winner_rate": 0.23076923076923078,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.23076923076923078,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_higher_high",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 1.0,
+          "external_winner_rate": 0.5384615384615384,
+          "external_dead_rate": 0.4,
+          "external_gap_winner_minus_dead": 0.1384615384615384,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_full_chain",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.3076923076923077,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.3076923076923077,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "persistent_recovery_flow_now",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.23076923076923078,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.23076923076923078,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_chain",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.38461538461538464,
+          "external_dead_rate": 0.2,
+          "external_gap_winner_minus_dead": 0.18461538461538463,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_higher_low",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.6666666666666666,
+          "gap_winner_minus_loss": 0.33333333333333337,
+          "external_winner_rate": 0.7692307692307693,
+          "external_dead_rate": 0.6,
+          "external_gap_winner_minus_dead": 0.1692307692307693,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_above_entry",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.6923076923076923,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.6923076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "entry_persistent_after_reclaim",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.6923076923076923,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.6923076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "entry_reclaim_after30_any",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": 0.16666666666666669,
+          "external_winner_rate": 0.8461538461538461,
+          "external_dead_rate": 0.2,
+          "external_gap_winner_minus_dead": 0.6461538461538461,
+          "direction_agrees_external": true
+        }
+      ]
+    },
+    "55": {
+      "alive": {
+        "slow_winner": 2,
+        "fake_confirm_loser": 3,
+        "all_guarded_loser": 3,
+        "external_winner": 13,
+        "external_true_dead": 5
+      },
+      "top_continuous": [
+        {
+          "feature": "m55_ema7_dist_r",
+          "subset": {
+            "strength": 1.0,
+            "direction": "higher=winner",
+            "winner_median": 0.07988649125951446,
+            "loss_median": -0.03846590999875435,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 1.0,
+          "loo_median_strength": 1.0,
+          "external": {
+            "strength": 0.8307692307692308,
+            "direction": "higher=winner",
+            "winner_median": 0.04470409699641742,
+            "loss_median": -0.04657307582231088,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "ema7_dist_r"
+        },
+        {
+          "feature": "m55_post30_cum_taker",
+          "subset": {
+            "strength": 1.0,
+            "direction": "higher=winner",
+            "winner_median": 0.2309291662095434,
+            "loss_median": -0.04798344361280504,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 1.0,
+          "loo_median_strength": 1.0,
+          "external": {
+            "strength": 0.6923076923076923,
+            "direction": "higher=winner",
+            "winner_median": 0.04900927120329057,
+            "loss_median": -0.04783722028230053,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_cum_taker"
+        },
+        {
+          "feature": "m55_post30_higher_close_share",
+          "subset": {
+            "strength": 1.0,
+            "direction": "higher=winner",
+            "winner_median": 0.7,
+            "loss_median": 0.2,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 1.0,
+          "loo_median_strength": 1.0,
+          "external": {
+            "strength": 0.7230769230769231,
+            "direction": "higher=winner",
+            "winner_median": 0.6,
+            "loss_median": 0.4,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_close_share"
+        },
+        {
+          "feature": "m55_post30_positive_flow_share",
+          "subset": {
+            "strength": 0.9166666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.7,
+            "loss_median": 0.4,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.8333333333333334,
+          "loo_median_strength": 0.875,
+          "external": {
+            "strength": 0.5230769230769231,
+            "direction": "higher=winner",
+            "winner_median": 0.4,
+            "loss_median": 0.4,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_positive_flow_share"
+        },
+        {
+          "feature": "m55_post30_higher_high_share",
+          "subset": {
+            "strength": 0.9166666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.8,
+            "loss_median": 0.2,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.8333333333333334,
+          "loo_median_strength": 0.875,
+          "external": {
+            "strength": 0.8076923076923077,
+            "direction": "higher=winner",
+            "winner_median": 0.6,
+            "loss_median": 0.2,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_high_share"
+        },
+        {
+          "feature": "m55_post30_full_chain_share",
+          "subset": {
+            "strength": 0.9166666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.4,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.8333333333333334,
+          "loo_median_strength": 0.875,
+          "external": {
+            "strength": 0.9615384615384616,
+            "direction": "higher=winner",
+            "winner_median": 0.4,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_full_chain_share"
+        },
+        {
+          "feature": "m55_post30_higher_low_share",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.7,
+            "loss_median": 0.6,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666666,
+          "loo_median_strength": 0.875,
+          "external": {
+            "strength": 0.7846153846153846,
+            "direction": "higher=winner",
+            "winner_median": 0.8,
+            "loss_median": 0.4,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_low_share"
+        },
+        {
+          "feature": "m55_cum_taker_after10",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.05927984411757392,
+            "loss_median": -0.009801611787156883,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666666,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.6153846153846154,
+            "direction": "higher=winner",
+            "winner_median": 0.0657582656074065,
+            "loss_median": -0.003127008799975184,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "cum_taker_after10"
+        },
+        {
+          "feature": "m55_post30_chain_share",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.4,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666666,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.8692307692307693,
+            "direction": "higher=winner",
+            "winner_median": 0.4,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_chain_share"
+        },
+        {
+          "feature": "m55_progress_r",
+          "subset": {
+            "strength": 0.5,
+            "direction": "higher=winner",
+            "winner_median": -0.15891170982021816,
+            "loss_median": -0.1247365750786576,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.5,
+          "loo_median_strength": 0.6666666666666667,
+          "external": {
+            "strength": 0.8769230769230769,
+            "direction": "higher=winner",
+            "winner_median": 0.16397904207982833,
+            "loss_median": -0.13202414620077413,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "progress_r"
+        }
+      ],
+      "top_boolean": [
+        {
+          "metric": "new_low_after30_vs_25_30",
+          "winner_rate": 0.0,
+          "fake_confirm_loss_rate": 1.0,
+          "gap_winner_minus_loss": -1.0,
+          "external_winner_rate": 0.3076923076923077,
+          "external_dead_rate": 1.0,
+          "external_gap_winner_minus_dead": -0.6923076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_above_ema7",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 1.0,
+          "external_winner_rate": 0.7692307692307693,
+          "external_dead_rate": 0.2,
+          "external_gap_winner_minus_dead": 0.5692307692307692,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "ema7_persistent_after_reclaim",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 1.0,
+          "external_winner_rate": 0.6923076923076923,
+          "external_dead_rate": 0.2,
+          "external_gap_winner_minus_dead": 0.4923076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "persistent_recovery_now",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 1.0,
+          "external_winner_rate": 0.6923076923076923,
+          "external_dead_rate": 0.2,
+          "external_gap_winner_minus_dead": 0.4923076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_flow_positive",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 1.0,
+          "gap_winner_minus_loss": -0.5,
+          "external_winner_rate": 0.3076923076923077,
+          "external_dead_rate": 0.8,
+          "external_gap_winner_minus_dead": -0.49230769230769234,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_full_chain",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.23076923076923078,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.23076923076923078,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "persistent_recovery_flow_now",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.15384615384615385,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.15384615384615385,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "flow_persistent_after_turn",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.07692307692307693,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.07692307692307693,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_chain",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.23076923076923078,
+          "external_dead_rate": 0.2,
+          "external_gap_winner_minus_dead": 0.03076923076923077,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "ema7_reclaim_after30_any",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.6666666666666666,
+          "gap_winner_minus_loss": 0.33333333333333337,
+          "external_winner_rate": 1.0,
+          "external_dead_rate": 0.4,
+          "external_gap_winner_minus_dead": 0.6,
+          "direction_agrees_external": true
+        }
+      ]
+    },
+    "60": {
+      "alive": {
+        "slow_winner": 2,
+        "fake_confirm_loser": 3,
+        "all_guarded_loser": 3,
+        "external_winner": 13,
+        "external_true_dead": 5
+      },
+      "top_continuous": [
+        {
+          "feature": "m60_post30_cum_taker",
+          "subset": {
+            "strength": 1.0,
+            "direction": "higher=winner",
+            "winner_median": 0.191368062030282,
+            "loss_median": -0.04442014927811788,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 1.0,
+          "loo_median_strength": 1.0,
+          "external": {
+            "strength": 0.676923076923077,
+            "direction": "higher=winner",
+            "winner_median": 0.0787273571589251,
+            "loss_median": -0.04133845408984316,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_cum_taker"
+        },
+        {
+          "feature": "m60_post30_taker_change",
+          "subset": {
+            "strength": 1.0,
+            "direction": "lower=winner",
+            "winner_median": -0.40349556739050824,
+            "loss_median": 0.23972488872438447,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 1.0,
+          "loo_median_strength": 1.0,
+          "external": {
+            "strength": 0.8,
+            "direction": "lower=winner",
+            "winner_median": -0.1619681085067607,
+            "loss_median": 0.1818931314374581,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_taker_change"
+        },
+        {
+          "feature": "m60_post30_higher_close_share",
+          "subset": {
+            "strength": 1.0,
+            "direction": "higher=winner",
+            "winner_median": 0.5833333333333333,
+            "loss_median": 0.3333333333333333,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 1.0,
+          "loo_median_strength": 1.0,
+          "external": {
+            "strength": 0.7,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.3333333333333333,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_close_share"
+        },
+        {
+          "feature": "m60_post30_higher_high_share",
+          "subset": {
+            "strength": 0.9166666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.6666666666666667,
+            "loss_median": 0.3333333333333333,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.8333333333333334,
+          "loo_median_strength": 0.875,
+          "external": {
+            "strength": 0.8076923076923077,
+            "direction": "higher=winner",
+            "winner_median": 0.5,
+            "loss_median": 0.3333333333333333,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_high_share"
+        },
+        {
+          "feature": "m60_post30_full_chain_share",
+          "subset": {
+            "strength": 0.9166666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.3333333333333333,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.8333333333333334,
+          "loo_median_strength": 0.875,
+          "external": {
+            "strength": 0.9615384615384616,
+            "direction": "higher=winner",
+            "winner_median": 0.3333333333333333,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_full_chain_share"
+        },
+        {
+          "feature": "m60_ema7_dist_r",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.007533215141369048,
+            "loss_median": -0.036096217701842015,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666666,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.7846153846153846,
+            "direction": "higher=winner",
+            "winner_median": 0.047887527485444635,
+            "loss_median": -0.017419951110407363,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "ema7_dist_r"
+        },
+        {
+          "feature": "m60_cum_taker_after10",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.04659520438038134,
+            "loss_median": -0.009172874666050768,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666666,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.6615384615384615,
+            "direction": "higher=winner",
+            "winner_median": 0.058200909825591784,
+            "loss_median": -0.0011965022203748177,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "cum_taker_after10"
+        },
+        {
+          "feature": "m60_post30_current_taker",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "lower=winner",
+            "winner_median": -0.1896170669149974,
+            "loss_median": 0.07704658284260657,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666667,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.7076923076923076,
+            "direction": "lower=winner",
+            "winner_median": -0.04591637248646219,
+            "loss_median": 0.06918986419275286,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_current_taker"
+        },
+        {
+          "feature": "m60_post30_chain_share",
+          "subset": {
+            "strength": 0.8333333333333334,
+            "direction": "higher=winner",
+            "winner_median": 0.3333333333333333,
+            "loss_median": 0.0,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.6666666666666666,
+          "loo_median_strength": 0.75,
+          "external": {
+            "strength": 0.8846153846153846,
+            "direction": "higher=winner",
+            "winner_median": 0.3333333333333333,
+            "loss_median": 0.0,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_chain_share"
+        },
+        {
+          "feature": "m60_post30_higher_low_share",
+          "subset": {
+            "strength": 0.6666666666666666,
+            "direction": "higher=winner",
+            "winner_median": 0.6666666666666667,
+            "loss_median": 0.5,
+            "n_winner": 2,
+            "n_loss": 3
+          },
+          "loo_min_strength": 0.625,
+          "loo_median_strength": 0.6666666666666667,
+          "external": {
+            "strength": 0.7153846153846154,
+            "direction": "higher=winner",
+            "winner_median": 0.6666666666666666,
+            "loss_median": 0.5,
+            "n_winner": 13,
+            "n_loss": 5
+          },
+          "direction_agrees_external": true,
+          "metric": "post30_higher_low_share"
+        }
+      ],
+      "top_boolean": [
+        {
+          "metric": "new_low_after30_vs_25_30",
+          "winner_rate": 0.0,
+          "fake_confirm_loss_rate": 1.0,
+          "gap_winner_minus_loss": -1.0,
+          "external_winner_rate": 0.3076923076923077,
+          "external_dead_rate": 1.0,
+          "external_gap_winner_minus_dead": -0.6923076923076923,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_above_ema7",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.6153846153846154,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.6153846153846154,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "ema7_persistent_after_reclaim",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.6153846153846154,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.6153846153846154,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "persistent_recovery_now",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.6153846153846154,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.6153846153846154,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_flow_positive",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 1.0,
+          "gap_winner_minus_loss": -0.5,
+          "external_winner_rate": 0.38461538461538464,
+          "external_dead_rate": 0.8,
+          "external_gap_winner_minus_dead": -0.4153846153846154,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "persistent_recovery_flow_now",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.3076923076923077,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.3076923076923077,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "flow_persistent_after_turn",
+          "winner_rate": 0.5,
+          "fake_confirm_loss_rate": 0.0,
+          "gap_winner_minus_loss": 0.5,
+          "external_winner_rate": 0.07692307692307693,
+          "external_dead_rate": 0.0,
+          "external_gap_winner_minus_dead": 0.07692307692307693,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "ema7_reclaim_after30_any",
+          "winner_rate": 1.0,
+          "fake_confirm_loss_rate": 0.6666666666666666,
+          "gap_winner_minus_loss": 0.33333333333333337,
+          "external_winner_rate": 1.0,
+          "external_dead_rate": 0.4,
+          "external_gap_winner_minus_dead": 0.6,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_higher_close",
+          "winner_rate": 0.0,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": -0.3333333333333333,
+          "external_winner_rate": 0.38461538461538464,
+          "external_dead_rate": 0.4,
+          "external_gap_winner_minus_dead": -0.015384615384615385,
+          "direction_agrees_external": true
+        },
+        {
+          "metric": "current_green",
+          "winner_rate": 0.0,
+          "fake_confirm_loss_rate": 0.3333333333333333,
+          "gap_winner_minus_loss": -0.3333333333333333,
+          "external_winner_rate": 0.38461538461538464,
+          "external_dead_rate": 0.4,
+          "external_gap_winner_minus_dead": -0.015384615384615385,
+          "direction_agrees_external": true
+        }
+      ]
+    }
+  },
+  "guardrail": "Post-+30 observations cannot justify the +30 decision. F6.33 is forensic only; no threshold/timing/economic sweep and no rule promotion."
+}
