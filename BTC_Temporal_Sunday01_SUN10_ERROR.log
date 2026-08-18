@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sun10_sunday01_tpsl_surface.py", line 310, in <module>
+    main()
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sun10_sunday01_tpsl_surface.py", line 211, in main
+    raise RuntimeError("no discovery-eligible TP/SL cell")
+RuntimeError: no discovery-eligible TP/SL cell
