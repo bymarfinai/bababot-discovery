@@ -1,0 +1,141 @@
+{
+  "transfer_definition": {
+    "milestone": "+1R normalized to Saturday frozen R=0.0120",
+    "decision": "first +1R hit-bar open +20m; four completed bars known",
+    "p1": "median taker over 4 bars <0 AND latest close <EMA7",
+    "strong_body": "latest bearish real body > 2x total wicks",
+    "break": "latest close < previous completed 5m low",
+    "exit": "actual decision open; no Saturday retuning"
+  },
+  "parent": {
+    "n": 139,
+    "wins": 65,
+    "losses": 74,
+    "wr": 0.4676258992805755,
+    "pnl": 87.19969200357338,
+    "pf": 1.3637033641638112,
+    "dd": 45.1238481686223,
+    "ls": 7
+  },
+  "s63_baseline": {
+    "n": 139,
+    "wins": 76,
+    "losses": 63,
+    "wr": 0.5467625899280576,
+    "pnl": 119.73831653302298,
+    "pf": 1.5711882078147985,
+    "dd": 28.125105130915657,
+    "ls": 5
+  },
+  "s64_latest_baseline": {
+    "n": 139,
+    "wins": 76,
+    "losses": 63,
+    "wr": 0.5467625899280576,
+    "pnl": 119.76631080968684,
+    "pf": 1.5713980542260462,
+    "dd": 28.125105130915657,
+    "ls": 5
+  },
+  "d3_on_s63": {
+    "n": 139,
+    "wins": 77,
+    "losses": 62,
+    "wr": 0.5539568345323741,
+    "pnl": 124.64165112825485,
+    "pf": 1.601122019121384,
+    "dd": 28.125105130915657,
+    "ls": 5
+  },
+  "d3_on_latest": {
+    "n": 139,
+    "wins": 77,
+    "losses": 62,
+    "wr": 0.5539568345323741,
+    "pnl": 124.6696454049187,
+    "pf": 1.6013382171661128,
+    "dd": 28.125105130915657,
+    "ls": 5
+  },
+  "raw_signals": 2,
+  "active_vs_s63": 2,
+  "active_latest": 2,
+  "preempted_vs_latest": 0,
+  "actions_D": 1,
+  "actions_V": 1,
+  "parent_winners_acted": 1,
+  "parent_losses_acted": 1,
+  "loss_to_positive": 1,
+  "parent_winner_to_nonpositive": 0,
+  "baseline_positive_to_nonpositive": 0,
+  "positive_increment_actions": 1,
+  "negative_increment_actions": 1,
+  "incremental_vs_s63": 4.903334595231868,
+  "incremental_s63_D": 5.040407956844243,
+  "incremental_s63_V": -0.13707336161238093,
+  "incremental_vs_latest": 4.903334595231854,
+  "incremental_D": 5.040407956844243,
+  "incremental_V": -0.13707336161238093,
+  "wr_gain_pp": 0.7194244604316502,
+  "dd_improvement": 0.0,
+  "jackknife_min_remaining_incremental": -0.13707336161238892,
+  "blocks4": [
+    {
+      "block": 1,
+      "start": "2023-12-02",
+      "end": "2024-07-20",
+      "actions": 1,
+      "incremental": 5.040407956844243
+    },
+    {
+      "block": 2,
+      "start": "2024-07-27",
+      "end": "2025-03-22",
+      "actions": 0,
+      "incremental": 0.0
+    },
+    {
+      "block": 3,
+      "start": "2025-03-29",
+      "end": "2025-11-22",
+      "actions": 0,
+      "incremental": 0.0
+    },
+    {
+      "block": 4,
+      "start": "2025-11-29",
+      "end": "2026-07-25",
+      "actions": 1,
+      "incremental": -0.13707336161238093
+    }
+  ],
+  "transfer_pass": false,
+  "actions_detail": [
+    {
+      "date": "2024-01-13",
+      "period": "discovery",
+      "parent_pnl": -2.2818948078220136,
+      "parent_mfe_r": 1.098483429484783,
+      "s64_latest_pnl": -2.2818948078220136,
+      "managed_latest": 2.75851314902223,
+      "inc_vs_latest": 5.040407956844243,
+      "s64_latest_layer": "A719",
+      "taker_med": -0.2600986562207547,
+      "last_body_ratio": 0.825897714907511,
+      "last_upper_wick_ratio": 0.09902067464633733
+    },
+    {
+      "date": "2026-07-18",
+      "period": "validation",
+      "parent_pnl": 4.787659668902688,
+      "parent_mfe_r": 1.26026603648155,
+      "s64_latest_pnl": 4.787659668902688,
+      "managed_latest": 4.650586307290307,
+      "inc_vs_latest": -0.13707336161238093,
+      "s64_latest_layer": "A719",
+      "taker_med": -0.031745751456668414,
+      "last_body_ratio": 0.9230769230770497,
+      "last_upper_wick_ratio": 0.0045248868777625064
+    }
+  ]
+}
