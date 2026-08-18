@@ -1,8 +1,8 @@
-name: F6.33 Friday Fake Bounce vs Slow Recovery Forensic
+name: F6.34 Friday +35 Higher-Close Continuation Management
 on:
   push:
     paths:
-      - 'research/f633_friday_fake_bounce_vs_slow_recovery_forensic.py'
+      - 'research/f634_friday_higher_close35_continuation_management.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -15,49 +15,49 @@ jobs:
       - uses: actions/checkout@v4
       - name: Mark workflow start
         run: |
-          printf 'F6.33 workflow started from %s\n' "$GITHUB_SHA" > BTC_Temporal_Friday_F633_WORKFLOW_STARTED.txt
+          printf 'F6.34 workflow started from %s\n' "$GITHUB_SHA" > BTC_Temporal_Friday_F634_WORKFLOW_STARTED.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Temporal_Friday_F633_WORKFLOW_STARTED.txt
-          git diff --cached --quiet || git commit -m "ci: mark Friday F6.33 workflow start"
+          git add BTC_Temporal_Friday_F634_WORKFLOW_STARTED.txt
+          git diff --cached --quiet || git commit -m "ci: mark Friday F6.34 workflow start"
           git push
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run F6.33 with persisted log
+      - name: Run F6.34 with persisted log
         shell: bash
         run: |
           set +e
           cd research
-          F633_OUT=f633_out python f633_friday_fake_bounce_vs_slow_recovery_forensic.py > ../F633_RUN.log 2>&1
+          F634_OUT=f634_out python f634_friday_higher_close35_continuation_management.py > ../F634_RUN.log 2>&1
           rc=$?
           cd ..
-          cat F633_RUN.log
-          printf '%s\n' "$rc" > F633_EXIT_CODE.txt
+          cat F634_RUN.log
+          printf '%s\n' "$rc" > F634_EXIT_CODE.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [ "$rc" -eq 0 ]; then
-            cp research/f633_out/F6.33_CHECKPOINT.md BTC_Temporal_Friday_F633_Fake_Bounce_vs_Slow_Recovery_Forensic_Checkpoint.md
-            cp research/f633_out/f633_summary.json BTC_Temporal_Friday_F633_Fake_Bounce_vs_Slow_Recovery_Forensic_Summary.json
-            rm -f BTC_Temporal_Friday_F633_ERROR.log
-            git add BTC_Temporal_Friday_F633_Fake_Bounce_vs_Slow_Recovery_Forensic_Checkpoint.md BTC_Temporal_Friday_F633_Fake_Bounce_vs_Slow_Recovery_Forensic_Summary.json F633_EXIT_CODE.txt
-            git add -u BTC_Temporal_Friday_F633_ERROR.log 2>/dev/null || true
-            git diff --cached --quiet || git commit -m "research: persist Friday F6.33 fake-bounce vs slow-recovery forensic"
+            cp research/f634_out/F6.34_CHECKPOINT.md BTC_Temporal_Friday_F634_Higher_Close35_Continuation_Management_Checkpoint.md
+            cp research/f634_out/f634_summary.json BTC_Temporal_Friday_F634_Higher_Close35_Continuation_Management_Summary.json
+            rm -f BTC_Temporal_Friday_F634_ERROR.log
+            git add BTC_Temporal_Friday_F634_Higher_Close35_Continuation_Management_Checkpoint.md BTC_Temporal_Friday_F634_Higher_Close35_Continuation_Management_Summary.json F634_EXIT_CODE.txt
+            git add -u BTC_Temporal_Friday_F634_ERROR.log 2>/dev/null || true
+            git diff --cached --quiet || git commit -m "research: persist Friday F6.34 +35 continuation management result"
           else
-            cp F633_RUN.log BTC_Temporal_Friday_F633_ERROR.log
-            git add BTC_Temporal_Friday_F633_ERROR.log F633_EXIT_CODE.txt
-            git diff --cached --quiet || git commit -m "ci: persist Friday F6.33 traceback"
+            cp F634_RUN.log BTC_Temporal_Friday_F634_ERROR.log
+            git add BTC_Temporal_Friday_F634_ERROR.log F634_EXIT_CODE.txt
+            git diff --cached --quiet || git commit -m "ci: persist Friday F6.34 traceback"
           fi
           git push
           exit "$rc"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: f633-output
+          name: f634-output
           path: |
-            F633_RUN.log
-            F633_EXIT_CODE.txt
-            research/f633_out/F6.33_CHECKPOINT.md
-            research/f633_out/f633_summary.json
-            research/f633_out/f633_rows.csv
+            F634_RUN.log
+            F634_EXIT_CODE.txt
+            research/f634_out/F6.34_CHECKPOINT.md
+            research/f634_out/f634_summary.json
+            research/f634_out/f634_rows.csv
