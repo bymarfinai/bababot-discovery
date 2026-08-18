@@ -1,8 +1,8 @@
-name: F6.26 Friday Failed Launch 10 Management
+name: F6.27 Friday True Dead vs Recovery Forensic
 on:
   push:
     paths:
-      - 'research/f626_friday_failed_launch10_management.py'
+      - 'research/f627_friday_failed_launch_true_vs_recovery_forensic.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -15,49 +15,49 @@ jobs:
       - uses: actions/checkout@v4
       - name: Mark workflow start
         run: |
-          printf 'F6.26 workflow started from %s\n' "$GITHUB_SHA" > BTC_Temporal_Friday_F626_WORKFLOW_STARTED.txt
+          printf 'F6.27 workflow started from %s\n' "$GITHUB_SHA" > BTC_Temporal_Friday_F627_WORKFLOW_STARTED.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Temporal_Friday_F626_WORKFLOW_STARTED.txt
-          git diff --cached --quiet || git commit -m "ci: mark Friday F6.26 workflow start"
+          git add BTC_Temporal_Friday_F627_WORKFLOW_STARTED.txt
+          git diff --cached --quiet || git commit -m "ci: mark Friday F6.27 workflow start"
           git push
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run F6.26 with persisted log
+      - name: Run F6.27 with persisted log
         shell: bash
         run: |
           set +e
           cd research
-          F626_OUT=f626_out python f626_friday_failed_launch10_management.py > ../F626_RUN.log 2>&1
+          F627_OUT=f627_out python f627_friday_failed_launch_true_vs_recovery_forensic.py > ../F627_RUN.log 2>&1
           rc=$?
           cd ..
-          cat F626_RUN.log
-          printf '%s\n' "$rc" > F626_EXIT_CODE.txt
+          cat F627_RUN.log
+          printf '%s\n' "$rc" > F627_EXIT_CODE.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [ "$rc" -eq 0 ]; then
-            cp research/f626_out/F6.26_CHECKPOINT.md BTC_Temporal_Friday_F626_Failed_Launch10_Management_Checkpoint.md
-            cp research/f626_out/f626_summary.json BTC_Temporal_Friday_F626_Failed_Launch10_Management_Summary.json
-            rm -f BTC_Temporal_Friday_F626_ERROR.log
-            git add BTC_Temporal_Friday_F626_Failed_Launch10_Management_Checkpoint.md BTC_Temporal_Friday_F626_Failed_Launch10_Management_Summary.json F626_EXIT_CODE.txt
-            git add -u BTC_Temporal_Friday_F626_ERROR.log 2>/dev/null || true
-            git diff --cached --quiet || git commit -m "research: persist Friday F6.26 failed-launch result"
+            cp research/f627_out/F6.27_CHECKPOINT.md BTC_Temporal_Friday_F627_True_Dead_vs_Recovery_Forensic_Checkpoint.md
+            cp research/f627_out/f627_summary.json BTC_Temporal_Friday_F627_True_Dead_vs_Recovery_Forensic_Summary.json
+            rm -f BTC_Temporal_Friday_F627_ERROR.log
+            git add BTC_Temporal_Friday_F627_True_Dead_vs_Recovery_Forensic_Checkpoint.md BTC_Temporal_Friday_F627_True_Dead_vs_Recovery_Forensic_Summary.json F627_EXIT_CODE.txt
+            git add -u BTC_Temporal_Friday_F627_ERROR.log 2>/dev/null || true
+            git diff --cached --quiet || git commit -m "research: persist Friday F6.27 true-dead vs recovery forensic"
           else
-            cp F626_RUN.log BTC_Temporal_Friday_F626_ERROR.log
-            git add BTC_Temporal_Friday_F626_ERROR.log F626_EXIT_CODE.txt
-            git diff --cached --quiet || git commit -m "ci: persist Friday F6.26 traceback"
+            cp F627_RUN.log BTC_Temporal_Friday_F627_ERROR.log
+            git add BTC_Temporal_Friday_F627_ERROR.log F627_EXIT_CODE.txt
+            git diff --cached --quiet || git commit -m "ci: persist Friday F6.27 traceback"
           fi
           git push
           exit "$rc"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: f626-output
+          name: f627-output
           path: |
-            F626_RUN.log
-            F626_EXIT_CODE.txt
-            research/f626_out/F6.26_CHECKPOINT.md
-            research/f626_out/f626_summary.json
-            research/f626_out/f626_rows.csv
+            F627_RUN.log
+            F627_EXIT_CODE.txt
+            research/f627_out/F6.27_CHECKPOINT.md
+            research/f627_out/f627_summary.json
+            research/f627_out/f627_rows.csv
