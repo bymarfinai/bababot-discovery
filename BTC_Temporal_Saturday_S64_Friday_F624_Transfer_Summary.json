@@ -1,0 +1,129 @@
+{
+  "transfer_definition": {
+    "milestone": "+0.5R normalized to Saturday frozen R=0.0120 => +0.0060",
+    "decision": "+65m from first hit-bar timestamp, exact Friday implementation",
+    "bearish_persistence": "final 4 completed 5m closes below EMA7",
+    "flow": "final-2 taker imbalance mean < 0",
+    "context": "pre-entry 2h entry range position > 0.50",
+    "repair": "zero close<EMA20 -> close>=EMA20 transitions from milestone to decision",
+    "exit": "actual decision-time open; no Saturday tuning"
+  },
+  "parent": {
+    "n": 139,
+    "wins": 65,
+    "losses": 74,
+    "wr": 0.4676258992805755,
+    "pnl": 87.19969200357338,
+    "pf": 1.3637033641638112,
+    "dd": 45.1238481686223,
+    "ls": 7
+  },
+  "s57g_champion": {
+    "n": 139,
+    "wins": 76,
+    "losses": 63,
+    "wr": 0.5467625899280576,
+    "pnl": 111.2398274854495,
+    "pf": 1.5099733173122776,
+    "dd": 28.346279165759455,
+    "ls": 5
+  },
+  "s63_fib5_plus_champion": {
+    "n": 139,
+    "wins": 76,
+    "losses": 63,
+    "wr": 0.5467625899280576,
+    "pnl": 119.73831653302298,
+    "pf": 1.5711882078147985,
+    "dd": 28.125105130915657,
+    "ls": 5
+  },
+  "f624_on_static": {
+    "n": 139,
+    "wins": 65,
+    "losses": 74,
+    "wr": 0.4676258992805755,
+    "pnl": 87.22768628023722,
+    "pf": 1.363862611523877,
+    "dd": 45.1238481686223,
+    "ls": 7
+  },
+  "f624_on_integrated": {
+    "n": 139,
+    "wins": 76,
+    "losses": 63,
+    "wr": 0.5467625899280576,
+    "pnl": 119.76631080968684,
+    "pf": 1.5713980542260462,
+    "dd": 28.125105130915657,
+    "ls": 5
+  },
+  "static_delta": 0.027994276663847018,
+  "static_D": 0.0,
+  "static_V": 0.027994276663843465,
+  "static_transfer_pass": true,
+  "raw_signals": 1,
+  "active_actions": 1,
+  "actions_D": 0,
+  "actions_V": 1,
+  "preempted_by_frozen_baseline": 0,
+  "parent_winners_acted": 0,
+  "parent_losses_acted": 1,
+  "loss_to_positive": 0,
+  "parent_winner_to_nonpositive": 0,
+  "baseline_positive_to_nonpositive": 0,
+  "positive_increment_actions": 1,
+  "negative_increment_actions": 0,
+  "incremental_vs_integrated": 0.02799427666386123,
+  "incremental_D": 0.0,
+  "incremental_V": 0.027994276663843465,
+  "wr_gain_pp": 0.0,
+  "dd_improvement": 0.0,
+  "jackknife_min_remaining_incremental": 1.7763568394002505e-14,
+  "blocks4": [
+    {
+      "block": 1,
+      "start": "2023-12-02",
+      "end": "2024-07-20",
+      "actions": 0,
+      "incremental": 0.0
+    },
+    {
+      "block": 2,
+      "start": "2024-07-27",
+      "end": "2025-03-22",
+      "actions": 0,
+      "incremental": 0.0
+    },
+    {
+      "block": 3,
+      "start": "2025-03-29",
+      "end": "2025-11-22",
+      "actions": 0,
+      "incremental": 0.0
+    },
+    {
+      "block": 4,
+      "start": "2025-11-29",
+      "end": "2026-07-25",
+      "actions": 1,
+      "incremental": 0.027994276663843465
+    }
+  ],
+  "transfer_pass": true,
+  "actions_detail": [
+    {
+      "date": "2025-12-06",
+      "period": "validation",
+      "parent_pnl": -0.5985965166209004,
+      "baseline_pnl": -0.5985965166209004,
+      "managed_pnl": -0.570602239957057,
+      "incremental_vs_baseline": 0.027994276663843465,
+      "parent_mfe_r": 0.7370583983487186,
+      "baseline_layer": "A719",
+      "pre120_entry_range_pos": 0.5714951094550478,
+      "ema20_reclaims": 0.0,
+      "tail2_taker_mean": -0.14171905818915748
+    }
+  ]
+}
