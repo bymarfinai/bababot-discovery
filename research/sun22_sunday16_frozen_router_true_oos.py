@@ -44,7 +44,6 @@ OOS_END = pd.Timestamp("2026-08-18 00:00:00", tz="UTC")
 DAILY_START = pd.Timestamp("2026-08-01", tz="UTC")
 DAILY_END = pd.Timestamp("2026-08-17", tz="UTC")
 EXPECTED = ["2026-08-02", "2026-08-09", "2026-08-16"]
-NOTIONAL = 500.0
 
 
 def metrics(a):
@@ -68,8 +67,7 @@ def choose(d_sell, d_buy):
     ms = metrics(d_sell)
     mb = metrics(d_buy)
     best = "SELL" if ms["pnl"] >= mb["pnl"] else "BUY"
-    bp = max(ms["pnl"], mb["pnl"])
-    return (best if bp > 0 else "WAIT")
+    return best if max(ms["pnl"], mb["pnl"]) > 0 else "WAIT"
 
 
 def sign(x):
@@ -129,13 +127,11 @@ def load_extended():
 
 
 def historical_router():
-    """Reconstruct SUN2.0 decisions using historical discovery only, then freeze BAD_WAIT."""
+    """Reconstruct SUN2.0 from historical discovery only, then freeze BAD_WAIT."""
     k = f517.load_klines()
     f = s50.load_funding()
     es = sun19.entries(k)
-    rows = []
-    sell = []
-    buy = []
+    rows, sell, buy = [], [], []
     for i, t in enumerate(es):
         ctx = sun17.pre_context(k, t)
         s = sun19.simulate(k, f, t, -1)
@@ -159,7 +155,6 @@ def historical_router():
         runner = "|S-|U-" in st
         coarse_dec[st] = "SELL" if runner else choose(sell[d], buy[d])
 
-    # Exact SUN1.9 parity before refinement.
     p19 = []
     for i, r in df.iterrows():
         dec = coarse_dec[r.coarse]
@@ -169,8 +164,7 @@ def historical_router():
     if not (m19["n"] == 76 and abs(m19["pnl"] - 190.6360904374706) < 0.25):
         raise RuntimeError(f"SUN1.9 parity failed: {m19}")
 
-    thu_dec = {}
-    l4_dec = {}
+    thu_dec, l4_dec = {}, {}
     for st in sorted(TARGET):
         for sg in ["+", "-"]:
             idx1 = np.flatnonzero((df.coarse.to_numpy() == st) & (df.thu_sign.to_numpy() == sg) & (df.i.to_numpy() < DISC_N))
@@ -187,10 +181,7 @@ def historical_router():
         b = l4_dec[(coarse, l4_s)]
         return a if (a == b and a != "WAIT") else "WAIT"
 
-    # Historical headline of the frozen candidate after BAD_WAIT override.
-    cand = []
-    cand_i = []
-    dirs = []
+    cand, cand_i, dirs = [], [], []
     for i, r in df.iterrows():
         dec = decision_for(r.coarse, r.thu_sign, r.l4_sign)
         if dec == "WAIT":
@@ -198,17 +189,17 @@ def historical_router():
         cand.append(sell[i] if dec == "SELL" else buy[i])
         cand_i.append(i)
         dirs.append(dec)
-    cm = metrics(cand)
+    cand = np.asarray(cand, float)
     cidx = np.asarray(cand_i, int)
     hist = {
-        "full": cm,
-        "D": metrics(np.asarray(cand)[cidx < DISC_N]),
-        "V": metrics(np.asarray(cand)[cidx >= DISC_N]),
+        "full": metrics(cand),
+        "D": metrics(cand[cidx < DISC_N]),
+        "V": metrics(cand[cidx >= DISC_N]),
         "sell_n": int(sum(x == "SELL" for x in dirs)),
         "buy_n": int(sum(x == "BUY" for x in dirs)),
         "wait_n": int(139 - len(cand)),
     }
-    if cm["n"] != 85:
+    if hist["full"]["n"] != 85:
         raise RuntimeError(f"frozen candidate expected 85 historical trades, got {hist}")
     return decision_for, hist
 
@@ -231,18 +222,15 @@ def main():
     if dates != EXPECTED:
         raise RuntimeError(f"unexpected OOS Sunday entries {dates}")
 
-    rows = []
-    trade_pnls = []
+    rows, trade_pnls = [], []
     for t in es:
         ctx = sun17.pre_context(k, t)
         coarse = sun19.state_key(ctx)
         thu_s = sign(ctx["thu_day_ret"])
         l4_s = sign(ctx["sun12_to16_ret"])
         dec = decision_for(coarse, thu_s, l4_s)
-        pnl = None
-        reason = "WAIT"
+        pnl, reason, exit_t = None, "WAIT", None
         entry = float(k.loc[t, "open"])
-        exit_t = None
         if dec in ("BUY", "SELL"):
             tr = sun19.simulate(k, f, t, 1 if dec == "BUY" else -1)
             pnl = float(tr["pnl"])
@@ -284,6 +272,7 @@ def main():
     (OUT / "sun22_summary.json").write_text(json.dumps(summary, indent=2, default=str))
 
     wr = "-" if tm["wr"] is None else f"{100*tm['wr']:.1f}%"
+    pf = "-" if tm["pf"] is None else f"{tm['pf']:.2f}"
     md = [
         "# SUN2.2 — Sunday16 Frozen Router True-OOS",
         "",
@@ -302,7 +291,7 @@ def main():
         "",
         "## True-OOS August 2026",
         f"- Opportunities: {len(df)}; trades {int((df.decision!='WAIT').sum())}; WAIT {int((df.decision=='WAIT').sum())}.",
-        f"- Traded WR: {wr}; PnL ${tm['pnl']:+.2f}; PF {'-' if tm['pf'] is None else f'{tm['pf']:.2f}'}.",
+        f"- Traded WR: {wr}; PnL ${tm['pnl']:+.2f}; PF {pf}.",
         "",
         "| Date | State | Thu | L4 | Decision | Outcome | PnL |",
         "|---|---|---:|---:|---|---|---:|",
