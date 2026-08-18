@@ -1,0 +1,98 @@
+{
+  "status": "COMPLETE_TRUE_OOS_FROZEN_ROUTER",
+  "research_cutoff": "2026-07-30 00:00:00+00:00",
+  "dates": [
+    "2026-08-02",
+    "2026-08-09",
+    "2026-08-16"
+  ],
+  "frozen_definition": "SUN2.0 natural-state router + F-|S-|U+ forced WAIT; TP2.5 SL1.4 hold18h",
+  "historical_frozen_candidate": {
+    "full": {
+      "n": 85,
+      "wins": 54,
+      "wr": 0.6352941176470588,
+      "pnl": 276.77035846160237,
+      "pf": 2.6819490419748213,
+      "exp": 3.2561218642541454
+    },
+    "D": {
+      "n": 52,
+      "wins": 32,
+      "wr": 0.6153846153846154,
+      "pnl": 155.71386084882724,
+      "pf": 2.6736324037893637,
+      "exp": 2.9944973240159083
+    },
+    "V": {
+      "n": 33,
+      "wins": 22,
+      "wr": 0.6666666666666666,
+      "pnl": 121.05649761277516,
+      "pf": 2.692768975463123,
+      "exp": 3.6683787155386414
+    },
+    "sell_n": 48,
+    "buy_n": 37,
+    "wait_n": 54
+  },
+  "oos_opportunities": 3,
+  "oos_trades": 3,
+  "oos_waits": 0,
+  "oos_metrics_on_trades": {
+    "n": 3,
+    "wins": 1,
+    "wr": 0.3333333333333333,
+    "pnl": -3.28838359079963,
+    "pf": 0.30090312525245394,
+    "exp": -1.0961278635998768
+  },
+  "rows": [
+    {
+      "date": "2026-08-02",
+      "entry_t": "2026-08-02 09:00:00+00:00",
+      "entry": 63171.2,
+      "coarse_state": "F-|S+|U+",
+      "thu_sign": "+",
+      "fri_sign": "-",
+      "sat_sign": "+",
+      "sun_pre16_sign": "+",
+      "sun12_16_sign": "-",
+      "decision": "BUY",
+      "reason": "TIMEOUT",
+      "exit_t": "2026-08-03 03:00:00+00:00",
+      "pnl": -1.2574836231700213
+    },
+    {
+      "date": "2026-08-09",
+      "entry_t": "2026-08-09 09:00:00+00:00",
+      "entry": 64792.5,
+      "coarse_state": "F+|S+|U-",
+      "thu_sign": "+",
+      "fri_sign": "+",
+      "sat_sign": "+",
+      "sun_pre16_sign": "-",
+      "sun12_16_sign": "+",
+      "decision": "BUY",
+      "reason": "TIMEOUT",
+      "exit_t": "2026-08-10 03:00:00+00:00",
+      "pnl": 1.4153759446540404
+    },
+    {
+      "date": "2026-08-16",
+      "entry_t": "2026-08-16 09:00:00+00:00",
+      "entry": 63039.6,
+      "coarse_state": "F-|S-|U-",
+      "thu_sign": "-",
+      "fri_sign": "-",
+      "sat_sign": "-",
+      "sun_pre16_sign": "-",
+      "sun12_16_sign": "-",
+      "decision": "SELL",
+      "reason": "TIMEOUT",
+      "exit_t": "2026-08-17 03:00:00+00:00",
+      "pnl": -3.446275912283649
+    }
+  ],
+  "guardrail": "Only three post-cutoff Sundays are available. This is a true-OOS observation of the frozen router, not statistical confirmation and not a reason to retune from N=3."
+}
