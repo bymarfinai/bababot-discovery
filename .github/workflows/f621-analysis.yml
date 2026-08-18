@@ -1,8 +1,8 @@
-name: Sunday Frozen SF6-SF8 + FastMR
+name: Sunday SF10 True-OOS August Comparison
 on:
   push:
     paths:
-      - 'research/sunday_fridaymethod_sf9_fastmr_overlay.py'
+      - 'research/sunday_fridaymethod_sf10_true_oos_august.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,32 +17,32 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run Sunday SF9 FastMR overlay and persist once
+      - name: Run Sunday SF10 true-OOS comparison and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUNFM9_OUT=sunfm9_out python sunday_fridaymethod_sf9_fastmr_overlay.py > ../SUNFM9_RUN.log 2>&1
+          SUNFM10_OUT=sunfm10_out python sunday_fridaymethod_sf10_true_oos_august.py > ../SUNFM10_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUNFM9_RUN.log
-          printf '%s\n' "$rc" > SUNFM9_EXIT_CODE.txt
+          cat SUNFM10_RUN.log
+          printf '%s\n' "$rc" > SUNFM10_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sunfm9_out/SUNDAY_FRIDAY_METHOD_SF9_FASTMR_CHECKPOINT.md BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_Checkpoint.md
-            cp research/sunfm9_out/sunfm9_summary.json BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_Summary.json
-            cp research/sunfm9_out/sunfm9_rows.csv BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_Rows.csv
-            rm -f BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_ERROR.log
-            git add BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_Checkpoint.md BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_Summary.json BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_Rows.csv SUNFM9_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday frozen SF6-SF8 plus FastMR"
+            cp research/sunfm10_out/SUNDAY_FRIDAY_METHOD_SF10_TRUE_OOS_AUGUST.md BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August.md
+            cp research/sunfm10_out/sunfm10_true_oos_august_summary.json BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_Summary.json
+            cp research/sunfm10_out/sunfm10_true_oos_august_rows.csv BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_Rows.csv
+            rm -f BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_ERROR.log
+            git add BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August.md BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_Summary.json BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_Rows.csv SUNFM10_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday SF10 true-OOS August comparison"
           else
-            cp SUNFM9_RUN.log BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_ERROR.log
-            git add BTC_Temporal_Sunday_FridayMethod_SF9_FastMR_ERROR.log SUNFM9_EXIT_CODE.txt
-            msg="ci: persist Sunday SF9 FastMR traceback"
+            cp SUNFM10_RUN.log BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_ERROR.log
+            git add BTC_Temporal_Sunday_FridayMethod_SF10_True_OOS_August_ERROR.log SUNFM10_EXIT_CODE.txt
+            msg="ci: persist Sunday SF10 true-OOS traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -52,10 +52,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sunfm9-output
+          name: sunfm10-output
           path: |
-            SUNFM9_RUN.log
-            SUNFM9_EXIT_CODE.txt
-            research/sunfm9_out/SUNDAY_FRIDAY_METHOD_SF9_FASTMR_CHECKPOINT.md
-            research/sunfm9_out/sunfm9_summary.json
-            research/sunfm9_out/sunfm9_rows.csv
+            SUNFM10_RUN.log
+            SUNFM10_EXIT_CODE.txt
+            research/sunfm10_out/SUNDAY_FRIDAY_METHOD_SF10_TRUE_OOS_AUGUST.md
+            research/sunfm10_out/sunfm10_true_oos_august_summary.json
+            research/sunfm10_out/sunfm10_true_oos_august_rows.csv
