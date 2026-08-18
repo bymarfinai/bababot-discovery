@@ -1,8 +1,8 @@
-name: F6.37 Friday Relative Upper-Rejection Forensic
+name: F6.38 Friday Rejection-vs-Expansion Balance Management
 on:
   push:
     paths:
-      - 'research/f637_friday_relative_upper_rejection_forensic.py'
+      - 'research/f638_friday_rejection_vs_expansion_balance_management.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,31 +17,31 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run F6.37 and persist once
+      - name: Run F6.38 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          F637_OUT=f637_out python f637_friday_relative_upper_rejection_forensic.py > ../F637_RUN.log 2>&1
+          F638_OUT=f638_out python f638_friday_rejection_vs_expansion_balance_management.py > ../F638_RUN.log 2>&1
           rc=$?
           cd ..
-          cat F637_RUN.log
-          printf '%s\n' "$rc" > F637_EXIT_CODE.txt
+          cat F638_RUN.log
+          printf '%s\n' "$rc" > F638_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/f637_out/F6.37_CHECKPOINT.md BTC_Temporal_Friday_F637_Relative_Upper_Rejection_Forensic_Checkpoint.md
-            cp research/f637_out/f637_summary.json BTC_Temporal_Friday_F637_Relative_Upper_Rejection_Forensic_Summary.json
-            rm -f BTC_Temporal_Friday_F637_ERROR.log
-            git add BTC_Temporal_Friday_F637_Relative_Upper_Rejection_Forensic_Checkpoint.md BTC_Temporal_Friday_F637_Relative_Upper_Rejection_Forensic_Summary.json F637_EXIT_CODE.txt
-            git add -u BTC_Temporal_Friday_F637_ERROR.log 2>/dev/null || true
-            msg="research: persist Friday F6.37 relative upper-rejection forensic"
+            cp research/f638_out/F6.38_CHECKPOINT.md BTC_Temporal_Friday_F638_Rejection_vs_Expansion_Balance_Management_Checkpoint.md
+            cp research/f638_out/f638_summary.json BTC_Temporal_Friday_F638_Rejection_vs_Expansion_Balance_Management_Summary.json
+            rm -f BTC_Temporal_Friday_F638_ERROR.log
+            git add BTC_Temporal_Friday_F638_Rejection_vs_Expansion_Balance_Management_Checkpoint.md BTC_Temporal_Friday_F638_Rejection_vs_Expansion_Balance_Management_Summary.json F638_EXIT_CODE.txt
+            git add -u BTC_Temporal_Friday_F638_ERROR.log 2>/dev/null || true
+            msg="research: persist Friday F6.38 rejection-vs-expansion balance management"
           else
-            cp F637_RUN.log BTC_Temporal_Friday_F637_ERROR.log
-            git add BTC_Temporal_Friday_F637_ERROR.log F637_EXIT_CODE.txt
-            msg="ci: persist Friday F6.37 traceback"
+            cp F638_RUN.log BTC_Temporal_Friday_F638_ERROR.log
+            git add BTC_Temporal_Friday_F638_ERROR.log F638_EXIT_CODE.txt
+            msg="ci: persist Friday F6.38 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,10 +51,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: f637-output
+          name: f638-output
           path: |
-            F637_RUN.log
-            F637_EXIT_CODE.txt
-            research/f637_out/F6.37_CHECKPOINT.md
-            research/f637_out/f637_summary.json
-            research/f637_out/f637_rows.csv
+            F638_RUN.log
+            F638_EXIT_CODE.txt
+            research/f638_out/F6.38_CHECKPOINT.md
+            research/f638_out/f638_summary.json
+            research/f638_out/f638_rows.csv
