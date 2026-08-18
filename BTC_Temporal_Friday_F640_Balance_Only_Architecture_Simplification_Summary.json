@@ -1,0 +1,324 @@
+{
+  "status": "SAME_SAMPLE_SIMPLIFICATION_DIAGNOSTIC_ONLY",
+  "screen_pass": false,
+  "rule_definition": {
+    "candidate": "exact F6.29 +20m cut candidate",
+    "removed_from_routing": "F6.31 lower-low + improving-taker flow guard",
+    "sole_admission_gate": "exact F6.38 balance: upper-wick ratio > body expansion vs median prior 3 completed 5m bars",
+    "gate_pass": "exact F6.34 +35 higher-close watcher",
+    "gate_fail": "actual +20m-open cut",
+    "tuning": "none; no threshold/lookback/timing/alternate architecture sweep"
+  },
+  "frozen_five_layer": {
+    "n": 138,
+    "wins": 73,
+    "losses": 65,
+    "wr": 0.5289855072463768,
+    "pnl": 138.32913165461423,
+    "pf": 1.8270660296408894,
+    "dd": 24.258622800073653,
+    "ls": 8
+  },
+  "f634_management": {
+    "n": 138,
+    "wins": 72,
+    "losses": 66,
+    "wr": 0.5217391304347826,
+    "pnl": 155.18116225103338,
+    "pf": 2.036238435385885,
+    "dd": 17.627002670155548,
+    "ls": 8
+  },
+  "f638_or_architecture": {
+    "n": 138,
+    "wins": 73,
+    "losses": 65,
+    "wr": 0.5289855072463768,
+    "pnl": 157.20141810166032,
+    "pf": 2.0594476702364273,
+    "dd": 17.627002670155548,
+    "ls": 8
+  },
+  "f640_balance_only": {
+    "n": 138,
+    "wins": 72,
+    "losses": 66,
+    "wr": 0.5217391304347826,
+    "pnl": 152.78491394156356,
+    "pf": 2.0047368805499595,
+    "dd": 17.627002670155548,
+    "ls": 8
+  },
+  "f629_actions": 12,
+  "parent_winners_acted": 3,
+  "parent_winners_preserved_positive": 2,
+  "balance_pass_n": 4,
+  "balance_pass_winner_loser": [
+    2,
+    2
+  ],
+  "balance_fail_n": 8,
+  "balance_fail_winner_loser": [
+    1,
+    7
+  ],
+  "flow_balance_overlap": [
+    {
+      "flow_guard": false,
+      "balance_gate": false,
+      "n": 5,
+      "winner_n": 0,
+      "loser_n": 5,
+      "dates": [
+        "2024-09-20",
+        "2025-05-09",
+        "2025-08-29",
+        "2025-09-12",
+        "2026-03-27"
+      ]
+    },
+    {
+      "flow_guard": false,
+      "balance_gate": true,
+      "n": 1,
+      "winner_n": 1,
+      "loser_n": 0,
+      "dates": [
+        "2024-01-19"
+      ]
+    },
+    {
+      "flow_guard": true,
+      "balance_gate": false,
+      "n": 3,
+      "winner_n": 1,
+      "loser_n": 2,
+      "dates": [
+        "2024-11-22",
+        "2025-02-14",
+        "2025-05-16"
+      ]
+    },
+    {
+      "flow_guard": true,
+      "balance_gate": true,
+      "n": 3,
+      "winner_n": 1,
+      "loser_n": 2,
+      "dates": [
+        "2024-03-08",
+        "2025-07-04",
+        "2025-07-18"
+      ]
+    }
+  ],
+  "changed_vs_f638_n": 3,
+  "incremental_vs_frozen": 14.45578228694933,
+  "incremental_vs_f634": -2.3962483094698257,
+  "incremental_vs_f638": -4.416504160096764,
+  "incremental_vs_frozen_D": 5.519021270222404,
+  "incremental_vs_frozen_V": 8.936761016726907,
+  "delta_vs_f638_D": -4.416504160096757,
+  "delta_vs_f638_V": 0.0,
+  "baseline_positive_to_nonpositive": 1,
+  "changed_vs_f638_detail": [
+    {
+      "date": "2024-11-22",
+      "period": "discovery",
+      "parent_pnl": -4.25,
+      "flow_guard": true,
+      "balance_gate": false,
+      "balance_margin": -0.09558450967161472,
+      "f638_pnl": -1.1313502114806688,
+      "managed_pnl": -2.1902645371506817,
+      "f638_action": "CUT35",
+      "action": "CUT20",
+      "incremental_vs_f638": -1.0589143256700129
+    },
+    {
+      "date": "2025-02-14",
+      "period": "discovery",
+      "parent_pnl": -1.5199460934524338,
+      "flow_guard": true,
+      "balance_gate": false,
+      "balance_margin": -0.13750000000004547,
+      "f638_pnl": -0.8846889613880742,
+      "managed_pnl": -1.2180570420652619,
+      "f638_action": "CUT35",
+      "action": "CUT20",
+      "incremental_vs_f638": -0.3333680806771877
+    },
+    {
+      "date": "2025-05-16",
+      "period": "discovery",
+      "parent_pnl": 0.7324427259965134,
+      "flow_guard": true,
+      "balance_gate": false,
+      "balance_margin": -0.5333848042462979,
+      "f638_pnl": 0.7324427259965134,
+      "managed_pnl": -2.291779027753043,
+      "f638_action": "CONFIRM35_HOLD",
+      "action": "CUT20",
+      "incremental_vs_f638": -3.0242217537495564
+    }
+  ],
+  "action_detail": [
+    {
+      "date": "2024-01-19",
+      "period": "discovery",
+      "parent_pnl": 0.6464958008230166,
+      "flow_guard": false,
+      "balance_gate": true,
+      "balance_margin": 0.044299450549660585,
+      "f638_pnl": 0.6464958008230166,
+      "managed_pnl": 0.6464958008230166,
+      "f638_action": "CONFIRM35_HOLD",
+      "action": "CONFIRM35_HOLD",
+      "incremental_vs_f638": 0.0
+    },
+    {
+      "date": "2024-03-08",
+      "period": "discovery",
+      "parent_pnl": 3.1752100403366352,
+      "flow_guard": true,
+      "balance_gate": true,
+      "balance_margin": 0.94881722899913,
+      "f638_pnl": 3.1752100403366352,
+      "managed_pnl": 3.1752100403366352,
+      "f638_action": "CONFIRM35_HOLD",
+      "action": "CONFIRM35_HOLD",
+      "incremental_vs_f638": 0.0
+    },
+    {
+      "date": "2024-09-20",
+      "period": "discovery",
+      "parent_pnl": -4.25,
+      "flow_guard": false,
+      "balance_gate": false,
+      "balance_margin": -0.11848625685126396,
+      "f638_pnl": -1.304378725716398,
+      "managed_pnl": -1.304378725716398,
+      "f638_action": "CUT20",
+      "action": "CUT20",
+      "incremental_vs_f638": 0.0
+    },
+    {
+      "date": "2024-11-22",
+      "period": "discovery",
+      "parent_pnl": -4.25,
+      "flow_guard": true,
+      "balance_gate": false,
+      "balance_margin": -0.09558450967161472,
+      "f638_pnl": -1.1313502114806688,
+      "managed_pnl": -2.1902645371506817,
+      "f638_action": "CUT35",
+      "action": "CUT20",
+      "incremental_vs_f638": -1.0589143256700129
+    },
+    {
+      "date": "2025-02-14",
+      "period": "discovery",
+      "parent_pnl": -1.5199460934524338,
+      "flow_guard": true,
+      "balance_gate": false,
+      "balance_margin": -0.13750000000004547,
+      "f638_pnl": -0.8846889613880742,
+      "managed_pnl": -1.2180570420652619,
+      "f638_action": "CUT35",
+      "action": "CUT20",
+      "incremental_vs_f638": -0.3333680806771877
+    },
+    {
+      "date": "2025-05-09",
+      "period": "discovery",
+      "parent_pnl": -4.25,
+      "flow_guard": false,
+      "balance_gate": false,
+      "balance_margin": -0.5319513331868733,
+      "f638_pnl": -1.0140027645481324,
+      "managed_pnl": -1.0140027645481324,
+      "f638_action": "CUT20",
+      "action": "CUT20",
+      "incremental_vs_f638": 0.0
+    },
+    {
+      "date": "2025-05-16",
+      "period": "discovery",
+      "parent_pnl": 0.7324427259965134,
+      "flow_guard": true,
+      "balance_gate": false,
+      "balance_margin": -0.5333848042462979,
+      "f638_pnl": 0.7324427259965134,
+      "managed_pnl": -2.291779027753043,
+      "f638_action": "CONFIRM35_HOLD",
+      "action": "CUT20",
+      "incremental_vs_f638": -3.0242217537495564
+    },
+    {
+      "date": "2025-07-04",
+      "period": "validation",
+      "parent_pnl": -4.166125918106861,
+      "flow_guard": true,
+      "balance_gate": true,
+      "balance_margin": 0.6114528065968705,
+      "f638_pnl": -0.4053504427987402,
+      "managed_pnl": -0.4053504427987402,
+      "f638_action": "CUT35",
+      "action": "CUT35",
+      "incremental_vs_f638": 0.0
+    },
+    {
+      "date": "2025-07-18",
+      "period": "validation",
+      "parent_pnl": -4.25,
+      "flow_guard": true,
+      "balance_gate": true,
+      "balance_margin": 0.6026620434221939,
+      "f638_pnl": -2.9626989313526746,
+      "managed_pnl": -2.9626989313526746,
+      "f638_action": "CUT35",
+      "action": "CUT35",
+      "incremental_vs_f638": 0.0
+    },
+    {
+      "date": "2025-08-29",
+      "period": "validation",
+      "parent_pnl": -4.25,
+      "flow_guard": false,
+      "balance_gate": false,
+      "balance_margin": -0.16784614686326094,
+      "f638_pnl": -0.5244818994444005,
+      "managed_pnl": -0.5244818994444005,
+      "f638_action": "CUT20",
+      "action": "CUT20",
+      "incremental_vs_f638": 0.0
+    },
+    {
+      "date": "2025-09-12",
+      "period": "validation",
+      "parent_pnl": -0.46446923873230617,
+      "flow_guard": false,
+      "balance_gate": false,
+      "balance_margin": -0.6541971757320972,
+      "f638_pnl": -0.8760333649431011,
+      "managed_pnl": -0.8760333649431011,
+      "f638_action": "CUT20",
+      "action": "CUT20",
+      "incremental_vs_f638": 0.0
+    },
+    {
+      "date": "2026-03-27",
+      "period": "validation",
+      "parent_pnl": -4.25,
+      "flow_guard": false,
+      "balance_gate": false,
+      "balance_margin": -0.2594607195588261,
+      "f638_pnl": -1.9448591131911712,
+      "managed_pnl": -1.9448591131911712,
+      "f638_action": "CUT20",
+      "action": "CUT20",
+      "incremental_vs_f638": 0.0
+    }
+  ],
+  "guardrail": "F6.40 is a same-history simplification diagnostic. F6.39 is robustness, not untouched OOS. Even a PASS cannot freeze the architecture."
+}
