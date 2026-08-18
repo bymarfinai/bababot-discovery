@@ -2,7 +2,7 @@ name: Sunday SF11-SF12 Preentry Regime
 on:
   push:
     paths:
-      - 'research/sunday_fridaymethod_sf11_sf12_preentry_regime.py'
+      - 'research/sunday_fridaymethod_sf11_sf12_preentry_regime_report.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -22,7 +22,7 @@ jobs:
         run: |
           set +e
           cd research
-          SUNFM1112_OUT=sunfm1112_out python sunday_fridaymethod_sf11_sf12_preentry_regime.py > ../SUNFM1112_RUN.log 2>&1
+          SUNFM1112_OUT=sunfm1112_out python sunday_fridaymethod_sf11_sf12_preentry_regime_report.py > ../SUNFM1112_RUN.log 2>&1
           rc=$?
           cd ..
           cat SUNFM1112_RUN.log
