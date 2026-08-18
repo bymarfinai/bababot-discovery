@@ -1,8 +1,8 @@
-name: SUN2.2 Sunday16 Frozen True-OOS
+name: F6.41 Friday F6.38 True-OOS August
 on:
   push:
     paths:
-      - 'research/sun22_sunday16_frozen_router_true_oos.py'
+      - 'research/f641_friday_f638_true_oos_august.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,32 +17,32 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run SUN2.2 and persist once
+      - name: Run F6.41 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUN22_OUT=sun22_out python sun22_sunday16_frozen_router_true_oos.py > ../SUN22_RUN.log 2>&1
+          F641_OUT=f641_out python f641_friday_f638_true_oos_august.py > ../F641_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUN22_RUN.log
-          printf '%s\n' "$rc" > SUN22_EXIT_CODE.txt
+          cat F641_RUN.log
+          printf '%s\n' "$rc" > F641_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sun22_out/SUN2.2_CHECKPOINT.md BTC_Temporal_Sunday16_SUN22_True_OOS_Checkpoint.md
-            cp research/sun22_out/sun22_summary.json BTC_Temporal_Sunday16_SUN22_True_OOS_Summary.json
-            cp research/sun22_out/sun22_true_oos_trades.csv BTC_Temporal_Sunday16_SUN22_True_OOS_Trades.csv
-            rm -f BTC_Temporal_Sunday16_SUN22_ERROR.log
-            git add BTC_Temporal_Sunday16_SUN22_True_OOS_Checkpoint.md BTC_Temporal_Sunday16_SUN22_True_OOS_Summary.json BTC_Temporal_Sunday16_SUN22_True_OOS_Trades.csv SUN22_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday16_SUN22_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday SUN2.2 frozen true-OOS extension"
+            cp research/f641_out/F6.41_CHECKPOINT.md BTC_Temporal_Friday_F641_F638_True_OOS_August_Checkpoint.md
+            cp research/f641_out/f641_summary.json BTC_Temporal_Friday_F641_F638_True_OOS_August_Summary.json
+            cp research/f641_out/f641_oos_rows.csv BTC_Temporal_Friday_F641_F638_True_OOS_August_Rows.csv
+            rm -f BTC_Temporal_Friday_F641_F638_True_OOS_August_ERROR.log
+            git add BTC_Temporal_Friday_F641_F638_True_OOS_August_Checkpoint.md BTC_Temporal_Friday_F641_F638_True_OOS_August_Summary.json BTC_Temporal_Friday_F641_F638_True_OOS_August_Rows.csv F641_EXIT_CODE.txt
+            git add -u BTC_Temporal_Friday_F641_F638_True_OOS_August_ERROR.log 2>/dev/null || true
+            msg="research: persist Friday F6.41 F6.38 true-OOS August replay"
           else
-            cp SUN22_RUN.log BTC_Temporal_Sunday16_SUN22_ERROR.log
-            git add BTC_Temporal_Sunday16_SUN22_ERROR.log SUN22_EXIT_CODE.txt
-            msg="ci: persist Sunday SUN2.2 traceback"
+            cp F641_RUN.log BTC_Temporal_Friday_F641_F638_True_OOS_August_ERROR.log
+            git add BTC_Temporal_Friday_F641_F638_True_OOS_August_ERROR.log F641_EXIT_CODE.txt
+            msg="ci: persist Friday F6.41 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -52,10 +52,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sun22-output
+          name: f641-output
           path: |
-            SUN22_RUN.log
-            SUN22_EXIT_CODE.txt
-            research/sun22_out/SUN2.2_CHECKPOINT.md
-            research/sun22_out/sun22_summary.json
-            research/sun22_out/sun22_true_oos_trades.csv
+            F641_RUN.log
+            F641_EXIT_CODE.txt
+            research/f641_out/F6.41_CHECKPOINT.md
+            research/f641_out/f641_summary.json
+            research/f641_out/f641_oos_rows.csv
