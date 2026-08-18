@@ -1,0 +1,134 @@
+{
+  "status": "COMPLETE_SUNDAY_FRIDAY_METHOD_SF0_SF4",
+  "architecture": {
+    "parent": "Sunday16 SELL TP2.5 SL1.4 max18h",
+    "watch2": "+2h progress<=0 AND close>=EMA20 AND last30m taker>0",
+    "repair4": "release if progress>0 OR close<EMA20 OR last30m taker<0",
+    "failure6": "same 3-way failure persists at +6h",
+    "confirm7": "HOLD if +7h close lower than +6h close OR +6->7h taker<0; otherwise CUT at actual +7h open",
+    "tuning": "none; directional zero-cross logic only"
+  },
+  "parent": {
+    "full": {
+      "n": 139,
+      "wins": 66,
+      "losses": 73,
+      "wr": 0.4748201438848921,
+      "pnl": 63.59937913207399,
+      "pf": 1.1383037313997062,
+      "dd": 61.50231108925164,
+      "ls": 7,
+      "exp": 0.4575494901588057
+    },
+    "D": {
+      "n": 83,
+      "wins": 40,
+      "losses": 43,
+      "wr": 0.4819277108433735,
+      "pnl": 53.90104552445012,
+      "pf": 1.2017960263755962,
+      "dd": 46.52311634268662,
+      "ls": 6,
+      "exp": 0.6494101870415677
+    },
+    "V": {
+      "n": 56,
+      "wins": 26,
+      "losses": 30,
+      "wr": 0.4642857142857143,
+      "pnl": 9.698333607623884,
+      "pf": 1.0503165547657785,
+      "dd": 37.383716221670134,
+      "ls": 6,
+      "exp": 0.17318452870756934
+    }
+  },
+  "immediate_cut6": {
+    "full": {
+      "n": 139,
+      "wins": 66,
+      "losses": 73,
+      "wr": 0.4748201438848921,
+      "pnl": 66.39587449189456,
+      "pf": 1.1452684314010353,
+      "dd": 61.50231108925164,
+      "ls": 7,
+      "exp": 0.47766816181219107
+    },
+    "D": {
+      "n": 83,
+      "wins": 40,
+      "losses": 43,
+      "wr": 0.4819277108433735,
+      "pnl": 55.918866956559334,
+      "pf": 1.2109439428496171,
+      "dd": 44.505294910577405,
+      "ls": 6,
+      "exp": 0.673721288633245
+    },
+    "V": {
+      "n": 56,
+      "wins": 26,
+      "losses": 30,
+      "wr": 0.4642857142857143,
+      "pnl": 10.477007535335222,
+      "pf": 1.0545769282880066,
+      "dd": 37.383716221670134,
+      "ls": 6,
+      "exp": 0.18708942027384326
+    }
+  },
+  "confirm7": {
+    "full": {
+      "n": 139,
+      "wins": 66,
+      "losses": 73,
+      "wr": 0.4748201438848921,
+      "pnl": 63.77238656954265,
+      "pf": 1.1387321490716895,
+      "dd": 61.50231108925164,
+      "ls": 7,
+      "exp": 0.4587941479823212
+    },
+    "D": {
+      "n": 83,
+      "wins": 40,
+      "losses": 43,
+      "wr": 0.4819277108433735,
+      "pnl": 53.90104552445012,
+      "pf": 1.2017960263755962,
+      "dd": 46.52311634268662,
+      "ls": 6,
+      "exp": 0.6494101870415677
+    },
+    "V": {
+      "n": 56,
+      "wins": 26,
+      "losses": 30,
+      "wr": 0.4642857142857143,
+      "pnl": 9.871341045092542,
+      "pf": 1.051260156555489,
+      "dd": 37.383716221670134,
+      "ls": 6,
+      "exp": 0.17627394723379539
+    }
+  },
+  "funnel": {
+    "watch2": 29,
+    "watch2_D": 17,
+    "watch2_V": 12,
+    "persistent4": 10,
+    "candidate6": 2,
+    "recovery7_hold": 1,
+    "cut7": 1
+  },
+  "confirm7_delta_full": 0.17300743746865832,
+  "confirm7_delta_D": 0.0,
+  "confirm7_delta_V": 0.17300743746865832,
+  "cut7_parent_winners": 0,
+  "cut7_parent_losses": 1,
+  "cut7_loss_to_positive": 0,
+  "cut7_winner_to_nonpositive": 0,
+  "positive_blocks": 5,
+  "guardrail": "Friday-style methodology adaptation only. Sunday history has prior research exposure, so D/V are robustness slices, not untouched OOS. Do not retune from August N=3."
+}
