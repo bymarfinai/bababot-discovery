@@ -1,8 +1,8 @@
-name: Sunday SF13 Preentry Morphology
+name: Sunday SF14 August Morphology Replay
 on:
   push:
     paths:
-      - 'research/sunday_fridaymethod_sf13_preentry_expansion_morphology.py'
+      - 'research/sunday_fridaymethod_sf14_august_morphology_replay.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,32 +17,32 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run Sunday SF13 and persist once
+      - name: Run Sunday SF14 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUNFM13_OUT=sunfm13_out python sunday_fridaymethod_sf13_preentry_expansion_morphology.py > ../SUNFM13_RUN.log 2>&1
+          SUNFM14_OUT=sunfm14_out python sunday_fridaymethod_sf14_august_morphology_replay.py > ../SUNFM14_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUNFM13_RUN.log
-          printf '%s\n' "$rc" > SUNFM13_EXIT_CODE.txt
+          cat SUNFM14_RUN.log
+          printf '%s\n' "$rc" > SUNFM14_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sunfm13_out/SUNDAY_FRIDAY_METHOD_SF13_PREENTRY_MORPH.md BTC_Temporal_Sunday_FridayMethod_SF13_Preentry_Morph.md
-            cp research/sunfm13_out/sunfm13_summary.json BTC_Temporal_Sunday_FridayMethod_SF13_Preentry_Morph_Summary.json
-            cp research/sunfm13_out/sunfm13_rows.csv BTC_Temporal_Sunday_FridayMethod_SF13_Preentry_Morph_Rows.csv
-            rm -f BTC_Temporal_Sunday_FridayMethod_SF13_Preentry_Morph_ERROR.log
-            git add BTC_Temporal_Sunday_FridayMethod_SF13_Preentry_Morph.md BTC_Temporal_Sunday_FridayMethod_SF13_Preentry_Morph_Summary.json BTC_Temporal_Sunday_FridayMethod_SF13_Preentry_Morph_Rows.csv SUNFM13_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday_FridayMethod_SF13_Preentry_Morph_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday SF13 preentry morphology"
+            cp research/sunfm14_out/SUNDAY_FRIDAY_METHOD_SF14_AUGUST_REPLAY.md BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay.md
+            cp research/sunfm14_out/sunfm14_summary.json BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_Summary.json
+            cp research/sunfm14_out/sunfm14_rows.csv BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_Rows.csv
+            rm -f BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_ERROR.log
+            git add BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay.md BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_Summary.json BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_Rows.csv SUNFM14_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday SF14 August morphology replay"
           else
-            cp SUNFM13_RUN.log BTC_Temporal_Sunday_FridayMethod_SF13_Preentry_Morph_ERROR.log
-            git add BTC_Temporal_Sunday_FridayMethod_SF13_Preentry_Morph_ERROR.log SUNFM13_EXIT_CODE.txt
-            msg="ci: persist Sunday SF13 traceback"
+            cp SUNFM14_RUN.log BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_ERROR.log
+            git add BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_ERROR.log SUNFM14_EXIT_CODE.txt
+            msg="ci: persist Sunday SF14 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -52,10 +52,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sunfm13-output
+          name: sunfm14-output
           path: |
-            SUNFM13_RUN.log
-            SUNFM13_EXIT_CODE.txt
-            research/sunfm13_out/SUNDAY_FRIDAY_METHOD_SF13_PREENTRY_MORPH.md
-            research/sunfm13_out/sunfm13_summary.json
-            research/sunfm13_out/sunfm13_rows.csv
+            SUNFM14_RUN.log
+            SUNFM14_EXIT_CODE.txt
+            research/sunfm14_out/SUNDAY_FRIDAY_METHOD_SF14_AUGUST_REPLAY.md
+            research/sunfm14_out/sunfm14_summary.json
+            research/sunfm14_out/sunfm14_rows.csv
