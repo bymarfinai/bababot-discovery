@@ -1,8 +1,8 @@
-name: Sunday T-Method ST4-ST11
+name: Sunday T-Method ST8 FastMR Family
 on:
   push:
     paths:
-      - 'research/sunday_tmethod_st4_st11.py'
+      - 'research/sunday_tmethod_st8_fastmr_family.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,31 +17,31 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run Sunday T-Method ST4-ST11 and persist once
+      - name: Run Sunday ST8 FastMR family and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUNT11_OUT=sunt11_out python sunday_tmethod_st4_st11.py > ../SUNT11_RUN.log 2>&1
+          SUNT8F_OUT=sunt8f_out python sunday_tmethod_st8_fastmr_family.py > ../SUNT8F_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUNT11_RUN.log
-          printf '%s\n' "$rc" > SUNT11_EXIT_CODE.txt
+          cat SUNT8F_RUN.log
+          printf '%s\n' "$rc" > SUNT8F_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sunt11_out/SUNDAY_TMETHOD_ST4_ST11_CHECKPOINT.md BTC_Temporal_Sunday_TMethod_ST4_ST11_Checkpoint.md
-            cp research/sunt11_out/sunt11_summary.json BTC_Temporal_Sunday_TMethod_ST4_ST11_Summary.json
-            rm -f BTC_Temporal_Sunday_TMethod_ST4_ST11_ERROR.log
-            git add BTC_Temporal_Sunday_TMethod_ST4_ST11_Checkpoint.md BTC_Temporal_Sunday_TMethod_ST4_ST11_Summary.json SUNT11_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday_TMethod_ST4_ST11_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday T-Method ST4-ST11"
+            cp research/sunt8f_out/SUNDAY_TMETHOD_ST8_FAMILY_CHECKPOINT.md BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_Checkpoint.md
+            cp research/sunt8f_out/sunt8f_summary.json BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_Summary.json
+            rm -f BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_ERROR.log
+            git add BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_Checkpoint.md BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_Summary.json SUNT8F_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday T-Method ST8 FastMR family"
           else
-            cp SUNT11_RUN.log BTC_Temporal_Sunday_TMethod_ST4_ST11_ERROR.log
-            git add BTC_Temporal_Sunday_TMethod_ST4_ST11_ERROR.log SUNT11_EXIT_CODE.txt
-            msg="ci: persist Sunday T-Method ST4-ST11 traceback"
+            cp SUNT8F_RUN.log BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_ERROR.log
+            git add BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_ERROR.log SUNT8F_EXIT_CODE.txt
+            msg="ci: persist Sunday T-Method ST8 FastMR traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,9 +51,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sunt11-output
+          name: sunt8f-output
           path: |
-            SUNT11_RUN.log
-            SUNT11_EXIT_CODE.txt
-            research/sunt11_out/SUNDAY_TMETHOD_ST4_ST11_CHECKPOINT.md
-            research/sunt11_out/sunt11_summary.json
+            SUNT8F_RUN.log
+            SUNT8F_EXIT_CODE.txt
+            research/sunt8f_out/SUNDAY_TMETHOD_ST8_FAMILY_CHECKPOINT.md
+            research/sunt8f_out/sunt8f_summary.json
