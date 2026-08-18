@@ -1,8 +1,8 @@
-name: SUN2.1 Sunday16 Bad-State Forensics
+name: SUN2.2 Sunday16 Frozen True-OOS
 on:
   push:
     paths:
-      - 'research/sun21_sunday16_badstate_forensics.py'
+      - 'research/sun22_sunday16_frozen_router_true_oos.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,32 +17,32 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run SUN2.1 and persist once
+      - name: Run SUN2.2 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUN21_OUT=sun21_out python sun21_sunday16_badstate_forensics.py > ../SUN21_RUN.log 2>&1
+          SUN22_OUT=sun22_out python sun22_sunday16_frozen_router_true_oos.py > ../SUN22_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUN21_RUN.log
-          printf '%s\n' "$rc" > SUN21_EXIT_CODE.txt
+          cat SUN22_RUN.log
+          printf '%s\n' "$rc" > SUN22_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sun21_out/SUN2.1_CHECKPOINT.md BTC_Temporal_Sunday16_SUN21_BadState_Forensics_Checkpoint.md
-            cp research/sun21_out/sun21_summary.json BTC_Temporal_Sunday16_SUN21_BadState_Forensics_Summary.json
-            cp research/sun21_out/sun21_badstate_trades.csv BTC_Temporal_Sunday16_SUN21_BadState_Forensics_Trades.csv
-            rm -f BTC_Temporal_Sunday16_SUN21_ERROR.log
-            git add BTC_Temporal_Sunday16_SUN21_BadState_Forensics_Checkpoint.md BTC_Temporal_Sunday16_SUN21_BadState_Forensics_Summary.json BTC_Temporal_Sunday16_SUN21_BadState_Forensics_Trades.csv SUN21_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday16_SUN21_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday SUN2.1 bad-state forensics"
+            cp research/sun22_out/SUN2.2_CHECKPOINT.md BTC_Temporal_Sunday16_SUN22_True_OOS_Checkpoint.md
+            cp research/sun22_out/sun22_summary.json BTC_Temporal_Sunday16_SUN22_True_OOS_Summary.json
+            cp research/sun22_out/sun22_true_oos_trades.csv BTC_Temporal_Sunday16_SUN22_True_OOS_Trades.csv
+            rm -f BTC_Temporal_Sunday16_SUN22_ERROR.log
+            git add BTC_Temporal_Sunday16_SUN22_True_OOS_Checkpoint.md BTC_Temporal_Sunday16_SUN22_True_OOS_Summary.json BTC_Temporal_Sunday16_SUN22_True_OOS_Trades.csv SUN22_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday16_SUN22_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday SUN2.2 frozen true-OOS extension"
           else
-            cp SUN21_RUN.log BTC_Temporal_Sunday16_SUN21_ERROR.log
-            git add BTC_Temporal_Sunday16_SUN21_ERROR.log SUN21_EXIT_CODE.txt
-            msg="ci: persist Sunday SUN2.1 traceback"
+            cp SUN22_RUN.log BTC_Temporal_Sunday16_SUN22_ERROR.log
+            git add BTC_Temporal_Sunday16_SUN22_ERROR.log SUN22_EXIT_CODE.txt
+            msg="ci: persist Sunday SUN2.2 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -52,10 +52,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sun21-output
+          name: sun22-output
           path: |
-            SUN21_RUN.log
-            SUN21_EXIT_CODE.txt
-            research/sun21_out/SUN2.1_CHECKPOINT.md
-            research/sun21_out/sun21_summary.json
-            research/sun21_out/sun21_badstate_trades.csv
+            SUN22_RUN.log
+            SUN22_EXIT_CODE.txt
+            research/sun22_out/SUN2.2_CHECKPOINT.md
+            research/sun22_out/sun22_summary.json
+            research/sun22_out/sun22_true_oos_trades.csv
