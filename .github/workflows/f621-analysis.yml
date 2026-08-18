@@ -1,8 +1,8 @@
-name: SUN2.0 Sunday16 WAIT Refinement
+name: SUN2.1 Sunday16 Bad-State Forensics
 on:
   push:
     paths:
-      - 'research/sun20_sunday16_wait_refinement_agreement.py'
+      - 'research/sun21_sunday16_badstate_forensics.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,32 +17,32 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run SUN2.0 and persist once
+      - name: Run SUN2.1 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUN20_OUT=sun20_out python sun20_sunday16_wait_refinement_agreement.py > ../SUN20_RUN.log 2>&1
+          SUN21_OUT=sun21_out python sun21_sunday16_badstate_forensics.py > ../SUN21_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUN20_RUN.log
-          printf '%s\n' "$rc" > SUN20_EXIT_CODE.txt
+          cat SUN21_RUN.log
+          printf '%s\n' "$rc" > SUN21_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sun20_out/SUN2.0_CHECKPOINT.md BTC_Temporal_Sunday16_SUN20_Wait_Refinement_Checkpoint.md
-            cp research/sun20_out/sun20_summary.json BTC_Temporal_Sunday16_SUN20_Wait_Refinement_Summary.json
-            cp research/sun20_out/sun20_trades.csv BTC_Temporal_Sunday16_SUN20_Wait_Refinement_Trades.csv
-            rm -f BTC_Temporal_Sunday16_SUN20_ERROR.log
-            git add BTC_Temporal_Sunday16_SUN20_Wait_Refinement_Checkpoint.md BTC_Temporal_Sunday16_SUN20_Wait_Refinement_Summary.json BTC_Temporal_Sunday16_SUN20_Wait_Refinement_Trades.csv SUN20_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday16_SUN20_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday SUN2.0 WAIT refinement"
+            cp research/sun21_out/SUN2.1_CHECKPOINT.md BTC_Temporal_Sunday16_SUN21_BadState_Forensics_Checkpoint.md
+            cp research/sun21_out/sun21_summary.json BTC_Temporal_Sunday16_SUN21_BadState_Forensics_Summary.json
+            cp research/sun21_out/sun21_badstate_trades.csv BTC_Temporal_Sunday16_SUN21_BadState_Forensics_Trades.csv
+            rm -f BTC_Temporal_Sunday16_SUN21_ERROR.log
+            git add BTC_Temporal_Sunday16_SUN21_BadState_Forensics_Checkpoint.md BTC_Temporal_Sunday16_SUN21_BadState_Forensics_Summary.json BTC_Temporal_Sunday16_SUN21_BadState_Forensics_Trades.csv SUN21_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday16_SUN21_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday SUN2.1 bad-state forensics"
           else
-            cp SUN20_RUN.log BTC_Temporal_Sunday16_SUN20_ERROR.log
-            git add BTC_Temporal_Sunday16_SUN20_ERROR.log SUN20_EXIT_CODE.txt
-            msg="ci: persist Sunday SUN2.0 traceback"
+            cp SUN21_RUN.log BTC_Temporal_Sunday16_SUN21_ERROR.log
+            git add BTC_Temporal_Sunday16_SUN21_ERROR.log SUN21_EXIT_CODE.txt
+            msg="ci: persist Sunday SUN2.1 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -52,10 +52,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sun20-output
+          name: sun21-output
           path: |
-            SUN20_RUN.log
-            SUN20_EXIT_CODE.txt
-            research/sun20_out/SUN2.0_CHECKPOINT.md
-            research/sun20_out/sun20_summary.json
-            research/sun20_out/sun20_trades.csv
+            SUN21_RUN.log
+            SUN21_EXIT_CODE.txt
+            research/sun21_out/SUN2.1_CHECKPOINT.md
+            research/sun21_out/sun21_summary.json
+            research/sun21_out/sun21_badstate_trades.csv
