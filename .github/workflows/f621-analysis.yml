@@ -1,8 +1,8 @@
-name: F6.40 Friday Balance-Only Architecture Simplification
+name: SUN1.0 Sunday 01:00 TP-SL Discovery Validation Surface
 on:
   push:
     paths:
-      - 'research/f640_friday_balance_only_architecture_simplification.py'
+      - 'research/sun10_sunday01_tpsl_surface.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,31 +17,31 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run F6.40 and persist once
+      - name: Run SUN1.0 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          F640_OUT=f640_out python f640_friday_balance_only_architecture_simplification.py > ../F640_RUN.log 2>&1
+          SUN10_OUT=sun10_out python sun10_sunday01_tpsl_surface.py > ../SUN10_RUN.log 2>&1
           rc=$?
           cd ..
-          cat F640_RUN.log
-          printf '%s\n' "$rc" > F640_EXIT_CODE.txt
+          cat SUN10_RUN.log
+          printf '%s\n' "$rc" > SUN10_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/f640_out/F6.40_CHECKPOINT.md BTC_Temporal_Friday_F640_Balance_Only_Architecture_Simplification_Checkpoint.md
-            cp research/f640_out/f640_summary.json BTC_Temporal_Friday_F640_Balance_Only_Architecture_Simplification_Summary.json
-            rm -f BTC_Temporal_Friday_F640_ERROR.log
-            git add BTC_Temporal_Friday_F640_Balance_Only_Architecture_Simplification_Checkpoint.md BTC_Temporal_Friday_F640_Balance_Only_Architecture_Simplification_Summary.json F640_EXIT_CODE.txt
-            git add -u BTC_Temporal_Friday_F640_ERROR.log 2>/dev/null || true
-            msg="research: persist Friday F6.40 balance-only architecture simplification"
+            cp research/sun10_out/SUN1.0_CHECKPOINT.md BTC_Temporal_Sunday01_SUN10_TPSL_Surface_Checkpoint.md
+            cp research/sun10_out/sun10_summary.json BTC_Temporal_Sunday01_SUN10_TPSL_Surface_Summary.json
+            rm -f BTC_Temporal_Sunday01_SUN10_ERROR.log
+            git add BTC_Temporal_Sunday01_SUN10_TPSL_Surface_Checkpoint.md BTC_Temporal_Sunday01_SUN10_TPSL_Surface_Summary.json SUN10_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday01_SUN10_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday SUN1.0 TP-SL surface"
           else
-            cp F640_RUN.log BTC_Temporal_Friday_F640_ERROR.log
-            git add BTC_Temporal_Friday_F640_ERROR.log F640_EXIT_CODE.txt
-            msg="ci: persist Friday F6.40 traceback"
+            cp SUN10_RUN.log BTC_Temporal_Sunday01_SUN10_ERROR.log
+            git add BTC_Temporal_Sunday01_SUN10_ERROR.log SUN10_EXIT_CODE.txt
+            msg="ci: persist Sunday SUN1.0 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,10 +51,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: f640-output
+          name: sun10-output
           path: |
-            F640_RUN.log
-            F640_EXIT_CODE.txt
-            research/f640_out/F6.40_CHECKPOINT.md
-            research/f640_out/f640_summary.json
-            research/f640_out/f640_rows.csv
+            SUN10_RUN.log
+            SUN10_EXIT_CODE.txt
+            research/sun10_out/SUN1.0_CHECKPOINT.md
+            research/sun10_out/sun10_summary.json
+            research/sun10_out/sun10_surface.csv
+            research/sun10_out/sun10_champion_trades.csv
