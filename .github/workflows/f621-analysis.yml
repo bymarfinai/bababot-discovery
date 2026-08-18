@@ -1,8 +1,8 @@
-name: Sunday T-Method ST8 True-OOS August
+name: Sunday Friday-Method SF0-SF4
 on:
   push:
     paths:
-      - 'research/sunday_tmethod_st8_true_oos_august.py'
+      - 'research/sunday_fridaymethod_sf0_sf4.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,32 +17,32 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run Sunday ST8 true-OOS and persist once
+      - name: Run Sunday Friday-method and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUNT8OOS_OUT=sunt8oos_out python sunday_tmethod_st8_true_oos_august.py > ../SUNT8OOS_RUN.log 2>&1
+          SUNFM_OUT=sunfm_out python sunday_fridaymethod_sf0_sf4.py > ../SUNFM_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUNT8OOS_RUN.log
-          printf '%s\n' "$rc" > SUNT8OOS_EXIT_CODE.txt
+          cat SUNFM_RUN.log
+          printf '%s\n' "$rc" > SUNFM_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sunt8oos_out/SUNDAY_TMETHOD_ST8_TRUE_OOS_AUGUST_CHECKPOINT.md BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_Checkpoint.md
-            cp research/sunt8oos_out/sunt8_true_oos_august_summary.json BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_Summary.json
-            cp research/sunt8oos_out/sunt8_true_oos_august_trades.csv BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_Trades.csv
-            rm -f BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_ERROR.log
-            git add BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_Checkpoint.md BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_Summary.json BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_Trades.csv SUNT8OOS_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday ST8 frozen FastMR true-OOS August"
+            cp research/sunfm_out/SUNDAY_FRIDAY_METHOD_SF0_SF4_CHECKPOINT.md BTC_Temporal_Sunday_FridayMethod_SF0_SF4_Checkpoint.md
+            cp research/sunfm_out/sunfm_summary.json BTC_Temporal_Sunday_FridayMethod_SF0_SF4_Summary.json
+            cp research/sunfm_out/sunfm_rows.csv BTC_Temporal_Sunday_FridayMethod_SF0_SF4_Rows.csv
+            rm -f BTC_Temporal_Sunday_FridayMethod_SF0_SF4_ERROR.log
+            git add BTC_Temporal_Sunday_FridayMethod_SF0_SF4_Checkpoint.md BTC_Temporal_Sunday_FridayMethod_SF0_SF4_Summary.json BTC_Temporal_Sunday_FridayMethod_SF0_SF4_Rows.csv SUNFM_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday_FridayMethod_SF0_SF4_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday Friday-method SF0-SF4"
           else
-            cp SUNT8OOS_RUN.log BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_ERROR.log
-            git add BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_ERROR.log SUNT8OOS_EXIT_CODE.txt
-            msg="ci: persist Sunday ST8 true-OOS traceback"
+            cp SUNFM_RUN.log BTC_Temporal_Sunday_FridayMethod_SF0_SF4_ERROR.log
+            git add BTC_Temporal_Sunday_FridayMethod_SF0_SF4_ERROR.log SUNFM_EXIT_CODE.txt
+            msg="ci: persist Sunday Friday-method SF0-SF4 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -52,10 +52,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sunt8oos-output
+          name: sunfm-output
           path: |
-            SUNT8OOS_RUN.log
-            SUNT8OOS_EXIT_CODE.txt
-            research/sunt8oos_out/SUNDAY_TMETHOD_ST8_TRUE_OOS_AUGUST_CHECKPOINT.md
-            research/sunt8oos_out/sunt8_true_oos_august_summary.json
-            research/sunt8oos_out/sunt8_true_oos_august_trades.csv
+            SUNFM_RUN.log
+            SUNFM_EXIT_CODE.txt
+            research/sunfm_out/SUNDAY_FRIDAY_METHOD_SF0_SF4_CHECKPOINT.md
+            research/sunfm_out/sunfm_summary.json
+            research/sunfm_out/sunfm_rows.csv
