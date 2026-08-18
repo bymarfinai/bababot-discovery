@@ -1,0 +1,717 @@
+{
+  "status": "FORENSIC_ONLY_NO_RULE",
+  "cohort_counts": {
+    "f629_false_winner": 3,
+    "f629_cut_loss": 9,
+    "external_future_winner": 13,
+    "external_true_dead": 9
+  },
+  "false_winner_dates": [
+    {
+      "date": "2024-01-19",
+      "period": "discovery",
+      "parent_pnl": 0.6464958008230166,
+      "parent_mfe_r": 0.8184147116706088,
+      "parent_mae_r": 0.5170027819179238
+    },
+    {
+      "date": "2024-03-08",
+      "period": "discovery",
+      "parent_pnl": 3.1752100403366352,
+      "parent_mfe_r": 1.3615346819919922,
+      "parent_mae_r": 0.4573822665148481
+    },
+    {
+      "date": "2025-05-16",
+      "period": "discovery",
+      "parent_pnl": 0.7324427259965134,
+      "parent_mfe_r": 0.5611105329860993,
+      "parent_mae_r": 0.8052094654150688
+    }
+  ],
+  "top_continuous": [
+    {
+      "feature": "pre_taker30",
+      "subset": {
+        "auc_winner_high": 0.1111111111111111,
+        "strength": 0.8888888888888888,
+        "direction": "lower=winner",
+        "winner_median": -0.11745130935046055,
+        "loss_median": -0.018509311810892548,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.875,
+      "loo_median_strength": 0.875,
+      "external": {
+        "auc_winner_high": 0.3418803418803419,
+        "strength": 0.6581196581196581,
+        "direction": "lower=winner",
+        "winner_median": -0.11745130935046055,
+        "loss_median": 0.002936295734686567,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "b4_low_r",
+      "subset": {
+        "auc_winner_high": 0.1111111111111111,
+        "strength": 0.8888888888888888,
+        "direction": "lower=winner",
+        "winner_median": -0.45609750104942076,
+        "loss_median": -0.2064643077072262,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.8333333333333334,
+      "loo_median_strength": 0.875,
+      "external": {
+        "auc_winner_high": 0.3504273504273504,
+        "strength": 0.6495726495726496,
+        "direction": "lower=winner",
+        "winner_median": -0.2955084186503841,
+        "loss_median": -0.2062930978135353,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "ret30",
+      "subset": {
+        "auc_winner_high": 0.14814814814814814,
+        "strength": 0.8518518518518519,
+        "direction": "lower=winner",
+        "winner_median": -0.0031704790490012513,
+        "loss_median": -0.0010742921476668554,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.8333333333333334,
+      "loo_median_strength": 0.8333333333333334,
+      "external": {
+        "auc_winner_high": 0.49572649572649574,
+        "strength": 0.5042735042735043,
+        "direction": "lower=winner",
+        "winner_median": -0.0018752989953755295,
+        "loss_median": -0.0013630643131434805,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "seq_progress_r",
+      "subset": {
+        "auc_winner_high": 0.14814814814814814,
+        "strength": 0.8518518518518519,
+        "direction": "lower=winner",
+        "winner_median": -0.2907720209398239,
+        "loss_median": -0.0755672577552126,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.7777777777777778,
+      "loo_median_strength": 0.8333333333333334,
+      "external": {
+        "auc_winner_high": 0.47863247863247865,
+        "strength": 0.5213675213675213,
+        "direction": "lower=winner",
+        "winner_median": -0.07830270216277072,
+        "loss_median": -0.0755672577552126,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "b4_ret_r",
+      "subset": {
+        "auc_winner_high": 0.14814814814814814,
+        "strength": 0.8518518518518519,
+        "direction": "lower=winner",
+        "winner_median": -0.2907720209398239,
+        "loss_median": -0.0755672577552126,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.7777777777777778,
+      "loo_median_strength": 0.8333333333333334,
+      "external": {
+        "auc_winner_high": 0.47863247863247865,
+        "strength": 0.5213675213675213,
+        "direction": "lower=winner",
+        "winner_median": -0.07830270216277072,
+        "loss_median": -0.0755672577552126,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "post10_taker_change",
+      "subset": {
+        "auc_winner_high": 0.8518518518518519,
+        "strength": 0.8518518518518519,
+        "direction": "higher=winner",
+        "winner_median": 0.2839217960738881,
+        "loss_median": 0.03692817482115274,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.7777777777777778,
+      "loo_median_strength": 0.8333333333333334,
+      "external": {
+        "auc_winner_high": 0.6752136752136753,
+        "strength": 0.6752136752136753,
+        "direction": "higher=winner",
+        "winner_median": 0.19658761507411904,
+        "loss_median": 0.05202269893047917,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "post10_min_low_r",
+      "subset": {
+        "auc_winner_high": 0.14814814814814814,
+        "strength": 0.8518518518518519,
+        "direction": "lower=winner",
+        "winner_median": -0.5170027819179238,
+        "loss_median": -0.2691198335269857,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.7777777777777778,
+      "loo_median_strength": 0.8333333333333334,
+      "external": {
+        "auc_winner_high": 0.3076923076923077,
+        "strength": 0.6923076923076923,
+        "direction": "lower=winner",
+        "winner_median": -0.44880137452141255,
+        "loss_median": -0.2064643077072262,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "seq_current_higher_high",
+      "subset": {
+        "auc_winner_high": 0.16666666666666666,
+        "strength": 0.8333333333333334,
+        "direction": "lower=winner",
+        "winner_median": 0.0,
+        "loss_median": 1.0,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.8125,
+      "loo_median_strength": 0.8229166666666667,
+      "external": {
+        "auc_winner_high": 0.4358974358974359,
+        "strength": 0.5641025641025641,
+        "direction": "lower=winner",
+        "winner_median": 1.0,
+        "loss_median": 1.0,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "b4_higher_high",
+      "subset": {
+        "auc_winner_high": 0.16666666666666666,
+        "strength": 0.8333333333333334,
+        "direction": "lower=winner",
+        "winner_median": 0.0,
+        "loss_median": 1.0,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.8125,
+      "loo_median_strength": 0.8229166666666667,
+      "external": {
+        "auc_winner_high": 0.4358974358974359,
+        "strength": 0.5641025641025641,
+        "direction": "lower=winner",
+        "winner_median": 1.0,
+        "loss_median": 1.0,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "b3_taker",
+      "subset": {
+        "auc_winner_high": 0.18518518518518517,
+        "strength": 0.8148148148148149,
+        "direction": "lower=winner",
+        "winner_median": -0.335612162035114,
+        "loss_median": -0.1226884788795708,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.7777777777777778,
+      "loo_median_strength": 0.7916666666666666,
+      "external": {
+        "auc_winner_high": 0.4444444444444444,
+        "strength": 0.5555555555555556,
+        "direction": "lower=winner",
+        "winner_median": -0.13961144780324075,
+        "loss_median": -0.1226884788795708,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "b3_ret_r",
+      "subset": {
+        "auc_winner_high": 0.2222222222222222,
+        "strength": 0.7777777777777778,
+        "direction": "lower=winner",
+        "winner_median": -0.29082368572847755,
+        "loss_median": -0.15077810259835264,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.6666666666666667,
+      "loo_median_strength": 0.7916666666666666,
+      "external": {
+        "auc_winner_high": 0.3504273504273504,
+        "strength": 0.6495726495726496,
+        "direction": "lower=winner",
+        "winner_median": -0.19850793142885323,
+        "loss_median": -0.1385859380365062,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "b3_high_r",
+      "subset": {
+        "auc_winner_high": 0.2222222222222222,
+        "strength": 0.7777777777777778,
+        "direction": "lower=winner",
+        "winner_median": -0.14499609479491835,
+        "loss_median": -0.00964350412124837,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.7222222222222222,
+      "loo_median_strength": 0.75,
+      "external": {
+        "auc_winner_high": 0.3333333333333333,
+        "strength": 0.6666666666666667,
+        "direction": "lower=winner",
+        "winner_median": -0.07406886234936508,
+        "loss_median": -0.00964350412124837,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "post10_max_high_r",
+      "subset": {
+        "auc_winner_high": 0.2222222222222222,
+        "strength": 0.7777777777777778,
+        "direction": "lower=winner",
+        "winner_median": -0.14499609479491835,
+        "loss_median": -0.00964350412124837,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.7222222222222222,
+      "loo_median_strength": 0.75,
+      "external": {
+        "auc_winner_high": 0.46153846153846156,
+        "strength": 0.5384615384615384,
+        "direction": "lower=winner",
+        "winner_median": -0.03113173433293743,
+        "loss_median": 0.03141521313360889,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "b2_quote_volume",
+      "subset": {
+        "auc_winner_high": 0.25925925925925924,
+        "strength": 0.7407407407407407,
+        "direction": "lower=winner",
+        "winner_median": 45284682.1542,
+        "loss_median": 76332180.8193,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.6111111111111112,
+      "loo_median_strength": 0.7361111111111112,
+      "external": {
+        "auc_winner_high": 0.29914529914529914,
+        "strength": 0.7008547008547008,
+        "direction": "lower=winner",
+        "winner_median": 46206446.4256,
+        "loss_median": 68262091.3643,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "b2_ret_r",
+      "subset": {
+        "auc_winner_high": 0.25925925925925924,
+        "strength": 0.7407407407407407,
+        "direction": "lower=winner",
+        "winner_median": -0.15053293851024258,
+        "loss_median": -0.10302127618755375,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.6666666666666667,
+      "loo_median_strength": 0.7291666666666666,
+      "external": {
+        "auc_winner_high": 0.3333333333333333,
+        "strength": 0.6666666666666667,
+        "direction": "lower=winner",
+        "winner_median": -0.149564870408736,
+        "loss_median": -0.10315209169607455,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "b2_lower_wick_ratio",
+      "subset": {
+        "auc_winner_high": 0.25925925925925924,
+        "strength": 0.7407407407407407,
+        "direction": "lower=winner",
+        "winner_median": 0.15319865319852122,
+        "loss_median": 0.22481343283574556,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.6111111111111112,
+      "loo_median_strength": 0.7291666666666666,
+      "external": {
+        "auc_winner_high": 0.1794871794871795,
+        "strength": 0.8205128205128205,
+        "direction": "lower=winner",
+        "winner_median": 0.06940509915006778,
+        "loss_median": 0.25304347826085694,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "fib2h_baseline",
+      "subset": {
+        "auc_winner_high": 0.7407407407407407,
+        "strength": 0.7407407407407407,
+        "direction": "higher=winner",
+        "winner_median": 0.9584812672633712,
+        "loss_median": 0.7431048441494064,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.6666666666666666,
+      "loo_median_strength": 0.7152777777777778,
+      "external": {
+        "auc_winner_high": 0.5811965811965812,
+        "strength": 0.5811965811965812,
+        "direction": "higher=winner",
+        "winner_median": 0.8754798277834795,
+        "loss_median": 0.8121093497149718,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "ret240",
+      "subset": {
+        "auc_winner_high": 0.7407407407407407,
+        "strength": 0.7407407407407407,
+        "direction": "higher=winner",
+        "winner_median": 0.00131657244867589,
+        "loss_median": -0.003304291650661817,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.6666666666666666,
+      "loo_median_strength": 0.7152777777777778,
+      "external": {
+        "auc_winner_high": 0.6239316239316239,
+        "strength": 0.6239316239316239,
+        "direction": "higher=winner",
+        "winner_median": -0.0008958670409744407,
+        "loss_median": -0.003304291650661817,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "b4_body_ratio",
+      "subset": {
+        "auc_winner_high": 0.7407407407407407,
+        "strength": 0.7407407407407407,
+        "direction": "higher=winner",
+        "winner_median": 0.6401985111661587,
+        "loss_median": 0.43943778420837315,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.7083333333333334,
+      "loo_median_strength": 0.7152777777777778,
+      "external": {
+        "auc_winner_high": 0.5555555555555556,
+        "strength": 0.5555555555555556,
+        "direction": "higher=winner",
+        "winner_median": 0.6401985111661587,
+        "loss_median": 0.6226158038146619,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    },
+    {
+      "feature": "b2_range_r",
+      "subset": {
+        "auc_winner_high": 0.2962962962962963,
+        "strength": 0.7037037037037037,
+        "direction": "lower=winner",
+        "winner_median": 0.18271584260553797,
+        "loss_median": 0.23398759490368268,
+        "n_winner": 3,
+        "n_loss": 9
+      },
+      "loo_min_strength": 0.5555555555555556,
+      "loo_median_strength": 0.7083333333333334,
+      "external": {
+        "auc_winner_high": 0.452991452991453,
+        "strength": 0.5470085470085471,
+        "direction": "lower=winner",
+        "winner_median": 0.1884627312188223,
+        "loss_median": 0.23398759490368268,
+        "n_winner": 13,
+        "n_loss": 9
+      },
+      "direction_agrees_external": true
+    }
+  ],
+  "top_boolean": [
+    {
+      "feature": "seq_current_higher_high",
+      "false_winner_rate": 0.0,
+      "cut_loss_rate": 0.6666666666666666,
+      "gap_winner_minus_loss": -0.6666666666666666,
+      "external_winner_rate": 0.5384615384615384,
+      "external_dead_rate": 0.6666666666666666,
+      "external_gap_winner_minus_dead": -0.1282051282051282,
+      "same_direction_external": true
+    },
+    {
+      "feature": "b4_higher_high",
+      "false_winner_rate": 0.0,
+      "cut_loss_rate": 0.6666666666666666,
+      "gap_winner_minus_loss": -0.6666666666666666,
+      "external_winner_rate": 0.5384615384615384,
+      "external_dead_rate": 0.6666666666666666,
+      "external_gap_winner_minus_dead": -0.1282051282051282,
+      "same_direction_external": true
+    },
+    {
+      "feature": "b4_red",
+      "false_winner_rate": 0.6666666666666666,
+      "cut_loss_rate": 0.3333333333333333,
+      "gap_winner_minus_loss": 0.3333333333333333,
+      "external_winner_rate": 0.38461538461538464,
+      "external_dead_rate": 0.3333333333333333,
+      "external_gap_winner_minus_dead": 0.05128205128205132,
+      "same_direction_external": true
+    },
+    {
+      "feature": "seq_current_higher_close",
+      "false_winner_rate": 0.3333333333333333,
+      "cut_loss_rate": 0.6666666666666666,
+      "gap_winner_minus_loss": -0.3333333333333333,
+      "external_winner_rate": 0.6153846153846154,
+      "external_dead_rate": 0.6666666666666666,
+      "external_gap_winner_minus_dead": -0.05128205128205121,
+      "same_direction_external": true
+    },
+    {
+      "feature": "b4_higher_close",
+      "false_winner_rate": 0.3333333333333333,
+      "cut_loss_rate": 0.6666666666666666,
+      "gap_winner_minus_loss": -0.3333333333333333,
+      "external_winner_rate": 0.6153846153846154,
+      "external_dead_rate": 0.6666666666666666,
+      "external_gap_winner_minus_dead": -0.05128205128205121,
+      "same_direction_external": true
+    },
+    {
+      "feature": "b3_high_touched_ema7",
+      "false_winner_rate": 0.0,
+      "cut_loss_rate": 0.3333333333333333,
+      "gap_winner_minus_loss": -0.3333333333333333,
+      "external_winner_rate": 0.3076923076923077,
+      "external_dead_rate": 0.3333333333333333,
+      "external_gap_winner_minus_dead": -0.025641025641025605,
+      "same_direction_external": true
+    },
+    {
+      "feature": "pre_last_red",
+      "false_winner_rate": 1.0,
+      "cut_loss_rate": 1.0,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.46153846153846156,
+      "external_dead_rate": 1.0,
+      "external_gap_winner_minus_dead": -0.5384615384615384,
+      "same_direction_external": true
+    },
+    {
+      "feature": "seq_ema7_reclaim_any",
+      "false_winner_rate": 0.0,
+      "cut_loss_rate": 0.0,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.6153846153846154,
+      "external_dead_rate": 0.2222222222222222,
+      "external_gap_winner_minus_dead": 0.3931623931623932,
+      "same_direction_external": true
+    },
+    {
+      "feature": "seq_current_above_ema7",
+      "false_winner_rate": 0.0,
+      "cut_loss_rate": 0.0,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.6153846153846154,
+      "external_dead_rate": 0.2222222222222222,
+      "external_gap_winner_minus_dead": 0.3931623931623932,
+      "same_direction_external": true
+    },
+    {
+      "feature": "b4_high_touched_ema7",
+      "false_winner_rate": 0.3333333333333333,
+      "cut_loss_rate": 0.3333333333333333,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.7692307692307693,
+      "external_dead_rate": 0.4444444444444444,
+      "external_gap_winner_minus_dead": 0.32478632478632485,
+      "same_direction_external": true
+    },
+    {
+      "feature": "seq_current_higher_low",
+      "false_winner_rate": 0.3333333333333333,
+      "cut_loss_rate": 0.3333333333333333,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.6153846153846154,
+      "external_dead_rate": 0.4444444444444444,
+      "external_gap_winner_minus_dead": 0.170940170940171,
+      "same_direction_external": true
+    },
+    {
+      "feature": "b4_higher_low",
+      "false_winner_rate": 0.3333333333333333,
+      "cut_loss_rate": 0.3333333333333333,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.6153846153846154,
+      "external_dead_rate": 0.4444444444444444,
+      "external_gap_winner_minus_dead": 0.170940170940171,
+      "same_direction_external": true
+    },
+    {
+      "feature": "seq_struct_repair_any",
+      "false_winner_rate": 0.0,
+      "cut_loss_rate": 0.0,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.38461538461538464,
+      "external_dead_rate": 0.2222222222222222,
+      "external_gap_winner_minus_dead": 0.16239316239316243,
+      "same_direction_external": true
+    },
+    {
+      "feature": "seq_current_struct_repair",
+      "false_winner_rate": 0.0,
+      "cut_loss_rate": 0.0,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.38461538461538464,
+      "external_dead_rate": 0.2222222222222222,
+      "external_gap_winner_minus_dead": 0.16239316239316243,
+      "same_direction_external": true
+    },
+    {
+      "feature": "seq_recovery_chain_now",
+      "false_winner_rate": 0.0,
+      "cut_loss_rate": 0.0,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.38461538461538464,
+      "external_dead_rate": 0.2222222222222222,
+      "external_gap_winner_minus_dead": 0.16239316239316243,
+      "same_direction_external": true
+    },
+    {
+      "feature": "seq_full_repair_count",
+      "false_winner_rate": 0.0,
+      "cut_loss_rate": 0.0,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.3076923076923077,
+      "external_dead_rate": 0.2222222222222222,
+      "external_gap_winner_minus_dead": 0.0854700854700855,
+      "same_direction_external": true
+    },
+    {
+      "feature": "seq_full_repair_any",
+      "false_winner_rate": 0.0,
+      "cut_loss_rate": 0.0,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.3076923076923077,
+      "external_dead_rate": 0.2222222222222222,
+      "external_gap_winner_minus_dead": 0.0854700854700855,
+      "same_direction_external": true
+    },
+    {
+      "feature": "seq_current_full_repair",
+      "false_winner_rate": 0.0,
+      "cut_loss_rate": 0.0,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.3076923076923077,
+      "external_dead_rate": 0.2222222222222222,
+      "external_gap_winner_minus_dead": 0.0854700854700855,
+      "same_direction_external": true
+    },
+    {
+      "feature": "seq_recovery_chain_flow_now",
+      "false_winner_rate": 0.0,
+      "cut_loss_rate": 0.0,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.3076923076923077,
+      "external_dead_rate": 0.2222222222222222,
+      "external_gap_winner_minus_dead": 0.0854700854700855,
+      "same_direction_external": true
+    },
+    {
+      "feature": "seq_current_flow_positive",
+      "false_winner_rate": 0.3333333333333333,
+      "cut_loss_rate": 0.3333333333333333,
+      "gap_winner_minus_loss": 0.0,
+      "external_winner_rate": 0.5384615384615384,
+      "external_dead_rate": 0.5555555555555556,
+      "external_gap_winner_minus_dead": -0.017094017094017144,
+      "same_direction_external": true
+    }
+  ],
+  "guardrail": "All 3 F6.29 false-positive winners are discovery cases. No validation claim; no threshold/timing/economic sweep; no rule promoted."
+}
