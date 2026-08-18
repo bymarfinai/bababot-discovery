@@ -1,8 +1,8 @@
-name: Sunday T-Method ST8 FastMR Family
+name: Sunday T-Method ST8 True-OOS August
 on:
   push:
     paths:
-      - 'research/sunday_tmethod_st8_fastmr_family.py'
+      - 'research/sunday_tmethod_st8_true_oos_august.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,31 +17,32 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run Sunday ST8 FastMR family and persist once
+      - name: Run Sunday ST8 true-OOS and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUNT8F_OUT=sunt8f_out python sunday_tmethod_st8_fastmr_family.py > ../SUNT8F_RUN.log 2>&1
+          SUNT8OOS_OUT=sunt8oos_out python sunday_tmethod_st8_true_oos_august.py > ../SUNT8OOS_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUNT8F_RUN.log
-          printf '%s\n' "$rc" > SUNT8F_EXIT_CODE.txt
+          cat SUNT8OOS_RUN.log
+          printf '%s\n' "$rc" > SUNT8OOS_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sunt8f_out/SUNDAY_TMETHOD_ST8_FAMILY_CHECKPOINT.md BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_Checkpoint.md
-            cp research/sunt8f_out/sunt8f_summary.json BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_Summary.json
-            rm -f BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_ERROR.log
-            git add BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_Checkpoint.md BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_Summary.json SUNT8F_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday T-Method ST8 FastMR family"
+            cp research/sunt8oos_out/SUNDAY_TMETHOD_ST8_TRUE_OOS_AUGUST_CHECKPOINT.md BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_Checkpoint.md
+            cp research/sunt8oos_out/sunt8_true_oos_august_summary.json BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_Summary.json
+            cp research/sunt8oos_out/sunt8_true_oos_august_trades.csv BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_Trades.csv
+            rm -f BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_ERROR.log
+            git add BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_Checkpoint.md BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_Summary.json BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_Trades.csv SUNT8OOS_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday ST8 frozen FastMR true-OOS August"
           else
-            cp SUNT8F_RUN.log BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_ERROR.log
-            git add BTC_Temporal_Sunday_TMethod_ST8_FastMR_Family_ERROR.log SUNT8F_EXIT_CODE.txt
-            msg="ci: persist Sunday T-Method ST8 FastMR traceback"
+            cp SUNT8OOS_RUN.log BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_ERROR.log
+            git add BTC_Temporal_Sunday_TMethod_ST8_True_OOS_August_ERROR.log SUNT8OOS_EXIT_CODE.txt
+            msg="ci: persist Sunday ST8 true-OOS traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,9 +52,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sunt8f-output
+          name: sunt8oos-output
           path: |
-            SUNT8F_RUN.log
-            SUNT8F_EXIT_CODE.txt
-            research/sunt8f_out/SUNDAY_TMETHOD_ST8_FAMILY_CHECKPOINT.md
-            research/sunt8f_out/sunt8f_summary.json
+            SUNT8OOS_RUN.log
+            SUNT8OOS_EXIT_CODE.txt
+            research/sunt8oos_out/SUNDAY_TMETHOD_ST8_TRUE_OOS_AUGUST_CHECKPOINT.md
+            research/sunt8oos_out/sunt8_true_oos_august_summary.json
+            research/sunt8oos_out/sunt8_true_oos_august_trades.csv
