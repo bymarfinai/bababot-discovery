@@ -1,64 +1,12 @@
-name: F6.35 Friday Remaining Cut20 False-Winner Forensic Secondary
+name: F6.35 GitHub Actions Smoke Test
 on:
   push:
     paths:
-      - 'research/f635_friday_remaining_cut20_false_winner_forensic.py'
-      - 'research/F635_TRIGGER.txt'
       - '.github/workflows/f630-analysis.yml'
   workflow_dispatch:
-permissions:
-  contents: write
 jobs:
-  run:
+  smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - name: Mark workflow start
-        run: |
-          printf 'F6.35 secondary workflow started from %s\n' "$GITHUB_SHA" > BTC_Temporal_Friday_F635_WORKFLOW_STARTED.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Temporal_Friday_F635_WORKFLOW_STARTED.txt
-          git diff --cached --quiet || git commit -m "ci: mark Friday F6.35 workflow start"
-          git push
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: pip install numpy pandas requests
-      - name: Run F6.35 with persisted log
-        shell: bash
-        run: |
-          set +e
-          cd research
-          F635_OUT=f635_out python f635_friday_remaining_cut20_false_winner_forensic.py > ../F635_RUN.log 2>&1
-          rc=$?
-          cd ..
-          cat F635_RUN.log
-          printf '%s\n' "$rc" > F635_EXIT_CODE.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ "$rc" -eq 0 ]; then
-            cp research/f635_out/F6.35_CHECKPOINT.md BTC_Temporal_Friday_F635_Remaining_Cut20_False_Winner_Forensic_Checkpoint.md
-            cp research/f635_out/f635_summary.json BTC_Temporal_Friday_F635_Remaining_Cut20_False_Winner_Forensic_Summary.json
-            rm -f BTC_Temporal_Friday_F635_ERROR.log
-            git add BTC_Temporal_Friday_F635_Remaining_Cut20_False_Winner_Forensic_Checkpoint.md BTC_Temporal_Friday_F635_Remaining_Cut20_False_Winner_Forensic_Summary.json F635_EXIT_CODE.txt
-            git add -u BTC_Temporal_Friday_F635_ERROR.log 2>/dev/null || true
-            git diff --cached --quiet || git commit -m "research: persist Friday F6.35 remaining cut20 false-winner forensic"
-          else
-            cp F635_RUN.log BTC_Temporal_Friday_F635_ERROR.log
-            git add BTC_Temporal_Friday_F635_ERROR.log F635_EXIT_CODE.txt
-            git diff --cached --quiet || git commit -m "ci: persist Friday F6.35 traceback"
-          fi
-          git push
-          exit "$rc"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: f635-secondary-output
-          path: |
-            F635_RUN.log
-            F635_EXIT_CODE.txt
-            research/f635_out/F6.35_CHECKPOINT.md
-            research/f635_out/f635_summary.json
-            research/f635_out/f635_rows.csv
+      - name: Runner smoke
+        run: echo "GitHub Actions runner reached successfully"
