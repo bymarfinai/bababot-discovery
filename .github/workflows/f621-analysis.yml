@@ -1,8 +1,8 @@
-name: SUN1.7b Sunday16 Loss Previous-Day Forensics
+name: SUN1.8 Sunday16 Runner Failed-Development
 on:
   push:
     paths:
-      - 'research/sun17b_sunday16_loss_prevday_forensics_exactfunding.py'
+      - 'research/sun18_sunday16_prevday_runner_faileddev.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,31 +17,32 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run SUN1.7b and persist once
+      - name: Run SUN1.8 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUN17_OUT=sun17_out python sun17b_sunday16_loss_prevday_forensics_exactfunding.py > ../SUN17_RUN.log 2>&1
+          SUN18_OUT=sun18_out python sun18_sunday16_prevday_runner_faileddev.py > ../SUN18_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUN17_RUN.log
-          printf '%s\n' "$rc" > SUN17_EXIT_CODE.txt
+          cat SUN18_RUN.log
+          printf '%s\n' "$rc" > SUN18_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sun17_out/SUN1.7_CHECKPOINT.md BTC_Temporal_Sunday16_SUN17_Loss_PreviousDay_Forensics_Checkpoint.md
-            cp research/sun17_out/sun17_summary.json BTC_Temporal_Sunday16_SUN17_Loss_PreviousDay_Forensics_Summary.json
-            rm -f BTC_Temporal_Sunday16_SUN17_ERROR.log
-            git add BTC_Temporal_Sunday16_SUN17_Loss_PreviousDay_Forensics_Checkpoint.md BTC_Temporal_Sunday16_SUN17_Loss_PreviousDay_Forensics_Summary.json SUN17_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday16_SUN17_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday SUN1.7b loss previous-day forensics"
+            cp research/sun18_out/SUN1.8_CHECKPOINT.md BTC_Temporal_Sunday16_SUN18_Runner_FailedDev_Checkpoint.md
+            cp research/sun18_out/sun18_summary.json BTC_Temporal_Sunday16_SUN18_Runner_FailedDev_Summary.json
+            cp research/sun18_out/sun18_trades.csv BTC_Temporal_Sunday16_SUN18_Runner_FailedDev_Trades.csv
+            rm -f BTC_Temporal_Sunday16_SUN18_ERROR.log
+            git add BTC_Temporal_Sunday16_SUN18_Runner_FailedDev_Checkpoint.md BTC_Temporal_Sunday16_SUN18_Runner_FailedDev_Summary.json BTC_Temporal_Sunday16_SUN18_Runner_FailedDev_Trades.csv SUN18_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday16_SUN18_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday SUN1.8 runner failed-development test"
           else
-            cp SUN17_RUN.log BTC_Temporal_Sunday16_SUN17_ERROR.log
-            git add BTC_Temporal_Sunday16_SUN17_ERROR.log SUN17_EXIT_CODE.txt
-            msg="ci: persist Sunday SUN1.7b traceback"
+            cp SUN18_RUN.log BTC_Temporal_Sunday16_SUN18_ERROR.log
+            git add BTC_Temporal_Sunday16_SUN18_ERROR.log SUN18_EXIT_CODE.txt
+            msg="ci: persist Sunday SUN1.8 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,10 +52,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sun17b-output
+          name: sun18-output
           path: |
-            SUN17_RUN.log
-            SUN17_EXIT_CODE.txt
-            research/sun17_out/SUN1.7_CHECKPOINT.md
-            research/sun17_out/sun17_summary.json
-            research/sun17_out/sun17_trades.csv
+            SUN18_RUN.log
+            SUN18_EXIT_CODE.txt
+            research/sun18_out/SUN1.8_CHECKPOINT.md
+            research/sun18_out/sun18_summary.json
+            research/sun18_out/sun18_trades.csv
