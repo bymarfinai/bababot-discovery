@@ -1,8 +1,8 @@
-name: SUN1.3 Sunday 09:00 TP-SL Deep Dive
+name: SUN1.4 Sunday09 Reverse After 0.4
 on:
   push:
     paths:
-      - 'research/sun13_sunday09_tpsl_deepdive.py'
+      - 'research/sun14_sunday09_reverse_after_04.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,31 +17,31 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run SUN1.3 and persist once
+      - name: Run SUN1.4 and persist once
         shell: bash
         run: |
           set +e
           cd research
-          SUN13_OUT=sun13_out python sun13_sunday09_tpsl_deepdive.py > ../SUN13_RUN.log 2>&1
+          SUN14_OUT=sun14_out python sun14_sunday09_reverse_after_04.py > ../SUN14_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUN13_RUN.log
-          printf '%s\n' "$rc" > SUN13_EXIT_CODE.txt
+          cat SUN14_RUN.log
+          printf '%s\n' "$rc" > SUN14_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sun13_out/SUN1.3_CHECKPOINT.md BTC_Temporal_Sunday09_SUN13_TPSL_DeepDive_Checkpoint.md
-            cp research/sun13_out/sun13_summary.json BTC_Temporal_Sunday09_SUN13_TPSL_DeepDive_Summary.json
-            rm -f BTC_Temporal_Sunday09_SUN13_ERROR.log
-            git add BTC_Temporal_Sunday09_SUN13_TPSL_DeepDive_Checkpoint.md BTC_Temporal_Sunday09_SUN13_TPSL_DeepDive_Summary.json SUN13_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday09_SUN13_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday SUN1.3 09:00 TP-SL deep dive"
+            cp research/sun14_out/SUN1.4_CHECKPOINT.md BTC_Temporal_Sunday09_SUN14_Reverse_After_04_Checkpoint.md
+            cp research/sun14_out/sun14_summary.json BTC_Temporal_Sunday09_SUN14_Reverse_After_04_Summary.json
+            rm -f BTC_Temporal_Sunday09_SUN14_ERROR.log
+            git add BTC_Temporal_Sunday09_SUN14_Reverse_After_04_Checkpoint.md BTC_Temporal_Sunday09_SUN14_Reverse_After_04_Summary.json SUN14_EXIT_CODE.txt
+            git add -u BTC_Temporal_Sunday09_SUN14_ERROR.log 2>/dev/null || true
+            msg="research: persist Sunday SUN1.4 reverse-after-0.4 test"
           else
-            cp SUN13_RUN.log BTC_Temporal_Sunday09_SUN13_ERROR.log
-            git add BTC_Temporal_Sunday09_SUN13_ERROR.log SUN13_EXIT_CODE.txt
-            msg="ci: persist Sunday SUN1.3 traceback"
+            cp SUN14_RUN.log BTC_Temporal_Sunday09_SUN14_ERROR.log
+            git add BTC_Temporal_Sunday09_SUN14_ERROR.log SUN14_EXIT_CODE.txt
+            msg="ci: persist Sunday SUN1.4 traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,9 +51,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sun13-output
+          name: sun14-output
           path: |
-            SUN13_RUN.log
-            SUN13_EXIT_CODE.txt
-            research/sun13_out/SUN1.3_CHECKPOINT.md
-            research/sun13_out/sun13_summary.json
+            SUN14_RUN.log
+            SUN14_EXIT_CODE.txt
+            research/sun14_out/SUN1.4_CHECKPOINT.md
+            research/sun14_out/sun14_summary.json
+            research/sun14_out/sun14_surface.csv
