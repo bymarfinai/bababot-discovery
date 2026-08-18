@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sun18_sunday16_prevday_runner_faileddev.py", line 183, in <module>
+    if __name__=='__main__': main()
+                             ^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sun18_sunday16_prevday_runner_faileddev.py", line 81, in main
+    raise RuntimeError(f'parent parity failed {base}')
+RuntimeError: parent parity failed {'D': {'n': 83, 'wins': 40, 'wr': 0.4819277108433735, 'pnl': 54.744292521547834, 'pf': 1.2054037198001968, 'exp': 0.659569789416239, 'dd': 46.34160134268663, 'loss_streak': 6}, 'V': {'n': 56, 'wins': 26, 'wr': 0.4642857142857143, 'pnl': 10.495643607623872, 'pf': 1.0545686356599773, 'exp': 0.18742220727899772, 'dd': 37.170116221670135, 'loss_streak': 6}, 'full': {'n': 139, 'wins': 66, 'wr': 0.4748201438848921, 'pnl': 65.23993612917172, 'pf': 1.1421786609652187, 'exp': 0.4693520584832498, 'dd': 61.145851089251636, 'loss_streak': 7}}
