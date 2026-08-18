@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sun17_sunday16_loss_prevday_forensics.py", line 309, in <module>
+    if __name__=='__main__': main()
+                             ^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sun17_sunday16_loss_prevday_forensics.py", line 202, in main
+    if not all(gate.values()): raise RuntimeError(f'SUN1.7 parent reproduction failed: {base} gate={gate}')
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: SUN1.7 parent reproduction failed: {'n': 139, 'wins': 66, 'wr': 0.4748201438848921, 'pnl': 65.23993612917172, 'pf': 1.1421786609652187, 'exp': 0.4693520584832498} gate={'n': True, 'wins': True, 'wr': True, 'pnl': False}
