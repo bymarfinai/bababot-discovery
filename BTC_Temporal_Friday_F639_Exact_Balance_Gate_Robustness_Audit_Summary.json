@@ -1,0 +1,322 @@
+{
+  "status": "ROBUSTNESS_FORENSIC_ONLY_NO_PROMOTION",
+  "robustness_screen_pass": true,
+  "exact_gate": "upper_wick_ratio > body_ratio_expansion_vs_median_prior_3_completed_5m_bars",
+  "f638_economic_branch_parity": {
+    "winner_n": 1,
+    "loser_n": 5,
+    "winner_gate_n": 1,
+    "loser_gate_n": 0
+  },
+  "branch_matched": {
+    "winner_n": 8,
+    "dead_n": 6,
+    "winner_gate_n": 7,
+    "dead_gate_n": 0,
+    "winner_gate_rate": 0.875,
+    "dead_gate_rate": 0.0,
+    "gap_winner_minus_dead": 0.875,
+    "margin_auc_winner_high": 0.9375,
+    "gate_enrichment_p_one_sided": 0.002331002331002331
+  },
+  "broad_control": {
+    "winner_n": 13,
+    "dead_n": 9,
+    "winner_gate_n": 10,
+    "dead_gate_n": 1,
+    "winner_gate_rate": 0.7692307692307693,
+    "dead_gate_rate": 0.1111111111111111,
+    "gap_winner_minus_dead": 0.6581196581196582,
+    "margin_auc_winner_high": 0.7863247863247863,
+    "gate_enrichment_p_one_sided": 0.0037593984962406013
+  },
+  "branch_DV": {
+    "D": {
+      "winner_n": 5,
+      "dead_n": 2,
+      "winner_gate_n": 4,
+      "dead_gate_n": 0,
+      "winner_gate_rate": 0.8,
+      "dead_gate_rate": 0.0,
+      "gap_winner_minus_dead": 0.8,
+      "margin_auc_winner_high": 0.9,
+      "gate_enrichment_p_one_sided": 0.14285714285714285
+    },
+    "V": {
+      "winner_n": 3,
+      "dead_n": 4,
+      "winner_gate_n": 3,
+      "dead_gate_n": 0,
+      "winner_gate_rate": 1.0,
+      "dead_gate_rate": 0.0,
+      "gap_winner_minus_dead": 1.0,
+      "margin_auc_winner_high": 1.0,
+      "gate_enrichment_p_one_sided": 0.02857142857142857
+    }
+  },
+  "calendar_year_atlas": {
+    "2024": {
+      "winner_n": 4,
+      "dead_n": 1,
+      "winner_gate_n": 3,
+      "dead_gate_n": 0,
+      "winner_gate_rate": 0.75,
+      "dead_gate_rate": 0.0,
+      "gap_winner_minus_dead": 0.75,
+      "margin_auc_winner_high": 0.75
+    },
+    "2025": {
+      "winner_n": 1,
+      "dead_n": 2,
+      "winner_gate_n": 1,
+      "dead_gate_n": 0,
+      "winner_gate_rate": 1.0,
+      "dead_gate_rate": 0.0,
+      "gap_winner_minus_dead": 1.0,
+      "margin_auc_winner_high": 1.0
+    },
+    "2026": {
+      "winner_n": 3,
+      "dead_n": 3,
+      "winner_gate_n": 3,
+      "dead_gate_n": 0,
+      "winner_gate_rate": 1.0,
+      "dead_gate_rate": 0.0,
+      "gap_winner_minus_dead": 1.0,
+      "margin_auc_winner_high": 1.0
+    }
+  },
+  "leave_one_calendar_year_out": {
+    "2024": {
+      "winner_n": 4,
+      "dead_n": 5,
+      "winner_gate_n": 4,
+      "dead_gate_n": 0,
+      "winner_gate_rate": 1.0,
+      "dead_gate_rate": 0.0,
+      "gap_winner_minus_dead": 1.0,
+      "margin_auc_winner_high": 1.0
+    },
+    "2025": {
+      "winner_n": 7,
+      "dead_n": 4,
+      "winner_gate_n": 6,
+      "dead_gate_n": 0,
+      "winner_gate_rate": 0.8571428571428571,
+      "dead_gate_rate": 0.0,
+      "gap_winner_minus_dead": 0.8571428571428571,
+      "margin_auc_winner_high": 0.8928571428571429
+    },
+    "2026": {
+      "winner_n": 5,
+      "dead_n": 3,
+      "winner_gate_n": 4,
+      "dead_gate_n": 0,
+      "winner_gate_rate": 0.8,
+      "dead_gate_rate": 0.0,
+      "gap_winner_minus_dead": 0.8,
+      "margin_auc_winner_high": 0.9333333333333333
+    }
+  },
+  "screen_requirements": {
+    "branch_gap_strict_positive": true,
+    "broad_gap_strict_positive": true,
+    "D_and_V_nonnegative": true,
+    "all_available_leave_one_year_out_strict_positive": true
+  },
+  "branch_gate_rows": [
+    {
+      "date": "2024-01-19",
+      "year": 2024,
+      "period": "discovery",
+      "parent_pnl": 0.6464958008230166,
+      "parent_mfe_r": 0.8184147116706088,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.15705128205132504,
+      "body_expansion_prev3median": 0.11275183150166446,
+      "balance_margin": 0.044299450549660585,
+      "EXACT_F638_BALANCE_GATE": true
+    },
+    {
+      "date": "2024-06-07",
+      "year": 2024,
+      "period": "discovery",
+      "parent_pnl": 2.2641437765556223,
+      "parent_mfe_r": 2.0000590319602107,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.39712230215835714,
+      "body_expansion_prev3median": 0.1000585578048071,
+      "balance_margin": 0.29706374435355004,
+      "EXACT_F638_BALANCE_GATE": true
+    },
+    {
+      "date": "2024-06-28",
+      "year": 2024,
+      "period": "discovery",
+      "parent_pnl": -1.060675494960666,
+      "parent_mfe_r": 1.2816092221813298,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.6915113871635495,
+      "body_expansion_prev3median": -0.5887464871929031,
+      "balance_margin": 1.2802578743564528,
+      "EXACT_F638_BALANCE_GATE": true
+    },
+    {
+      "date": "2024-09-20",
+      "year": 2024,
+      "period": "discovery",
+      "parent_pnl": -4.25,
+      "parent_mfe_r": 0.40340951915972056,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.1170699803793413,
+      "body_expansion_prev3median": 0.23555623723060526,
+      "balance_margin": -0.11848625685126396,
+      "EXACT_F638_BALANCE_GATE": false
+    },
+    {
+      "date": "2024-11-15",
+      "year": 2024,
+      "period": "discovery",
+      "parent_pnl": 9.25,
+      "parent_mfe_r": 2.9158242477527185,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.04853833425255887,
+      "body_expansion_prev3median": 0.4337575129566972,
+      "balance_margin": -0.3852191787041383,
+      "EXACT_F638_BALANCE_GATE": false
+    },
+    {
+      "date": "2024-12-13",
+      "year": 2024,
+      "period": "discovery",
+      "parent_pnl": 0.12262824438394393,
+      "parent_mfe_r": 0.956330340275789,
+      "base_layer": "CONTEXT_REPAIR_FAILURE_65",
+      "upper_wick_ratio": 0.2792968749999306,
+      "body_expansion_prev3median": -0.11292280246805408,
+      "balance_margin": 0.3922196774679847,
+      "EXACT_F638_BALANCE_GATE": true
+    },
+    {
+      "date": "2025-03-07",
+      "year": 2025,
+      "period": "discovery",
+      "parent_pnl": 9.25,
+      "parent_mfe_r": 3.001642289006615,
+      "base_layer": "D3",
+      "upper_wick_ratio": 0.08666666666668431,
+      "body_expansion_prev3median": -0.12210146644543268,
+      "balance_margin": 0.208768133112117,
+      "EXACT_F638_BALANCE_GATE": true
+    },
+    {
+      "date": "2025-05-09",
+      "year": 2025,
+      "period": "discovery",
+      "parent_pnl": -4.25,
+      "parent_mfe_r": 0.4448539662744087,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.03669275929550007,
+      "body_expansion_prev3median": 0.5686440924823734,
+      "balance_margin": -0.5319513331868733,
+      "EXACT_F638_BALANCE_GATE": false
+    },
+    {
+      "date": "2025-08-29",
+      "year": 2025,
+      "period": "validation",
+      "parent_pnl": -4.25,
+      "parent_mfe_r": 1.9752319809608818,
+      "base_layer": "F65_60",
+      "upper_wick_ratio": 0.03801317790167202,
+      "body_expansion_prev3median": 0.20585932476493296,
+      "balance_margin": -0.16784614686326094,
+      "EXACT_F638_BALANCE_GATE": false
+    },
+    {
+      "date": "2025-09-12",
+      "year": 2025,
+      "period": "validation",
+      "parent_pnl": -0.46446923873230617,
+      "parent_mfe_r": 0.2416363824426147,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.0,
+      "body_expansion_prev3median": 0.6541971757320972,
+      "balance_margin": -0.6541971757320972,
+      "EXACT_F638_BALANCE_GATE": false
+    },
+    {
+      "date": "2026-01-09",
+      "year": 2026,
+      "period": "validation",
+      "parent_pnl": -4.25,
+      "parent_mfe_r": 0.15732662535018957,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.0005032712631669367,
+      "body_expansion_prev3median": 0.4778806925868116,
+      "balance_margin": -0.47737742132364464,
+      "EXACT_F638_BALANCE_GATE": false
+    },
+    {
+      "date": "2026-03-13",
+      "year": 2026,
+      "period": "validation",
+      "parent_pnl": 9.25,
+      "parent_mfe_r": 3.3604312463629986,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.32438316400577755,
+      "body_expansion_prev3median": -0.43592243637035255,
+      "balance_margin": 0.7603056003761302,
+      "EXACT_F638_BALANCE_GATE": true
+    },
+    {
+      "date": "2026-03-27",
+      "year": 2026,
+      "period": "validation",
+      "parent_pnl": -4.25,
+      "parent_mfe_r": 0.24629175541995046,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.0006605019814483005,
+      "body_expansion_prev3median": 0.2601212215402744,
+      "balance_margin": -0.2594607195588261,
+      "EXACT_F638_BALANCE_GATE": false
+    },
+    {
+      "date": "2026-04-24",
+      "year": 2026,
+      "period": "validation",
+      "parent_pnl": 2.0173101822328627,
+      "parent_mfe_r": 1.4951867465056485,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.16240497581202815,
+      "body_expansion_prev3median": -0.644137073250829,
+      "balance_margin": 0.8065420490628572,
+      "EXACT_F638_BALANCE_GATE": true
+    },
+    {
+      "date": "2026-05-22",
+      "year": 2026,
+      "period": "validation",
+      "parent_pnl": -1.468654513305439,
+      "parent_mfe_r": 0.3355075155899088,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.0,
+      "body_expansion_prev3median": 0.32537481493847586,
+      "balance_margin": -0.32537481493847586,
+      "EXACT_F638_BALANCE_GATE": false
+    },
+    {
+      "date": "2026-06-19",
+      "year": 2026,
+      "period": "validation",
+      "parent_pnl": 3.8975290929889335,
+      "parent_mfe_r": 1.8667259466462114,
+      "base_layer": "PARENT",
+      "upper_wick_ratio": 0.27142857142851945,
+      "body_expansion_prev3median": -0.07990730643393518,
+      "balance_margin": 0.3513358778624546,
+      "EXACT_F638_BALANCE_GATE": true
+    }
+  ],
+  "guardrail": "Exact F6.38 gate only. No tuning or economic retest. All chronology slices are robustness checks, not untouched OOS."
+}
