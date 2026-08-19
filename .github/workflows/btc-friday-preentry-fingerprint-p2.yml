@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'research/btc_friday_sr80_level_reliability.py'
+      - 'research/btc_friday_sr80_level_reliability_fast.py'
       - 'BTC_Friday_SR80_Level_Reliability_Preregistration.md'
       - '.github/workflows/btc-friday-preentry-fingerprint-p2.yml'
 
@@ -12,7 +13,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-sr80-level-reliability
+  group: btc-friday-sr80-level-reliability-fast
   cancel-in-progress: false
 
 jobs:
@@ -28,12 +29,12 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install numpy pandas requests scikit-learn
-      - name: Run frozen SR80
+      - name: Run frozen SR80 with parallel official-data transport
         id: sr80run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_friday_sr80_level_reliability.py > BTC_Friday_SR80_Level_Reliability_Run.log 2>&1
+          PYTHONPATH=research python research/btc_friday_sr80_level_reliability_fast.py > BTC_Friday_SR80_Level_Reliability_Run.log 2>&1
           code=$?
           echo "$code" > BTC_Friday_SR80_Level_Reliability_EXIT_CODE.txt
           cat BTC_Friday_SR80_Level_Reliability_Run.log
