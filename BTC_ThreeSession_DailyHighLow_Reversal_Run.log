@@ -1,0 +1,18 @@
+downloaded 10/51 archives
+downloaded 20/51 archives
+downloaded 30/51 archives
+downloaded 40/51 archives
+downloaded 50/51 archives
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_three_session_daily_hilo_reversal.py", line 420, in <module>
+    main()
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_three_session_daily_hilo_reversal.py", line 324, in main
+    s = stats(hz); sp = split_stats(hz); bl = blocks(hz); g = theory_gate(s, sp, bl)
+                                              ^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_three_session_daily_hilo_reversal.py", line 282, in blocks
+    out.append({"block": f"B{i}", **stats(part)})
+                                    ^^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_three_session_daily_hilo_reversal.py", line 245, in stats
+    if z is None or z.empty:
+                    ^^^^^^^
+AttributeError: 'numpy.ndarray' object has no attribute 'empty'
