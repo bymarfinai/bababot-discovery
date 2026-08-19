@@ -1,0 +1,63 @@
+name: BTC AOH1 Asia Open High Failed Acceptance
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_aoh1_asia_open_high_failed_acceptance.py'
+      - 'BTC_AOH1_AsiaOpen_High_FailedAcceptance_Preregistration.md'
+      - '.github/workflows/btc-aoh1-asia-open-high.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: btc-aoh1-asia-open-high
+  cancel-in-progress: true
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests
+      - name: Run frozen AOH1
+        id: run
+        continue-on-error: true
+        run: |
+          set +e
+          python research/btc_aoh1_asia_open_high_failed_acceptance.py > BTC_AOH1_AsiaOpen_High_FailedAcceptance_Run.log 2>&1
+          code=$?
+          echo "$code" > BTC_AOH1_AsiaOpen_High_FailedAcceptance_EXIT_CODE.txt
+          cat BTC_AOH1_AsiaOpen_High_FailedAcceptance_Run.log
+          exit $code
+      - name: Persist artifacts safely
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_AOH1_AsiaOpen_High_FailedAcceptance_EXIT_CODE.txt BTC_AOH1_AsiaOpen_High_FailedAcceptance_Run.log
+          for f in BTC_AOH1_AsiaOpen_High_FailedAcceptance_Result.md BTC_AOH1_AsiaOpen_High_FailedAcceptance_Result.json BTC_AOH1_AsiaOpen_High_FailedAcceptance_August_Events.csv; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git stash push --include-untracked -m aoh1-artifacts
+            git pull --rebase origin main
+            git stash pop
+            git add BTC_AOH1_AsiaOpen_High_FailedAcceptance_EXIT_CODE.txt BTC_AOH1_AsiaOpen_High_FailedAcceptance_Run.log
+            for f in BTC_AOH1_AsiaOpen_High_FailedAcceptance_Result.md BTC_AOH1_AsiaOpen_High_FailedAcceptance_Result.json BTC_AOH1_AsiaOpen_High_FailedAcceptance_August_Events.csv; do
+              if [ -f "$f" ]; then git add "$f"; fi
+            done
+            git commit -m "research: persist AOH1 failed-acceptance results"
+            git push
+          fi
+      - name: Fail if backtest failed
+        if: steps.run.outcome == 'failure'
+        run: exit 1
