@@ -1,8 +1,8 @@
-name: Tuesday August Compression Guard Diagnostic
+name: Tuesday Anchored Walk-Forward TRADE-WAIT
 on:
   push:
     paths:
-      - 'research/tuesday_august_compression_guard_diagnostic.py'
+      - 'research/tuesday_walkforward_trade_wait.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -10,38 +10,41 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install numpy pandas requests
-      - name: Run compression guard diagnostic and persist
+      - run: pip install numpy pandas requests scikit-learn
+      - name: Run Tuesday anchored walk-forward and persist
         shell: bash
         run: |
           set +e
           cd research
-          TUECOMPG_OUT=tuecompg_out python tuesday_august_compression_guard_diagnostic.py > ../TUECOMPG_RUN.log 2>&1
+          TUEWF_OUT=tuewf_out python tuesday_walkforward_trade_wait.py > ../TUEWF_RUN.log 2>&1
           rc=$?
           cd ..
-          cat TUECOMPG_RUN.log
-          printf '%s\n' "$rc" > TUECOMPG_EXIT_CODE.txt
+          cat TUEWF_RUN.log
+          printf '%s\n' "$rc" > TUEWF_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/tuecompg_out/TUESDAY_AUGUST_COMPRESSION_GUARD_DIAGNOSTIC.md BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic.md
-            cp research/tuecompg_out/tuesday_august_compression_guard_summary.json BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic_Summary.json
-            rm -f BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic_ERROR.log
-            git add BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic.md BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic_Summary.json TUECOMPG_EXIT_CODE.txt
-            git add -u BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic_ERROR.log 2>/dev/null || true
-            msg="research: persist Tuesday August compression guard diagnostic"
+            cp research/tuewf_out/TUESDAY_WALKFORWARD_TRADE_WAIT.md BTC_Temporal_Tuesday_WalkForward_TradeWait.md
+            cp research/tuewf_out/tuesday_walkforward_summary.json BTC_Temporal_Tuesday_WalkForward_TradeWait_Summary.json
+            cp research/tuewf_out/tuesday_walkforward_predictions.csv BTC_Temporal_Tuesday_WalkForward_TradeWait_Predictions.csv
+            cp research/tuewf_out/tuesday_walkforward_august.csv BTC_Temporal_Tuesday_WalkForward_TradeWait_August.csv
+            cp research/tuewf_out/tuesday_walkforward_model_state.json BTC_Temporal_Tuesday_WalkForward_Model_State.json
+            rm -f BTC_Temporal_Tuesday_WalkForward_TradeWait_ERROR.log
+            git add BTC_Temporal_Tuesday_WalkForward_TradeWait.md BTC_Temporal_Tuesday_WalkForward_TradeWait_Summary.json BTC_Temporal_Tuesday_WalkForward_TradeWait_Predictions.csv BTC_Temporal_Tuesday_WalkForward_TradeWait_August.csv BTC_Temporal_Tuesday_WalkForward_Model_State.json TUEWF_EXIT_CODE.txt
+            git add -u BTC_Temporal_Tuesday_WalkForward_TradeWait_ERROR.log 2>/dev/null || true
+            msg="research: persist Tuesday anchored walk-forward trade-wait"
           else
-            cp TUECOMPG_RUN.log BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic_ERROR.log
-            git add BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic_ERROR.log TUECOMPG_EXIT_CODE.txt
-            msg="ci: persist Tuesday compression diagnostic traceback"
+            cp TUEWF_RUN.log BTC_Temporal_Tuesday_WalkForward_TradeWait_ERROR.log
+            git add BTC_Temporal_Tuesday_WalkForward_TradeWait_ERROR.log TUEWF_EXIT_CODE.txt
+            msg="ci: persist Tuesday walk-forward traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -51,9 +54,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: tuecompg-output
+          name: tue-walkforward-output
           path: |
-            TUECOMPG_RUN.log
-            TUECOMPG_EXIT_CODE.txt
-            research/tuecompg_out/TUESDAY_AUGUST_COMPRESSION_GUARD_DIAGNOSTIC.md
-            research/tuecompg_out/tuesday_august_compression_guard_summary.json
+            TUEWF_RUN.log
+            TUEWF_EXIT_CODE.txt
+            research/tuewf_out/TUESDAY_WALKFORWARD_TRADE_WAIT.md
+            research/tuewf_out/tuesday_walkforward_summary.json
+            research/tuewf_out/tuesday_walkforward_predictions.csv
+            research/tuewf_out/tuesday_walkforward_august.csv
+            research/tuewf_out/tuesday_walkforward_model_state.json
