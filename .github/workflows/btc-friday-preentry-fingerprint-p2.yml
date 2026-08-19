@@ -4,27 +4,19 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_friday_sr80_level_reliability.py'
-      - 'research/btc_friday_sr80_level_reliability_fast.py'
-      - 'BTC_Friday_SR80_Level_Reliability_Preregistration.md'
-      - '.github/workflows/btc-friday-preentry-fingerprint-p2.yml'
-  pull_request:
-    paths:
-      - 'SR80_PR_TRIGGER.md'
-      - 'research/btc_friday_sr80_level_reliability.py'
-      - 'research/btc_friday_sr80_level_reliability_fast.py'
-      - 'BTC_Friday_SR80_Level_Reliability_Preregistration.md'
+      - 'research/btc_friday_sr81_prior_proof_level.py'
+      - 'BTC_Friday_SR81_Prior_Proof_Level_Preregistration.md'
       - '.github/workflows/btc-friday-preentry-fingerprint-p2.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-sr80-level-reliability-${{ github.event_name }}-${{ github.ref }}
+  group: btc-friday-sr81-prior-proof
   cancel-in-progress: false
 
 jobs:
-  sr80:
+  sr81:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -36,36 +28,36 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install numpy pandas requests scikit-learn
-      - name: Run frozen SR80 with parallel official-data transport
-        id: sr80run
+      - name: Run frozen SR81
+        id: sr81run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_friday_sr80_level_reliability_fast.py > BTC_Friday_SR80_Level_Reliability_Run.log 2>&1
+          PYTHONPATH=research python research/btc_friday_sr81_prior_proof_level.py > BTC_Friday_SR81_Prior_Proof_Level_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_Friday_SR80_Level_Reliability_EXIT_CODE.txt
-          cat BTC_Friday_SR80_Level_Reliability_Run.log
+          echo "$code" > BTC_Friday_SR81_Prior_Proof_Level_EXIT_CODE.txt
+          cat BTC_Friday_SR81_Prior_Proof_Level_Run.log
           exit $code
-      - name: Persist SR80 artifacts safely
-        if: always() && github.event_name != 'pull_request'
+      - name: Persist SR81 artifacts safely
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Friday_SR80_Level_Reliability_EXIT_CODE.txt BTC_Friday_SR80_Level_Reliability_Run.log
-          for f in BTC_Friday_SR80_Level_Reliability_Result.md BTC_Friday_SR80_Level_Reliability_Result.json BTC_Friday_SR80_Level_Reliability_Rows.csv BTC_Friday_SR80_Level_Reliability_Discovery_Leaves.csv; do
+          git add BTC_Friday_SR81_Prior_Proof_Level_EXIT_CODE.txt BTC_Friday_SR81_Prior_Proof_Level_Run.log
+          for f in BTC_Friday_SR81_Prior_Proof_Level_Result.md BTC_Friday_SR81_Prior_Proof_Level_Result.json BTC_Friday_SR81_Prior_Proof_Level_Rows.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git stash push --keep-index --include-untracked -m sr80-artifacts || true
+            git stash push --keep-index --include-untracked -m sr81-artifacts || true
             git pull --rebase origin main
             git stash pop || true
-            git add BTC_Friday_SR80_Level_Reliability_EXIT_CODE.txt BTC_Friday_SR80_Level_Reliability_Run.log
-            for f in BTC_Friday_SR80_Level_Reliability_Result.md BTC_Friday_SR80_Level_Reliability_Result.json BTC_Friday_SR80_Level_Reliability_Rows.csv BTC_Friday_SR80_Level_Reliability_Discovery_Leaves.csv; do
+            git add BTC_Friday_SR81_Prior_Proof_Level_EXIT_CODE.txt BTC_Friday_SR81_Prior_Proof_Level_Run.log
+            for f in BTC_Friday_SR81_Prior_Proof_Level_Result.md BTC_Friday_SR81_Prior_Proof_Level_Result.json BTC_Friday_SR81_Prior_Proof_Level_Rows.csv; do
               if [ -f "$f" ]; then git add "$f"; fi
             done
-            git commit -m "research: persist BTC Friday SR80 level reliability result"
+            git commit -m "research: persist BTC Friday SR81 prior-proof result"
             git push
           fi
-      - name: Fail if SR80 failed
-        if: steps.sr80run.outcome == 'failure'
+      - name: Fail if SR81 failed
+        if: steps.sr81run.outcome == 'failure'
         run: exit 1
