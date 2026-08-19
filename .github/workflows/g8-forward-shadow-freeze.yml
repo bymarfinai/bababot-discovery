@@ -1,0 +1,61 @@
+name: Freeze Tuesday Forward Shadow Model
+on:
+  push:
+    paths:
+      - 'research/g8_freeze_forward_shadow_model.py'
+      - '.github/workflows/g8-forward-shadow-freeze.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests scikit-learn
+      - name: Freeze final G1 state and validate August parity
+        shell: bash
+        run: |
+          set +e
+          cd research
+          G8FREEZE_OUT=g8freeze_out python g8_freeze_forward_shadow_model.py > ../G8_FREEZE_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat G8_FREEZE_RUN.log
+          printf '%s\n' "$rc" > G8_FREEZE_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            cp research/g8freeze_out/BTC_Tuesday_Forward_Shadow_Model_State.json BTC_Tuesday_Forward_Shadow_Model_State.json
+            cp research/g8freeze_out/BTC_Tuesday_Forward_Shadow_Model_Freeze_Summary.json BTC_Tuesday_Forward_Shadow_Model_Freeze_Summary.json
+            cp research/g8freeze_out/BTC_Tuesday_Forward_Shadow_Model_Freeze.md BTC_Tuesday_Forward_Shadow_Model_Freeze.md
+            rm -f BTC_Tuesday_Forward_Shadow_Model_Freeze_ERROR.log
+            git add BTC_Tuesday_Forward_Shadow_Model_State.json BTC_Tuesday_Forward_Shadow_Model_Freeze_Summary.json BTC_Tuesday_Forward_Shadow_Model_Freeze.md G8_FREEZE_EXIT_CODE.txt
+            git add -u BTC_Tuesday_Forward_Shadow_Model_Freeze_ERROR.log 2>/dev/null || true
+            msg="research: persist frozen Tuesday forward shadow model"
+          else
+            cp G8_FREEZE_RUN.log BTC_Tuesday_Forward_Shadow_Model_Freeze_ERROR.log
+            git add BTC_Tuesday_Forward_Shadow_Model_Freeze_ERROR.log G8_FREEZE_EXIT_CODE.txt
+            msg="ci: persist Tuesday shadow model freeze traceback"
+          fi
+
+          git diff --cached --quiet || git commit -m "$msg"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: g8-forward-shadow-freeze
+          path: |
+            G8_FREEZE_RUN.log
+            G8_FREEZE_EXIT_CODE.txt
+            research/g8freeze_out/BTC_Tuesday_Forward_Shadow_Model_State.json
+            research/g8freeze_out/BTC_Tuesday_Forward_Shadow_Model_Freeze_Summary.json
+            research/g8freeze_out/BTC_Tuesday_Forward_Shadow_Model_Freeze.md
