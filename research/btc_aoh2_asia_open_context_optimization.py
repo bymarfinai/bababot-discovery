@@ -107,11 +107,11 @@ def blocks(z: pd.DataFrame) -> list[dict]:
 
 
 def rank_key(r: dict):
-    # descending Wilson, WR, N, expectancy; then less restrictive thresholds.
     return (-(r["wilson_lo"] if r["wilson_lo"] is not None else -1),-(r["wr"] if r["wr"] is not None else -1),-r["n"],-(r["expectancy"] if r["expectancy"] is not None else -1e9),r["pre_min"],r["loc_min"])
 
 
 def pct(v): return "-" if v is None else f"{100*v:.2f}%"
+def money(v): return "-" if v is None else f"${v:.3f}"
 
 
 def main():
@@ -164,10 +164,10 @@ def main():
     for part in ["development","reference_validation","external","august"]:
         for rule in ["selected","control"]:
             s=cohorts[f"{part}_{rule}"]
-            md.append(f"| {part} | {rule} | {s['n']} | {s['tp']} | {s['sl']} | {pct(s['wr'])} | {pct(s['wilson_lo'])} | ${s['pnl']:.2f} | {('-' if s['expectancy'] is None else f'${s[\"expectancy\"]:.3f}')} | {pct(s['median_risk_pct'])} | {pct(s['avg_target_pct'])} |")
+            md.append(f"| {part} | {rule} | {s['n']} | {s['tp']} | {s['sl']} | {pct(s['wr'])} | {pct(s['wilson_lo'])} | ${s['pnl']:.2f} | {money(s['expectancy'])} | {pct(s['median_risk_pct'])} | {pct(s['avg_target_pct'])} |")
     md += ["","## External selected-rule blocks","","| Block | N | TP | SL | WR | PnL | Exp/trade |","|---|---:|---:|---:|---:|---:|---:|"]
     for b in ext_blocks:
-        md.append(f"| {b['block']} | {b['n']} | {b['tp']} | {b['sl']} | {pct(b['wr'])} | ${b['pnl']:.2f} | {('-' if b['expectancy'] is None else f'${b[\"expectancy\"]:.3f}')} |")
+        md.append(f"| {b['block']} | {b['n']} | {b['tp']} | {b['sl']} | {pct(b['wr'])} | ${b['pnl']:.2f} | {money(b['expectancy'])} |")
     md += ["","## Top development grid cells","","| Rank | PRE60 min | Location min | N | WR | Wilson low | PnL | Exp/trade |","|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for i,r in enumerate(eligible[:10],1):
         md.append(f"| {i} | {100*r['pre_min']:.2f}% | {100*r['loc_min']:.0f}% | {r['n']} | {pct(r['wr'])} | {pct(r['wilson_lo'])} | ${r['pnl']:.2f} | ${r['expectancy']:.3f} |")
