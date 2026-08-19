@@ -1,0 +1,63 @@
+name: BTC Friday SR82 External Holdout
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_friday_sr82_external_holdout_support.py'
+      - 'BTC_Friday_SR82_External_Holdout_Support_Preregistration.md'
+      - '.github/workflows/btc-friday-sr82-external-holdout.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: btc-friday-sr82-external-holdout
+  cancel-in-progress: false
+
+jobs:
+  sr82:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests scikit-learn
+      - name: Run frozen SR82
+        id: run
+        continue-on-error: true
+        run: |
+          set +e
+          PYTHONPATH=research python research/btc_friday_sr82_external_holdout_support.py > BTC_Friday_SR82_External_Holdout_Support_Run.log 2>&1
+          code=$?
+          echo "$code" > BTC_Friday_SR82_External_Holdout_Support_EXIT_CODE.txt
+          cat BTC_Friday_SR82_External_Holdout_Support_Run.log
+          exit $code
+      - name: Persist artifacts
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_Friday_SR82_External_Holdout_Support_EXIT_CODE.txt BTC_Friday_SR82_External_Holdout_Support_Run.log
+          for f in BTC_Friday_SR82_External_Holdout_Support_Result.md BTC_Friday_SR82_External_Holdout_Support_Result.json BTC_Friday_SR82_External_Holdout_Support_Rows.csv; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git stash push --keep-index --include-untracked -m sr82-artifacts || true
+            git pull --rebase origin main
+            git stash pop || true
+            git add BTC_Friday_SR82_External_Holdout_Support_EXIT_CODE.txt BTC_Friday_SR82_External_Holdout_Support_Run.log
+            for f in BTC_Friday_SR82_External_Holdout_Support_Result.md BTC_Friday_SR82_External_Holdout_Support_Result.json BTC_Friday_SR82_External_Holdout_Support_Rows.csv; do
+              if [ -f "$f" ]; then git add "$f"; fi
+            done
+            git commit -m "research: persist BTC Friday SR82 external holdout result"
+            git push
+          fi
+      - name: Fail if research run failed
+        if: steps.run.outcome == 'failure'
+        run: exit 1
