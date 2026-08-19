@@ -1,0 +1,63 @@
+name: BTC Friday C9A Spot Futures LeadLag
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_friday_c9a_spot_futures_leadlag.py'
+      - 'BTC_Friday_C9A_Spot_Futures_LeadLag_Preregistration.md'
+      - '.github/workflows/btc-friday-c9-spot-leadlag.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: btc-friday-c9a-spot-leadlag
+  cancel-in-progress: true
+
+jobs:
+  c9a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests scikit-learn
+      - name: Run frozen C9A
+        id: run
+        continue-on-error: true
+        run: |
+          set +e
+          PYTHONPATH=research python research/btc_friday_c9a_spot_futures_leadlag.py > BTC_Friday_C9A_Spot_Futures_LeadLag_Run.log 2>&1
+          code=$?
+          echo "$code" > BTC_Friday_C9A_Spot_Futures_LeadLag_EXIT_CODE.txt
+          cat BTC_Friday_C9A_Spot_Futures_LeadLag_Run.log
+          exit $code
+      - name: Persist artifacts
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_Friday_C9A_Spot_Futures_LeadLag_EXIT_CODE.txt BTC_Friday_C9A_Spot_Futures_LeadLag_Run.log
+          for f in BTC_Friday_C9A_Spot_Futures_LeadLag_Result.md BTC_Friday_C9A_Spot_Futures_LeadLag_Result.json BTC_Friday_C9A_Spot_Futures_LeadLag_Rows.csv; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git stash push --include-untracked -m c9a-artifacts
+            git pull --rebase origin main
+            git stash pop
+            git add BTC_Friday_C9A_Spot_Futures_LeadLag_EXIT_CODE.txt BTC_Friday_C9A_Spot_Futures_LeadLag_Run.log
+            for f in BTC_Friday_C9A_Spot_Futures_LeadLag_Result.md BTC_Friday_C9A_Spot_Futures_LeadLag_Result.json BTC_Friday_C9A_Spot_Futures_LeadLag_Rows.csv; do
+              if [ -f "$f" ]; then git add "$f"; fi
+            done
+            git commit -m "research: persist BTC Friday spot-futures lead-lag C9A result"
+            git push
+          fi
+      - name: Fail if run failed
+        if: steps.run.outcome == 'failure'
+        run: exit 1
