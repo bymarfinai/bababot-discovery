@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_friday_all5m_candle_c2.py'
-      - 'BTC_Friday_All5m_Candle_C2_Preregistration.md'
+      - 'research/btc_friday_sr80_level_reliability.py'
+      - 'BTC_Friday_SR80_Level_Reliability_Preregistration.md'
       - '.github/workflows/btc-friday-preentry-fingerprint-p2.yml'
 
 permissions:
@@ -13,10 +13,10 @@ permissions:
 
 concurrency:
   group: btc-friday-research-runner
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  c2:
+  sr80:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -27,37 +27,37 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install numpy pandas requests
-      - name: Run frozen C2
-        id: c2run
+        run: pip install numpy pandas requests scikit-learn
+      - name: Run frozen SR80
+        id: sr80run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_friday_all5m_candle_c2.py > BTC_Friday_All5m_Candle_C2_Run.log 2>&1
+          PYTHONPATH=research python research/btc_friday_sr80_level_reliability.py > BTC_Friday_SR80_Level_Reliability_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_Friday_All5m_Candle_C2_EXIT_CODE.txt
-          cat BTC_Friday_All5m_Candle_C2_Run.log
+          echo "$code" > BTC_Friday_SR80_Level_Reliability_EXIT_CODE.txt
+          cat BTC_Friday_SR80_Level_Reliability_Run.log
           exit $code
-      - name: Persist C2 artifacts safely
+      - name: Persist SR80 artifacts safely
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Friday_All5m_Candle_C2_EXIT_CODE.txt BTC_Friday_All5m_Candle_C2_Run.log
-          for f in BTC_Friday_All5m_Candle_C2_Result.md BTC_Friday_All5m_Candle_C2_Result.json BTC_Friday_All5m_Candle_C2_Rows.csv BTC_Friday_All5m_Candle_C2_Discovery_Archetypes.csv; do
+          git add BTC_Friday_SR80_Level_Reliability_EXIT_CODE.txt BTC_Friday_SR80_Level_Reliability_Run.log
+          for f in BTC_Friday_SR80_Level_Reliability_Result.md BTC_Friday_SR80_Level_Reliability_Result.json BTC_Friday_SR80_Level_Reliability_Rows.csv BTC_Friday_SR80_Level_Reliability_Discovery_Leaves.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git stash push --keep-index --include-untracked -m c2-artifacts || true
+            git stash push --keep-index --include-untracked -m sr80-artifacts || true
             git pull --rebase origin main
             git stash pop || true
-            git add BTC_Friday_All5m_Candle_C2_EXIT_CODE.txt BTC_Friday_All5m_Candle_C2_Run.log
-            for f in BTC_Friday_All5m_Candle_C2_Result.md BTC_Friday_All5m_Candle_C2_Result.json BTC_Friday_All5m_Candle_C2_Rows.csv BTC_Friday_All5m_Candle_C2_Discovery_Archetypes.csv; do
+            git add BTC_Friday_SR80_Level_Reliability_EXIT_CODE.txt BTC_Friday_SR80_Level_Reliability_Run.log
+            for f in BTC_Friday_SR80_Level_Reliability_Result.md BTC_Friday_SR80_Level_Reliability_Result.json BTC_Friday_SR80_Level_Reliability_Rows.csv BTC_Friday_SR80_Level_Reliability_Discovery_Leaves.csv; do
               if [ -f "$f" ]; then git add "$f"; fi
             done
-            git commit -m "research: persist BTC Friday all5m candle C2 result"
+            git commit -m "research: persist BTC Friday SR80 level reliability result"
             git push
           fi
-      - name: Fail if C2 failed
-        if: steps.c2run.outcome == 'failure'
+      - name: Fail if SR80 failed
+        if: steps.sr80run.outcome == 'failure'
         run: exit 1
