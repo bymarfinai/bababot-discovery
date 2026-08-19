@@ -21,6 +21,8 @@ Price/candle-only frozen features:
 
 No volume, taker flow, funding, OI, time-of-day alternative, or post-entry information.
 
+Any non-finite feature is imputed using that feature's **discovery-sample median only**; the same frozen medians are then applied to validation. No full-sample imputation.
+
 ## Model
 Exactly one `sklearn.tree.DecisionTreeClassifier`:
 - criterion=`gini`
