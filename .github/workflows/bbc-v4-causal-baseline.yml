@@ -1,0 +1,75 @@
+name: BBC V4 Strict Causal Baseline
+
+on:
+  push:
+    paths:
+      - 'research/bbc_v4_causal_baseline.py'
+      - '.github/workflows/bbc-v4-causal-baseline.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bbc-v4-causal-baseline
+  cancel-in-progress: false
+
+jobs:
+  run-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install numpy requests
+
+      - name: Run strict causal baseline
+        id: baseline
+        shell: bash
+        run: |
+          set +e
+          python research/bbc_v4_causal_baseline.py > BBC_V4_CAUSAL_RUN.log 2>&1
+          code=$?
+          echo "$code" > BBC_V4_CAUSAL_EXIT_CODE.txt
+          cat BBC_V4_CAUSAL_RUN.log
+          exit $code
+
+      - name: Commit research artifacts
+        if: success()
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_BBC_V4_Causal_Baseline.json BTC_BBC_V4_Causal_Baseline.md BBC_V4_CAUSAL_EXIT_CODE.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "research: persist BBC V4 causal baseline results"
+            git push
+          fi
+
+      - name: Persist failure log
+        if: failure()
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BBC_V4_CAUSAL_RUN.log BBC_V4_CAUSAL_EXIT_CODE.txt || true
+          if ! git diff --cached --quiet; then
+            git commit -m "research: persist BBC V4 causal baseline failure"
+            git push || true
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bbc-v4-causal-baseline
+          path: |
+            BTC_BBC_V4_Causal_Baseline.json
+            BTC_BBC_V4_Causal_Baseline.md
+            BBC_V4_CAUSAL_RUN.log
+            BBC_V4_CAUSAL_EXIT_CODE.txt
+          if-no-files-found: ignore
