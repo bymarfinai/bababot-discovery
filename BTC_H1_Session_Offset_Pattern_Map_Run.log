@@ -1,0 +1,363 @@
+downloaded 10/75 archives
+downloaded 20/75 archives
+downloaded 30/75 archives
+downloaded 40/75 archives
+downloaded 50/75 archives
+downloaded 60/75 archives
+downloaded 70/75 archives
+{
+  "strong": [],
+  "c80": [],
+  "top": [
+    {
+      "anchor": "LONDON_OPEN",
+      "offset": -3,
+      "event_class": "LOW_REJECT",
+      "n": 180,
+      "share": 0.10771992818671454,
+      "direction": "LONG",
+      "positive1h": 0.5555555555555556,
+      "positive3h": 0.6166666666666667,
+      "avg_signed1h": 0.0002684125445832933,
+      "avg_signed3h": 0.001164786917809466,
+      "aug_n": 2,
+      "aug_positive3h": 0.5,
+      "blocks": {
+        "B1": {
+          "n": 48,
+          "positive3h": 0.7291666666666666
+        },
+        "B2": {
+          "n": 42,
+          "positive3h": 0.5714285714285714
+        },
+        "B3": {
+          "n": 45,
+          "positive3h": 0.5333333333333333
+        },
+        "B4": {
+          "n": 45,
+          "positive3h": 0.6222222222222222
+        }
+      },
+      "recurring_stable": true,
+      "strong_repeatable_direction": false,
+      "candidate80": false
+    },
+    {
+      "anchor": "LONDON_CLOSE",
+      "offset": 2,
+      "event_class": "LOW_REJECT",
+      "n": 210,
+      "share": 0.12567324955116696,
+      "direction": "LONG",
+      "positive1h": 0.6238095238095238,
+      "positive3h": 0.6095238095238096,
+      "avg_signed1h": 0.00011844152519478484,
+      "avg_signed3h": 0.00037664747555300786,
+      "aug_n": 2,
+      "aug_positive3h": 0.5,
+      "blocks": {
+        "B1": {
+          "n": 63,
+          "positive3h": 0.6031746031746031
+        },
+        "B2": {
+          "n": 50,
+          "positive3h": 0.58
+        },
+        "B3": {
+          "n": 41,
+          "positive3h": 0.6097560975609756
+        },
+        "B4": {
+          "n": 56,
+          "positive3h": 0.6428571428571429
+        }
+      },
+      "recurring_stable": true,
+      "strong_repeatable_direction": false,
+      "candidate80": false
+    },
+    {
+      "anchor": "ASIA_CLOSE",
+      "offset": 0,
+      "event_class": "LOW_REJECT",
+      "n": 220,
+      "share": 0.13165769000598443,
+      "direction": "LONG",
+      "positive1h": 0.55,
+      "positive3h": 0.6090909090909091,
+      "avg_signed1h": 0.0002830251264176626,
+      "avg_signed3h": 0.0007822651630215151,
+      "aug_n": 2,
+      "aug_positive3h": 0.5,
+      "blocks": {
+        "B1": {
+          "n": 50,
+          "positive3h": 0.58
+        },
+        "B2": {
+          "n": 72,
+          "positive3h": 0.6805555555555556
+        },
+        "B3": {
+          "n": 49,
+          "positive3h": 0.5714285714285714
+        },
+        "B4": {
+          "n": 49,
+          "positive3h": 0.5714285714285714
+        }
+      },
+      "recurring_stable": true,
+      "strong_repeatable_direction": false,
+      "candidate80": false
+    },
+    {
+      "anchor": "LONDON_OPEN",
+      "offset": 1,
+      "event_class": "LOW_REJECT",
+      "n": 220,
+      "share": 0.13165769000598443,
+      "direction": "LONG",
+      "positive1h": 0.55,
+      "positive3h": 0.6090909090909091,
+      "avg_signed1h": 0.0002830251264176626,
+      "avg_signed3h": 0.0007822651630215151,
+      "aug_n": 2,
+      "aug_positive3h": 0.5,
+      "blocks": {
+        "B1": {
+          "n": 50,
+          "positive3h": 0.58
+        },
+        "B2": {
+          "n": 72,
+          "positive3h": 0.6805555555555556
+        },
+        "B3": {
+          "n": 49,
+          "positive3h": 0.5714285714285714
+        },
+        "B4": {
+          "n": 49,
+          "positive3h": 0.5714285714285714
+        }
+      },
+      "recurring_stable": true,
+      "strong_repeatable_direction": false,
+      "candidate80": false
+    },
+    {
+      "anchor": "LONDON_CLOSE",
+      "offset": 3,
+      "event_class": "LOW_REJECT",
+      "n": 200,
+      "share": 0.11968880909634949,
+      "direction": "LONG",
+      "positive1h": 0.525,
+      "positive3h": 0.6,
+      "avg_signed1h": 0.0003558869425638478,
+      "avg_signed3h": 0.0009900928122520787,
+      "aug_n": 5,
+      "aug_positive3h": 0.4,
+      "blocks": {
+        "B1": {
+          "n": 46,
+          "positive3h": 0.5
+        },
+        "B2": {
+          "n": 46,
+          "positive3h": 0.6521739130434783
+        },
+        "B3": {
+          "n": 56,
+          "positive3h": 0.625
+        },
+        "B4": {
+          "n": 52,
+          "positive3h": 0.6153846153846154
+        }
+      },
+      "recurring_stable": true,
+      "strong_repeatable_direction": false,
+      "candidate80": false
+    },
+    {
+      "anchor": "NEW_YORK_CLOSE",
+      "offset": -3,
+      "event_class": "LOW_REJECT",
+      "n": 200,
+      "share": 0.11968880909634949,
+      "direction": "LONG",
+      "positive1h": 0.525,
+      "positive3h": 0.6,
+      "avg_signed1h": 0.0003558869425638478,
+      "avg_signed3h": 0.0009900928122520787,
+      "aug_n": 5,
+      "aug_positive3h": 0.4,
+      "blocks": {
+        "B1": {
+          "n": 46,
+          "positive3h": 0.5
+        },
+        "B2": {
+          "n": 46,
+          "positive3h": 0.6521739130434783
+        },
+        "B3": {
+          "n": 56,
+          "positive3h": 0.625
+        },
+        "B4": {
+          "n": 52,
+          "positive3h": 0.6153846153846154
+        }
+      },
+      "recurring_stable": true,
+      "strong_repeatable_direction": false,
+      "candidate80": false
+    },
+    {
+      "anchor": "ASIA_OPEN",
+      "offset": -1,
+      "event_class": "LOW_REJECT",
+      "n": 177,
+      "share": 0.1059245960502693,
+      "direction": "LONG",
+      "positive1h": 0.536723163841808,
+      "positive3h": 0.5932203389830508,
+      "avg_signed1h": 5.5058749262299584e-05,
+      "avg_signed3h": 0.0001995753986757075,
+      "aug_n": 5,
+      "aug_positive3h": 0.4,
+      "blocks": {
+        "B1": {
+          "n": 41,
+          "positive3h": 0.4878048780487805
+        },
+        "B2": {
+          "n": 32,
+          "positive3h": 0.65625
+        },
+        "B3": {
+          "n": 60,
+          "positive3h": 0.6666666666666666
+        },
+        "B4": {
+          "n": 44,
+          "positive3h": 0.5454545454545454
+        }
+      },
+      "recurring_stable": true,
+      "strong_repeatable_direction": false,
+      "candidate80": false
+    },
+    {
+      "anchor": "NEW_YORK_CLOSE",
+      "offset": 1,
+      "event_class": "LOW_REJECT",
+      "n": 177,
+      "share": 0.1059245960502693,
+      "direction": "LONG",
+      "positive1h": 0.536723163841808,
+      "positive3h": 0.5932203389830508,
+      "avg_signed1h": 5.5058749262299584e-05,
+      "avg_signed3h": 0.0001995753986757075,
+      "aug_n": 5,
+      "aug_positive3h": 0.4,
+      "blocks": {
+        "B1": {
+          "n": 41,
+          "positive3h": 0.4878048780487805
+        },
+        "B2": {
+          "n": 32,
+          "positive3h": 0.65625
+        },
+        "B3": {
+          "n": 60,
+          "positive3h": 0.6666666666666666
+        },
+        "B4": {
+          "n": 44,
+          "positive3h": 0.5454545454545454
+        }
+      },
+      "recurring_stable": true,
+      "strong_repeatable_direction": false,
+      "candidate80": false
+    },
+    {
+      "anchor": "ASIA_OPEN",
+      "offset": 3,
+      "event_class": "HIGH_REJECT",
+      "n": 188,
+      "share": 0.11250748055056853,
+      "direction": "SHORT",
+      "positive1h": 0.5478723404255319,
+      "positive3h": 0.5904255319148937,
+      "avg_signed1h": 0.00026031153897775256,
+      "avg_signed3h": 0.000234165126311987,
+      "aug_n": 2,
+      "aug_positive3h": 0.0,
+      "blocks": {
+        "B1": {
+          "n": 38,
+          "positive3h": 0.47368421052631576
+        },
+        "B2": {
+          "n": 44,
+          "positive3h": 0.6590909090909091
+        },
+        "B3": {
+          "n": 50,
+          "positive3h": 0.64
+        },
+        "B4": {
+          "n": 56,
+          "positive3h": 0.5714285714285714
+        }
+      },
+      "recurring_stable": true,
+      "strong_repeatable_direction": false,
+      "candidate80": false
+    },
+    {
+      "anchor": "ASIA_OPEN",
+      "offset": 0,
+      "event_class": "HIGH_REJECT",
+      "n": 235,
+      "share": 0.14063435068821065,
+      "direction": "SHORT",
+      "positive1h": 0.5872340425531914,
+      "positive3h": 0.5787234042553191,
+      "avg_signed1h": 0.00022791750281601453,
+      "avg_signed3h": 0.0003005614637188195,
+      "aug_n": 2,
+      "aug_positive3h": 0.0,
+      "blocks": {
+        "B1": {
+          "n": 60,
+          "positive3h": 0.6333333333333333
+        },
+        "B2": {
+          "n": 53,
+          "positive3h": 0.5660377358490566
+        },
+        "B3": {
+          "n": 56,
+          "positive3h": 0.5892857142857143
+        },
+        "B4": {
+          "n": 66,
+          "positive3h": 0.5303030303030303
+        }
+      },
+      "recurring_stable": true,
+      "strong_repeatable_direction": false,
+      "candidate80": false
+    }
+  ]
+}
