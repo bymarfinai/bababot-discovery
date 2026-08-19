@@ -1,0 +1,63 @@
+name: BTC Three-Session Daily High-Low Reversal
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_three_session_daily_hilo_reversal.py'
+      - 'BTC_ThreeSession_DailyHighLow_Reversal_Preregistration.md'
+      - '.github/workflows/btc-three-session-daily-hilo-reversal.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: btc-three-session-daily-hilo-reversal
+  cancel-in-progress: true
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests
+      - name: Run frozen backtest
+        id: run
+        continue-on-error: true
+        run: |
+          set +e
+          PYTHONPATH=research python research/btc_three_session_daily_hilo_reversal.py > BTC_ThreeSession_DailyHighLow_Reversal_Run.log 2>&1
+          code=$?
+          echo "$code" > BTC_ThreeSession_DailyHighLow_Reversal_EXIT_CODE.txt
+          cat BTC_ThreeSession_DailyHighLow_Reversal_Run.log
+          exit $code
+      - name: Persist artifacts safely
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_ThreeSession_DailyHighLow_Reversal_EXIT_CODE.txt BTC_ThreeSession_DailyHighLow_Reversal_Run.log
+          for f in BTC_ThreeSession_DailyHighLow_Reversal_Result.md BTC_ThreeSession_DailyHighLow_Reversal_Result.json BTC_ThreeSession_DailyHighLow_Reversal_August_Events.csv; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git stash push --include-untracked -m three-session-hilo-artifacts
+            git pull --rebase origin main
+            git stash pop
+            git add BTC_ThreeSession_DailyHighLow_Reversal_EXIT_CODE.txt BTC_ThreeSession_DailyHighLow_Reversal_Run.log
+            for f in BTC_ThreeSession_DailyHighLow_Reversal_Result.md BTC_ThreeSession_DailyHighLow_Reversal_Result.json BTC_ThreeSession_DailyHighLow_Reversal_August_Events.csv; do
+              if [ -f "$f" ]; then git add "$f"; fi
+            done
+            git commit -m "research: persist three-session daily high-low reversal"
+            git push
+          fi
+      - name: Fail if backtest failed
+        if: steps.run.outcome == 'failure'
+        run: exit 1
