@@ -1,176 +1,85 @@
-[1] BTCUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[2] ETHUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[3] BNBUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[4] SOLUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[5] XRPUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[6] DOGEUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[7] ADAUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[8] LINKUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[9] AVAXUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[10] DOTUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[11] LTCUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[12] BCHUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[13] TRXUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[14] ETCUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[15] XLMUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[16] ATOMUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[17] UNIUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[18] AAVEUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[19] NEARUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[20] FILUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[21] APTUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[22] INJUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[23] SUIUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[24] OPUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[25] ARBUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[26] TIAUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[27] SEIUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[28] WLDUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[29] ENAUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[30] JUPUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[31] WIFUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[32] 1000PEPEUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[33] FETUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[34] RUNEUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[35] LDOUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[36] DYDXUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[37] CRVUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[38] STXUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[39] PENDLEUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[40] ORDIUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[41] NOTUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[42] CATIUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[43] TONUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[44] TAOUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[45] RENDERUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[46] POLUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[47] NEIROUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[48] KAIAUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[49] GALAUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[50] SANDUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[51] MANAUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[52] AXSUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[53] APEUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[54] IMXUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[55] MKRUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
-[56] COMPUSDT ERROR 451:{
-  "code": 0,
-  "msg": "Service unavailable from a restricted location accordin | 202:
+[1/56] BTCUSDT: 9000
+[2/56] ETHUSDT: 9000
+[3/56] BNBUSDT: 9000
+[4/56] SOLUSDT: 9000
+[5/56] XRPUSDT: 9000
+[6/56] DOGEUSDT: 9000
+[7/56] ADAUSDT: 9000
+[8/56] LINKUSDT: 9000
+[9/56] AVAXUSDT: 9000
+[10/56] DOTUSDT: 9000
+[11/56] LTCUSDT: 9000
+[12/56] BCHUSDT: 9000
+[13/56] TRXUSDT: 9000
+[14/56] ETCUSDT: 9000
+[15/56] XLMUSDT: 9000
+[16/56] ATOMUSDT: 9000
+[17/56] UNIUSDT: 9000
+[18/56] AAVEUSDT: 9000
+[19/56] NEARUSDT: 9000
+[20/56] FILUSDT: 9000
+[21/56] APTUSDT: 9000
+[22/56] INJUSDT: 9000
+[23/56] SUIUSDT: 9000
+[24/56] OPUSDT: 9000
+[25/56] ARBUSDT: 9000
+[26/56] TIAUSDT: 9000
+[27/56] SEIUSDT: 9000
+[28/56] WLDUSDT: 9000
+[29/56] ENAUSDT: 9000
+[30/56] JUPUSDT: 9000
+[31/56] WIFUSDT: 9000
+[32/56] 1000PEPEUSDT: 9000
+[33/56] FETUSDT: 9000
+[34/56] RUNEUSDT: 9000
+[35/56] LDOUSDT: 9000
+[36/56] DYDXUSDT: 9000
+[37/56] CRVUSDT: 9000
+[38/56] STXUSDT: 9000
+[39/56] PENDLEUSDT: 9000
+[40/56] ORDIUSDT: 9000
+[41/56] NOTUSDT: 9000
+[42/56] CATIUSDT: 9000
+[43/56] TONUSDT: 9000
+[44/56] TAOUSDT: 9000
+[45/56] RENDERUSDT: 9000
+[46/56] POLUSDT: 9000
+[47/56] NEIROUSDT: 9000
+[48/56] KAIAUSDT: 9000
+[49/56] GALAUSDT: 9000
+[50/56] SANDUSDT: 9000
+[51/56] MANAUSDT: 9000
+[52/56] AXSUSDT: 9000
+[53/56] APEUSDT: 9000
+[54/56] IMXUSDT: 9000
+[55/56] MKRUSDT: 9000
+[56/56] COMPUSDT: 9000
 Traceback (most recent call last):
-  File "/home/runner/work/bababot-discovery/bababot-discovery/research/market_hunter_mh0_cross_sectional.py", line 354, in <module>
-    if __name__=="__main__":main()
-                            ^^^^^^
-  File "/home/runner/work/bababot-discovery/bababot-discovery/research/market_hunter_mh0_cross_sectional.py", line 320, in main
-    if len(data)<10: raise RuntimeError(f"only {len(data)} usable symbols")
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-RuntimeError: only 0 usable symbols
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/market_hunter_mh0_datavision_runner.py", line 83, in <module>
+    main()
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/market_hunter_mh0_datavision_runner.py", line 79, in main
+    mh.main()
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/market_hunter_mh0_cross_sectional.py", line 349, in main
+    outj.write_text(json.dumps(report,indent=2,allow_nan=False,default=str)+"\n")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/json/encoder.py", line 202, in encode
+    chunks = list(chunks)
+             ^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/json/encoder.py", line 432, in _iterencode
+    yield from _iterencode_dict(o, _current_indent_level)
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/json/encoder.py", line 406, in _iterencode_dict
+    yield from chunks
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/json/encoder.py", line 406, in _iterencode_dict
+    yield from chunks
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/json/encoder.py", line 406, in _iterencode_dict
+    yield from chunks
+  [Previous line repeated 2 more times]
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/json/encoder.py", line 398, in _iterencode_dict
+    yield _floatstr(value)
+          ^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/json/encoder.py", line 240, in floatstr
+    raise ValueError(
+ValueError: Out of range float values are not JSON compliant: inf
