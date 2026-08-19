@@ -1,0 +1,74 @@
+name: BTC Global Regime G4
+on:
+  push:
+    paths:
+      - 'research/g4_pooled_a511_execution_compatibility.py'
+      - '.github/workflows/g4-global-regime.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests scikit-learn
+      - name: Run preregistered G4 and persist
+        shell: bash
+        run: |
+          set +e
+          cd research
+          G4_OUT=g4_out G0_DATA=../BTC_Global_Regime_G0_Pooled_Hourly_States.csv python g4_pooled_a511_execution_compatibility.py > ../G4_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat G4_RUN.log
+          printf '%s\n' "$rc" > G4_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            cp research/g4_out/BTC_GLOBAL_REGIME_G4_RESULT.md BTC_Global_Regime_G4_Result.md
+            cp research/g4_out/g4_summary.json BTC_Global_Regime_G4_Summary.json
+            cp research/g4_out/g4_pooled_execution_labels.csv BTC_Global_Regime_G4_Pooled_Execution_Labels.csv
+            cp research/g4_out/g4_pooled_walkforward_predictions.csv BTC_Global_Regime_G4_Pooled_WalkForward_Predictions.csv
+            cp research/g4_out/g4_tuesday_overlay.csv BTC_Global_Regime_G4_Tuesday_Overlay.csv
+            cp research/g4_out/g4_august_tuesday.csv BTC_Global_Regime_G4_August_Tuesday.csv
+            cp research/g4_out/g4_final_model_state.json BTC_Global_Regime_G4_Final_Model_State.json
+            rm -f BTC_Global_Regime_G4_ERROR.log
+            git add BTC_Global_Regime_G4_Result.md BTC_Global_Regime_G4_Summary.json BTC_Global_Regime_G4_Pooled_Execution_Labels.csv BTC_Global_Regime_G4_Pooled_WalkForward_Predictions.csv BTC_Global_Regime_G4_Tuesday_Overlay.csv BTC_Global_Regime_G4_August_Tuesday.csv BTC_Global_Regime_G4_Final_Model_State.json G4_EXIT_CODE.txt
+            git add -u BTC_Global_Regime_G4_ERROR.log 2>/dev/null || true
+            msg="research: persist G4 pooled A5.11 compatibility"
+          else
+            cp G4_RUN.log BTC_Global_Regime_G4_ERROR.log
+            git add BTC_Global_Regime_G4_ERROR.log G4_EXIT_CODE.txt
+            if [ -f research/g4_out/g4_parity_failure.json ]; then
+              cp research/g4_out/g4_parity_failure.json BTC_Global_Regime_G4_Parity_Failure.json
+              git add BTC_Global_Regime_G4_Parity_Failure.json
+            fi
+            msg="ci: persist G4 pooled compatibility traceback"
+          fi
+
+          git diff --cached --quiet || git commit -m "$msg"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: btc-global-regime-g4-output
+          path: |
+            G4_RUN.log
+            G4_EXIT_CODE.txt
+            research/g4_out/BTC_GLOBAL_REGIME_G4_RESULT.md
+            research/g4_out/g4_summary.json
+            research/g4_out/g4_pooled_execution_labels.csv
+            research/g4_out/g4_pooled_walkforward_predictions.csv
+            research/g4_out/g4_tuesday_overlay.csv
+            research/g4_out/g4_august_tuesday.csv
+            research/g4_out/g4_final_model_state.json
+            research/g4_out/g4_parity_failure.json
