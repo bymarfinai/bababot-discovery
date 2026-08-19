@@ -13,6 +13,9 @@ This is NOT a trading-strategy backtest. Primary target is level correctness: do
 - Friday is defined in **Asia/Jakarta (WIB)**, 00:00 through 23:59.
 - Each Friday's candidate levels are frozen at Friday 00:00 WIB. No level formed later that Friday is allowed.
 - Split by unique Friday-WIB date: first 70% discovery, last 30% validation.
+- 1H bars are exact aggregates of completed 5m bars.
+- `ATR14(1H)` uses Wilder smoothing: true range with recursive alpha `1/14`, using only completed 1H bars.
+- `EMA20(1H)` uses standard exponential weighting `span=20, adjust=False`, using only completed 1H closes.
 
 ## Frozen candidate-level families
 At Friday 00:00 WIB, generate only these causal price levels from completed history:
