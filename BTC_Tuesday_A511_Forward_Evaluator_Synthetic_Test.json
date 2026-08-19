@@ -1,0 +1,64 @@
+{
+  "status": "PASS",
+  "synthetic_only": true,
+  "market_data_used": false,
+  "cases": [
+    {
+      "case": "F0_empty",
+      "rows": 0,
+      "expected": "OBSERVE_ONLY",
+      "actual": "OBSERVE_ONLY",
+      "pass": true,
+      "integrity_pass": true
+    },
+    {
+      "case": "F1_12_supportive",
+      "rows": 12,
+      "expected": "EARLY_SUPPORTIVE",
+      "actual": "EARLY_SUPPORTIVE",
+      "pass": true,
+      "integrity_pass": true
+    },
+    {
+      "case": "F2_26_strong_positive",
+      "rows": 26,
+      "expected": "CANDIDATE_REVIEW_ELIGIBLE",
+      "actual": "CANDIDATE_REVIEW_ELIGIBLE",
+      "pass": true,
+      "integrity_pass": true
+    },
+    {
+      "case": "F3_52_strong_positive",
+      "rows": 52,
+      "expected": "LIVE_ENGINEERING_REVIEW_ELIGIBLE",
+      "actual": "LIVE_ENGINEERING_REVIEW_ELIGIBLE",
+      "pass": true,
+      "integrity_pass": true
+    },
+    {
+      "case": "F3_52_strong_negative",
+      "rows": 52,
+      "expected": "FORWARD_EDGE_REJECTED",
+      "actual": "FORWARD_EDGE_REJECTED",
+      "pass": true,
+      "integrity_pass": true
+    },
+    {
+      "case": "integrity_bad_fingerprint",
+      "rows": 12,
+      "expected": "DATA_INTEGRITY_HOLD",
+      "actual": "DATA_INTEGRITY_HOLD",
+      "pass": true,
+      "integrity_pass": false
+    },
+    {
+      "case": "integrity_duplicate_date",
+      "rows": 12,
+      "expected": "DATA_INTEGRITY_HOLD",
+      "actual": "DATA_INTEGRITY_HOLD",
+      "pass": true,
+      "integrity_pass": false
+    }
+  ],
+  "guardrail": "Synthetic fixtures only; no market-data inference and no change to frozen promotion gates."
+}
