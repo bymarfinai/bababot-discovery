@@ -1,0 +1,63 @@
+name: BTC Global Regime G6
+on:
+  push:
+    paths:
+      - 'research/g6_weekly_regime_health_governor.py'
+      - '.github/workflows/g6-global-regime.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests scikit-learn
+      - name: Run preregistered G6 and persist
+        shell: bash
+        run: |
+          set +e
+          cd research
+          G6_OUT=g6_out G1_POOL=../BTC_Global_Regime_G1_Pooled_WalkForward_Predictions.csv G1_TUE=../BTC_Global_Regime_G1_Tuesday_Overlay.csv G1_AUG=../BTC_Global_Regime_G1_August_Tuesday.csv G0_DATA=../BTC_Global_Regime_G0_Pooled_Hourly_States.csv python g6_weekly_regime_health_governor.py > ../G6_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat G6_RUN.log
+          printf '%s\n' "$rc" > G6_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            cp research/g6_out/BTC_GLOBAL_REGIME_G6_RESULT.md BTC_Global_Regime_G6_Result.md
+            cp research/g6_out/g6_summary.json BTC_Global_Regime_G6_Summary.json
+            cp research/g6_out/g6_tuesday_rows.csv BTC_Global_Regime_G6_Tuesday_Rows.csv
+            cp research/g6_out/g6_august.csv BTC_Global_Regime_G6_August.csv
+            rm -f BTC_Global_Regime_G6_ERROR.log
+            git add BTC_Global_Regime_G6_Result.md BTC_Global_Regime_G6_Summary.json BTC_Global_Regime_G6_Tuesday_Rows.csv BTC_Global_Regime_G6_August.csv G6_EXIT_CODE.txt
+            git add -u BTC_Global_Regime_G6_ERROR.log 2>/dev/null || true
+            msg="research: persist G6 weekly regime health governor"
+          else
+            cp G6_RUN.log BTC_Global_Regime_G6_ERROR.log
+            git add BTC_Global_Regime_G6_ERROR.log G6_EXIT_CODE.txt
+            msg="ci: persist G6 weekly regime health traceback"
+          fi
+
+          git diff --cached --quiet || git commit -m "$msg"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: btc-global-regime-g6-output
+          path: |
+            G6_RUN.log
+            G6_EXIT_CODE.txt
+            research/g6_out/BTC_GLOBAL_REGIME_G6_RESULT.md
+            research/g6_out/g6_summary.json
+            research/g6_out/g6_tuesday_rows.csv
+            research/g6_out/g6_august.csv
