@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-research-runner
+  group: btc-friday-sr80-level-reliability
   cancel-in-progress: false
 
 jobs:
