@@ -1,0 +1,150 @@
+downloaded 10/51 archives
+downloaded 20/51 archives
+downloaded 30/51 archives
+downloaded 40/51 archives
+downloaded 50/51 archives
+{
+  "rows": 285408,
+  "first_ts": "2023-12-02 00:00:00+00:00",
+  "last_ts": "2026-08-18 23:55:00+00:00",
+  "august_last_complete_utc_date_in_data": "2026-08-18"
+}
+PARITY H7_CONFIRM2 {'recent_base_n': 123, 'recent_base_wins': 73, 'recent_aggr_n': 80, 'recent_aggr_wins': 48, 'full_aggr_n': 309, 'full_aggr_wins': 177, 'parity_score': 633, 'exact_parity': False}
+PARITY H7_TRAP_BACK_BELOW {'recent_base_n': 98, 'recent_base_wins': 54, 'recent_aggr_n': 60, 'recent_aggr_wins': 33, 'full_aggr_n': 233, 'full_aggr_wins': 113, 'parity_score': 414, 'exact_parity': False}
+PARITY H8_CONFIRM2 {'recent_base_n': 113, 'recent_base_wins': 62, 'recent_aggr_n': 76, 'recent_aggr_wins': 42, 'full_aggr_n': 281, 'full_aggr_wins': 152, 'parity_score': 549, 'exact_parity': False}
+PARITY H8_TRAP_BACK_BELOW {'recent_base_n': 89, 'recent_base_wins': 42, 'recent_aggr_n': 57, 'recent_aggr_wins': 25, 'full_aggr_n': 204, 'full_aggr_wins': 96, 'parity_score': 336, 'exact_parity': False}
+{
+  "protocol": "POTENTIAL_B_AUGUST_2026_REPLAY_V1",
+  "coverage": {
+    "rows": 285408,
+    "first_ts": "2023-12-02 00:00:00+00:00",
+    "last_ts": "2026-08-18 23:55:00+00:00",
+    "august_last_complete_utc_date_in_data": "2026-08-18"
+  },
+  "historical_benchmark": {
+    "recent_base_n": 24,
+    "recent_base_wins": 17,
+    "recent_aggr_n": 15,
+    "recent_aggr_wins": 11,
+    "full_aggr_n": 67,
+    "full_aggr_wins": 43
+  },
+  "parity_candidates": [
+    {
+      "key": "H8_TRAP_BACK_BELOW",
+      "open_hour_utc": 8,
+      "trigger_mode": "TRAP_BACK_BELOW",
+      "recent_base_n": 89,
+      "recent_base_wins": 42,
+      "recent_aggr_n": 57,
+      "recent_aggr_wins": 25,
+      "full_aggr_n": 204,
+      "full_aggr_wins": 96,
+      "parity_score": 336,
+      "exact_parity": false
+    },
+    {
+      "key": "H7_TRAP_BACK_BELOW",
+      "open_hour_utc": 7,
+      "trigger_mode": "TRAP_BACK_BELOW",
+      "recent_base_n": 98,
+      "recent_base_wins": 54,
+      "recent_aggr_n": 60,
+      "recent_aggr_wins": 33,
+      "full_aggr_n": 233,
+      "full_aggr_wins": 113,
+      "parity_score": 414,
+      "exact_parity": false
+    },
+    {
+      "key": "H8_CONFIRM2",
+      "open_hour_utc": 8,
+      "trigger_mode": "CONFIRM2",
+      "recent_base_n": 113,
+      "recent_base_wins": 62,
+      "recent_aggr_n": 76,
+      "recent_aggr_wins": 42,
+      "full_aggr_n": 281,
+      "full_aggr_wins": 152,
+      "parity_score": 549,
+      "exact_parity": false
+    },
+    {
+      "key": "H7_CONFIRM2",
+      "open_hour_utc": 7,
+      "trigger_mode": "CONFIRM2",
+      "recent_base_n": 123,
+      "recent_base_wins": 73,
+      "recent_aggr_n": 80,
+      "recent_aggr_wins": 48,
+      "full_aggr_n": 309,
+      "full_aggr_wins": 177,
+      "parity_score": 633,
+      "exact_parity": false
+    }
+  ],
+  "selected_variant": {
+    "key": "H8_TRAP_BACK_BELOW",
+    "open_hour_utc": 8,
+    "trigger_mode": "TRAP_BACK_BELOW",
+    "recent_base_n": 89,
+    "recent_base_wins": 42,
+    "recent_aggr_n": 57,
+    "recent_aggr_wins": 25,
+    "full_aggr_n": 204,
+    "full_aggr_wins": 96,
+    "parity_score": 336,
+    "exact_parity": false
+  },
+  "parity_status": "PARITY_UNRESOLVED",
+  "august_window": {
+    "start": "2026-08-01 00:00:00+00:00",
+    "end_exclusive": "2026-08-20 00:00:00+00:00"
+  },
+  "august_base_60m": {
+    "n": 4,
+    "wins": 2,
+    "wr": 0.5,
+    "avg_signed_ret": 0.001664999321756689,
+    "median_mfe": 0.003157407466478244,
+    "median_mae": 0.0015172912581161114
+  },
+  "august_aggressive_60m": {
+    "n": 3,
+    "wins": 1,
+    "wr": 0.3333333333333333,
+    "avg_signed_ret": -0.00019147735899429199,
+    "median_mfe": 0.001869109590315996,
+    "median_mae": 0.0013748639944630872
+  },
+  "august_base_1pct_6h": {
+    "n": 4,
+    "wins": 1,
+    "wr": 0.25,
+    "pnl": -13.0,
+    "tp": 1,
+    "sl": 3,
+    "time": 0,
+    "median_mfe_6h": 0.005032915450895703,
+    "median_mae_6h": 0.0015333634034860107
+  },
+  "august_aggressive_1pct_6h": {
+    "n": 3,
+    "wins": 1,
+    "wr": 0.3333333333333333,
+    "pnl": -7.25,
+    "tp": 1,
+    "sl": 2,
+    "time": 0,
+    "median_mfe_6h": 0.001869109590315996,
+    "median_mae_6h": 0.001407008285202886
+  },
+  "guardrails": {
+    "august_used_for_parity_selection": false,
+    "one_minute_data_used": false,
+    "aggressive_threshold": 0.5,
+    "direction": "SELL",
+    "historical_horizon_minutes": 60,
+    "large_move_diagnostic": "TP1.0%/SL1.0% max6h adverse-first, fee0.15%, $500 notional"
+  }
+}
