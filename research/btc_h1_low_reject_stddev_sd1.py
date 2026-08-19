@@ -41,12 +41,12 @@ def add_sigma_features(x: pd.DataFrame, ev: pd.DataFrame) -> pd.DataFrame:
         event_ts = pd.Timestamp(r.event_ts)
         if len(prior24) != 24:
             continue
-        expected_first = event_ts - pd.Timedelta(hours=24)
-        expected_last = event_ts - pd.Timedelta(hours=1)
-        if pd.Timestamp(prior24.ts.iloc[0]) != expected_first or pd.Timestamp(prior24.ts.iloc[-1]) != expected_last:
+        if pd.Timestamp(prior24.ts.iloc[0]) != event_ts - pd.Timedelta(hours=24):
             continue
-        rr = np.log(prior24.close.to_numpy(float) / prior24.open.to_numpy(float))
-        sigma24 = float(np.std(rr, ddof=1))
+        if pd.Timestamp(prior24.ts.iloc[-1]) != event_ts - pd.Timedelta(hours=1):
+            continue
+        hourly_log_returns = np.log(prior24.close.to_numpy(float) / prior24.open.to_numpy(float))
+        sigma24 = float(np.std(hourly_log_returns, ddof=1))
         if not np.isfinite(sigma24) or sigma24 <= 0:
             continue
         sweep_frac = (float(r.prior3_low) - float(r.event_low)) / float(r.prior3_low)
@@ -110,6 +110,14 @@ def per_hour(z: pd.DataFrame) -> list[dict]:
 
 def pct(v):
     return "-" if v is None else f"{100*v:.2f}%"
+
+
+def money(v):
+    return "-" if v is None else f"${v:.3f}"
+
+
+def sigtxt(v):
+    return "-" if v is None else f"{v:.3f}σ"
 
 
 def main():
@@ -218,7 +226,10 @@ def main():
         "|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for r in grid:
-        md.append(f"| {r['threshold_sigma']:.2f}σ | {r['n']} | {pct(r['pos1h'])} | {pct(r['pos3h'])} | {pct(r['wilson_lo'])} | {pct(r['avg3h'])} | {('-' if r['median_sweep_sigma'] is None else f'{r['median_sweep_sigma']:.3f}σ')} |")
+        md.append(
+            f"| {r['threshold_sigma']:.2f}σ | {r['n']} | {pct(r['pos1h'])} | {pct(r['pos3h'])} | "
+            f"{pct(r['wilson_lo'])} | {pct(r['avg3h'])} | {sigtxt(r['median_sweep_sigma'])} |"
+        )
 
     md += [
         "",
@@ -232,7 +243,10 @@ def main():
     for part in ["development", "reference_validation", "external", "august"]:
         for rule in ["selected", "control"]:
             s = dirstats[f"{part}_{rule}"]
-            md.append(f"| {part} | {rule} | {s['n']} | {pct(s['pos1h'])} | {pct(s['pos3h'])} | {pct(s['wilson_lo'])} | {pct(s['avg3h'])} | {pct(s['median3h'])} |")
+            md.append(
+                f"| {part} | {rule} | {s['n']} | {pct(s['pos1h'])} | {pct(s['pos3h'])} | "
+                f"{pct(s['wilson_lo'])} | {pct(s['avg3h'])} | {pct(s['median3h'])} |"
+            )
 
     md += [
         "",
@@ -271,7 +285,10 @@ def main():
     for part in ["development", "reference_validation", "external", "august"]:
         for rule in ["selected", "control"]:
             s = execstats[f"{part}_{rule}"]
-            md.append(f"| {part} | {rule} | {s['n']} | {s['tp']} | {s['sl']} | {pct(s['decisive_wr'])} | ${s['pnl']:.2f} | {('-' if s['expectancy'] is None else f'${s['expectancy']:.3f}')} |")
+            md.append(
+                f"| {part} | {rule} | {s['n']} | {s['tp']} | {s['sl']} | {pct(s['decisive_wr'])} | "
+                f"${s['pnl']:.2f} | {money(s['expectancy'])} |"
+            )
 
     md += [
         "",
