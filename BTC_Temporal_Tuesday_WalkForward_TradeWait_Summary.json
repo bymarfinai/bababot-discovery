@@ -1,0 +1,612 @@
+{
+  "status": "COMPLETE_TUESDAY_ANCHORED_WALKFORWARD_TRADE_WAIT",
+  "design": {
+    "warmup_tuesdays": 52,
+    "walkforward_opportunities": 87,
+    "model": "median imputer + StandardScaler + L2 LogisticRegression(C=1)",
+    "target": "frozen A5.11 net PnL > 0",
+    "primary_threshold": 0.5,
+    "sensitivity_thresholds_report_only": [
+      0.55,
+      0.6
+    ],
+    "features": [
+      "ret1h",
+      "ret3h",
+      "ret6h",
+      "ret12h",
+      "ret24h",
+      "mon_ret",
+      "overnight_ret",
+      "ema_spread",
+      "dist_ema20",
+      "ema20_slope1h",
+      "loc24",
+      "range6",
+      "range24",
+      "taker1h",
+      "taker4h"
+    ],
+    "feature_selection": "NONE; fixed full causal feature set",
+    "random_split": false
+  },
+  "historical_parity": {
+    "parent": {
+      "n": 139,
+      "wins": 79,
+      "losses": 60,
+      "wr": 0.5683453237410072,
+      "pnl": 95.73423284254761,
+      "pf": 1.4307417377463976,
+      "exp": 0.6887354880758821
+    },
+    "a52": {
+      "n": 139,
+      "wins": 83,
+      "losses": 56,
+      "wr": 0.5971223021582733,
+      "pnl": 105.90402032685056,
+      "pf": 1.5007642010964874,
+      "exp": 0.7618994268118745
+    },
+    "a59": {
+      "n": 139,
+      "wins": 89,
+      "losses": 50,
+      "wr": 0.6402877697841727,
+      "pnl": 120.26714578412741,
+      "pf": 1.6382067099176643,
+      "exp": 0.8652312646340101
+    },
+    "a511": {
+      "n": 139,
+      "wins": 89,
+      "losses": 50,
+      "wr": 0.6402877697841727,
+      "pnl": 130.3285205371619,
+      "pf": 1.69159815640554,
+      "exp": 0.9376152556630352
+    },
+    "a52_actions": 7,
+    "fastmr_actions": 12,
+    "recoveries": 4,
+    "checks": {
+      "n139": true,
+      "parent_w79": true,
+      "parent_pnl": true,
+      "a52_w83": true,
+      "a52_pnl": true,
+      "a52_actions7": true,
+      "a59_w89": true,
+      "a59_pnl": true,
+      "fast_actions12": true,
+      "a511_w89": true,
+      "a511_pnl": true,
+      "recoveries4": true
+    },
+    "pass": true
+  },
+  "walkforward": {
+    "baseline_all_trade": {
+      "opportunities": 87,
+      "trades": 87,
+      "waits": 0,
+      "coverage": 1.0,
+      "wins": 61,
+      "losses": 26,
+      "trade_wr": 0.7011494252873564,
+      "pnl": 109.59165151736624,
+      "pf": 2.076030278533501,
+      "exp_per_opportunity": 1.2596741553720259,
+      "exp_per_trade": 1.2596741553720259,
+      "max_dd": 14.25000000000001
+    },
+    "primary_p50": {
+      "opportunities": 87,
+      "trades": 63,
+      "waits": 24,
+      "coverage": 0.7241379310344828,
+      "wins": 45,
+      "losses": 18,
+      "trade_wr": 0.7142857142857143,
+      "pnl": 77.38408392095599,
+      "pf": 2.0521800009150306,
+      "exp_per_opportunity": 0.8894722289765056,
+      "exp_per_trade": 1.2283187923961272,
+      "max_dd": 14.25000000000001
+    },
+    "sensitivity_p55": {
+      "opportunities": 87,
+      "trades": 53,
+      "waits": 34,
+      "coverage": 0.6091954022988506,
+      "wins": 37,
+      "losses": 16,
+      "trade_wr": 0.6981132075471698,
+      "pnl": 53.30018776236652,
+      "pf": 1.7326430532996848,
+      "exp_per_opportunity": 0.6126458363490405,
+      "exp_per_trade": 1.0056639200446513,
+      "max_dd": 19.000000000000014
+    },
+    "sensitivity_p60": {
+      "opportunities": 87,
+      "trades": 38,
+      "waits": 49,
+      "coverage": 0.4367816091954023,
+      "wins": 27,
+      "losses": 11,
+      "trade_wr": 0.7105263157894737,
+      "pnl": 44.03236696876549,
+      "pf": 1.8986095805102086,
+      "exp_per_opportunity": 0.5061191605605229,
+      "exp_per_trade": 1.1587464991780392,
+      "max_dd": 14.25000000000001
+    },
+    "blocks": [
+      {
+        "block": 1,
+        "start": "2024-12-03",
+        "end": "2025-04-29",
+        "baseline": {
+          "opportunities": 22,
+          "trades": 22,
+          "waits": 0,
+          "coverage": 1.0,
+          "wins": 12,
+          "losses": 10,
+          "trade_wr": 0.5454545454545454,
+          "pnl": 11.657304937823373,
+          "pf": 1.2618204627182965,
+          "exp_per_opportunity": 0.5298774971737896,
+          "exp_per_trade": 0.5298774971737896,
+          "max_dd": 14.25000000000001
+        },
+        "primary": {
+          "opportunities": 22,
+          "trades": 12,
+          "waits": 10,
+          "coverage": 0.5454545454545454,
+          "wins": 7,
+          "losses": 5,
+          "trade_wr": 0.5833333333333334,
+          "pnl": 6.727127462230982,
+          "pf": 1.283247472093936,
+          "exp_per_opportunity": 0.3057785210104992,
+          "exp_per_trade": 0.5605939551859151,
+          "max_dd": 14.25000000000001
+        }
+      },
+      {
+        "block": 2,
+        "start": "2025-05-06",
+        "end": "2025-09-30",
+        "baseline": {
+          "opportunities": 22,
+          "trades": 22,
+          "waits": 0,
+          "coverage": 1.0,
+          "wins": 16,
+          "losses": 6,
+          "trade_wr": 0.7272727272727273,
+          "pnl": 34.68946760555792,
+          "pf": 3.0859843365949597,
+          "exp_per_opportunity": 1.5767939820708146,
+          "exp_per_trade": 1.5767939820708146,
+          "max_dd": 6.538895971374721
+        },
+        "primary": {
+          "opportunities": 22,
+          "trades": 12,
+          "waits": 10,
+          "coverage": 0.5454545454545454,
+          "wins": 8,
+          "losses": 4,
+          "trade_wr": 0.6666666666666666,
+          "pnl": 13.49141533437005,
+          "pf": 2.18742099856882,
+          "exp_per_opportunity": 0.613246151562275,
+          "exp_per_trade": 1.1242846111975042,
+          "max_dd": 6.272734363260167
+        }
+      },
+      {
+        "block": 3,
+        "start": "2025-10-07",
+        "end": "2026-03-03",
+        "baseline": {
+          "opportunities": 22,
+          "trades": 22,
+          "waits": 0,
+          "coverage": 1.0,
+          "wins": 17,
+          "losses": 5,
+          "trade_wr": 0.7727272727272727,
+          "pnl": 44.240751378730025,
+          "pf": 3.610953820103102,
+          "exp_per_opportunity": 2.0109432444877284,
+          "exp_per_trade": 2.0109432444877284,
+          "max_dd": 5.0481922368056615
+        },
+        "primary": {
+          "opportunities": 22,
+          "trades": 19,
+          "waits": 3,
+          "coverage": 0.8636363636363636,
+          "wins": 15,
+          "losses": 4,
+          "trade_wr": 0.7894736842105263,
+          "pnl": 39.050153475480734,
+          "pf": 3.659280042671674,
+          "exp_per_opportunity": 1.7750069761582152,
+          "exp_per_trade": 2.0552712355516167,
+          "max_dd": 4.7500000000000036
+        }
+      },
+      {
+        "block": 4,
+        "start": "2026-03-10",
+        "end": "2026-07-28",
+        "baseline": {
+          "opportunities": 21,
+          "trades": 21,
+          "waits": 0,
+          "coverage": 1.0,
+          "wins": 16,
+          "losses": 5,
+          "trade_wr": 0.7619047619047619,
+          "pnl": 19.004127595254925,
+          "pf": 1.8001737934844173,
+          "exp_per_opportunity": 0.9049584569169011,
+          "exp_per_trade": 0.9049584569169011,
+          "max_dd": 10.025440217344215
+        },
+        "primary": {
+          "opportunities": 21,
+          "trades": 20,
+          "waits": 1,
+          "coverage": 0.9523809523809523,
+          "wins": 15,
+          "losses": 5,
+          "trade_wr": 0.75,
+          "pnl": 18.11538764887423,
+          "pf": 1.7627531641631249,
+          "exp_per_opportunity": 0.862637507089249,
+          "exp_per_trade": 0.9057693824437114,
+          "max_dd": 10.914180163724913
+        }
+      }
+    ],
+    "years": [
+      {
+        "year": 2024,
+        "baseline": {
+          "opportunities": 5,
+          "trades": 5,
+          "waits": 0,
+          "coverage": 1.0,
+          "wins": 2,
+          "losses": 3,
+          "trade_wr": 0.4,
+          "pnl": -7.17070344375589,
+          "pf": 0.4967927407890607,
+          "exp_per_opportunity": -1.434140688751178,
+          "exp_per_trade": -1.434140688751178,
+          "max_dd": 14.25000000000001
+        },
+        "primary": {
+          "opportunities": 5,
+          "trades": 3,
+          "waits": 2,
+          "coverage": 0.6,
+          "wins": 1,
+          "losses": 2,
+          "trade_wr": 0.3333333333333333,
+          "pnl": -8.42070344375592,
+          "pf": 0.11361016381516692,
+          "exp_per_opportunity": -1.684140688751184,
+          "exp_per_trade": -2.8069011479186403,
+          "max_dd": 9.500000000000007
+        }
+      },
+      {
+        "year": 2025,
+        "baseline": {
+          "opportunities": 52,
+          "trades": 52,
+          "waits": 0,
+          "coverage": 1.0,
+          "wins": 37,
+          "losses": 15,
+          "trade_wr": 0.7115384615384616,
+          "pnl": 82.3595466577793,
+          "pf": 2.5811522926854162,
+          "exp_per_opportunity": 1.583837435726525,
+          "exp_per_trade": 1.583837435726525,
+          "max_dd": 9.500000000000007
+        },
+        "primary": {
+          "opportunities": 52,
+          "trades": 33,
+          "waits": 19,
+          "coverage": 0.6346153846153846,
+          "wins": 24,
+          "losses": 9,
+          "trade_wr": 0.7272727272727273,
+          "pnl": 56.0309151506777,
+          "pf": 2.8193963776286752,
+          "exp_per_opportunity": 1.0775175990514942,
+          "exp_per_trade": 1.6979065197175063,
+          "max_dd": 14.25000000000001
+        }
+      },
+      {
+        "year": 2026,
+        "baseline": {
+          "opportunities": 30,
+          "trades": 30,
+          "waits": 0,
+          "coverage": 1.0,
+          "wins": 22,
+          "losses": 8,
+          "trade_wr": 0.7333333333333333,
+          "pnl": 34.40280830334283,
+          "pf": 1.9688256359233947,
+          "exp_per_opportunity": 1.1467602767780944,
+          "exp_per_trade": 1.1467602767780944,
+          "max_dd": 10.025440217344217
+        },
+        "primary": {
+          "opportunities": 30,
+          "trades": 27,
+          "waits": 3,
+          "coverage": 0.9,
+          "wins": 20,
+          "losses": 7,
+          "trade_wr": 0.7407407407407407,
+          "pnl": 29.77387221403421,
+          "pf": 1.8954548034295993,
+          "exp_per_opportunity": 0.9924624071344736,
+          "exp_per_trade": 1.1027360079271926,
+          "max_dd": 10.914180163724913
+        }
+      }
+    ],
+    "brier": 0.2486589860527283,
+    "mean_pred_p": 0.5611213653995576,
+    "actual_win_rate": 0.7011494252873564,
+    "coefficient_stability": [
+      {
+        "feature": "ret1h",
+        "median_coef": 0.5247540142344506,
+        "positive_share": 1.0,
+        "negative_share": 0.0,
+        "last_coef": 0.5495475380351531
+      },
+      {
+        "feature": "ret3h",
+        "median_coef": 0.2654038459732119,
+        "positive_share": 1.0,
+        "negative_share": 0.0,
+        "last_coef": 0.22456043318180582
+      },
+      {
+        "feature": "ret6h",
+        "median_coef": 0.18680053816545697,
+        "positive_share": 1.0,
+        "negative_share": 0.0,
+        "last_coef": 0.16950201007083612
+      },
+      {
+        "feature": "ret12h",
+        "median_coef": -0.5566409520802922,
+        "positive_share": 0.0,
+        "negative_share": 1.0,
+        "last_coef": -0.4430229694029561
+      },
+      {
+        "feature": "ret24h",
+        "median_coef": -0.47382316839531746,
+        "positive_share": 0.0,
+        "negative_share": 1.0,
+        "last_coef": -0.4743067913858138
+      },
+      {
+        "feature": "mon_ret",
+        "median_coef": 0.30074183104050267,
+        "positive_share": 1.0,
+        "negative_share": 0.0,
+        "last_coef": 0.3520356273608771
+      },
+      {
+        "feature": "overnight_ret",
+        "median_coef": 0.18680053816545697,
+        "positive_share": 1.0,
+        "negative_share": 0.0,
+        "last_coef": 0.16950201007083612
+      },
+      {
+        "feature": "ema_spread",
+        "median_coef": -0.8943698999310226,
+        "positive_share": 0.0,
+        "negative_share": 1.0,
+        "last_coef": -0.915861218582446
+      },
+      {
+        "feature": "dist_ema20",
+        "median_coef": -0.3733102180851473,
+        "positive_share": 0.05747126436781609,
+        "negative_share": 0.9425287356321839,
+        "last_coef": -0.303189842775763
+      },
+      {
+        "feature": "ema20_slope1h",
+        "median_coef": 0.27554955897222805,
+        "positive_share": 0.6551724137931034,
+        "negative_share": 0.3448275862068966,
+        "last_coef": 0.3162216920574067
+      },
+      {
+        "feature": "loc24",
+        "median_coef": 0.3660388638538667,
+        "positive_share": 1.0,
+        "negative_share": 0.0,
+        "last_coef": 0.33484588162784074
+      },
+      {
+        "feature": "range6",
+        "median_coef": -0.24151097762197773,
+        "positive_share": 0.0,
+        "negative_share": 1.0,
+        "last_coef": -0.1906942873070401
+      },
+      {
+        "feature": "range24",
+        "median_coef": 0.3833505108687932,
+        "positive_share": 1.0,
+        "negative_share": 0.0,
+        "last_coef": 0.2774860085431215
+      },
+      {
+        "feature": "taker1h",
+        "median_coef": 0.3151039627004269,
+        "positive_share": 1.0,
+        "negative_share": 0.0,
+        "last_coef": 0.32910466174190933
+      },
+      {
+        "feature": "taker4h",
+        "median_coef": -0.08875526768445388,
+        "positive_share": 0.2413793103448276,
+        "negative_share": 0.7586206896551724,
+        "last_coef": -0.1501971977199461
+      }
+    ]
+  },
+  "historical_primary_gate": {
+    "pass_minimal_robustness": true,
+    "criteria": "at least 30 trades, positive PnL, PF>1, and >=3/4 positive chronological blocks; threshold/model cannot be changed based on result"
+  },
+  "august_batch_holdout": {
+    "baseline_all_trade": {
+      "opportunities": 3,
+      "trades": 3,
+      "waits": 0,
+      "coverage": 1.0,
+      "wins": 0,
+      "losses": 3,
+      "trade_wr": 0.0,
+      "pnl": -5.6777177416451865,
+      "pf": 0.0,
+      "exp_per_opportunity": -1.8925725805483955,
+      "exp_per_trade": -1.8925725805483955,
+      "max_dd": 5.6777177416451865
+    },
+    "primary_p50": {
+      "opportunities": 3,
+      "trades": 3,
+      "waits": 0,
+      "coverage": 1.0,
+      "wins": 0,
+      "losses": 3,
+      "trade_wr": 0.0,
+      "pnl": -5.6777177416451865,
+      "pf": 0.0,
+      "exp_per_opportunity": -1.8925725805483955,
+      "exp_per_trade": -1.8925725805483955,
+      "max_dd": 5.6777177416451865
+    }
+  },
+  "model_state_jul30": {
+    "features": [
+      "ret1h",
+      "ret3h",
+      "ret6h",
+      "ret12h",
+      "ret24h",
+      "mon_ret",
+      "overnight_ret",
+      "ema_spread",
+      "dist_ema20",
+      "ema20_slope1h",
+      "loc24",
+      "range6",
+      "range24",
+      "taker1h",
+      "taker4h"
+    ],
+    "imputer_medians": {
+      "ret1h": 0.0002552403130566816,
+      "ret3h": 0.0009809990560196713,
+      "ret6h": 0.0012139332028513472,
+      "ret12h": 0.0013904775773745381,
+      "ret24h": 0.004374123408392272,
+      "mon_ret": 0.0025603233756326116,
+      "overnight_ret": 0.0012139332028513472,
+      "ema_spread": 0.00015468498191673064,
+      "dist_ema20": 0.00022169352217527027,
+      "ema20_slope1h": 0.0002808267293523681,
+      "loc24": 0.553984962406015,
+      "range6": 0.017124630361829984,
+      "range24": 0.04019308486753492,
+      "taker1h": -0.000588431210501672,
+      "taker4h": 0.01101312372774843
+    },
+    "scaler_mean": {
+      "ret1h": 0.0005339722572810467,
+      "ret3h": 0.001760974965147017,
+      "ret6h": 0.002908832484645553,
+      "ret12h": 0.0046652030064983415,
+      "ret24h": 0.005608280543780936,
+      "mon_ret": 0.0025973009403998156,
+      "overnight_ret": 0.002908832484645553,
+      "ema_spread": 0.0002729253183622057,
+      "dist_ema20": 0.0003738523007088961,
+      "ema20_slope1h": 0.0006228817755876685,
+      "loc24": 0.5478550761375645,
+      "range6": 0.020885490551646593,
+      "range24": 0.04736636548690292,
+      "taker1h": -0.0007447751566992975,
+      "taker4h": 0.007393332041775084
+    },
+    "scaler_scale": {
+      "ret1h": 0.004679369303992823,
+      "ret3h": 0.008088710301745041,
+      "ret6h": 0.013170176409635232,
+      "ret12h": 0.023542876593587052,
+      "ret24h": 0.028938628229579818,
+      "mon_ret": 0.026320667285618923,
+      "overnight_ret": 0.013170176409635232,
+      "ema_spread": 0.0015950542182198715,
+      "dist_ema20": 0.00298039279857001,
+      "ema20_slope1h": 0.002936470507547912,
+      "loc24": 0.2774892182169341,
+      "range6": 0.012047362922266052,
+      "range24": 0.025776572753083,
+      "taker1h": 0.10475103761033579,
+      "taker4h": 0.059067661281313064
+    },
+    "logit_coef": {
+      "ret1h": 0.554735391752017,
+      "ret3h": 0.2303197315241029,
+      "ret6h": 0.17941587734644354,
+      "ret12h": -0.4533625236411673,
+      "ret24h": -0.48218753970553524,
+      "mon_ret": 0.36295719692524375,
+      "overnight_ret": 0.17941587734644354,
+      "ema_spread": -0.9315864400235727,
+      "dist_ema20": -0.3537581102717943,
+      "ema20_slope1h": 0.31891574156498975,
+      "loc24": 0.34415660104710877,
+      "range6": -0.17994351543582782,
+      "range24": 0.2737304122742383,
+      "taker1h": 0.3461372507956009,
+      "taker4h": -0.18779645407966733
+    },
+    "logit_intercept": 0.611145020893282,
+    "decision_threshold": 0.5,
+    "training_n": 139,
+    "training_end": "2026-07-30 UTC cutoff"
+  },
+  "guardrail": "Causal expanding walk-forward removes future leakage from each historical prediction, but the broader Tuesday dataset and feature vocabulary have prior research exposure. Therefore this is stronger pseudo-OOS evidence, not pristine untouched OOS. August is batch-scored with one Jul30-frozen model and is not used for model selection or refitting."
+}
