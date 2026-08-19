@@ -1,0 +1,74 @@
+{
+  "status": "OBSERVE_ONLY",
+  "stage": "F0",
+  "settled_true_forward": 0,
+  "pending_true_forward": 0,
+  "next_stage_boundary": 12,
+  "observations_to_next_boundary": 12,
+  "frozen_gates": {
+    "pf_min": 1.2,
+    "max_dd_max": 26.64,
+    "bootstrap_seed": 20260819,
+    "bootstrap_samples": 20000
+  },
+  "integrity": {
+    "pass": true,
+    "violations": []
+  },
+  "metrics": {
+    "n": 0,
+    "wins": 0,
+    "losses": 0,
+    "wr": null,
+    "wr_wilson95": [
+      null,
+      null
+    ],
+    "pnl": 0.0,
+    "expectancy": null,
+    "gross_profit": 0.0,
+    "gross_loss": 0.0,
+    "pf": null,
+    "max_dd": 0.0,
+    "max_loss_streak": 0,
+    "bootstrap_mean": {
+      "seed": 20260819,
+      "samples": 20000,
+      "ci80": [
+        null,
+        null
+      ],
+      "ci95": [
+        null,
+        null
+      ]
+    }
+  },
+  "f2_candidate_checks": {
+    "n_ge_26": false,
+    "total_pnl_gt_0": false,
+    "expectancy_gt_0": false,
+    "pf_ge_1_20": false,
+    "bootstrap80_lower_gt_0": false,
+    "max_dd_le_26_64": true,
+    "integrity_pass": true
+  },
+  "f3_strong_checks": {
+    "n_ge_52": false,
+    "total_pnl_gt_0": false,
+    "expectancy_gt_0": false,
+    "pf_ge_1_20": false,
+    "bootstrap95_lower_gt_0": false,
+    "max_dd_le_26_64": true,
+    "integrity_pass": true
+  },
+  "telemetry_report_only": {
+    "g1_predicted": {},
+    "weekly_health_sign": {},
+    "g0_label": {},
+    "spearman_p_sell_vs_pnl": null,
+    "spearman_weekly_health_vs_pnl": null,
+    "spearman_g7_weight_vs_pnl": null
+  },
+  "guardrail": "Evaluator is read-only with respect to the forward ledger; telemetry is report-only; no automatic production promotion."
+}
