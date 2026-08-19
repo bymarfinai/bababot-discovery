@@ -89,3 +89,24 @@ Per-hour selected-leaf diagnostics did not support a stable carve-out: validatio
 Executable next1H LONG with SL at rejection-candle low and TP sized for modeled net RR1:1 after 0.15% fee failed badly: validation decisive WR25.68%, external29.69%, August28.57%; all negative PnL.
 Verdicts: `LR1_STRUCTURE_SUPPORTED=FAIL`; `LR1_80_CANDIDATE=FAIL`.
 Do not deepen the same tree, lower minleaf, add/remove these six features, or post-hoc isolate 01:00/02:00 on the same evidence. Any future test of a late-US-close hypothesis must use genuinely new independent evidence or a different target/mechanism.
+
+## SD1 — H1 LOW_REJECT sweep depth normalized by trailing 24H standard deviation — REJECT
+Frozen four event hours remained 04/08/18/19 UTC = 11:00/15:00/01:00/02:00 WIB. Core event remained H1 LOW_REJECT versus completed prior3H range. Standard deviation used only the 24 completed H1 candle log returns before the event: `sigma24 = std(ln(close/open), ddof=1)`. Normalized excursion: `sweep_sigma = ((prior3_low-event_low)/prior3_low)/sigma24`.
+
+Frozen minimum sweep grid: 0, 0.25, 0.50, 0.75, 1.00, 1.25, 1.50 sigma. Selector on first70% reference events used highest 95% Wilson lower bound with N>=25. It selected **0.00 sigma**, i.e. no SD threshold, because the unfiltered core had the strongest confidence-adjusted development result.
+
+Development grid +3H LONG-positive:
+- 0.00σ N567 61.73%;
+- 0.25σ N315 60.00%;
+- 0.50σ N175 64.00%;
+- 0.75σ N96 64.58%;
+- 1.00σ N66 63.64%;
+- 1.25σ N44 65.91%;
+- 1.50σ N27 70.37%.
+The apparent improvement at 1.50σ did not transfer: reference-validation N7 57.14%, external 2020-2021 N18 66.67%, August N0. All-threshold validation matrix showed no monotonic OOS improvement: validation rates for 0/0.25/0.50/0.75/1.0/1.25/1.5σ = 58.85/58.99/52.31/50.00/52.17/41.67/57.14%; external = 56.45/53.06/54.47/56.52/61.90/66.67/66.67% with rapidly shrinking N.
+
+Frozen selected 0σ rule therefore equals control: validation N243 +3H58.85%; external N411 +3H56.45%; August N11 +3H45.45%. External blocks 51.96/63.11/52.43/58.25%.
+Executable next1H LONG with SL at event low and net-RR1:1 target remained poor: validation decisive WR27.57%, external29.93%, August18.18%; negative PnL.
+Verdicts: `SD1_DIRECTION_SUPPORTED=FAIL`; `SD1_80_CANDIDATE=FAIL`.
+
+Interpretation: standard-deviation-normalized sweep magnitude alone does not create a robust directional or executable edge. Large-sigma sweeps are rarer and can look stronger in development/external subsets, but validation does not improve consistently and sample size collapses. Do not post-hoc promote 1.0-1.5σ thresholds or change the 24H sigma lookback on the same evidence. A future standard-deviation experiment must use a materially different mechanism (for example deviation from a rolling mean/band rather than normalization of sweep depth) and be preregistered independently.
