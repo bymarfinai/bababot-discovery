@@ -1,0 +1,70 @@
+{
+  "protocol": "SR82",
+  "hypothesis_origin": "SR81 descriptive SUPPORT 11/13; this decision uses only untouched earlier BTC data",
+  "external_window": [
+    "2022-01-07",
+    "2023-11-24"
+  ],
+  "support_prior_proven_touches": 16,
+  "resolved": {
+    "n": 12,
+    "hold": 6,
+    "break": 6,
+    "rate": 0.5,
+    "wilson95": [
+      0.2537815976337061,
+      0.7462184023662939
+    ]
+  },
+  "outcome_counts": {
+    "BREAK": 6,
+    "HOLD": 6,
+    "AMBIGUOUS_TOUCH_BAR": 4
+  },
+  "blocks": {
+    "B1": {
+      "n": 4,
+      "hold": 1,
+      "break": 3,
+      "rate": 0.25,
+      "wilson95": [
+        0.04558726080970055,
+        0.6993581574175981
+      ]
+    },
+    "B2": {
+      "n": 3,
+      "hold": 1,
+      "break": 2,
+      "rate": 0.3333333333333333,
+      "wilson95": [
+        0.06149194472039621,
+        0.7923403991979522
+      ]
+    },
+    "B3": {
+      "n": 3,
+      "hold": 2,
+      "break": 1,
+      "rate": 0.6666666666666666,
+      "wilson95": [
+        0.2076596008020477,
+        0.9385080552796037
+      ]
+    },
+    "B4": {
+      "n": 2,
+      "hold": 2,
+      "break": 0,
+      "rate": 1.0,
+      "wilson95": [
+        0.34238022750665303,
+        1
+      ]
+    }
+  },
+  "positive_blocks": 0,
+  "integrity_violations": 0,
+  "verdict": "REJECT_SR82_SUPPORT_EXTERNAL",
+  "guardrail": "No same-sample rescue. If PASS, next step is executable rejection-candle trade validation."
+}
