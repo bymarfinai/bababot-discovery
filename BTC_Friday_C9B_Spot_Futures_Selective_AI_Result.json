@@ -1,0 +1,129 @@
+{
+  "protocol": "C9B",
+  "joined_rows": 13189,
+  "fridays": 138,
+  "warmup": 52,
+  "oos_scored": 86,
+  "threshold": 0.8,
+  "selected": {
+    "n": 0,
+    "wins": 0,
+    "wr": null,
+    "pnl": 0.0,
+    "exp": null,
+    "pf": null
+  },
+  "coverage_pct": 0.0,
+  "blocks": {
+    "B1": {
+      "scored_fridays": 22,
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "pnl": 0.0,
+      "exp": null,
+      "pf": null
+    },
+    "B2": {
+      "scored_fridays": 22,
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "pnl": 0.0,
+      "exp": null,
+      "pf": null
+    },
+    "B3": {
+      "scored_fridays": 21,
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "pnl": 0.0,
+      "exp": null,
+      "pf": null
+    },
+    "B4": {
+      "scored_fridays": 21,
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "pnl": 0.0,
+      "exp": null,
+      "pf": null
+    }
+  },
+  "qualifying_blocks": 0,
+  "calibration": {
+    "<0.50": {
+      "n": 52,
+      "wins": 8,
+      "wr": 0.15384615384615385,
+      "mean_confidence": 0.4258167295257189,
+      "pnl": -272.99999999999994
+    },
+    "0.50-0.60": {
+      "n": 27,
+      "wins": 7,
+      "wr": 0.25925925925925924,
+      "mean_confidence": 0.5437379168490614,
+      "pnl": -104.74999999999999
+    },
+    "0.60-0.70": {
+      "n": 7,
+      "wins": 3,
+      "wr": 0.42857142857142855,
+      "mean_confidence": 0.6516057192984539,
+      "pnl": -11.749999999999996
+    },
+    "0.70-0.80": {
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "mean_confidence": null,
+      "pnl": 0
+    },
+    ">=0.80": {
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "mean_confidence": null,
+      "pnl": 0
+    }
+  },
+  "integrity": {
+    "source_alignment": 0,
+    "training_leak": 0,
+    "total": 0
+  },
+  "features": [
+    "signal_ret",
+    "body_ratio",
+    "upper_ratio",
+    "lower_ratio",
+    "close_pos",
+    "range_open",
+    "prior1h_ret",
+    "taker_imbalance",
+    "taker_delta_vs_prior3",
+    "rel_quote_volume_24h",
+    "rel_range_prior12",
+    "top_vs_global",
+    "top_pos_chg15",
+    "global_chg15",
+    "taker_log",
+    "oi_chg15",
+    "oi_chg60",
+    "spot_ret15",
+    "spot_ret60",
+    "spot_taker_imbalance",
+    "spot_taker_delta_vs_prior3",
+    "spot_rel_quote_volume_24h",
+    "basis",
+    "basis_delta15",
+    "basis_delta60",
+    "lead_spread",
+    "lead_z7d",
+    "flow_divergence"
+  ],
+  "verdict": "REJECT_C9B_SPOT_FUTURES_AI_IDENTIFIER"
+}
