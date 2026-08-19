@@ -1,0 +1,146 @@
+{
+  "protocol": "C6",
+  "source_join_rows": 13189,
+  "friday_dates_total": 138,
+  "warmup_fridays": 52,
+  "oos_fridays_scored": 86,
+  "threshold": 0.8,
+  "selected_trades": {
+    "n": 0,
+    "wins": 0,
+    "wr": null,
+    "pnl": 0.0,
+    "exp": null,
+    "pf": null
+  },
+  "trade_coverage_pct": 0.0,
+  "side": {
+    "LONG": {
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "pnl": 0.0,
+      "exp": null,
+      "pf": null
+    },
+    "SHORT": {
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "pnl": 0.0,
+      "exp": null,
+      "pf": null
+    }
+  },
+  "blocks": {
+    "B1": {
+      "scored_fridays": 22,
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "pnl": 0.0,
+      "exp": null,
+      "pf": null
+    },
+    "B2": {
+      "scored_fridays": 22,
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "pnl": 0.0,
+      "exp": null,
+      "pf": null
+    },
+    "B3": {
+      "scored_fridays": 21,
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "pnl": 0.0,
+      "exp": null,
+      "pf": null
+    },
+    "B4": {
+      "scored_fridays": 21,
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "pnl": 0.0,
+      "exp": null,
+      "pf": null
+    }
+  },
+  "qualifying_blocks": 0,
+  "calibration": {
+    "<0.50": {
+      "n": 60,
+      "wins": 5,
+      "wr": 0.08333333333333333,
+      "mean_confidence": 0.4155331335694523,
+      "pnl": -369.99999999999994
+    },
+    "0.50-0.60": {
+      "n": 21,
+      "wins": 6,
+      "wr": 0.2857142857142857,
+      "mean_confidence": 0.5421038856169919,
+      "pnl": -74.24999999999999
+    },
+    "0.60-0.70": {
+      "n": 5,
+      "wins": 4,
+      "wr": 0.8,
+      "mean_confidence": 0.6186054758389582,
+      "pnl": 15.75
+    },
+    "0.70-0.80": {
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "mean_confidence": null,
+      "pnl": 0.0
+    },
+    ">=0.80": {
+      "n": 0,
+      "wins": 0,
+      "wr": null,
+      "mean_confidence": null,
+      "pnl": 0.0
+    }
+  },
+  "integrity": {
+    "source_outcome_mismatches": 0,
+    "training_current_friday_leaks": 0,
+    "total": 0
+  },
+  "model": {
+    "type": "HistGradientBoostingClassifier",
+    "learning_rate": 0.05,
+    "max_iter": 100,
+    "max_depth": 3,
+    "min_samples_leaf": 30,
+    "l2_regularization": 1.0,
+    "random_state": 20260819
+  },
+  "features": [
+    "signal_ret",
+    "body_ratio",
+    "upper_ratio",
+    "lower_ratio",
+    "close_pos",
+    "range_open",
+    "prior1h_ret",
+    "taker_imbalance",
+    "taker_delta_vs_prior3",
+    "rel_quote_volume_24h",
+    "rel_range_prior12",
+    "top_vs_global",
+    "top_pos_chg15",
+    "global_chg15",
+    "taker_log",
+    "oi_chg15",
+    "oi_chg60"
+  ],
+  "verdict": "REJECT_C6_SELECTIVE_AI_IDENTIFIER",
+  "guardrail": "One top candidate per pseudo-OOS Friday; fixed p>=0.80; no post-result threshold/model/feature rescue."
+}
