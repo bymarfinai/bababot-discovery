@@ -1,0 +1,61 @@
+name: BTC Global Regime G2
+on:
+  push:
+    paths:
+      - 'research/g2_conflict_only_veto.py'
+      - '.github/workflows/g2-global-regime.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas
+      - name: Run preregistered G2 and persist
+        shell: bash
+        run: |
+          set +e
+          cd research
+          G2_OUT=g2_out G1_TUE=../BTC_Global_Regime_G1_Tuesday_Overlay.csv G1_AUG=../BTC_Global_Regime_G1_August_Tuesday.csv python g2_conflict_only_veto.py > ../G2_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat G2_RUN.log
+          printf '%s\n' "$rc" > G2_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            cp research/g2_out/BTC_GLOBAL_REGIME_G2_RESULT.md BTC_Global_Regime_G2_Result.md
+            cp research/g2_out/g2_summary.json BTC_Global_Regime_G2_Summary.json
+            cp research/g2_out/g2_august.csv BTC_Global_Regime_G2_August.csv
+            rm -f BTC_Global_Regime_G2_ERROR.log
+            git add BTC_Global_Regime_G2_Result.md BTC_Global_Regime_G2_Summary.json BTC_Global_Regime_G2_August.csv G2_EXIT_CODE.txt
+            git add -u BTC_Global_Regime_G2_ERROR.log 2>/dev/null || true
+            msg="research: persist G2 conflict-only regime veto"
+          else
+            cp G2_RUN.log BTC_Global_Regime_G2_ERROR.log
+            git add BTC_Global_Regime_G2_ERROR.log G2_EXIT_CODE.txt
+            msg="ci: persist G2 conflict-only traceback"
+          fi
+
+          git diff --cached --quiet || git commit -m "$msg"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: btc-global-regime-g2-output
+          path: |
+            G2_RUN.log
+            G2_EXIT_CODE.txt
+            research/g2_out/BTC_GLOBAL_REGIME_G2_RESULT.md
+            research/g2_out/g2_summary.json
+            research/g2_out/g2_august.csv
