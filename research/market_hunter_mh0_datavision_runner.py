@@ -2,13 +2,15 @@
 """Data-source adapter for the frozen MH0 protocol.
 
 Only replaces historical transport (restricted Binance REST -> official
-Data Vision archives). It does not alter universe, features, ranking,
-entry timing, controls, costs, or evaluation rules in MH0.
+Data Vision archives) and makes non-finite diagnostic PF values JSON-safe.
+It does not alter universe, features, ranking, entry timing, controls, costs,
+or evaluation rules in MH0.
 """
 from __future__ import annotations
 
 import csv
 import io
+import math
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -74,8 +76,26 @@ def archive_request(symbol: str, start: pd.Timestamp, end: pd.Timestamp) -> list
     return rows
 
 
+def _sanitize_nonfinite(x):
+    if isinstance(x,float):
+        return x if math.isfinite(x) else None
+    if isinstance(x,dict):
+        return {k:_sanitize_nonfinite(v) for k,v in x.items()}
+    if isinstance(x,list):
+        return [_sanitize_nonfinite(v) for v in x]
+    if isinstance(x,tuple):
+        return [_sanitize_nonfinite(v) for v in x]
+    return x
+
+
 def main():
     mh._request=archive_request
+    # Serialization-only adapter: an infinite PF means a tiny subset had no gross losses.
+    # Preserve it in markdown via mh.fmt(); emit JSON null instead of invalid Infinity.
+    original_dumps=mh.json.dumps
+    def safe_dumps(obj,*args,**kwargs):
+        return original_dumps(_sanitize_nonfinite(obj),*args,**kwargs)
+    mh.json.dumps=safe_dumps
     mh.main()
 
 
