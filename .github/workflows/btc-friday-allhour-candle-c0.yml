@@ -1,22 +1,22 @@
-name: BTC Friday Premium Selective AI C7B Runner
+name: BTC H1 Session Offset Pattern Map Runner
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_friday_c7b_premium_selective_ai.py'
-      - 'BTC_Friday_C7B_Premium_Selective_AI_Preregistration.md'
+      - 'research/btc_h1_session_offset_pattern_map.py'
+      - 'BTC_H1_Session_Offset_Pattern_Map_Preregistration.md'
       - '.github/workflows/btc-friday-allhour-candle-c0.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-c7b-premium-ai
+  group: btc-h1-session-offset-pattern-map
   cancel-in-progress: true
 
 jobs:
-  c7b:
+  h1map:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -27,37 +27,37 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install numpy pandas requests scikit-learn
-      - name: Run frozen C7B
-        id: c7brun
+        run: pip install numpy pandas requests
+      - name: Run frozen H1 map
+        id: h1run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_friday_c7b_premium_selective_ai.py > BTC_Friday_C7B_Premium_Selective_AI_Run.log 2>&1
+          PYTHONPATH=research python research/btc_h1_session_offset_pattern_map.py > BTC_H1_Session_Offset_Pattern_Map_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_Friday_C7B_Premium_Selective_AI_EXIT_CODE.txt
-          cat BTC_Friday_C7B_Premium_Selective_AI_Run.log
+          echo "$code" > BTC_H1_Session_Offset_Pattern_Map_EXIT_CODE.txt
+          cat BTC_H1_Session_Offset_Pattern_Map_Run.log
           exit $code
-      - name: Persist C7B artifacts safely
+      - name: Persist H1 artifacts safely
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Friday_C7B_Premium_Selective_AI_EXIT_CODE.txt BTC_Friday_C7B_Premium_Selective_AI_Run.log
-          for f in BTC_Friday_C7B_Premium_Selective_AI_Result.md BTC_Friday_C7B_Premium_Selective_AI_Result.json BTC_Friday_C7B_Premium_Selective_AI_Predictions.csv; do
+          git add BTC_H1_Session_Offset_Pattern_Map_EXIT_CODE.txt BTC_H1_Session_Offset_Pattern_Map_Run.log
+          for f in BTC_H1_Session_Offset_Pattern_Map_Result.md BTC_H1_Session_Offset_Pattern_Map_Result.json BTC_H1_Session_Offset_Pattern_Map_August.csv BTC_H1_Session_Offset_Pattern_Map_Cells.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git stash push --include-untracked -m c7b-artifacts
+            git stash push --include-untracked -m h1-session-map-artifacts
             git pull --rebase origin main
             git stash pop
-            git add BTC_Friday_C7B_Premium_Selective_AI_EXIT_CODE.txt BTC_Friday_C7B_Premium_Selective_AI_Run.log
-            for f in BTC_Friday_C7B_Premium_Selective_AI_Result.md BTC_Friday_C7B_Premium_Selective_AI_Result.json BTC_Friday_C7B_Premium_Selective_AI_Predictions.csv; do
+            git add BTC_H1_Session_Offset_Pattern_Map_EXIT_CODE.txt BTC_H1_Session_Offset_Pattern_Map_Run.log
+            for f in BTC_H1_Session_Offset_Pattern_Map_Result.md BTC_H1_Session_Offset_Pattern_Map_Result.json BTC_H1_Session_Offset_Pattern_Map_August.csv BTC_H1_Session_Offset_Pattern_Map_Cells.csv; do
               if [ -f "$f" ]; then git add "$f"; fi
             done
-            git commit -m "research: persist BTC Friday premium selective AI C7B result"
+            git commit -m "research: persist H1 session-offset pattern map"
             git push
           fi
-      - name: Fail if C7B failed
-        if: steps.c7brun.outcome == 'failure'
+      - name: Fail if H1 map failed
+        if: steps.h1run.outcome == 'failure'
         run: exit 1
