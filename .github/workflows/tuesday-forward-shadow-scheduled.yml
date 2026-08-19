@@ -1,5 +1,10 @@
 name: Tuesday A5.11 Forward Shadow
 on:
+  push:
+    paths:
+      - 'research/tuesday_a511_forward_shadow.py'
+      - 'BTC_Tuesday_Forward_Shadow_Model_State.json'
+      - '.github/workflows/tuesday-forward-shadow-scheduled.yml'
   schedule:
     # Tuesday 06:00 WIB = Monday 23:00 UTC.
     - cron: '0 23 * * 1'
@@ -47,6 +52,8 @@ jobs:
 
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             mode="$INPUT_MODE"
+          elif [ "$EVENT_NAME" = "push" ]; then
+            mode="smoke"
           elif [ "$SCHEDULE_EXPR" = "0 23 * * 1" ]; then
             mode="snapshot"
           elif [ "$SCHEDULE_EXPR" = "10 5 * * 2" ]; then
@@ -62,10 +69,27 @@ jobs:
             target_args+=(--target-date "$INPUT_DATE")
           fi
 
-          cd research
-          python tuesday_a511_forward_shadow.py --mode "$mode" "${target_args[@]}" > ../FORWARD_SHADOW_RUN.log 2>&1
-          rc=$?
-          cd ..
+          if [ "$mode" = "smoke" ]; then
+            cd research
+            python - <<'PY' > ../FORWARD_SHADOW_RUN.log 2>&1
+import tuesday_a511_forward_shadow as fs
+state = fs.load_state(fs.MODEL_DEFAULT)
+df = fs.read_ledger(fs.LEDGER_DEFAULT)
+assert list(df.columns) == fs.LEDGER_COLUMNS
+assert not df.date_wib.astype(str).duplicated().any() if len(df) else True
+print("FORWARD_SHADOW_SMOKE_PASS")
+print("model_fingerprint_sha256=", state["model_fingerprint_sha256"])
+print("ledger_rows=", len(df))
+PY
+            rc=$?
+            cd ..
+          else
+            cd research
+            python tuesday_a511_forward_shadow.py --mode "$mode" "${target_args[@]}" > ../FORWARD_SHADOW_RUN.log 2>&1
+            rc=$?
+            cd ..
+          fi
+
           cat FORWARD_SHADOW_RUN.log
           printf '%s\n' "$rc" > FORWARD_SHADOW_EXIT_CODE.txt
 
