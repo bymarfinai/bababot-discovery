@@ -1,0 +1,66 @@
+name: Market Hunter MH0 Cross-Sectional Backtest
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/market_hunter_mh0_cross_sectional.py'
+      - 'MARKET_HUNTER_MH0_Preregistration.md'
+      - '.github/workflows/market-hunter-mh0.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: market-hunter-mh0
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests
+      - name: Run preregistered MH0
+        id: run
+        continue-on-error: true
+        run: |
+          set +e
+          python research/market_hunter_mh0_cross_sectional.py > MARKET_HUNTER_MH0_Run.log 2>&1
+          code=$?
+          echo "$code" > MARKET_HUNTER_MH0_EXIT_CODE.txt
+          cat MARKET_HUNTER_MH0_Run.log
+          exit $code
+      - name: Persist result or error
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add MARKET_HUNTER_MH0_EXIT_CODE.txt MARKET_HUNTER_MH0_Run.log
+          if [ -f MARKET_HUNTER_MH0_Result.md ]; then git add MARKET_HUNTER_MH0_Result.md; fi
+          if [ -f MARKET_HUNTER_MH0_Result.json ]; then git add MARKET_HUNTER_MH0_Result.json; fi
+          if [ -f MARKET_HUNTER_MH0_Top1.csv ]; then git add MARKET_HUNTER_MH0_Top1.csv; fi
+          if ! git diff --cached --quiet; then
+            git commit -m "research: persist MH0 cross-sectional market hunter results"
+            git push
+          fi
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-hunter-mh0
+          path: |
+            MARKET_HUNTER_MH0_EXIT_CODE.txt
+            MARKET_HUNTER_MH0_Run.log
+            MARKET_HUNTER_MH0_Result.md
+            MARKET_HUNTER_MH0_Result.json
+            MARKET_HUNTER_MH0_Top1.csv
+          if-no-files-found: ignore
+      - name: Fail workflow if backtest failed
+        if: steps.run.outcome == 'failure'
+        run: exit 1
