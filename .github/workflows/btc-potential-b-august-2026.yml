@@ -1,0 +1,63 @@
+name: BTC Potential B August 2026 Replay
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_potential_b_august_2026_replay.py'
+      - 'BTC_PotentialB_August2026_Replay_Preregistration.md'
+      - '.github/workflows/btc-potential-b-august-2026.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: btc-potential-b-august-2026
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests
+      - name: Run frozen Potential B replay
+        id: run
+        continue-on-error: true
+        run: |
+          set +e
+          python research/btc_potential_b_august_2026_replay.py > BTC_PotentialB_August2026_Replay_Run.log 2>&1
+          code=$?
+          echo "$code" > BTC_PotentialB_August2026_Replay_EXIT_CODE.txt
+          cat BTC_PotentialB_August2026_Replay_Run.log
+          exit $code
+      - name: Persist artifacts safely
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_PotentialB_August2026_Replay_EXIT_CODE.txt BTC_PotentialB_August2026_Replay_Run.log
+          for f in BTC_PotentialB_August2026_Replay_Result.md BTC_PotentialB_August2026_Replay_Result.json BTC_PotentialB_August2026_Replay_Events.csv; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git stash push --include-untracked -m potential-b-aug-artifacts
+            git pull --rebase origin main
+            git stash pop
+            git add BTC_PotentialB_August2026_Replay_EXIT_CODE.txt BTC_PotentialB_August2026_Replay_Run.log
+            for f in BTC_PotentialB_August2026_Replay_Result.md BTC_PotentialB_August2026_Replay_Result.json BTC_PotentialB_August2026_Replay_Events.csv; do
+              if [ -f "$f" ]; then git add "$f"; fi
+            done
+            git commit -m "research: persist Potential B August 2026 replay"
+            git push
+          fi
+      - name: Fail if replay failed
+        if: steps.run.outcome == 'failure'
+        run: exit 1
