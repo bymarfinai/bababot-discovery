@@ -110,3 +110,22 @@ Executable next1H LONG with SL at event low and net-RR1:1 target remained poor: 
 Verdicts: `SD1_DIRECTION_SUPPORTED=FAIL`; `SD1_80_CANDIDATE=FAIL`.
 
 Interpretation: standard-deviation-normalized sweep magnitude alone does not create a robust directional or executable edge. Large-sigma sweeps are rarer and can look stronger in development/external subsets, but validation does not improve consistently and sample size collapses. Do not post-hoc promote 1.0-1.5σ thresholds or change the 24H sigma lookback on the same evidence. A future standard-deviation experiment must use a materially different mechanism (for example deviation from a rolling mean/band rather than normalization of sweep depth) and be preregistered independently.
+
+## SD2 — H1 prior24 mean ± kσ band excursion + prior3H sweep/reclaim — REJECT
+Frozen clocks remained 04/08/18/19 UTC = 11:00/15:00/01:00/02:00 WIB. Statistical band used only the prior24 completed H1 closes: `mean24 ± k*std24` with population std (`ddof=0`). Frozen k candidates: 1.0,1.5,2.0,2.5. Event also had to sweep/reclaim the causal prior3H range; LONG and SHORT were evaluated symmetrically and separately. No k/side was selected from validation/external/August.
+
+Directional evidence (reference-validation / external 2020-2021):
+- LONG k1.0: N35 51.43% / N76 51.32%;
+- SHORT k1.0: N49 55.10% / N73 50.68%;
+- LONG k1.5: N35 60.00% / N68 57.35%;
+- SHORT k1.5: N48 43.75% / N78 51.28%;
+- LONG k2.0: N35 60.00% / N64 57.81%;
+- SHORT k2.0: N50 42.00% / N64 45.31%;
+- LONG k2.5: N38 63.16% / N68 61.76%;
+- SHORT k2.5: N23 47.83% / N40 55.00%.
+Development LONG k2.5 reached 69.77%, but this did not transfer above the preregistered support gate. External LONG k2.5 blocks were 52.94/58.82/58.82/76.47%; not stable enough for promotion. August LONG k2.5 N2 50%; SHORT k2.5 N1 0%.
+
+Executable next1H entry with structural event-extreme SL and TP sized for modeled net RR1:1 after 0.15% fee failed for every k/side. Best-looking validation/external decisive WRs remained well below 50%, and all candidate PnLs were negative. Examples: LONG k2.5 validation WR28.95% PnL-$70.19, external WR23.53% PnL-$288.78; SHORT k2.5 validation WR30.43% PnL-$22.40, external WR37.50% PnL-$34.81.
+Verdicts across all eight candidates: `SD2_DIRECTION_SUPPORTED=FAIL`; `SD2_80_CANDIDATE=FAIL`; `SD2_EXECUTION_SUPPORTED=FAIL`.
+
+Interpretation: using standard deviation as the location of a statistical extreme (Bollinger-style mean±kσ) is materially different from SD1, but still does not produce a robust 70-80% session reversal edge or a viable structural 1:1 execution. Do not retune k, change 24H lookback, drop the prior3H condition, or isolate LONG k2.5 post-hoc on the same evidence.
