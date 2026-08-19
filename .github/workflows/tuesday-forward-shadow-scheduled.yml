@@ -1,5 +1,6 @@
 name: Tuesday A5.11 Forward Shadow
 on:
+  # Push executions are smoke-only and never create a Tuesday observation.
   push:
     paths:
       - 'research/tuesday_a511_forward_shadow.py'
