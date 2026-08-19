@@ -1,0 +1,34 @@
+{
+  "protocol": "P1",
+  "candidate_rules_evaluated": 288,
+  "discovery_eligible_80_rules": 0,
+  "selected_rule": null,
+  "baseline": {
+    "full": {
+      "n": 138,
+      "wins": 66,
+      "wr": 0.4782608695652174,
+      "pnl": 64.6304051303023,
+      "exp": 0.46833626906016157,
+      "pf": 1.2663936440205132
+    },
+    "discovery": {
+      "n": 82,
+      "wins": 45,
+      "wr": 0.5487804878048781,
+      "pnl": 99.1935390550776,
+      "exp": 1.2096773055497267,
+      "pf": 1.828474789314022
+    },
+    "validation": {
+      "n": 56,
+      "wins": 21,
+      "wr": 0.375,
+      "pnl": -34.563133924775315,
+      "exp": -0.6171988200852735,
+      "pf": 0.7187293246433446
+    }
+  },
+  "verdict": "REJECT_P1_80_CANDLE_IDENTIFIER",
+  "reason": "No frozen-grammar rule achieved discovery N>=12, WR>=80%, positive PnL and PF>1. Validation was not used to select an alternative."
+}
