@@ -65,3 +65,5 @@ This >1% diagnostic does **not** redefine the historical Potential B benchmark.
 - no direction flip after result;
 - no extra filter after seeing losers;
 - no live code changes.
+
+CI trigger note: workflow already exists before this push; this note changes no research rule.
