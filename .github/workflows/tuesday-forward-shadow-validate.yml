@@ -1,0 +1,59 @@
+name: Validate Tuesday Forward Shadow
+on:
+  push:
+    paths:
+      - 'research/tuesday_a511_forward_shadow.py'
+      - 'research/tuesday_a511_forward_shadow_validate.py'
+      - 'BTC_Tuesday_Forward_Shadow_Model_State.json'
+      - '.github/workflows/tuesday-forward-shadow-validate.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - name: Validate frozen August parity end-to-end
+        shell: bash
+        run: |
+          set +e
+          cd research
+          python tuesday_a511_forward_shadow_validate.py > ../FORWARD_SHADOW_VALIDATE_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat FORWARD_SHADOW_VALIDATE_RUN.log
+          printf '%s\n' "$rc" > FORWARD_SHADOW_VALIDATE_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            rm -f BTC_Tuesday_A511_Forward_Shadow_Validation_ERROR.log
+            git add BTC_Tuesday_A511_Forward_Shadow_Validation.json BTC_Tuesday_A511_Forward_Shadow_Validation.md FORWARD_SHADOW_VALIDATE_EXIT_CODE.txt
+            git add -u BTC_Tuesday_A511_Forward_Shadow_Validation_ERROR.log 2>/dev/null || true
+            msg="research: persist Tuesday forward shadow validation"
+          else
+            cp FORWARD_SHADOW_VALIDATE_RUN.log BTC_Tuesday_A511_Forward_Shadow_Validation_ERROR.log
+            git add BTC_Tuesday_A511_Forward_Shadow_Validation_ERROR.log FORWARD_SHADOW_VALIDATE_EXIT_CODE.txt
+            msg="ci: persist Tuesday forward shadow validation traceback"
+          fi
+
+          git diff --cached --quiet || git commit -m "$msg"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tuesday-forward-shadow-validation
+          path: |
+            FORWARD_SHADOW_VALIDATE_RUN.log
+            FORWARD_SHADOW_VALIDATE_EXIT_CODE.txt
+            BTC_Tuesday_A511_Forward_Shadow_Validation.json
+            BTC_Tuesday_A511_Forward_Shadow_Validation.md
