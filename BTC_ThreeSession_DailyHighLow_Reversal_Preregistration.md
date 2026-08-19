@@ -133,3 +133,5 @@ TIME outcomes are always reported and are not silently removed from trade count.
 - no RR sweep after result;
 - no selecting only weekdays/weekends after result;
 - no live BBC changes.
+
+CI trigger note: workflow existed before this push; no research rule changed.
