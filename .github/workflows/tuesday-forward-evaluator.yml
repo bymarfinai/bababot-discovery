@@ -1,0 +1,66 @@
+name: Tuesday A5.11 Forward Evaluator
+on:
+  push:
+    paths:
+      - 'BTC_Tuesday_A511_Forward_Shadow_Ledger.csv'
+      - 'BTC_Tuesday_A511_Forward_Promotion_Protocol.md'
+      - 'BTC_Tuesday_Forward_Shadow_Model_State.json'
+      - 'research/tuesday_a511_forward_evaluator.py'
+      - '.github/workflows/tuesday-forward-evaluator.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: tuesday-a511-forward-evaluator
+  cancel-in-progress: false
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas
+      - name: Evaluate immutable forward ledger
+        shell: bash
+        run: |
+          set +e
+          python research/tuesday_a511_forward_evaluator.py > FORWARD_EVALUATOR_RUN.log 2>&1
+          rc=$?
+          cat FORWARD_EVALUATOR_RUN.log
+          printf '%s\n' "$rc" > FORWARD_EVALUATOR_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            rm -f BTC_Tuesday_A511_Forward_Evaluation_ERROR.log
+            git add BTC_Tuesday_A511_Forward_Evaluation.json BTC_Tuesday_A511_Forward_Evaluation.md FORWARD_EVALUATOR_EXIT_CODE.txt
+            git add -u BTC_Tuesday_A511_Forward_Evaluation_ERROR.log 2>/dev/null || true
+            msg="research: update Tuesday true-forward evaluation"
+          else
+            cp FORWARD_EVALUATOR_RUN.log BTC_Tuesday_A511_Forward_Evaluation_ERROR.log
+            git add BTC_Tuesday_A511_Forward_Evaluation_ERROR.log FORWARD_EVALUATOR_EXIT_CODE.txt
+            msg="ci: persist Tuesday forward evaluator error"
+          fi
+
+          if ! git diff --cached --quiet; then
+            git commit -m "$msg"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tuesday-forward-evaluator-${{ github.run_id }}
+          path: |
+            FORWARD_EVALUATOR_RUN.log
+            FORWARD_EVALUATOR_EXIT_CODE.txt
+            BTC_Tuesday_A511_Forward_Evaluation.json
+            BTC_Tuesday_A511_Forward_Evaluation.md
+            BTC_Tuesday_A511_Forward_Evaluation_ERROR.log
