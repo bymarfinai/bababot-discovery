@@ -1,0 +1,63 @@
+name: BTC Potential B Parity Recovery V2
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_potential_b_august_2026_parity_v2.py'
+      - 'BTC_PotentialB_ParityRecovery_V2_Preregistration.md'
+      - '.github/workflows/btc-potential-b-parity-v2.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: btc-potential-b-parity-v2
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests
+      - name: Run frozen V2
+        id: run
+        continue-on-error: true
+        run: |
+          set +e
+          PYTHONPATH=research python research/btc_potential_b_august_2026_parity_v2.py > BTC_PotentialB_ParityRecovery_V2_Run.log 2>&1
+          code=$?
+          echo "$code" > BTC_PotentialB_ParityRecovery_V2_EXIT_CODE.txt
+          cat BTC_PotentialB_ParityRecovery_V2_Run.log
+          exit $code
+      - name: Persist artifacts safely
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_PotentialB_ParityRecovery_V2_EXIT_CODE.txt BTC_PotentialB_ParityRecovery_V2_Run.log
+          for f in BTC_PotentialB_ParityRecovery_V2_Result.md BTC_PotentialB_ParityRecovery_V2_Result.json BTC_PotentialB_ParityRecovery_V2_August_Events.csv; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git stash push --include-untracked -m potential-b-v2-artifacts
+            git pull --rebase origin main
+            git stash pop
+            git add BTC_PotentialB_ParityRecovery_V2_EXIT_CODE.txt BTC_PotentialB_ParityRecovery_V2_Run.log
+            for f in BTC_PotentialB_ParityRecovery_V2_Result.md BTC_PotentialB_ParityRecovery_V2_Result.json BTC_PotentialB_ParityRecovery_V2_August_Events.csv; do
+              if [ -f "$f" ]; then git add "$f"; fi
+            done
+            git commit -m "research: persist Potential B parity recovery V2"
+            git push
+          fi
+      - name: Fail if run failed
+        if: steps.run.outcome == 'failure'
+        run: exit 1
