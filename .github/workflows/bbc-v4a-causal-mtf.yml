@@ -1,0 +1,67 @@
+name: BBC V4-A Causal MTF Confirmation
+
+on:
+  push:
+    paths:
+      - 'research/bbc_v4a_causal_mtf_confirmation.py'
+      - '.github/workflows/bbc-v4a-causal-mtf.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bbc-v4a-causal-mtf
+  cancel-in-progress: false
+
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy requests
+      - name: Run V4-A study
+        shell: bash
+        run: |
+          set +e
+          python research/bbc_v4a_causal_mtf_confirmation.py > BBC_V4A_CAUSAL_MTF_RUN.log 2>&1
+          code=$?
+          echo "$code" > BBC_V4A_CAUSAL_MTF_EXIT_CODE.txt
+          cat BBC_V4A_CAUSAL_MTF_RUN.log
+          exit $code
+      - name: Commit result
+        if: success()
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_BBC_V4A_Causal_MTF_Confirmation.json BTC_BBC_V4A_Causal_MTF_Confirmation.md BBC_V4A_CAUSAL_MTF_EXIT_CODE.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "research: persist V4-A causal MTF results"
+            git push
+          fi
+      - name: Persist failure
+        if: failure()
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BBC_V4A_CAUSAL_MTF_RUN.log BBC_V4A_CAUSAL_MTF_EXIT_CODE.txt || true
+          if ! git diff --cached --quiet; then
+            git commit -m "research: persist V4-A causal MTF failure"
+            git push || true
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bbc-v4a-causal-mtf
+          path: |
+            BTC_BBC_V4A_Causal_MTF_Confirmation.json
+            BTC_BBC_V4A_Causal_MTF_Confirmation.md
+            BBC_V4A_CAUSAL_MTF_RUN.log
+            BBC_V4A_CAUSAL_MTF_EXIT_CODE.txt
+          if-no-files-found: ignore
