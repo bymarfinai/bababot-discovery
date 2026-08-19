@@ -121,3 +121,5 @@ Reference-sample 80% alone cannot promote the rule.
 - no RR/TP/SL/hold sweep;
 - no selecting weekdays/weekends after result;
 - no live BBC changes.
+
+CI trigger note: workflow already existed before this push; no research rule changed.
