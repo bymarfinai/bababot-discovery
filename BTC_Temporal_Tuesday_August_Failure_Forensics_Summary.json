@@ -1,0 +1,183 @@
+{
+  "status": "COMPLETE_TUESDAY_AUGUST_FAILURE_FORENSICS",
+  "parity": {
+    "parent": {
+      "n": 139,
+      "wins": 79,
+      "losses": 60,
+      "wr": 0.5683453237410072,
+      "pnl": 95.73423284254761,
+      "pf": 1.4307417377463976,
+      "exp": 0.6887354880758821
+    },
+    "a52": {
+      "n": 139,
+      "wins": 83,
+      "losses": 56,
+      "wr": 0.5971223021582733,
+      "pnl": 105.90402032685056,
+      "pf": 1.5007642010964874,
+      "exp": 0.7618994268118745
+    },
+    "a59": {
+      "n": 139,
+      "wins": 89,
+      "losses": 50,
+      "wr": 0.6402877697841727,
+      "pnl": 120.26714578412741,
+      "pf": 1.6382067099176643,
+      "exp": 0.8652312646340101
+    },
+    "a511": {
+      "n": 139,
+      "wins": 89,
+      "losses": 50,
+      "wr": 0.6402877697841727,
+      "pnl": 130.3285205371619,
+      "pf": 1.69159815640554,
+      "exp": 0.9376152556630352
+    },
+    "a52_actions": 7,
+    "fastmr_actions": 12,
+    "recoveries": 4,
+    "checks": {
+      "n139": true,
+      "parent_w79": true,
+      "parent_pnl": true,
+      "a52_w83": true,
+      "a52_pnl": true,
+      "a52_actions7": true,
+      "a59_w89": true,
+      "a59_pnl": true,
+      "fast_actions12": true,
+      "a511_w89": true,
+      "a511_pnl": true,
+      "recoveries4": true
+    },
+    "pass": true
+  },
+  "historical": {
+    "n": 139,
+    "developed_n": 96,
+    "develop_rate": 0.6906474820143885,
+    "a511_pnl": 130.3285205371619,
+    "a511_wr": 0.6402877697841727
+  },
+  "august": {
+    "n": 3,
+    "developed_n": 0,
+    "develop_rate": 0.0,
+    "a511_pnl": -5.6777177416451865,
+    "a511_wr": 0.0
+  },
+  "robust_natural_bad_states": [],
+  "robust_discovery_quartile_bad_states": [],
+  "continuous_atlas": [
+    {
+      "feature": "ret1h",
+      "developed_median": 0.00047734003102350986,
+      "nondeveloped_median": 0.00010205475021751731,
+      "D_q25": -0.0009804133505475487,
+      "D_q75": 0.0030106784837174994
+    },
+    {
+      "feature": "ret3h",
+      "developed_median": 0.00121965557919812,
+      "nondeveloped_median": -0.00018532155250428062,
+      "D_q25": -0.0024282808998224437,
+      "D_q75": 0.008068306724696495
+    },
+    {
+      "feature": "ret6h",
+      "developed_median": 0.0014954306267389583,
+      "nondeveloped_median": 0.0010664166975808964,
+      "D_q25": -0.003779624935529413,
+      "D_q75": 0.013305996697905997
+    },
+    {
+      "feature": "ret12h",
+      "developed_median": -0.001690227280038037,
+      "nondeveloped_median": 0.004203350479075718,
+      "D_q25": -0.0066366230596935916,
+      "D_q75": 0.022274335622291308
+    },
+    {
+      "feature": "ret24h",
+      "developed_median": 0.00356987809661935,
+      "nondeveloped_median": 0.008389997042286046,
+      "D_q25": -0.009462824027719918,
+      "D_q75": 0.02793644364132508
+    },
+    {
+      "feature": "mon_ret",
+      "developed_median": 0.00302267787047239,
+      "nondeveloped_median": -0.00020517759128624302,
+      "D_q25": -0.01356271973251938,
+      "D_q75": 0.02158192369818479
+    },
+    {
+      "feature": "overnight_ret",
+      "developed_median": 0.0014954306267389583,
+      "nondeveloped_median": 0.0010664166975808964,
+      "D_q25": -0.003779624935529413,
+      "D_q75": 0.013305996697905997
+    },
+    {
+      "feature": "ema_spread",
+      "developed_median": 0.0001353318894214972,
+      "nondeveloped_median": 0.0002488452101687688,
+      "D_q25": -0.0005400086657991188,
+      "D_q75": 0.0015132682122031005
+    },
+    {
+      "feature": "dist_ema20",
+      "developed_median": 9.064488450394315e-05,
+      "nondeveloped_median": 0.00044370814446748064,
+      "D_q25": -0.0008685923533488515,
+      "D_q75": 0.0021727028293492268
+    },
+    {
+      "feature": "ema20_slope1h",
+      "developed_median": 0.0003487351660341753,
+      "nondeveloped_median": -4.201544384085931e-05,
+      "D_q25": -0.0011399086324181962,
+      "D_q75": 0.002936788138370394
+    },
+    {
+      "feature": "loc24",
+      "developed_median": 0.5282822559272682,
+      "nondeveloped_median": 0.5922381631229343,
+      "D_q25": 0.33719435175312895,
+      "D_q75": 0.860219094292635
+    },
+    {
+      "feature": "range6",
+      "developed_median": 0.017009365733637094,
+      "nondeveloped_median": 0.017677839851024224,
+      "D_q25": 0.013968596646251497,
+      "D_q75": 0.03203760663828137
+    },
+    {
+      "feature": "range24",
+      "developed_median": 0.040024908634668566,
+      "nondeveloped_median": 0.04095338983050856,
+      "D_q25": 0.03536416530378639,
+      "D_q75": 0.06797886554521548
+    },
+    {
+      "feature": "taker1h",
+      "developed_median": 0.00283912521026064,
+      "nondeveloped_median": -0.010689826216887854,
+      "D_q25": -0.05445664331265676,
+      "D_q75": 0.05498451857037567
+    },
+    {
+      "feature": "taker4h",
+      "developed_median": 0.011369775131860327,
+      "nondeveloped_median": 0.010165295868859392,
+      "D_q25": -0.021095627791695104,
+      "D_q75": 0.035969111084145466
+    }
+  ],
+  "guardrail": "Robust labels require negative skipped PnL and lower develop-rate in both D and V. V is same-sample report-only, not untouched OOS. August is not used to define feature signs or quartile thresholds. Do not deploy a new gate solely because it catches N=3 August losses; freeze any candidate and forward-test it first."
+}
