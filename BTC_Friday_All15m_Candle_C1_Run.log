@@ -1,0 +1,272 @@
+{
+  "protocol": "C1",
+  "friday_dates": 141,
+  "discovery_dates": 98,
+  "validation_dates": 43,
+  "signal_rows": 13531,
+  "archetypes_discovery": 68,
+  "discovery_eligible_80": 0,
+  "baseline": {
+    "cont": {
+      "discovery": {
+        "n": 9405,
+        "wins": 4104,
+        "wr": 0.43636363636363634,
+        "pnl": -7225.220373841327,
+        "exp": -0.7682318313494234,
+        "pf": 0.6908897014127336
+      },
+      "validation": {
+        "n": 4126,
+        "wins": 1784,
+        "wr": 0.4323800290838585,
+        "pnl": -3206.8113144308422,
+        "exp": -0.7772203864350078,
+        "pf": 0.676680248400652
+      },
+      "full": {
+        "n": 13531,
+        "wins": 5888,
+        "wr": 0.4351489173010125,
+        "pnl": -10432.031688272189,
+        "exp": -0.7709727062502542,
+        "pf": 0.6866564862545362
+      }
+    },
+    "rev": {
+      "discovery": {
+        "n": 9405,
+        "wins": 4210,
+        "wr": 0.44763423710792133,
+        "pnl": -6882.279626158671,
+        "exp": -0.7317681686505764,
+        "pf": 0.7022605464831815
+      },
+      "validation": {
+        "n": 4126,
+        "wins": 1824,
+        "wr": 0.44207464857004364,
+        "pnl": -2982.1886855691596,
+        "exp": -0.7227796135649927,
+        "pf": 0.6946144166206981
+      },
+      "full": {
+        "n": 13531,
+        "wins": 6034,
+        "wr": 0.44593895499224007,
+        "pnl": -9864.468311727804,
+        "exp": -0.7290272937497453,
+        "pf": 0.6999896843798893
+      }
+    }
+  },
+  "top_discovery_support40": {
+    "cont": [
+      {
+        "mode": "cont",
+        "archetype": "GREEN|MEDIUM|LOWER|HIGH|EXPANDED|OPPOSITE",
+        "n": 80,
+        "wins": 46,
+        "wr": 0.575,
+        "pnl": 41.04126526086782,
+        "exp": 0.5130158157608478,
+        "pf": 1.3083620164917342
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|MEDIUM|LOWER|HIGH|NORMAL|SAME",
+        "n": 82,
+        "wins": 45,
+        "wr": 0.5487804878048781,
+        "pnl": 38.68651321067673,
+        "exp": 0.4717867464716674,
+        "pf": 1.2772808361031267
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|SMALL|UPPER|HIGH|NORMAL|SAME",
+        "n": 48,
+        "wins": 25,
+        "wr": 0.5208333333333334,
+        "pnl": -5.911685231563823,
+        "exp": -0.12316010899091297,
+        "pf": 0.9415622423553185
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|LARGE|BODY_BALANCED|HIGH|NORMAL|OPPOSITE",
+        "n": 284,
+        "wins": 147,
+        "wr": 0.5176056338028169,
+        "pnl": -6.251827163865363,
+        "exp": -0.02201347592910339,
+        "pf": 0.988640073221805
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|SMALL|LOWER|HIGH|NORMAL|SAME",
+        "n": 262,
+        "wins": 134,
+        "wr": 0.5114503816793893,
+        "pnl": -17.925090721184525,
+        "exp": -0.06841637679841421,
+        "pf": 0.9666202463859531
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|LARGE|BODY_BALANCED|HIGH|NORMAL|SAME",
+        "n": 230,
+        "wins": 116,
+        "wr": 0.5043478260869565,
+        "pnl": -104.16400185322128,
+        "exp": -0.45288696457922295,
+        "pf": 0.8103222811894844
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|SMALL|UPPER|LOW|NORMAL|SAME",
+        "n": 174,
+        "wins": 87,
+        "wr": 0.5,
+        "pnl": -9.441085403343882,
+        "exp": -0.054259111513470584,
+        "pf": 0.9718646319598702
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|SMALL|UPPER|LOW|NORMAL|OPPOSITE",
+        "n": 185,
+        "wins": 92,
+        "wr": 0.4972972972972973,
+        "pnl": -40.89993503204719,
+        "exp": -0.22108072990295777,
+        "pf": 0.8963105412314517
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|SMALL|UPPER|LOW|EXPANDED|SAME",
+        "n": 114,
+        "wins": 56,
+        "wr": 0.49122807017543857,
+        "pnl": -51.25317803171973,
+        "exp": -0.4495892809799976,
+        "pf": 0.8097685442974524
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|MEDIUM|BODY_BALANCED|HIGH|NORMAL|SAME",
+        "n": 317,
+        "wins": 153,
+        "wr": 0.48264984227129337,
+        "pnl": -170.69702330249896,
+        "exp": -0.5384764142034668,
+        "pf": 0.7742567116391303
+      }
+    ],
+    "rev": [
+      {
+        "mode": "rev",
+        "archetype": "GREEN|MEDIUM|UPPER|LOW|EXPANDED|SAME",
+        "n": 43,
+        "wins": 25,
+        "wr": 0.5813953488372093,
+        "pnl": 7.127080259598787,
+        "exp": 0.165746052548809,
+        "pf": 1.0833169816465245
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|MEDIUM|BODY_BALANCED|LOW|EXPANDED|SAME",
+        "n": 386,
+        "wins": 208,
+        "wr": 0.538860103626943,
+        "pnl": -21.92003016693283,
+        "exp": -0.0567876429195151,
+        "pf": 0.9733914688945303
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|MEDIUM|LOWER|LOW|NORMAL|OPPOSITE",
+        "n": 43,
+        "wins": 23,
+        "wr": 0.5348837209302325,
+        "pnl": -0.011050896946271038,
+        "exp": -0.00025699760340165207,
+        "pf": 0.9998702999404258
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|LARGE|BODY_BALANCED|LOW|NORMAL|SAME",
+        "n": 176,
+        "wins": 93,
+        "wr": 0.5284090909090909,
+        "pnl": -24.717711526977304,
+        "exp": -0.1404415427669165,
+        "pf": 0.9346820805331305
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|SMALL|LOWER|HIGH|NORMAL|SAME",
+        "n": 192,
+        "wins": 101,
+        "wr": 0.5260416666666666,
+        "pnl": -55.742264548082765,
+        "exp": -0.2903242945212644,
+        "pf": 0.8793961045317835
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|SMALL|LOWER|LOW|NORMAL|SAME",
+        "n": 60,
+        "wins": 31,
+        "wr": 0.5166666666666667,
+        "pnl": 7.240520011397047,
+        "exp": 0.12067533352328412,
+        "pf": 1.0642227357361722
+      },
+      {
+        "mode": "rev",
+        "archetype": "GREEN|MEDIUM|LOWER|HIGH|EXPANDED|SAME",
+        "n": 43,
+        "wins": 22,
+        "wr": 0.5116279069767442,
+        "pnl": -16.35423570114191,
+        "exp": -0.3803310628172537,
+        "pf": 0.812953845377826
+      },
+      {
+        "mode": "rev",
+        "archetype": "GREEN|MEDIUM|UPPER|LOW|NORMAL|SAME",
+        "n": 44,
+        "wins": 22,
+        "wr": 0.5,
+        "pnl": -20.806208846586983,
+        "exp": -0.4728683828769769,
+        "pf": 0.8070146581388746
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|MEDIUM|LOWER|HIGH|NORMAL|OPPOSITE",
+        "n": 42,
+        "wins": 21,
+        "wr": 0.5,
+        "pnl": 25.786058633971678,
+        "exp": 0.6139537769993256,
+        "pf": 1.3343136829279962
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|MEDIUM|BODY_BALANCED|LOW|EXPANDED|OPPOSITE",
+        "n": 332,
+        "wins": 165,
+        "wr": 0.49698795180722893,
+        "pnl": -177.81050833946458,
+        "exp": -0.5355738202995921,
+        "pf": 0.7708413335188525
+      }
+    ]
+  },
+  "selected": null,
+  "verdict": "REJECT_C1_80_CANDLE_IDENTIFIER",
+  "reason": "No frozen 15m archetype achieved discovery N>=40 and WR>=80%."
+}
