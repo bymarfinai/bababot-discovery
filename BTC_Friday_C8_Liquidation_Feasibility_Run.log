@@ -1,0 +1,59 @@
+{
+  "protocol": "C8_FEASIBILITY",
+  "sample_dates": [
+    "2023-12-08",
+    "2024-03-15",
+    "2024-08-02",
+    "2025-01-24",
+    "2025-07-18",
+    "2026-01-23",
+    "2026-07-24"
+  ],
+  "existing_archives": 0,
+  "usable_archives": 0,
+  "probes": [
+    {
+      "date": "2023-12-08",
+      "status": 404,
+      "bytes": 383,
+      "exists": false
+    },
+    {
+      "date": "2024-03-15",
+      "status": 404,
+      "bytes": 383,
+      "exists": false
+    },
+    {
+      "date": "2024-08-02",
+      "status": 404,
+      "bytes": 383,
+      "exists": false
+    },
+    {
+      "date": "2025-01-24",
+      "status": 404,
+      "bytes": 383,
+      "exists": false
+    },
+    {
+      "date": "2025-07-18",
+      "status": 404,
+      "bytes": 363,
+      "exists": false
+    },
+    {
+      "date": "2026-01-23",
+      "status": 404,
+      "bytes": 363,
+      "exists": false
+    },
+    {
+      "date": "2026-07-24",
+      "status": 404,
+      "bytes": 363,
+      "exists": false
+    }
+  ],
+  "verdict": "C8_LIQUIDATION_DATA_INSUFFICIENT"
+}
