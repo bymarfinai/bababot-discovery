@@ -147,7 +147,6 @@ def run_walkforward(hist: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         model.fit(Xtr, ytr)
         p = float(model.predict_proba(test[FEATURES])[:, 1][0])
 
-        # store standardized model coefficients for stability audit
         coefs = model.named_steps["logit"].coef_[0]
         coef_history.append({"i": i, **{f: float(c) for f, c in zip(FEATURES, coefs)}})
 
@@ -183,7 +182,6 @@ def run_walkforward(hist: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
             pnls, wf[f"trade_p{int(th*100)}"].to_numpy(bool)
         )
 
-    # Chronological blocks are report-only, no block can change the primary rule.
     blocks = []
     for b, idx in enumerate(np.array_split(np.arange(len(wf)), 4), start=1):
         x = wf.iloc[idx]
@@ -207,7 +205,6 @@ def run_walkforward(hist: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         })
     summary["years"] = years
 
-    # Model quality diagnostics, not selection criteria.
     y = wf.actual_win.astype(int).to_numpy()
     p = wf.pred_win_p.to_numpy(float)
     summary["brier"] = float(np.mean((p - y) ** 2))
@@ -230,7 +227,6 @@ def run_walkforward(hist: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
 
 
 def august_batch_holdout(k: pd.DataFrame, hist: pd.DataFrame) -> tuple[pd.DataFrame, dict, dict]:
-    # One model trained on historical data ending Jul-30 and frozen for all August observations.
     model = make_model()
     model.fit(hist[FEATURES], hist.win.astype(int))
 
@@ -262,7 +258,6 @@ def august_batch_holdout(k: pd.DataFrame, hist: pd.DataFrame) -> tuple[pd.DataFr
         "primary_p50": metrics_opportunity(pnls, aug.trade_p50.to_numpy(bool)),
     }
 
-    # Persist final model state in transparent JSON-friendly form for reproducibility/shadow use.
     imp = model.named_steps["imputer"]
     scale = model.named_steps["scale"]
     logit = model.named_steps["logit"]
@@ -282,6 +277,10 @@ def august_batch_holdout(k: pd.DataFrame, hist: pd.DataFrame) -> tuple[pd.DataFr
 
 def fmt_pct(v):
     return "-" if v is None else f"{100*v:.1f}%"
+
+
+def fmt_pf(m):
+    return "-" if m["pf"] is None else f"{m['pf']:.2f}"
 
 
 def main():
@@ -357,7 +356,7 @@ def main():
     for name, m in policies:
         md.append(
             f"| {name} | {m['opportunities']} | {m['trades']} | {fmt_pct(m['coverage'])} | {fmt_pct(m['trade_wr'])} | "
-            f"${m['pnl']:+.2f} | {('-' if m['pf'] is None else f'{m['pf']:.2f}')} | ${m['exp_per_opportunity']:+.3f} | ${m['max_dd']:.2f} |"
+            f"${m['pnl']:+.2f} | {fmt_pf(m)} | ${m['exp_per_opportunity']:+.3f} | ${m['max_dd']:.2f} |"
         )
 
     md += [
@@ -372,7 +371,7 @@ def main():
     for b in wf_summary["blocks"]:
         m = b["primary"]
         md.append(
-            f"| B{b['block']} | {b['start']} → {b['end']} | {m['trades']}/{m['opportunities']} | {fmt_pct(m['trade_wr'])} | ${m['pnl']:+.2f} | {('-' if m['pf'] is None else f'{m['pf']:.2f}')} |"
+            f"| B{b['block']} | {b['start']} → {b['end']} | {m['trades']}/{m['opportunities']} | {fmt_pct(m['trade_wr'])} | ${m['pnl']:+.2f} | {fmt_pf(m)} |"
         )
 
     md += [
