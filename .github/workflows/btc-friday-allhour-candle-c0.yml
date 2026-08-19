@@ -1,22 +1,22 @@
-name: BTC Friday SR82 External Support Runner
+name: BTC Friday Candle Taker C4 Runner
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_friday_sr82_support_external.py'
-      - 'BTC_Friday_SR82_Support_External_Preregistration.md'
+      - 'research/btc_friday_15m_candle_taker_c4.py'
+      - 'BTC_Friday_15m_Candle_Taker_C4_Preregistration.md'
       - '.github/workflows/btc-friday-allhour-candle-c0.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-sr82-external
+  group: btc-friday-c4-taker
   cancel-in-progress: true
 
 jobs:
-  sr82:
+  c4:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -28,36 +28,36 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install numpy pandas requests scikit-learn
-      - name: Run frozen SR82
-        id: sr82run
+      - name: Run frozen C4
+        id: c4run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_friday_sr82_support_external.py > BTC_Friday_SR82_Support_External_Run.log 2>&1
+          PYTHONPATH=research python research/btc_friday_15m_candle_taker_c4.py > BTC_Friday_15m_Candle_Taker_C4_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_Friday_SR82_Support_External_EXIT_CODE.txt
-          cat BTC_Friday_SR82_Support_External_Run.log
+          echo "$code" > BTC_Friday_15m_Candle_Taker_C4_EXIT_CODE.txt
+          cat BTC_Friday_15m_Candle_Taker_C4_Run.log
           exit $code
-      - name: Persist SR82 artifacts safely
+      - name: Persist C4 artifacts safely
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Friday_SR82_Support_External_EXIT_CODE.txt BTC_Friday_SR82_Support_External_Run.log
-          for f in BTC_Friday_SR82_Support_External_Result.md BTC_Friday_SR82_Support_External_Result.json BTC_Friday_SR82_Support_External_Rows.csv; do
+          git add BTC_Friday_15m_Candle_Taker_C4_EXIT_CODE.txt BTC_Friday_15m_Candle_Taker_C4_Run.log
+          for f in BTC_Friday_15m_Candle_Taker_C4_Result.md BTC_Friday_15m_Candle_Taker_C4_Result.json BTC_Friday_15m_Candle_Taker_C4_Rows.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git stash push --include-untracked -m sr82-artifacts
+            git stash push --include-untracked -m c4-artifacts
             git pull --rebase origin main
             git stash pop
-            git add BTC_Friday_SR82_Support_External_EXIT_CODE.txt BTC_Friday_SR82_Support_External_Run.log
-            for f in BTC_Friday_SR82_Support_External_Result.md BTC_Friday_SR82_Support_External_Result.json BTC_Friday_SR82_Support_External_Rows.csv; do
+            git add BTC_Friday_15m_Candle_Taker_C4_EXIT_CODE.txt BTC_Friday_15m_Candle_Taker_C4_Run.log
+            for f in BTC_Friday_15m_Candle_Taker_C4_Result.md BTC_Friday_15m_Candle_Taker_C4_Result.json BTC_Friday_15m_Candle_Taker_C4_Rows.csv; do
               if [ -f "$f" ]; then git add "$f"; fi
             done
-            git commit -m "research: persist BTC Friday SR82 external support result"
+            git commit -m "research: persist BTC Friday candle taker C4 result"
             git push
           fi
-      - name: Fail if SR82 failed
-        if: steps.sr82run.outcome == 'failure'
+      - name: Fail if C4 failed
+        if: steps.c4run.outcome == 'failure'
         run: exit 1
