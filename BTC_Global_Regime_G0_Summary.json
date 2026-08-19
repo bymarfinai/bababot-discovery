@@ -1,0 +1,302 @@
+{
+  "status": "G0_PASS_ADVANCE_TO_G1",
+  "preregistration": "BTC_Global_Regime_G0_Preregistration.md",
+  "historical_window": {
+    "start": "2023-12-02 00:00:00+00:00",
+    "end_exclusive": "2026-07-30 00:00:00+00:00"
+  },
+  "label": {
+    "barrier": 0.005,
+    "horizon_hours": 6,
+    "same_bar_dual_touch": "NEUTRAL"
+  },
+  "features": [
+    "ret1h",
+    "ret3h",
+    "ret6h",
+    "ret12h",
+    "ret24h",
+    "ema_spread",
+    "dist_ema20",
+    "ema20_slope1h",
+    "loc24",
+    "range6",
+    "range24",
+    "range6_to_24",
+    "taker1h",
+    "taker4h",
+    "rv1h",
+    "rv6h",
+    "atr20_pct"
+  ],
+  "candidate_hourly_states": 23304,
+  "eligible_historical_states": 23304,
+  "excluded": {},
+  "class_distribution": {
+    "n": 23304,
+    "counts": {
+      "SELL_COMPATIBLE": 10280,
+      "BUY_COMPATIBLE": 10225,
+      "NEUTRAL": 2799
+    },
+    "rates": {
+      "SELL_COMPATIBLE": 0.4411259869550292,
+      "BUY_COMPATIBLE": 0.4387658771026433,
+      "NEUTRAL": 0.1201081359423275
+    }
+  },
+  "same_bar_dual_touch_n": 21,
+  "neutral_timeout_n": 2778,
+  "yearly_distribution": [
+    {
+      "year": 2023,
+      "n": 720,
+      "counts": {
+        "SELL_COMPATIBLE": 325,
+        "BUY_COMPATIBLE": 338,
+        "NEUTRAL": 57
+      },
+      "rates": {
+        "SELL_COMPATIBLE": 0.4513888888888889,
+        "BUY_COMPATIBLE": 0.46944444444444444,
+        "NEUTRAL": 0.07916666666666666
+      }
+    },
+    {
+      "year": 2024,
+      "n": 8784,
+      "counts": {
+        "SELL_COMPATIBLE": 3918,
+        "BUY_COMPATIBLE": 4144,
+        "NEUTRAL": 722
+      },
+      "rates": {
+        "SELL_COMPATIBLE": 0.44603825136612024,
+        "BUY_COMPATIBLE": 0.47176684881602915,
+        "NEUTRAL": 0.08219489981785064
+      }
+    },
+    {
+      "year": 2025,
+      "n": 8760,
+      "counts": {
+        "SELL_COMPATIBLE": 3751,
+        "BUY_COMPATIBLE": 3618,
+        "NEUTRAL": 1391
+      },
+      "rates": {
+        "SELL_COMPATIBLE": 0.42819634703196346,
+        "BUY_COMPATIBLE": 0.413013698630137,
+        "NEUTRAL": 0.15878995433789955
+      }
+    },
+    {
+      "year": 2026,
+      "n": 5040,
+      "counts": {
+        "SELL_COMPATIBLE": 2286,
+        "BUY_COMPATIBLE": 2125,
+        "NEUTRAL": 629
+      },
+      "rates": {
+        "SELL_COMPATIBLE": 0.45357142857142857,
+        "BUY_COMPATIBLE": 0.42162698412698413,
+        "NEUTRAL": 0.1248015873015873
+      }
+    }
+  ],
+  "feature_audit": {
+    "ret1h": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "ret3h": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "ret6h": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "ret12h": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "ret24h": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "ema_spread": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "dist_ema20": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "ema20_slope1h": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "loc24": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "range6": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "range24": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "range6_to_24": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "taker1h": {
+      "finite_n": 23303,
+      "finite_rate": 0.9999570889117748,
+      "missing_or_nonfinite_n": 1
+    },
+    "taker4h": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "rv1h": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "rv6h": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    },
+    "atr20_pct": {
+      "finite_n": 23304,
+      "finite_rate": 1.0,
+      "missing_or_nonfinite_n": 0
+    }
+  },
+  "tuesday_crosscheck": {
+    "historical_n": 139,
+    "historical_labels": {
+      "n": 139,
+      "counts": {
+        "SELL_COMPATIBLE": 87,
+        "BUY_COMPATIBLE": 47,
+        "NEUTRAL": 5
+      },
+      "rates": {
+        "SELL_COMPATIBLE": 0.6258992805755396,
+        "BUY_COMPATIBLE": 0.3381294964028777,
+        "NEUTRAL": 0.03597122302158273
+      }
+    },
+    "august": [
+      {
+        "date_wib": "2026-08-04",
+        "decision_t_utc": "2026-08-03 23:00:00+00:00",
+        "label": "BUY_COMPATIBLE",
+        "label_reason": "up_first",
+        "first_hit_min": 165.0
+      },
+      {
+        "date_wib": "2026-08-11",
+        "decision_t_utc": "2026-08-10 23:00:00+00:00",
+        "label": "NEUTRAL",
+        "label_reason": "no_50bp_hit_6h",
+        "first_hit_min": NaN
+      },
+      {
+        "date_wib": "2026-08-18",
+        "decision_t_utc": "2026-08-17 23:00:00+00:00",
+        "label": "NEUTRAL",
+        "label_reason": "no_50bp_hit_6h",
+        "first_hit_min": NaN
+      }
+    ],
+    "a511_parity": {
+      "parent": {
+        "n": 139,
+        "wins": 79,
+        "losses": 60,
+        "wr": 0.5683453237410072,
+        "pnl": 95.73423284254761,
+        "pf": 1.4307417377463976,
+        "exp": 0.6887354880758821
+      },
+      "a52": {
+        "n": 139,
+        "wins": 83,
+        "losses": 56,
+        "wr": 0.5971223021582733,
+        "pnl": 105.90402032685056,
+        "pf": 1.5007642010964874,
+        "exp": 0.7618994268118745
+      },
+      "a59": {
+        "n": 139,
+        "wins": 89,
+        "losses": 50,
+        "wr": 0.6402877697841727,
+        "pnl": 120.26714578412741,
+        "pf": 1.6382067099176643,
+        "exp": 0.8652312646340101
+      },
+      "a511": {
+        "n": 139,
+        "wins": 89,
+        "losses": 50,
+        "wr": 0.6402877697841727,
+        "pnl": 130.3285205371619,
+        "pf": 1.69159815640554,
+        "exp": 0.9376152556630352
+      },
+      "a52_actions": 7,
+      "fastmr_actions": 12,
+      "recoveries": 4,
+      "checks": {
+        "n139": true,
+        "parent_w79": true,
+        "parent_pnl": true,
+        "a52_w83": true,
+        "a52_pnl": true,
+        "a52_actions7": true,
+        "a59_w89": true,
+        "a59_pnl": true,
+        "fast_actions12": true,
+        "a511_w89": true,
+        "a511_pnl": true,
+        "recoveries4": true
+      },
+      "pass": true
+    }
+  },
+  "acceptance_checks": {
+    "causal_integrity_by_construction": true,
+    "intrabar_dual_touch_is_neutral": true,
+    "coverage_ge_15000": true,
+    "sell_class_ge_20pct": true,
+    "buy_class_ge_20pct": true,
+    "all_features_finite_ge_99pct": true,
+    "a511_historical_parity_pass": true,
+    "tuesday_historical_n139": true
+  },
+  "pass": true,
+  "guardrail": "G0 is dataset/label audit only. No predictive or tradable edge is claimed; live BBC untouched."
+}
