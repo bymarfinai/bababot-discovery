@@ -71,3 +71,21 @@ No fixed cell met `STRONG_REPEATABLE_DIRECTION` >=70%; no descriptive 80% cell.
 Pure pretrend-turn timing without sweep condition peaked only around 58.5% reversal; exact seven-hour U/D color sequences were diffuse (~1-2% each) and none met stability criteria.
 
 Interpretation: 1H before/after mapping DOES reveal recurring reaction zones, especially LOW_REJECT reactions around several absolute hours, but not a deterministic 70-80% pattern by session offset + simple prior3H range event alone. Do not claim an 80% 1H pattern or rerun the same map with shifted anchors/range lengths after seeing this result.
+
+## LR1 — H1 LOW_REJECT structural quality on four fixed hours — REJECT
+Frozen four event hours: 04/08/18/19 UTC = 11:00/15:00/01:00/02:00 WIB. Core event = LOW_REJECT vs completed prior3H range. Only six completed-1H structural features were allowed: sweep depth, lower-wick ratio, close position, body ratio, range expansion, reclaim depth. One depth-2 tree, max4 leaves, minleaf25 was fit on first70% of 2022-2026 reference events; exact selected leaf was then frozen.
+
+Selected development leaf:
+- `reclaim_depth_range <= 0.27562825 AND body_ratio > 0.10717489`;
+- development N297, next3H LONG-positive 69.02% versus control 61.73%.
+
+Out-of-sample evidence:
+- reference validation: N148, +3H 60.81% versus control 58.85%;
+- untouched external 2020-2021: N192, +3H 59.90% versus control 56.31%;
+- external chronological blocks: 54.17%, 64.58%, 52.08%, 68.75%;
+- August 2026: N7, +3H 42.86%.
+Per-hour selected-leaf diagnostics did not support a stable carve-out: validation 11:00/15:00/01:00/02:00 WIB = 54.29/55.56/74.42/55.88%; external = 51.56/56.82/67.35/68.57%.
+
+Executable next1H LONG with SL at rejection-candle low and TP sized for modeled net RR1:1 after 0.15% fee failed badly: validation decisive WR25.68%, external29.69%, August28.57%; all negative PnL.
+Verdicts: `LR1_STRUCTURE_SUPPORTED=FAIL`; `LR1_80_CANDIDATE=FAIL`.
+Do not deepen the same tree, lower minleaf, add/remove these six features, or post-hoc isolate 01:00/02:00 on the same evidence. Any future test of a late-US-close hypothesis must use genuinely new independent evidence or a different target/mechanism.
