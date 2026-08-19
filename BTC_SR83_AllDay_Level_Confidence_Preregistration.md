@@ -72,7 +72,7 @@ All are available before reaction outcome. Touch-state features use completed 5m
 - `has_swing`
 - `confluence_count`
 - `distance_open_atr`
-- `prior_near_count_7d` within 0.10 ATR
+- `prior_near_count_7d`: count of **completed 1H bars** in the prior 7 days whose high-low range intersects the level +/- `0.10 x daily-start ATR`
 - `age_hours` youngest source
 
 ### Approach state
