@@ -73,3 +73,5 @@ Report this diagnostic historically and for August separately.
 - no TP/SL/hold sweep;
 - no extra filter based on losers;
 - no live BBC changes.
+
+CI trigger note: workflow already exists before this push; this note changes no research rule.
