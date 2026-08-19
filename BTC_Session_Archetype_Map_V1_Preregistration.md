@@ -35,7 +35,7 @@ Each anchor-day receives exactly one archetype:
 9. `DOUBLE_LOW_THEN_HIGH` — both levels are swept and the first strict LOW sweep precedes the first strict HIGH sweep.
 10. `DOUBLE_SAME_15M` — both levels are first swept by the same 15m candle.
 
-No post-result relabeling is allowed.
+A close exactly on the frozen boundary is treated as back inside the frozen range for classification. No post-result relabeling is allowed.
 
 ## Pre-anchor context labels
 Using only completed data before the anchor:
@@ -109,3 +109,5 @@ No sequence is promoted to a trade in V1.
 - no TP/SL/RR sweep;
 - no new indicator, taker-flow, OI, funding, premium, or ML feature;
 - no live BBC changes.
+
+CI trigger note: workflow existed before this push; no research rule changed after observing results.
