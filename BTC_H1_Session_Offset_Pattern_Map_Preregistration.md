@@ -105,3 +105,5 @@ These labels identify pattern regularity only; they do not promote a live tradin
 - no weekday/weekend carve-out;
 - no TP/SL/RR sweep;
 - no live BBC changes.
+
+CI trigger note only; frozen research rules above are unchanged.
