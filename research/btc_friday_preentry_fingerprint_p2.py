@@ -76,17 +76,19 @@ def main():
         rows.append({'i':i,'date':str(tr.date),'period':'discovery' if i<SPLIT else 'validation','parent_pnl':float(tr.pnl),'win':int(tr.pnl>0),**ft})
     f517.assert_parent(parents);df=pd.DataFrame(rows)
     if len(df)!=138:raise RuntimeError(f'expected 138, got {len(df)}')
-    disc=df[df.i<SPLIT].copy();val=df[df.i>=SPLIT].copy()
-    med={f:float(pd.to_numeric(disc[f],errors='coerce').replace([np.inf,-np.inf],np.nan).median()) for f in FEATURES}
+    disc0=df[df.i<SPLIT].copy();val0=df[df.i>=SPLIT].copy()
+    med={f:float(pd.to_numeric(disc0[f],errors='coerce').replace([np.inf,-np.inf],np.nan).median()) for f in FEATURES}
     X=df[FEATURES].copy()
     for f in FEATURES:X[f]=pd.to_numeric(X[f],errors='coerce').replace([np.inf,-np.inf],np.nan).fillna(med[f])
-    Xd=X.loc[disc.index];yd=disc.win.astype(int)
+    Xd=X.loc[disc0.index];yd=disc0.win.astype(int)
     clf=DecisionTreeClassifier(criterion='gini',max_depth=2,min_samples_leaf=12,random_state=20260819)
     clf.fit(Xd,yd);df['leaf']=clf.apply(X)
+    # Refresh chronology slices after leaf assignment; this is the only fix vs the failed implementation run.
+    disc=df[df.i<SPLIT].copy();val=df[df.i>=SPLIT].copy()
     leaves=[]
     pred_by_leaf={int(l):int(np.argmax(clf.tree_.value[int(l)][0])) for l in set(clf.apply(Xd))}
     for leaf in sorted(set(clf.apply(Xd))):
-        z=disc[df.loc[disc.index,'leaf']==leaf];s=stats(z);path=path_to_leaf(clf,int(leaf))
+        z=disc[disc.leaf==leaf];s=stats(z);path=path_to_leaf(clf,int(leaf))
         leaves.append({'leaf':int(leaf),'predicted_class':pred_by_leaf[int(leaf)],'rule':rule_text(path),'path':path,**s})
     eligible=[x for x in leaves if x['predicted_class']==1 and x['n']>=12 and x['wr'] is not None and x['wr']>=.80]
     eligible.sort(key=lambda x:(-x['wr'],-x['n'],x['leaf']))
