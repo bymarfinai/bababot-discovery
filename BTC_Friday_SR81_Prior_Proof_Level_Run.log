@@ -1,0 +1,143 @@
+{
+  "protocol": "SR81",
+  "rule": "prior resolved same-side events >=2; all resolved prior events HOLD; zero BREAK",
+  "base_friday_dates_with_any_level_touch": 137,
+  "prior_proven_touch_events": 55,
+  "outcome_counts": {
+    "HOLD": 24,
+    "AMBIGUOUS_TOUCH_BAR": 17,
+    "BREAK": 13,
+    "UNRESOLVED": 1
+  },
+  "resolved_events": 37,
+  "discovery": {
+    "n": 28,
+    "hold": 17,
+    "break": 11,
+    "rate": 0.6071428571428571,
+    "wilson95": [
+      0.42409044296597176,
+      0.764343134584204
+    ]
+  },
+  "validation": {
+    "n": 9,
+    "hold": 7,
+    "break": 2,
+    "rate": 0.7777777777777778,
+    "wilson95": [
+      0.45258896910698887,
+      0.9367748928821533
+    ]
+  },
+  "full": {
+    "n": 37,
+    "hold": 24,
+    "break": 13,
+    "rate": 0.6486486486486487,
+    "wilson95": [
+      0.4875902312255084,
+      0.7817439286607287
+    ]
+  },
+  "blocks": {
+    "B1": {
+      "n": 10,
+      "hold": 10,
+      "break": 0,
+      "rate": 1.0,
+      "wilson95": [
+        0.7224672001371107,
+        0.9999999999999999
+      ]
+    },
+    "B2": {
+      "n": 8,
+      "hold": 3,
+      "break": 5,
+      "rate": 0.375,
+      "wilson95": [
+        0.13684428582359742,
+        0.6942576053973727
+      ]
+    },
+    "B3": {
+      "n": 9,
+      "hold": 3,
+      "break": 6,
+      "rate": 0.3333333333333333,
+      "wilson95": [
+        0.1205838183869109,
+        0.6457978644196036
+      ]
+    },
+    "B4": {
+      "n": 10,
+      "hold": 8,
+      "break": 2,
+      "rate": 0.8,
+      "wilson95": [
+        0.49016247153664183,
+        0.9433178485456247
+      ]
+    }
+  },
+  "positive_blocks": 2,
+  "support_resistance_descriptive": {
+    "SUPPORT": {
+      "n": 13,
+      "hold": 11,
+      "break": 2,
+      "rate": 0.8461538461538461,
+      "wilson95": [
+        0.5776536898051745,
+        0.9567418216419186
+      ]
+    },
+    "RESISTANCE": {
+      "n": 24,
+      "hold": 13,
+      "break": 11,
+      "rate": 0.5416666666666666,
+      "wilson95": [
+        0.3507486535891948,
+        0.72108666268789
+      ]
+    }
+  },
+  "source_family_descriptive": {
+    "PDAY": {
+      "n": 7,
+      "hold": 4,
+      "break": 3,
+      "rate": 0.5714285714285714,
+      "wilson95": [
+        0.2504583645276572,
+        0.8417801447485302
+      ]
+    },
+    "W7": {
+      "n": 0,
+      "hold": 0,
+      "break": 0,
+      "rate": null,
+      "wilson95": [
+        null,
+        null
+      ]
+    },
+    "SWING": {
+      "n": 33,
+      "hold": 21,
+      "break": 12,
+      "rate": 0.6363636363636364,
+      "wilson95": [
+        0.466161783022664,
+        0.7781282176475764
+      ]
+    }
+  },
+  "integrity_violations": 0,
+  "verdict": "REJECT_SR81_PRIOR_PROOF_LEVEL",
+  "guardrail": "Combined rule only. No support-only/resistance-only or threshold rescue."
+}
