@@ -1,22 +1,22 @@
-name: BTC Friday Premium Dislocation C7A Runner
+name: BTC Friday Premium Selective AI C7B Runner
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_friday_c7a_premium_dislocation.py'
-      - 'BTC_Friday_C7A_Premium_Dislocation_Preregistration.md'
+      - 'research/btc_friday_c7b_premium_selective_ai.py'
+      - 'BTC_Friday_C7B_Premium_Selective_AI_Preregistration.md'
       - '.github/workflows/btc-friday-allhour-candle-c0.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-c7a-premium
+  group: btc-friday-c7b-premium-ai
   cancel-in-progress: true
 
 jobs:
-  c7a:
+  c7b:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -28,36 +28,36 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install numpy pandas requests scikit-learn
-      - name: Run frozen C7A
-        id: c7arun
+      - name: Run frozen C7B
+        id: c7brun
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_friday_c7a_premium_dislocation.py > BTC_Friday_C7A_Premium_Dislocation_Run.log 2>&1
+          PYTHONPATH=research python research/btc_friday_c7b_premium_selective_ai.py > BTC_Friday_C7B_Premium_Selective_AI_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_Friday_C7A_Premium_Dislocation_EXIT_CODE.txt
-          cat BTC_Friday_C7A_Premium_Dislocation_Run.log
+          echo "$code" > BTC_Friday_C7B_Premium_Selective_AI_EXIT_CODE.txt
+          cat BTC_Friday_C7B_Premium_Selective_AI_Run.log
           exit $code
-      - name: Persist C7A artifacts safely
+      - name: Persist C7B artifacts safely
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Friday_C7A_Premium_Dislocation_EXIT_CODE.txt BTC_Friday_C7A_Premium_Dislocation_Run.log
-          for f in BTC_Friday_C7A_Premium_Dislocation_Result.md BTC_Friday_C7A_Premium_Dislocation_Result.json BTC_Friday_C7A_Premium_Dislocation_Rows.csv; do
+          git add BTC_Friday_C7B_Premium_Selective_AI_EXIT_CODE.txt BTC_Friday_C7B_Premium_Selective_AI_Run.log
+          for f in BTC_Friday_C7B_Premium_Selective_AI_Result.md BTC_Friday_C7B_Premium_Selective_AI_Result.json BTC_Friday_C7B_Premium_Selective_AI_Predictions.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git stash push --include-untracked -m c7a-artifacts
+            git stash push --include-untracked -m c7b-artifacts
             git pull --rebase origin main
             git stash pop
-            git add BTC_Friday_C7A_Premium_Dislocation_EXIT_CODE.txt BTC_Friday_C7A_Premium_Dislocation_Run.log
-            for f in BTC_Friday_C7A_Premium_Dislocation_Result.md BTC_Friday_C7A_Premium_Dislocation_Result.json BTC_Friday_C7A_Premium_Dislocation_Rows.csv; do
+            git add BTC_Friday_C7B_Premium_Selective_AI_EXIT_CODE.txt BTC_Friday_C7B_Premium_Selective_AI_Run.log
+            for f in BTC_Friday_C7B_Premium_Selective_AI_Result.md BTC_Friday_C7B_Premium_Selective_AI_Result.json BTC_Friday_C7B_Premium_Selective_AI_Predictions.csv; do
               if [ -f "$f" ]; then git add "$f"; fi
             done
-            git commit -m "research: persist BTC Friday premium dislocation C7A result"
+            git commit -m "research: persist BTC Friday premium selective AI C7B result"
             git push
           fi
-      - name: Fail if C7A failed
-        if: steps.c7arun.outcome == 'failure'
+      - name: Fail if C7B failed
+        if: steps.c7brun.outcome == 'failure'
         run: exit 1
