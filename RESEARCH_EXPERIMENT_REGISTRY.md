@@ -77,20 +77,36 @@ Sun/SF/ST families covering TP/SL surfaces, hold/exit, reverse, Tuesday-geometry
 Across temporal families the repo has already tested break-even, early cuts, failure exits, FastMR, runner recovery/protection, giveback management, failed acceleration/development, recovery windows, and false-positive anatomy.
 Do not optimize management on another same-sample slice unless a new entry edge first exists.
 
-# Current genuinely distinct gap
-## Cross-sectional broad-universe opportunity selection
-Repository search found no existing strategy that, **at each same timestamp**, ranks a broad USDT-perpetual universe cross-sectionally and chooses only the top pair/direction opportunity.
+## 11. Cross-sectional broad-universe Market Hunter — MH0 COVERED / REJECTED
+MH0 was preregistered before result observation and tested 56 USDT perpetual symbols over a frozen 365d window using official Binance Data Vision 1h data.
 
-This is now being tested as **Market Hunter MH0**:
-- broad multi-asset universe;
-- same-time cross-sectional ranks;
-- causal completed 1h features;
-- dynamic historical liquidity rank;
+Frozen design:
+- same-time cross-sectional ranks across 56 contracts;
+- causal completed 1h features: 4h/24h return, relative quote volume, range expansion, prior-24h breakout position, taker imbalance;
+- trailing-24h cross-sectional liquidity filter;
+- top-1 pair+direction selection;
 - next-1h-open execution;
-- top-1 selection vs raw momentum and random controls;
-- no parameter sweep.
+- 0.15% modeled round-trip cost;
+- controls: raw 24h momentum and deterministic random selection;
+- sequential TP/SL control: 1.3%/1.3%, max hold 6h.
 
-Canonical preregistration: `MARKET_HUNTER_MH0_Preregistration.md`.
+365d result:
+- independent composite 6h net expectancy: **-$0.6668/opportunity**, PF **0.887**;
+- sequential composite: **3,713 trades, WR 44.52%, -$4,764.95, -$1.2833/trade, PF 0.648**;
+- all four chronological blocks negative;
+- LONG: -$3,984.92; SHORT: -$780.04;
+- raw momentum and random controls were also negative after costs.
+
+Verdict: **REJECT_MH0_LIVE_CANDIDATE.**
+Do not sweep feature weights, Top-K, liquidity percentile, TP/SL, or score thresholds on this sample to force a pass. Any future cross-sectional study must introduce a materially different information set or a genuinely independent validation question.
+
+Canonical artifacts:
+- `MARKET_HUNTER_MH0_Preregistration.md`
+- `MARKET_HUNTER_MH0_Result.md`
+- `MARKET_HUNTER_MH0_Result.json`
+
+# Current open research gap
+No new family is automatically authorized by the MH0 failure. The next study must first identify an information source or selection mechanism not already covered above and preregister it before observing results.
 
 # Rule for future research
 Before creating a new backtest:
