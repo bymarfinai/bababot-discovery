@@ -118,4 +118,4 @@ If external sample is below N12, the rule cannot be labeled 80% even if observed
 - no direction flip;
 - no live BBC changes.
 
-CI trigger note only; research rules above are unchanged.
+CI trigger note only; research rules above are unchanged. Rerun requested after markdown-formatting syntax fix only.
