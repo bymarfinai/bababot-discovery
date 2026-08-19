@@ -1,0 +1,69 @@
+name: BTC SR83 All-Day Level Confidence
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_sr83_allday_level_confidence.py'
+      - 'BTC_SR83_AllDay_Level_Confidence_Preregistration.md'
+      - '.github/workflows/btc-sr83-allday-level-confidence.yml'
+  pull_request:
+    paths:
+      - 'SR83_PR_TRIGGER.md'
+      - 'research/btc_sr83_allday_level_confidence.py'
+      - 'BTC_SR83_AllDay_Level_Confidence_Preregistration.md'
+      - '.github/workflows/btc-sr83-allday-level-confidence.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: btc-sr83-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sr83:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests scikit-learn
+      - name: Run frozen SR83
+        id: run
+        continue-on-error: true
+        run: |
+          set +e
+          PYTHONPATH=research python research/btc_sr83_allday_level_confidence.py > BTC_SR83_AllDay_Level_Confidence_Run.log 2>&1
+          code=$?
+          echo "$code" > BTC_SR83_AllDay_Level_Confidence_EXIT_CODE.txt
+          cat BTC_SR83_AllDay_Level_Confidence_Run.log
+          exit $code
+      - name: Persist artifacts
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_SR83_AllDay_Level_Confidence_EXIT_CODE.txt BTC_SR83_AllDay_Level_Confidence_Run.log
+          for f in BTC_SR83_AllDay_Level_Confidence_Result.md BTC_SR83_AllDay_Level_Confidence_Result.json BTC_SR83_AllDay_Level_Confidence_Rows.csv BTC_SR83_AllDay_Level_Confidence_OOS.csv; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git stash push --keep-index --include-untracked -m sr83-artifacts || true
+            git pull --rebase origin main
+            git stash pop || true
+            git add BTC_SR83_AllDay_Level_Confidence_EXIT_CODE.txt BTC_SR83_AllDay_Level_Confidence_Run.log
+            for f in BTC_SR83_AllDay_Level_Confidence_Result.md BTC_SR83_AllDay_Level_Confidence_Result.json BTC_SR83_AllDay_Level_Confidence_Rows.csv BTC_SR83_AllDay_Level_Confidence_OOS.csv; do
+              if [ -f "$f" ]; then git add "$f"; fi
+            done
+            git commit -m "research: persist BTC SR83 all-day level-confidence result"
+            git push
+          fi
+      - name: Fail if research run failed
+        if: steps.run.outcome == 'failure'
+        run: exit 1
