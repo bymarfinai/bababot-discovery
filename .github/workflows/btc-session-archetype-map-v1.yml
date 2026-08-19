@@ -1,0 +1,63 @@
+name: BTC Session Archetype Map V1
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_session_archetype_map_v1.py'
+      - 'BTC_Session_Archetype_Map_V1_Preregistration.md'
+      - '.github/workflows/btc-session-archetype-map-v1.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: btc-session-archetype-map-v1
+  cancel-in-progress: true
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests
+      - name: Run frozen descriptive map
+        id: run
+        continue-on-error: true
+        run: |
+          set +e
+          PYTHONPATH=research python research/btc_session_archetype_map_v1.py > BTC_Session_Archetype_Map_V1_Run.log 2>&1
+          code=$?
+          echo "$code" > BTC_Session_Archetype_Map_V1_EXIT_CODE.txt
+          cat BTC_Session_Archetype_Map_V1_Run.log
+          exit $code
+      - name: Persist artifacts safely
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_Session_Archetype_Map_V1_EXIT_CODE.txt BTC_Session_Archetype_Map_V1_Run.log
+          for f in BTC_Session_Archetype_Map_V1_Result.md BTC_Session_Archetype_Map_V1_Result.json BTC_Session_Archetype_Map_V1_August.csv; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git stash push --include-untracked -m session-archetype-artifacts
+            git pull --rebase origin main
+            git stash pop
+            git add BTC_Session_Archetype_Map_V1_EXIT_CODE.txt BTC_Session_Archetype_Map_V1_Run.log
+            for f in BTC_Session_Archetype_Map_V1_Result.md BTC_Session_Archetype_Map_V1_Result.json BTC_Session_Archetype_Map_V1_August.csv; do
+              if [ -f "$f" ]; then git add "$f"; fi
+            done
+            git commit -m "research: persist BTC session archetype map V1"
+            git push
+          fi
+      - name: Fail if map failed
+        if: steps.run.outcome == 'failure'
+        run: exit 1
