@@ -1,0 +1,312 @@
+{
+  "protocol": "C3",
+  "friday_dates": 141,
+  "discovery_dates": 98,
+  "validation_dates": 43,
+  "signal_rows": 13526,
+  "discovery_archetypes": 171,
+  "discovery_eligible_80": 0,
+  "baseline": {
+    "cont": {
+      "discovery": {
+        "n": 9402,
+        "wins": 4103,
+        "wr": 0.43639651138055735,
+        "pnl": -7220.016372573031,
+        "exp": -0.7679234601758169,
+        "pf": 0.6910100439582606
+      },
+      "validation": {
+        "n": 4124,
+        "wins": 1784,
+        "wr": 0.4325897187196896,
+        "pnl": -3192.3113144308422,
+        "exp": -0.7740813080579152,
+        "pf": 0.6776709564796625
+      },
+      "full": {
+        "n": 13526,
+        "wins": 5887,
+        "wr": 0.4352358420819163,
+        "pnl": -10412.32768700389,
+        "exp": -0.7698009527579395,
+        "pf": 0.6870392813699923
+      }
+    },
+    "rev": {
+      "discovery": {
+        "n": 9402,
+        "wins": 4209,
+        "wr": 0.4476707083599234,
+        "pnl": -6882.983627426968,
+        "exp": -0.732076539824183,
+        "pf": 0.7021650731706358
+      },
+      "validation": {
+        "n": 4124,
+        "wins": 1822,
+        "wr": 0.44180407371484,
+        "pnl": -2993.6886855691596,
+        "exp": -0.7259186919420852,
+        "pf": 0.6934367801331558
+      },
+      "full": {
+        "n": 13526,
+        "wins": 6031,
+        "wr": 0.4458820050273547,
+        "pnl": -9876.672312996103,
+        "exp": -0.73019904724206,
+        "pf": 0.6995724161660947
+      }
+    }
+  },
+  "top_discovery_support30": {
+    "cont": [
+      {
+        "mode": "cont",
+        "archetype": "GG|SMALL|UPPER|EXPANDED|DOWN|INSIDE|AGAINST",
+        "n": 31,
+        "wins": 19,
+        "wr": 0.6129032258064516,
+        "pnl": 35.40228145107134,
+        "exp": 1.1420090790668174,
+        "pf": 1.852124424618623
+      },
+      {
+        "mode": "cont",
+        "archetype": "GG|MEDIUM|BODY_BALANCED|EXPANDED|UP|INSIDE|WITH",
+        "n": 30,
+        "wins": 18,
+        "wr": 0.6,
+        "pnl": 7.67273777563699,
+        "exp": 0.2557579258545663,
+        "pf": 1.1202151320273996
+      },
+      {
+        "mode": "cont",
+        "archetype": "GG|SMALL|LOWER|NORMAL|UP|INSIDE|WITH",
+        "n": 127,
+        "wins": 75,
+        "wr": 0.5905511811023622,
+        "pnl": 91.28810719648459,
+        "exp": 0.718803993673107,
+        "pf": 1.442328128311539
+      },
+      {
+        "mode": "cont",
+        "archetype": "RG|MEDIUM|LOWER|EXPANDED|DOWN|INSIDE|AGAINST",
+        "n": 52,
+        "wins": 30,
+        "wr": 0.5769230769230769,
+        "pnl": 20.31329347343682,
+        "exp": 0.3906402591045542,
+        "pf": 1.2513809746740179
+      },
+      {
+        "mode": "cont",
+        "archetype": "RG|LARGE|BODY_BALANCED|NORMAL|UP|INSIDE|WITH",
+        "n": 73,
+        "wins": 40,
+        "wr": 0.547945205479452,
+        "pnl": -4.579922877859798,
+        "exp": -0.06273866955972326,
+        "pf": 0.9659910161456147
+      },
+      {
+        "mode": "cont",
+        "archetype": "RG|SMALL|UPPER|EXPANDED|DOWN|INSIDE|AGAINST",
+        "n": 66,
+        "wins": 36,
+        "wr": 0.5454545454545454,
+        "pnl": 3.0223981484391578,
+        "exp": 0.04579391133998724,
+        "pf": 1.021807912821086
+      },
+      {
+        "mode": "cont",
+        "archetype": "GG|LARGE|BODY_BALANCED|NORMAL|DOWN|INSIDE|AGAINST",
+        "n": 79,
+        "wins": 43,
+        "wr": 0.5443037974683544,
+        "pnl": -5.948000998649267,
+        "exp": -0.07529115188163629,
+        "pf": 0.9636244517575137
+      },
+      {
+        "mode": "cont",
+        "archetype": "GG|SMALL|LOWER|EXPANDED|UP|INSIDE|WITH",
+        "n": 50,
+        "wins": 27,
+        "wr": 0.54,
+        "pnl": 9.250508675358807,
+        "exp": 0.18501017350717613,
+        "pf": 1.0956053903723646
+      },
+      {
+        "mode": "cont",
+        "archetype": "GG|MEDIUM|BODY_BALANCED|NORMAL|DOWN|INSIDE|AGAINST",
+        "n": 123,
+        "wins": 66,
+        "wr": 0.5365853658536586,
+        "pnl": 38.57992819278761,
+        "exp": 0.3136579527868912,
+        "pf": 1.1619514372541107
+      },
+      {
+        "mode": "cont",
+        "archetype": "RG|MEDIUM|UPPER|EXPANDED|DOWN|INSIDE|AGAINST",
+        "n": 30,
+        "wins": 16,
+        "wr": 0.5333333333333333,
+        "pnl": 7.522075650662494,
+        "exp": 0.2507358550220831,
+        "pf": 1.1102447471516408
+      },
+      {
+        "mode": "cont",
+        "archetype": "GG|SMALL|LOWER|NORMAL|UP|BREAK_HIGH|WITH",
+        "n": 33,
+        "wins": 17,
+        "wr": 0.5151515151515151,
+        "pnl": 1.6011631906044164,
+        "exp": 0.04852009668498231,
+        "pf": 1.0263798188012196
+      },
+      {
+        "mode": "cont",
+        "archetype": "RR|MEDIUM|LOWER|EXPANDED|DOWN|BREAK_LOW|WITH",
+        "n": 36,
+        "wins": 18,
+        "wr": 0.5,
+        "pnl": 1.262442451753511,
+        "exp": 0.035067845882041974,
+        "pf": 1.0172590555292618
+      }
+    ],
+    "rev": [
+      {
+        "mode": "rev",
+        "archetype": "GR|MEDIUM|BODY_BALANCED|EXPANDED|DOWN|BREAK_LOW|WITH",
+        "n": 34,
+        "wins": 22,
+        "wr": 0.6470588235294118,
+        "pnl": 39.96400227092215,
+        "exp": 1.1754118314977102,
+        "pf": 1.903362954933728
+      },
+      {
+        "mode": "rev",
+        "archetype": "RR|LARGE|BODY_BALANCED|NORMAL|DOWN|INSIDE|WITH",
+        "n": 34,
+        "wins": 20,
+        "wr": 0.5882352941176471,
+        "pnl": 7.5790923651741355,
+        "exp": 0.22291448132865105,
+        "pf": 1.1399988818515738
+      },
+      {
+        "mode": "rev",
+        "archetype": "RR|MEDIUM|BODY_BALANCED|EXPANDED|DOWN|BREAK_LOW|WITH",
+        "n": 234,
+        "wins": 134,
+        "wr": 0.5726495726495726,
+        "pnl": 25.039616027358733,
+        "exp": 0.10700690609982365,
+        "pf": 1.050528079475091
+      },
+      {
+        "mode": "rev",
+        "archetype": "RG|SMALL|UPPER|EXPANDED|UP|INSIDE|WITH",
+        "n": 36,
+        "wins": 20,
+        "wr": 0.5555555555555556,
+        "pnl": 4.165288482483888,
+        "exp": 0.11570245784677466,
+        "pf": 1.0572529173215037
+      },
+      {
+        "mode": "rev",
+        "archetype": "RR|SMALL|UPPER|EXPANDED|DOWN|BREAK_LOW|WITH",
+        "n": 38,
+        "wins": 21,
+        "wr": 0.5526315789473685,
+        "pnl": 21.871714150936743,
+        "exp": 0.5755714250246511,
+        "pf": 1.2777547854848923
+      },
+      {
+        "mode": "rev",
+        "archetype": "RG|SMALL|LOWER|EXPANDED|UP|INSIDE|WITH",
+        "n": 44,
+        "wins": 24,
+        "wr": 0.5454545454545454,
+        "pnl": -8.836949347048076,
+        "exp": -0.20083975788745628,
+        "pf": 0.8942261305379408
+      },
+      {
+        "mode": "rev",
+        "archetype": "GG|MEDIUM|UPPER|NORMAL|UP|INSIDE|WITH",
+        "n": 30,
+        "wins": 16,
+        "wr": 0.5333333333333333,
+        "pnl": 10.468403924544063,
+        "exp": 0.3489467974848021,
+        "pf": 1.185675021567197
+      },
+      {
+        "mode": "rev",
+        "archetype": "RR|SMALL|UPPER|NORMAL|DOWN|BREAK_LOW|WITH",
+        "n": 30,
+        "wins": 16,
+        "wr": 0.5333333333333333,
+        "pnl": 14.682609051914696,
+        "exp": 0.48942030173048984,
+        "pf": 1.2562896079103132
+      },
+      {
+        "mode": "rev",
+        "archetype": "GR|LARGE|BODY_BALANCED|NORMAL|DOWN|INSIDE|WITH",
+        "n": 79,
+        "wins": 42,
+        "wr": 0.5316455696202531,
+        "pnl": -54.88882502326921,
+        "exp": -0.694795253459104,
+        "pf": 0.6961323348331954
+      },
+      {
+        "mode": "rev",
+        "archetype": "GG|MEDIUM|BODY_BALANCED|EXPANDED|UP|BREAK_HIGH|WITH",
+        "n": 193,
+        "wins": 102,
+        "wr": 0.5284974093264249,
+        "pnl": -51.82090195180802,
+        "exp": -0.268502082651855,
+        "pf": 0.8747125524596875
+      },
+      {
+        "mode": "rev",
+        "archetype": "RR|LARGE|BODY_BALANCED|EXPANDED|UP|BREAK_LOW|AGAINST",
+        "n": 72,
+        "wins": 38,
+        "wr": 0.5277777777777778,
+        "pnl": -6.257659025963811,
+        "exp": -0.08691193091616405,
+        "pf": 0.9540609301513067
+      },
+      {
+        "mode": "rev",
+        "archetype": "GG|MEDIUM|UPPER|EXPANDED|UP|BREAK_HIGH|WITH",
+        "n": 36,
+        "wins": 19,
+        "wr": 0.5277777777777778,
+        "pnl": -6.781662352954072,
+        "exp": -0.18837950980427978,
+        "pf": 0.9148294480493981
+      }
+    ]
+  },
+  "selected": null,
+  "verdict": "REJECT_C3_80_SEQUENCE_IDENTIFIER",
+  "reason": "No frozen 15m sequence/context archetype achieved discovery N>=30 and WR>=80%."
+}

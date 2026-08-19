@@ -1,0 +1,46 @@
+# BTC Friday 15m Sequence + Context C3 — Result
+
+Friday dates **141**, signal rows **13526**, discovery archetypes **171**
+Discovery archetypes passing 80% screen: **0**
+
+## CONT best discovery archetypes N>=30
+
+| Archetype | N | Wins | WR | PnL | PF |
+|---|---:|---:|---:|---:|---:|
+| `GG|SMALL|UPPER|EXPANDED|DOWN|INSIDE|AGAINST` | 31 | 19 | 61.29% | $35.40 | 1.852 |
+| `GG|MEDIUM|BODY_BALANCED|EXPANDED|UP|INSIDE|WITH` | 30 | 18 | 60.00% | $7.67 | 1.120 |
+| `GG|SMALL|LOWER|NORMAL|UP|INSIDE|WITH` | 127 | 75 | 59.06% | $91.29 | 1.442 |
+| `RG|MEDIUM|LOWER|EXPANDED|DOWN|INSIDE|AGAINST` | 52 | 30 | 57.69% | $20.31 | 1.251 |
+| `RG|LARGE|BODY_BALANCED|NORMAL|UP|INSIDE|WITH` | 73 | 40 | 54.79% | $-4.58 | 0.966 |
+| `RG|SMALL|UPPER|EXPANDED|DOWN|INSIDE|AGAINST` | 66 | 36 | 54.55% | $3.02 | 1.022 |
+| `GG|LARGE|BODY_BALANCED|NORMAL|DOWN|INSIDE|AGAINST` | 79 | 43 | 54.43% | $-5.95 | 0.964 |
+| `GG|SMALL|LOWER|EXPANDED|UP|INSIDE|WITH` | 50 | 27 | 54.00% | $9.25 | 1.096 |
+| `GG|MEDIUM|BODY_BALANCED|NORMAL|DOWN|INSIDE|AGAINST` | 123 | 66 | 53.66% | $38.58 | 1.162 |
+| `RG|MEDIUM|UPPER|EXPANDED|DOWN|INSIDE|AGAINST` | 30 | 16 | 53.33% | $7.52 | 1.110 |
+| `GG|SMALL|LOWER|NORMAL|UP|BREAK_HIGH|WITH` | 33 | 17 | 51.52% | $1.60 | 1.026 |
+| `RR|MEDIUM|LOWER|EXPANDED|DOWN|BREAK_LOW|WITH` | 36 | 18 | 50.00% | $1.26 | 1.017 |
+
+## REV best discovery archetypes N>=30
+
+| Archetype | N | Wins | WR | PnL | PF |
+|---|---:|---:|---:|---:|---:|
+| `GR|MEDIUM|BODY_BALANCED|EXPANDED|DOWN|BREAK_LOW|WITH` | 34 | 22 | 64.71% | $39.96 | 1.903 |
+| `RR|LARGE|BODY_BALANCED|NORMAL|DOWN|INSIDE|WITH` | 34 | 20 | 58.82% | $7.58 | 1.140 |
+| `RR|MEDIUM|BODY_BALANCED|EXPANDED|DOWN|BREAK_LOW|WITH` | 234 | 134 | 57.26% | $25.04 | 1.051 |
+| `RG|SMALL|UPPER|EXPANDED|UP|INSIDE|WITH` | 36 | 20 | 55.56% | $4.17 | 1.057 |
+| `RR|SMALL|UPPER|EXPANDED|DOWN|BREAK_LOW|WITH` | 38 | 21 | 55.26% | $21.87 | 1.278 |
+| `RG|SMALL|LOWER|EXPANDED|UP|INSIDE|WITH` | 44 | 24 | 54.55% | $-8.84 | 0.894 |
+| `GG|MEDIUM|UPPER|NORMAL|UP|INSIDE|WITH` | 30 | 16 | 53.33% | $10.47 | 1.186 |
+| `RR|SMALL|UPPER|NORMAL|DOWN|BREAK_LOW|WITH` | 30 | 16 | 53.33% | $14.68 | 1.256 |
+| `GR|LARGE|BODY_BALANCED|NORMAL|DOWN|INSIDE|WITH` | 79 | 42 | 53.16% | $-54.89 | 0.696 |
+| `GG|MEDIUM|BODY_BALANCED|EXPANDED|UP|BREAK_HIGH|WITH` | 193 | 102 | 52.85% | $-51.82 | 0.875 |
+| `RR|LARGE|BODY_BALANCED|EXPANDED|UP|BREAK_LOW|AGAINST` | 72 | 38 | 52.78% | $-6.26 | 0.954 |
+| `GG|MEDIUM|UPPER|EXPANDED|UP|BREAK_HIGH|WITH` | 36 | 19 | 52.78% | $-6.78 | 0.915 |
+
+## Verdict
+
+**REJECT_C3_80_SEQUENCE_IDENTIFIER**
+
+No frozen 15m sequence/context archetype achieved discovery N>=30 and WR>=80%.
+
+Observed historical WR is not a guaranteed future probability. No post-result key simplification or runner-up validation.
