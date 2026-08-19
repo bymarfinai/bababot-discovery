@@ -1,0 +1,273 @@
+{
+  "protocol": "C2",
+  "implementation": "numpy_fast_equivalent",
+  "friday_dates": 141,
+  "discovery_dates": 98,
+  "validation_dates": 43,
+  "signal_rows": 40568,
+  "archetypes_discovery": 83,
+  "discovery_eligible_80": 0,
+  "baseline": {
+    "cont": {
+      "discovery": {
+        "n": 28196,
+        "wins": 6809,
+        "wr": 0.24148815434813448,
+        "pnl": -115903.99999999999,
+        "exp": -4.110653993474251,
+        "pf": 0.2525011165338919
+      },
+      "validation": {
+        "n": 12372,
+        "wins": 2735,
+        "wr": 0.2210636922082121,
+        "pnl": -54141.99999999999,
+        "exp": -4.376172001293242,
+        "pf": 0.22508435519710315
+      },
+      "full": {
+        "n": 40568,
+        "wins": 9544,
+        "wr": 0.23525931768881878,
+        "pnl": -170045.99999999997,
+        "exp": -4.1916288700453554,
+        "pf": 0.24398463480998028
+      }
+    },
+    "rev": {
+      "discovery": {
+        "n": 28196,
+        "wins": 6675,
+        "wr": 0.23673570719250958,
+        "pnl": -117645.99999999999,
+        "exp": -4.172435806497375,
+        "pf": 0.24599068431956603
+      },
+      "validation": {
+        "n": 12372,
+        "wins": 2638,
+        "wr": 0.2132234076947947,
+        "pnl": -55402.99999999999,
+        "exp": -4.478095699967668,
+        "pf": 0.21493804156068672
+      },
+      "full": {
+        "n": 40568,
+        "wins": 9313,
+        "wr": 0.22956517452179057,
+        "pnl": -173048.99999999997,
+        "exp": -4.265652731216722,
+        "pf": 0.2363197060884052
+      }
+    }
+  },
+  "top_discovery_support100": {
+    "cont": [
+      {
+        "mode": "cont",
+        "archetype": "GREEN|MEDIUM|UPPER|LOW|EXPANDED|SAME",
+        "n": 139,
+        "wins": 41,
+        "wr": 0.2949640287769784,
+        "pnl": -474.74999999999994,
+        "exp": -3.41546762589928,
+        "pf": 0.33180858550316683
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|SMALL|UPPER|LOW|EXPANDED|OPPOSITE",
+        "n": 290,
+        "wins": 85,
+        "wr": 0.29310344827586204,
+        "pnl": -997.4999999999999,
+        "exp": -3.4396551724137927,
+        "pf": 0.32884777123633313
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|SMALL|LOWER|HIGH|NORMAL|OPPOSITE",
+        "n": 689,
+        "wins": 201,
+        "wr": 0.29172714078374457,
+        "pnl": -2382.2499999999995,
+        "exp": -3.45754716981132,
+        "pf": 0.32666760881854157
+      },
+      {
+        "mode": "cont",
+        "archetype": "RED|MEDIUM|UPPER|LOW|EXPANDED|SAME",
+        "n": 124,
+        "wins": 36,
+        "wr": 0.2903225806451613,
+        "pnl": -430.99999999999994,
+        "exp": -3.4758064516129026,
+        "pf": 0.3244514106583073
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|MEDIUM|UPPER|LOW|NORMAL|SAME",
+        "n": 152,
+        "wins": 44,
+        "wr": 0.2894736842105263,
+        "pnl": -529.9999999999999,
+        "exp": -3.486842105263157,
+        "pf": 0.32311621966794385
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|MEDIUM|LOWER|HIGH|NORMAL|OPPOSITE",
+        "n": 191,
+        "wins": 55,
+        "wr": 0.2879581151832461,
+        "pnl": -669.7499999999999,
+        "exp": -3.5065445026178006,
+        "pf": 0.3207403651115619
+      },
+      {
+        "mode": "cont",
+        "archetype": "RED|SMALL|LOWER|LOW|NORMAL|OPPOSITE",
+        "n": 147,
+        "wins": 41,
+        "wr": 0.2789115646258503,
+        "pnl": -532.7499999999999,
+        "exp": -3.624149659863945,
+        "pf": 0.3067664281067014
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|MEDIUM|LOWER|HIGH|NORMAL|SAME",
+        "n": 227,
+        "wins": 62,
+        "wr": 0.27312775330396477,
+        "pnl": -839.7499999999999,
+        "exp": -3.6993392070484576,
+        "pf": 0.29801462904911186
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|MEDIUM|BODY_BALANCED|HIGH|EXPANDED|SAME",
+        "n": 919,
+        "wins": 251,
+        "wr": 0.2731229597388466,
+        "pnl": -3399.7499999999995,
+        "exp": -3.699401523394994,
+        "pf": 0.29800743340904406
+      },
+      {
+        "mode": "cont",
+        "archetype": "GREEN|SMALL|UPPER|LOW|NORMAL|SAME",
+        "n": 549,
+        "wins": 148,
+        "wr": 0.26958105646630237,
+        "pnl": -2056.2499999999995,
+        "exp": -3.7454462659380683,
+        "pf": 0.2927164846504429
+      }
+    ],
+    "rev": [
+      {
+        "mode": "rev",
+        "archetype": "RED|MEDIUM|UPPER|LOW|EXPANDED|SAME",
+        "n": 124,
+        "wins": 43,
+        "wr": 0.3467741935483871,
+        "pnl": -339.99999999999994,
+        "exp": -2.741935483870967,
+        "pf": 0.42103022562792686
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|MEDIUM|UPPER|LOW|EXPANDED|OPPOSITE",
+        "n": 171,
+        "wins": 51,
+        "wr": 0.2982456140350877,
+        "pnl": -576.7499999999999,
+        "exp": -3.372807017543859,
+        "pf": 0.3370689655172414
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|MEDIUM|BODY_BALANCED|LOW|EXPANDED|OPPOSITE",
+        "n": 913,
+        "wins": 250,
+        "wr": 0.2738225629791895,
+        "pnl": -3369.2499999999995,
+        "exp": -3.690306681270536,
+        "pf": 0.2990586154886358
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|MEDIUM|UPPER|LOW|NORMAL|SAME",
+        "n": 191,
+        "wins": 52,
+        "wr": 0.27225130890052357,
+        "pnl": -708.7499999999999,
+        "exp": -3.7107329842931933,
+        "pf": 0.29670057057802035
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|SMALL|LOWER|HIGH|NORMAL|SAME",
+        "n": 526,
+        "wins": 143,
+        "wr": 0.2718631178707224,
+        "pnl": -1954.4999999999998,
+        "exp": -3.715779467680608,
+        "pf": 0.2961195642387684
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|MEDIUM|UPPER|LOW|NORMAL|OPPOSITE",
+        "n": 228,
+        "wins": 61,
+        "wr": 0.2675438596491228,
+        "pnl": -859.9999999999999,
+        "exp": -3.771929824561403,
+        "pf": 0.2896964691307042
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|MEDIUM|LOWER|HIGH|NORMAL|SAME",
+        "n": 157,
+        "wins": 42,
+        "wr": 0.267515923566879,
+        "pnl": -592.2499999999999,
+        "exp": -3.7722929936305727,
+        "pf": 0.2896551724137931
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|SMALL|UPPER|LOW|EXPANDED|OPPOSITE",
+        "n": 419,
+        "wins": 112,
+        "wr": 0.26730310262529833,
+        "pnl": -1581.7499999999998,
+        "exp": -3.775059665871121,
+        "pf": 0.2893406716837022
+      },
+      {
+        "mode": "rev",
+        "archetype": "GREEN|SMALL|LOWER|HIGH|EXPANDED|OPPOSITE",
+        "n": 412,
+        "wins": 108,
+        "wr": 0.2621359223300971,
+        "pnl": -1582.9999999999998,
+        "exp": -3.842233009708737,
+        "pf": 0.2817604355716879
+      },
+      {
+        "mode": "rev",
+        "archetype": "RED|MEDIUM|BODY_BALANCED|LOW|NORMAL|OPPOSITE",
+        "n": 925,
+        "wins": 242,
+        "wr": 0.2616216216216216,
+        "pnl": -3560.2499999999995,
+        "exp": -3.8489189189189186,
+        "pf": 0.28101176351794827
+      }
+    ]
+  },
+  "selected": null,
+  "verdict": "REJECT_C2_80_CANDLE_IDENTIFIER",
+  "reason": "No frozen 5m single-candle archetype achieved discovery N>=100 and WR>=80%."
+}
