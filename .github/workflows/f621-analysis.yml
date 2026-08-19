@@ -1,8 +1,8 @@
-name: Tuesday August Failure Forensics
+name: Tuesday August Compression Guard Diagnostic
 on:
   push:
     paths:
-      - 'research/tuesday_august_failure_forensics.py'
+      - 'research/tuesday_august_compression_guard_diagnostic.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,33 +17,31 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run Tuesday August failure forensics and persist
+      - name: Run compression guard diagnostic and persist
         shell: bash
         run: |
           set +e
           cd research
-          TUEAUGF_OUT=tueaugf_out python tuesday_august_failure_forensics.py > ../TUEAUGF_RUN.log 2>&1
+          TUECOMPG_OUT=tuecompg_out python tuesday_august_compression_guard_diagnostic.py > ../TUECOMPG_RUN.log 2>&1
           rc=$?
           cd ..
-          cat TUEAUGF_RUN.log
-          printf '%s\n' "$rc" > TUEAUGF_EXIT_CODE.txt
+          cat TUECOMPG_RUN.log
+          printf '%s\n' "$rc" > TUECOMPG_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/tueaugf_out/TUESDAY_AUGUST_FAILURE_FORENSICS.md BTC_Temporal_Tuesday_August_Failure_Forensics.md
-            cp research/tueaugf_out/tuesday_august_failure_forensics_summary.json BTC_Temporal_Tuesday_August_Failure_Forensics_Summary.json
-            cp research/tueaugf_out/tuesday_august_forensic_historical.csv BTC_Temporal_Tuesday_August_Forensic_Historical.csv
-            cp research/tueaugf_out/tuesday_august_forensic_august.csv BTC_Temporal_Tuesday_August_Forensic_August.csv
-            rm -f BTC_Temporal_Tuesday_August_Failure_Forensics_ERROR.log
-            git add BTC_Temporal_Tuesday_August_Failure_Forensics.md BTC_Temporal_Tuesday_August_Failure_Forensics_Summary.json BTC_Temporal_Tuesday_August_Forensic_Historical.csv BTC_Temporal_Tuesday_August_Forensic_August.csv TUEAUGF_EXIT_CODE.txt
-            git add -u BTC_Temporal_Tuesday_August_Failure_Forensics_ERROR.log 2>/dev/null || true
-            msg="research: persist Tuesday August failure forensics"
+            cp research/tuecompg_out/TUESDAY_AUGUST_COMPRESSION_GUARD_DIAGNOSTIC.md BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic.md
+            cp research/tuecompg_out/tuesday_august_compression_guard_summary.json BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic_Summary.json
+            rm -f BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic_ERROR.log
+            git add BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic.md BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic_Summary.json TUECOMPG_EXIT_CODE.txt
+            git add -u BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic_ERROR.log 2>/dev/null || true
+            msg="research: persist Tuesday August compression guard diagnostic"
           else
-            cp TUEAUGF_RUN.log BTC_Temporal_Tuesday_August_Failure_Forensics_ERROR.log
-            git add BTC_Temporal_Tuesday_August_Failure_Forensics_ERROR.log TUEAUGF_EXIT_CODE.txt
-            msg="ci: persist Tuesday August forensic traceback"
+            cp TUECOMPG_RUN.log BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic_ERROR.log
+            git add BTC_Temporal_Tuesday_August_Compression_Guard_Diagnostic_ERROR.log TUECOMPG_EXIT_CODE.txt
+            msg="ci: persist Tuesday compression diagnostic traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -53,11 +51,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: tueaugf-output
+          name: tuecompg-output
           path: |
-            TUEAUGF_RUN.log
-            TUEAUGF_EXIT_CODE.txt
-            research/tueaugf_out/TUESDAY_AUGUST_FAILURE_FORENSICS.md
-            research/tueaugf_out/tuesday_august_failure_forensics_summary.json
-            research/tueaugf_out/tuesday_august_forensic_historical.csv
-            research/tueaugf_out/tuesday_august_forensic_august.csv
+            TUECOMPG_RUN.log
+            TUECOMPG_EXIT_CODE.txt
+            research/tuecompg_out/TUESDAY_AUGUST_COMPRESSION_GUARD_DIAGNOSTIC.md
+            research/tuecompg_out/tuesday_august_compression_guard_summary.json
