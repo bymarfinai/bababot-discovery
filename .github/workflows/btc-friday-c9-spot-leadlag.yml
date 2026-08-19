@@ -1,22 +1,22 @@
-name: BTC Friday C9A Spot Futures LeadLag
+name: BTC Friday C9B Spot Futures Selective AI
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_friday_c9a_spot_futures_leadlag.py'
-      - 'BTC_Friday_C9A_Spot_Futures_LeadLag_Preregistration.md'
+      - 'research/btc_friday_c9b_spot_futures_selective_ai.py'
+      - 'BTC_Friday_C9B_Spot_Futures_Selective_AI_Preregistration.md'
       - '.github/workflows/btc-friday-c9-spot-leadlag.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-c9a-spot-leadlag
+  group: btc-friday-c9b-spot-futures-ai
   cancel-in-progress: true
 
 jobs:
-  c9a:
+  c9b:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -28,34 +28,34 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install numpy pandas requests scikit-learn
-      - name: Run frozen C9A
+      - name: Run frozen C9B
         id: run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_friday_c9a_spot_futures_leadlag.py > BTC_Friday_C9A_Spot_Futures_LeadLag_Run.log 2>&1
+          PYTHONPATH=research python research/btc_friday_c9b_spot_futures_selective_ai.py > BTC_Friday_C9B_Spot_Futures_Selective_AI_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_Friday_C9A_Spot_Futures_LeadLag_EXIT_CODE.txt
-          cat BTC_Friday_C9A_Spot_Futures_LeadLag_Run.log
+          echo "$code" > BTC_Friday_C9B_Spot_Futures_Selective_AI_EXIT_CODE.txt
+          cat BTC_Friday_C9B_Spot_Futures_Selective_AI_Run.log
           exit $code
       - name: Persist artifacts
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Friday_C9A_Spot_Futures_LeadLag_EXIT_CODE.txt BTC_Friday_C9A_Spot_Futures_LeadLag_Run.log
-          for f in BTC_Friday_C9A_Spot_Futures_LeadLag_Result.md BTC_Friday_C9A_Spot_Futures_LeadLag_Result.json BTC_Friday_C9A_Spot_Futures_LeadLag_Rows.csv; do
+          git add BTC_Friday_C9B_Spot_Futures_Selective_AI_EXIT_CODE.txt BTC_Friday_C9B_Spot_Futures_Selective_AI_Run.log
+          for f in BTC_Friday_C9B_Spot_Futures_Selective_AI_Result.md BTC_Friday_C9B_Spot_Futures_Selective_AI_Result.json BTC_Friday_C9B_Spot_Futures_Selective_AI_Predictions.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git stash push --include-untracked -m c9a-artifacts
+            git stash push --include-untracked -m c9b-artifacts
             git pull --rebase origin main
             git stash pop
-            git add BTC_Friday_C9A_Spot_Futures_LeadLag_EXIT_CODE.txt BTC_Friday_C9A_Spot_Futures_LeadLag_Run.log
-            for f in BTC_Friday_C9A_Spot_Futures_LeadLag_Result.md BTC_Friday_C9A_Spot_Futures_LeadLag_Result.json BTC_Friday_C9A_Spot_Futures_LeadLag_Rows.csv; do
+            git add BTC_Friday_C9B_Spot_Futures_Selective_AI_EXIT_CODE.txt BTC_Friday_C9B_Spot_Futures_Selective_AI_Run.log
+            for f in BTC_Friday_C9B_Spot_Futures_Selective_AI_Result.md BTC_Friday_C9B_Spot_Futures_Selective_AI_Result.json BTC_Friday_C9B_Spot_Futures_Selective_AI_Predictions.csv; do
               if [ -f "$f" ]; then git add "$f"; fi
             done
-            git commit -m "research: persist BTC Friday spot-futures lead-lag C9A result"
+            git commit -m "research: persist BTC Friday spot-futures selective AI C9B result"
             git push
           fi
       - name: Fail if run failed
