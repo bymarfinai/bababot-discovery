@@ -1,0 +1,4 @@
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_aoh2_asia_open_context_optimization.py", line 167
+    md.append(f"| {part} | {rule} | {s['n']} | {s['tp']} | {s['sl']} | {pct(s['wr'])} | {pct(s['wilson_lo'])} | ${s['pnl']:.2f} | {('-' if s['expectancy'] is None else f'${s[\"expectancy\"]:.3f}')} | {pct(s['median_risk_pct'])} | {pct(s['avg_target_pct'])} |")
+                                                                                                                                                                                                                                                                   ^
+SyntaxError: f-string expression part cannot include a backslash
