@@ -1,0 +1,47 @@
+{
+  "status": "G8_FORWARD_MODEL_FROZEN_PARITY_PASS",
+  "model_fingerprint_sha256": "4b3227c5b8a2d4636725f6e079d4c6e2d0948f1f1627e93919f6ebfa3f59dc83",
+  "training_n": 23304,
+  "frozen_sell_prior": 0.4411259869550292,
+  "august_parity": {
+    "rows": [
+      {
+        "date_wib": "2026-08-04",
+        "decision_t_utc": "2026-08-03 23:00:00+00:00",
+        "p_buy": 0.42379640329627905,
+        "p_neutral": 0.1914954815675337,
+        "p_sell": 0.3847081151361872,
+        "mean_p_sell_168h": 0.394579931628491,
+        "weekly_sell_health": -0.046546055326538216
+      },
+      {
+        "date_wib": "2026-08-11",
+        "decision_t_utc": "2026-08-10 23:00:00+00:00",
+        "p_buy": 0.305435493229321,
+        "p_neutral": 0.36230837361121604,
+        "p_sell": 0.332256133159463,
+        "mean_p_sell_168h": 0.3357428913216648,
+        "weekly_sell_health": -0.1053830956333644
+      },
+      {
+        "date_wib": "2026-08-18",
+        "decision_t_utc": "2026-08-17 23:00:00+00:00",
+        "p_buy": 0.32692087681674337,
+        "p_neutral": 0.3625161568853138,
+        "p_sell": 0.3105629662979428,
+        "mean_p_sell_168h": 0.32111753304427626,
+        "weekly_sell_health": -0.12000845391075293
+      }
+    ],
+    "max_abs_pipeline_vs_serialized": 1.1102230246251565e-16,
+    "max_abs_serialized_vs_g1_august": 5.959608917471826e-10,
+    "max_abs_weekly_vs_g6_august": 5.551115123125783e-17,
+    "checks": {
+      "pipeline_vs_serialized_max_abs_le_1e10": true,
+      "serialized_vs_g1_august_max_abs_le_1e10": true,
+      "serialized_weekly_vs_g6_august_max_abs_le_1e10": true
+    },
+    "pass": true
+  },
+  "guardrail": "Immutable forward shadow state; no future retraining; live BBC untouched."
+}
