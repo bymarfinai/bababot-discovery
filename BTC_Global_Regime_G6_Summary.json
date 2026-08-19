@@ -1,0 +1,225 @@
+{
+  "status": "G6_WEEKLY_HEALTH_GATE_FAILED",
+  "lookback_hours": 168,
+  "rule": "TRADE iff mean prior-168h (p_sell - causal baseline_p_sell) >= 0",
+  "health_distribution": {
+    "mean": -0.009594609827233513,
+    "median": -0.0037606420816155787,
+    "min": -0.0998021411845023,
+    "max": 0.05736738641837292
+  },
+  "baseline": {
+    "opportunities": 125,
+    "trades": 125,
+    "waits": 0,
+    "coverage": 1.0,
+    "wins": 83,
+    "losses": 42,
+    "trade_wr": 0.664,
+    "pnl": 155.64465332799423,
+    "exp_per_opportunity": 1.245157226623954,
+    "exp_per_trade": 1.245157226623954,
+    "pf": 2.021006550692264,
+    "max_dd": 20.91160168683938
+  },
+  "g6": {
+    "opportunities": 125,
+    "trades": 55,
+    "waits": 70,
+    "coverage": 0.44,
+    "wins": 38,
+    "losses": 17,
+    "trade_wr": 0.6909090909090909,
+    "pnl": 103.94384571354655,
+    "exp_per_opportunity": 0.8315507657083724,
+    "exp_per_trade": 1.8898881038826645,
+    "pf": 2.48281837891984,
+    "max_dd": 13.641900326154087
+  },
+  "attribution": {
+    "health_ge_0": {
+      "opportunities": 55,
+      "trades": 55,
+      "waits": 0,
+      "coverage": 1.0,
+      "wins": 38,
+      "losses": 17,
+      "trade_wr": 0.6909090909090909,
+      "pnl": 103.94384571354655,
+      "exp_per_opportunity": 1.8898881038826645,
+      "exp_per_trade": 1.8898881038826645,
+      "pf": 2.48281837891984,
+      "max_dd": 13.641900326154087
+    },
+    "health_lt_0": {
+      "opportunities": 70,
+      "trades": 70,
+      "waits": 0,
+      "coverage": 1.0,
+      "wins": 45,
+      "losses": 25,
+      "trade_wr": 0.6428571428571429,
+      "pnl": 51.7008076144477,
+      "exp_per_opportunity": 0.7385829659206814,
+      "exp_per_trade": 0.7385829659206814,
+      "pf": 1.6278672972206378,
+      "max_dd": 15.032281934256012
+    }
+  },
+  "blocks": [
+    {
+      "block": 1,
+      "start": "2024-03-12",
+      "end": "2024-10-15",
+      "baseline": {
+        "opportunities": 32,
+        "trades": 32,
+        "waits": 0,
+        "coverage": 1.0,
+        "wins": 20,
+        "losses": 12,
+        "trade_wr": 0.625,
+        "pnl": 46.71460349746738,
+        "exp_per_opportunity": 1.4598313592958556,
+        "exp_per_trade": 1.4598313592958556,
+        "pf": 2.231514299300672,
+        "max_dd": 15.451862722675404
+      },
+      "g6": {
+        "opportunities": 32,
+        "trades": 16,
+        "waits": 16,
+        "coverage": 0.5,
+        "wins": 11,
+        "losses": 5,
+        "trade_wr": 0.6875,
+        "pnl": 33.46798093999699,
+        "exp_per_opportunity": 1.045874404374906,
+        "exp_per_trade": 2.0917488087498115,
+        "pf": 2.721848721304855,
+        "max_dd": 9.937236573625466
+      },
+      "pnl_delta": -13.246622557470388
+    },
+    {
+      "block": 2,
+      "start": "2024-10-22",
+      "end": "2025-05-20",
+      "baseline": {
+        "opportunities": 31,
+        "trades": 31,
+        "waits": 0,
+        "coverage": 1.0,
+        "wins": 16,
+        "losses": 15,
+        "trade_wr": 0.5161290322580645,
+        "pnl": 13.968061569275143,
+        "exp_per_opportunity": 0.4505826312669401,
+        "exp_per_trade": 0.4505826312669401,
+        "pf": 1.2255254168887912,
+        "max_dd": 20.911601686839365
+      },
+      "g6": {
+        "opportunities": 31,
+        "trades": 17,
+        "waits": 14,
+        "coverage": 0.5483870967741935,
+        "wins": 9,
+        "losses": 8,
+        "trade_wr": 0.5294117647058824,
+        "pnl": 17.417694869404567,
+        "exp_per_opportunity": 0.5618611248195021,
+        "exp_per_trade": 1.0245702864355632,
+        "pf": 1.5501204595295162,
+        "max_dd": 11.411601686839354
+      },
+      "pnl_delta": 3.449633300129424
+    },
+    {
+      "block": 3,
+      "start": "2025-05-27",
+      "end": "2025-12-23",
+      "baseline": {
+        "opportunities": 31,
+        "trades": 31,
+        "waits": 0,
+        "coverage": 1.0,
+        "wins": 25,
+        "losses": 6,
+        "trade_wr": 0.8064516129032258,
+        "pnl": 60.99366329507882,
+        "exp_per_opportunity": 1.967537525647704,
+        "exp_per_trade": 1.967537525647704,
+        "pf": 4.667736493156682,
+        "max_dd": 6.538895971374714
+      },
+      "g6": {
+        "opportunities": 31,
+        "trades": 7,
+        "waits": 24,
+        "coverage": 0.22580645161290322,
+        "wins": 6,
+        "losses": 1,
+        "trade_wr": 0.8571428571428571,
+        "pnl": 23.779265788876604,
+        "exp_per_opportunity": 0.7670730899637614,
+        "exp_per_trade": 3.397037969839515,
+        "pf": 6.006161218710859,
+        "max_dd": 4.7500000000000036
+      },
+      "pnl_delta": -37.21439750620222
+    },
+    {
+      "block": 4,
+      "start": "2025-12-30",
+      "end": "2026-07-28",
+      "baseline": {
+        "opportunities": 31,
+        "trades": 31,
+        "waits": 0,
+        "coverage": 1.0,
+        "wins": 22,
+        "losses": 9,
+        "trade_wr": 0.7096774193548387,
+        "pnl": 33.96832496617291,
+        "exp_per_opportunity": 1.0957524182636422,
+        "exp_per_trade": 1.0957524182636422,
+        "pf": 1.9450270854617033,
+        "max_dd": 10.025440217344219
+      },
+      "g6": {
+        "opportunities": 31,
+        "trades": 15,
+        "waits": 16,
+        "coverage": 0.4838709677419355,
+        "wins": 12,
+        "losses": 3,
+        "trade_wr": 0.8,
+        "pnl": 29.278904115268386,
+        "exp_per_opportunity": 0.9444807779118835,
+        "exp_per_trade": 1.9519269410178923,
+        "pf": 3.0546599379135686,
+        "max_dd": 9.500000000000007
+      },
+      "pnl_delta": -4.689420850904522
+    }
+  ],
+  "acceptance_checks": {
+    "eligible_opportunities_ge_120": true,
+    "coverage_ge_35pct": true,
+    "exp_per_opportunity_improves": false,
+    "total_pnl_ge_baseline": false,
+    "trade_wr_improves": true,
+    "max_dd_improves": true,
+    "positive_delta_3_of_4_blocks": false
+  },
+  "pass": false,
+  "august_report_only": {
+    "n": 3,
+    "trades": 0,
+    "waits": 3,
+    "baseline_pnl": -5.677717741645187,
+    "g6_pnl": 0.0
+  },
+  "guardrail": "Exactly 168h slow health, zero threshold, no tuning; August report-only; live BBC untouched."
+}
