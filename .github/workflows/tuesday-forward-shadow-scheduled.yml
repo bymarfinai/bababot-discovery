@@ -1,0 +1,101 @@
+name: Tuesday A5.11 Forward Shadow
+on:
+  schedule:
+    # Tuesday 06:00 WIB = Monday 23:00 UTC.
+    - cron: '0 23 * * 1'
+    # Settle after the frozen 6h horizon: Tuesday 12:10 WIB = 05:10 UTC.
+    - cron: '10 5 * * 2'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Shadow phase to run'
+        required: true
+        type: choice
+        options:
+          - snapshot
+          - settle
+      target_date:
+        description: 'Optional Tuesday WIB date YYYY-MM-DD; blank uses current WIB date'
+        required: false
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: tuesday-a511-forward-shadow-ledger
+  cancel-in-progress: false
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - name: Resolve phase and run frozen shadow
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE_EXPR: ${{ github.event.schedule }}
+          INPUT_MODE: ${{ inputs.mode }}
+          INPUT_DATE: ${{ inputs.target_date }}
+        run: |
+          set +e
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            mode="$INPUT_MODE"
+          elif [ "$SCHEDULE_EXPR" = "0 23 * * 1" ]; then
+            mode="snapshot"
+          elif [ "$SCHEDULE_EXPR" = "10 5 * * 2" ]; then
+            mode="settle"
+          else
+            echo "Unable to resolve shadow mode" > FORWARD_SHADOW_RUN.log
+            printf '%s\n' "2" > FORWARD_SHADOW_EXIT_CODE.txt
+            exit 2
+          fi
+
+          target_args=()
+          if [ -n "$INPUT_DATE" ]; then
+            target_args+=(--target-date "$INPUT_DATE")
+          fi
+
+          cd research
+          python tuesday_a511_forward_shadow.py --mode "$mode" "${target_args[@]}" > ../FORWARD_SHADOW_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat FORWARD_SHADOW_RUN.log
+          printf '%s\n' "$rc" > FORWARD_SHADOW_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            rm -f BTC_Tuesday_A511_Forward_Shadow_ERROR.log
+            git add BTC_Tuesday_A511_Forward_Shadow_Ledger.csv BTC_Tuesday_A511_Forward_Shadow_Status.md FORWARD_SHADOW_EXIT_CODE.txt
+            git add -u BTC_Tuesday_A511_Forward_Shadow_ERROR.log 2>/dev/null || true
+            msg="shadow: Tuesday A5.11 ${mode}"
+          else
+            cp FORWARD_SHADOW_RUN.log BTC_Tuesday_A511_Forward_Shadow_ERROR.log
+            git add BTC_Tuesday_A511_Forward_Shadow_ERROR.log FORWARD_SHADOW_EXIT_CODE.txt
+            msg="shadow: persist Tuesday A5.11 ${mode} error"
+          fi
+
+          if ! git diff --cached --quiet; then
+            git commit -m "$msg"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tuesday-a511-forward-shadow-${{ github.run_id }}
+          path: |
+            FORWARD_SHADOW_RUN.log
+            FORWARD_SHADOW_EXIT_CODE.txt
+            BTC_Tuesday_A511_Forward_Shadow_Ledger.csv
+            BTC_Tuesday_A511_Forward_Shadow_Status.md
+            BTC_Tuesday_A511_Forward_Shadow_ERROR.log
