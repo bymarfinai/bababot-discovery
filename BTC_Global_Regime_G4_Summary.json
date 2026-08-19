@@ -1,0 +1,537 @@
+{
+  "status": "G4_POOLED_GATE_FAILED",
+  "preregistration": "BTC_Global_Regime_G4_Preregistration.md",
+  "parity": {
+    "summary": {
+      "n": 139,
+      "wins": 89,
+      "pnl": 130.3285205371619,
+      "a52_actions": 7,
+      "fastmr_actions": 12,
+      "recoveries": 4,
+      "max_abs_trade_pnl_delta_vs_canonical": 0.0
+    },
+    "checks": {
+      "n139": true,
+      "wins89": true,
+      "pnl_130_33": true,
+      "a52_actions7": true,
+      "fastmr_actions12": true,
+      "recoveries4": true,
+      "trade_level_exact": true
+    },
+    "pass": true
+  },
+  "pooled_label": {
+    "n": 23304,
+    "wins": 9459,
+    "losses": 13845,
+    "win_rate": 0.4058959835221421,
+    "pnl": -17630.017892057273,
+    "a52_actions": 782,
+    "fastmr_actions": 2154,
+    "recoveries": 350
+  },
+  "pooled": {
+    "model": {
+      "n": 21144,
+      "win_rate": 0.40810631857737417,
+      "accuracy": 0.5908059023836549,
+      "log_loss": 0.6774525251275656,
+      "brier": 0.24216674091824208,
+      "auc": 0.5117062399150455,
+      "trade_coverage": 0.007330684827847144,
+      "trade_win_rate": 0.4258064516129032,
+      "trades": 155,
+      "waits": 20989
+    },
+    "baseline": {
+      "n": 21144,
+      "win_rate": 0.40810631857737417,
+      "accuracy": 0.5918936814226258,
+      "log_loss": 0.6765202577207721,
+      "brier": 0.24172656304328524,
+      "auc": 0.49871779313890424,
+      "trade_coverage": 0.0,
+      "trade_win_rate": null,
+      "trades": 0,
+      "waits": 21144
+    },
+    "wr_enrichment_pp": 1.770013303552903,
+    "blocks": [
+      {
+        "block": 1,
+        "start": "2024-03-01 00:00:00+00:00",
+        "end": "2024-10-07 05:00:00+00:00",
+        "n": 5286,
+        "model_log_loss": 0.6769774536539381,
+        "baseline_log_loss": 0.6754377586199527,
+        "model_brier": 0.24190469155197628,
+        "baseline_brier": 0.24118097186153797,
+        "logloss_improved": false
+      },
+      {
+        "block": 2,
+        "start": "2024-10-07 06:00:00+00:00",
+        "end": "2025-05-15 11:00:00+00:00",
+        "n": 5286,
+        "model_log_loss": 0.6763257989174987,
+        "baseline_log_loss": 0.6745262367534545,
+        "model_brier": 0.24159711485779295,
+        "baseline_brier": 0.24074589099276425,
+        "logloss_improved": false
+      },
+      {
+        "block": 3,
+        "start": "2025-05-15 12:00:00+00:00",
+        "end": "2025-12-21 17:00:00+00:00",
+        "n": 5286,
+        "model_log_loss": 0.6732231739350232,
+        "baseline_log_loss": 0.6739526345773577,
+        "model_brier": 0.2401228552293977,
+        "baseline_brier": 0.24046241930650175,
+        "logloss_improved": true
+      },
+      {
+        "block": 4,
+        "start": "2025-12-21 18:00:00+00:00",
+        "end": "2026-07-29 23:00:00+00:00",
+        "n": 5286,
+        "model_log_loss": 0.6832836740038029,
+        "baseline_log_loss": 0.6821644009323234,
+        "model_brier": 0.24504230203380148,
+        "baseline_brier": 0.24451697001233713,
+        "logloss_improved": false
+      }
+    ],
+    "embargo_checks": [
+      {
+        "month": "2024-03-01",
+        "train_n": 2155,
+        "test_n": 744,
+        "latest_train_label_matures": "2024-03-01 00:00:00+00:00",
+        "month_start": "2024-03-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2024-04-01",
+        "train_n": 2899,
+        "test_n": 720,
+        "latest_train_label_matures": "2024-04-01 00:00:00+00:00",
+        "month_start": "2024-04-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2024-05-01",
+        "train_n": 3619,
+        "test_n": 744,
+        "latest_train_label_matures": "2024-05-01 00:00:00+00:00",
+        "month_start": "2024-05-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2024-06-01",
+        "train_n": 4363,
+        "test_n": 720,
+        "latest_train_label_matures": "2024-06-01 00:00:00+00:00",
+        "month_start": "2024-06-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2024-07-01",
+        "train_n": 5083,
+        "test_n": 744,
+        "latest_train_label_matures": "2024-07-01 00:00:00+00:00",
+        "month_start": "2024-07-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2024-08-01",
+        "train_n": 5827,
+        "test_n": 744,
+        "latest_train_label_matures": "2024-08-01 00:00:00+00:00",
+        "month_start": "2024-08-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2024-09-01",
+        "train_n": 6571,
+        "test_n": 720,
+        "latest_train_label_matures": "2024-09-01 00:00:00+00:00",
+        "month_start": "2024-09-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2024-10-01",
+        "train_n": 7291,
+        "test_n": 744,
+        "latest_train_label_matures": "2024-10-01 00:00:00+00:00",
+        "month_start": "2024-10-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2024-11-01",
+        "train_n": 8035,
+        "test_n": 720,
+        "latest_train_label_matures": "2024-11-01 00:00:00+00:00",
+        "month_start": "2024-11-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2024-12-01",
+        "train_n": 8755,
+        "test_n": 744,
+        "latest_train_label_matures": "2024-12-01 00:00:00+00:00",
+        "month_start": "2024-12-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2025-01-01",
+        "train_n": 9499,
+        "test_n": 744,
+        "latest_train_label_matures": "2025-01-01 00:00:00+00:00",
+        "month_start": "2025-01-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2025-02-01",
+        "train_n": 10243,
+        "test_n": 672,
+        "latest_train_label_matures": "2025-02-01 00:00:00+00:00",
+        "month_start": "2025-02-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2025-03-01",
+        "train_n": 10915,
+        "test_n": 744,
+        "latest_train_label_matures": "2025-03-01 00:00:00+00:00",
+        "month_start": "2025-03-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2025-04-01",
+        "train_n": 11659,
+        "test_n": 720,
+        "latest_train_label_matures": "2025-04-01 00:00:00+00:00",
+        "month_start": "2025-04-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2025-05-01",
+        "train_n": 12379,
+        "test_n": 744,
+        "latest_train_label_matures": "2025-05-01 00:00:00+00:00",
+        "month_start": "2025-05-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2025-06-01",
+        "train_n": 13123,
+        "test_n": 720,
+        "latest_train_label_matures": "2025-06-01 00:00:00+00:00",
+        "month_start": "2025-06-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2025-07-01",
+        "train_n": 13843,
+        "test_n": 744,
+        "latest_train_label_matures": "2025-07-01 00:00:00+00:00",
+        "month_start": "2025-07-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2025-08-01",
+        "train_n": 14587,
+        "test_n": 744,
+        "latest_train_label_matures": "2025-08-01 00:00:00+00:00",
+        "month_start": "2025-08-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2025-09-01",
+        "train_n": 15331,
+        "test_n": 720,
+        "latest_train_label_matures": "2025-09-01 00:00:00+00:00",
+        "month_start": "2025-09-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2025-10-01",
+        "train_n": 16051,
+        "test_n": 744,
+        "latest_train_label_matures": "2025-10-01 00:00:00+00:00",
+        "month_start": "2025-10-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2025-11-01",
+        "train_n": 16795,
+        "test_n": 720,
+        "latest_train_label_matures": "2025-11-01 00:00:00+00:00",
+        "month_start": "2025-11-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2025-12-01",
+        "train_n": 17515,
+        "test_n": 744,
+        "latest_train_label_matures": "2025-12-01 00:00:00+00:00",
+        "month_start": "2025-12-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2026-01-01",
+        "train_n": 18259,
+        "test_n": 744,
+        "latest_train_label_matures": "2026-01-01 00:00:00+00:00",
+        "month_start": "2026-01-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2026-02-01",
+        "train_n": 19003,
+        "test_n": 672,
+        "latest_train_label_matures": "2026-02-01 00:00:00+00:00",
+        "month_start": "2026-02-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2026-03-01",
+        "train_n": 19675,
+        "test_n": 744,
+        "latest_train_label_matures": "2026-03-01 00:00:00+00:00",
+        "month_start": "2026-03-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2026-04-01",
+        "train_n": 20419,
+        "test_n": 720,
+        "latest_train_label_matures": "2026-04-01 00:00:00+00:00",
+        "month_start": "2026-04-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2026-05-01",
+        "train_n": 21139,
+        "test_n": 744,
+        "latest_train_label_matures": "2026-05-01 00:00:00+00:00",
+        "month_start": "2026-05-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2026-06-01",
+        "train_n": 21883,
+        "test_n": 720,
+        "latest_train_label_matures": "2026-06-01 00:00:00+00:00",
+        "month_start": "2026-06-01 00:00:00+00:00",
+        "pass": true
+      },
+      {
+        "month": "2026-07-01",
+        "train_n": 22603,
+        "test_n": 696,
+        "latest_train_label_matures": "2026-07-01 00:00:00+00:00",
+        "month_start": "2026-07-01 00:00:00+00:00",
+        "pass": true
+      }
+    ],
+    "acceptance_checks": {
+      "predictions_ge_18000": true,
+      "causal_embargo_all_months": true,
+      "logloss_beats_prior": false,
+      "brier_beats_prior": false,
+      "auc_ge_055": false,
+      "trade_coverage_ge_20pct": false,
+      "trade_wr_enrichment_ge_3pp": false,
+      "logloss_improves_3_of_4_blocks": false
+    },
+    "pass": false
+  },
+  "tuesday_overlay": {
+    "baseline": {
+      "opportunities": 126,
+      "trades": 126,
+      "waits": 0,
+      "coverage": 1.0,
+      "wins": 83,
+      "losses": 43,
+      "trade_wr": 0.6587301587301587,
+      "pnl": 150.89465332799426,
+      "exp_per_opportunity": 1.1975766137142403,
+      "exp_per_trade": 1.1975766137142403,
+      "pf": 1.959936274714159,
+      "max_dd": 20.91160168683937
+    },
+    "gated": {
+      "opportunities": 126,
+      "trades": 1,
+      "waits": 125,
+      "coverage": 0.007936507936507936,
+      "wins": 1,
+      "losses": 0,
+      "trade_wr": 1.0,
+      "pnl": 5.999999999999979,
+      "exp_per_opportunity": 0.04761904761904745,
+      "exp_per_trade": 5.999999999999979,
+      "pf": 999.0,
+      "max_dd": 0.0
+    },
+    "blocks": [
+      {
+        "block": 1,
+        "start": "2024-03-05",
+        "end": "2024-10-08",
+        "baseline": {
+          "opportunities": 32,
+          "trades": 32,
+          "waits": 0,
+          "coverage": 1.0,
+          "wins": 19,
+          "losses": 13,
+          "trade_wr": 0.59375,
+          "pnl": 35.96460349746741,
+          "exp_per_opportunity": 1.1238938592958565,
+          "exp_per_trade": 1.1238938592958565,
+          "pf": 1.8426047049623957,
+          "max_dd": 15.451862722675394
+        },
+        "gated": {
+          "opportunities": 32,
+          "trades": 1,
+          "waits": 31,
+          "coverage": 0.03125,
+          "wins": 1,
+          "losses": 0,
+          "trade_wr": 1.0,
+          "pnl": 5.999999999999979,
+          "exp_per_opportunity": 0.18749999999999933,
+          "exp_per_trade": 5.999999999999979,
+          "pf": 999.0,
+          "max_dd": 0.0
+        },
+        "pnl_delta": -29.96460349746743
+      },
+      {
+        "block": 2,
+        "start": "2024-10-15",
+        "end": "2025-05-20",
+        "baseline": {
+          "opportunities": 32,
+          "trades": 32,
+          "waits": 0,
+          "coverage": 1.0,
+          "wins": 17,
+          "losses": 15,
+          "trade_wr": 0.53125,
+          "pnl": 19.96806156927513,
+          "exp_per_opportunity": 0.6240019240398478,
+          "exp_per_trade": 0.6240019240398478,
+          "pf": 1.3224001689523999,
+          "max_dd": 20.91160168683936
+        },
+        "gated": {
+          "opportunities": 32,
+          "trades": 0,
+          "waits": 32,
+          "coverage": 0.0,
+          "wins": 0,
+          "losses": 0,
+          "trade_wr": null,
+          "pnl": 0.0,
+          "exp_per_opportunity": 0.0,
+          "exp_per_trade": null,
+          "pf": null,
+          "max_dd": 0.0
+        },
+        "pnl_delta": -19.96806156927513
+      },
+      {
+        "block": 3,
+        "start": "2025-05-27",
+        "end": "2025-12-23",
+        "baseline": {
+          "opportunities": 31,
+          "trades": 31,
+          "waits": 0,
+          "coverage": 1.0,
+          "wins": 25,
+          "losses": 6,
+          "trade_wr": 0.8064516129032258,
+          "pnl": 60.993663295078825,
+          "exp_per_opportunity": 1.9675375256477041,
+          "exp_per_trade": 1.9675375256477041,
+          "pf": 4.667736493156683,
+          "max_dd": 6.538895971374714
+        },
+        "gated": {
+          "opportunities": 31,
+          "trades": 0,
+          "waits": 31,
+          "coverage": 0.0,
+          "wins": 0,
+          "losses": 0,
+          "trade_wr": null,
+          "pnl": 0.0,
+          "exp_per_opportunity": 0.0,
+          "exp_per_trade": null,
+          "pf": null,
+          "max_dd": 0.0
+        },
+        "pnl_delta": -60.993663295078825
+      },
+      {
+        "block": 4,
+        "start": "2025-12-30",
+        "end": "2026-07-28",
+        "baseline": {
+          "opportunities": 31,
+          "trades": 31,
+          "waits": 0,
+          "coverage": 1.0,
+          "wins": 22,
+          "losses": 9,
+          "trade_wr": 0.7096774193548387,
+          "pnl": 33.96832496617291,
+          "exp_per_opportunity": 1.0957524182636422,
+          "exp_per_trade": 1.0957524182636422,
+          "pf": 1.9450270854617042,
+          "max_dd": 10.025440217344217
+        },
+        "gated": {
+          "opportunities": 31,
+          "trades": 0,
+          "waits": 31,
+          "coverage": 0.0,
+          "wins": 0,
+          "losses": 0,
+          "trade_wr": null,
+          "pnl": 0.0,
+          "exp_per_opportunity": 0.0,
+          "exp_per_trade": null,
+          "pf": null,
+          "max_dd": 0.0
+        },
+        "pnl_delta": -33.96832496617291
+      }
+    ],
+    "promotion_checks": {
+      "coverage_ge_35pct": false,
+      "exp_per_opportunity_improves": false,
+      "total_pnl_ge_baseline": false,
+      "trade_wr_improves": true,
+      "positive_delta_3_of_4_blocks": false
+    },
+    "shadow_candidate_pass": false
+  },
+  "august_report_only": {
+    "n": 3,
+    "trades": 0,
+    "waits": 3,
+    "always_trade_pnl": -5.6777177416451865,
+    "gated_pnl": 0.0
+  },
+  "guardrail": "Frozen A5.11 label at every hourly state; no tuning; August report-only; live BBC untouched."
+}
