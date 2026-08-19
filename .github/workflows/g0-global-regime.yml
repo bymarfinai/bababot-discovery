@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'research/g0_global_pooled_regime_dataset.py'
+      - 'research/g0_global_pooled_regime_dataset_fast.py'
       - '.github/workflows/g0-global-regime.yml'
   workflow_dispatch:
 permissions:
@@ -22,7 +23,7 @@ jobs:
         run: |
           set +e
           cd research
-          G0_OUT=g0_out python g0_global_pooled_regime_dataset.py > ../G0_RUN.log 2>&1
+          G0_OUT=g0_out python g0_global_pooled_regime_dataset_fast.py > ../G0_RUN.log 2>&1
           rc=$?
           cd ..
           cat G0_RUN.log
