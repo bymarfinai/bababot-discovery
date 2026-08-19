@@ -1,0 +1,67 @@
+name: BTC Global Regime G1
+on:
+  push:
+    paths:
+      - 'research/g1_embargoed_pooled_regime_walkforward.py'
+      - '.github/workflows/g1-global-regime.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests scikit-learn
+      - name: Run preregistered G1 and persist
+        shell: bash
+        run: |
+          set +e
+          cd research
+          G1_OUT=g1_out G0_DATA=../BTC_Global_Regime_G0_Pooled_Hourly_States.csv python g1_embargoed_pooled_regime_walkforward.py > ../G1_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat G1_RUN.log
+          printf '%s\n' "$rc" > G1_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            cp research/g1_out/BTC_GLOBAL_REGIME_G1_RESULT.md BTC_Global_Regime_G1_Result.md
+            cp research/g1_out/g1_summary.json BTC_Global_Regime_G1_Summary.json
+            cp research/g1_out/g1_pooled_walkforward_predictions.csv BTC_Global_Regime_G1_Pooled_WalkForward_Predictions.csv
+            cp research/g1_out/g1_tuesday_overlay.csv BTC_Global_Regime_G1_Tuesday_Overlay.csv
+            cp research/g1_out/g1_august_tuesday.csv BTC_Global_Regime_G1_August_Tuesday.csv
+            cp research/g1_out/g1_final_model_state.json BTC_Global_Regime_G1_Final_Model_State.json
+            rm -f BTC_Global_Regime_G1_ERROR.log
+            git add BTC_Global_Regime_G1_Result.md BTC_Global_Regime_G1_Summary.json BTC_Global_Regime_G1_Pooled_WalkForward_Predictions.csv BTC_Global_Regime_G1_Tuesday_Overlay.csv BTC_Global_Regime_G1_August_Tuesday.csv BTC_Global_Regime_G1_Final_Model_State.json G1_EXIT_CODE.txt
+            git add -u BTC_Global_Regime_G1_ERROR.log 2>/dev/null || true
+            msg="research: persist pooled BTC regime G1 result"
+          else
+            cp G1_RUN.log BTC_Global_Regime_G1_ERROR.log
+            git add BTC_Global_Regime_G1_ERROR.log G1_EXIT_CODE.txt
+            msg="ci: persist pooled BTC regime G1 traceback"
+          fi
+
+          git diff --cached --quiet || git commit -m "$msg"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: btc-global-regime-g1-output
+          path: |
+            G1_RUN.log
+            G1_EXIT_CODE.txt
+            research/g1_out/BTC_GLOBAL_REGIME_G1_RESULT.md
+            research/g1_out/g1_summary.json
+            research/g1_out/g1_pooled_walkforward_predictions.csv
+            research/g1_out/g1_tuesday_overlay.csv
+            research/g1_out/g1_august_tuesday.csv
+            research/g1_out/g1_final_model_state.json
