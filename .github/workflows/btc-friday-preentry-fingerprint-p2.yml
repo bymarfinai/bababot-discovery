@@ -8,12 +8,19 @@ on:
       - 'research/btc_friday_sr80_level_reliability_fast.py'
       - 'BTC_Friday_SR80_Level_Reliability_Preregistration.md'
       - '.github/workflows/btc-friday-preentry-fingerprint-p2.yml'
+  pull_request:
+    paths:
+      - 'SR80_PR_TRIGGER.md'
+      - 'research/btc_friday_sr80_level_reliability.py'
+      - 'research/btc_friday_sr80_level_reliability_fast.py'
+      - 'BTC_Friday_SR80_Level_Reliability_Preregistration.md'
+      - '.github/workflows/btc-friday-preentry-fingerprint-p2.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-sr80-level-reliability-fast
+  group: btc-friday-sr80-level-reliability-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -40,7 +47,7 @@ jobs:
           cat BTC_Friday_SR80_Level_Reliability_Run.log
           exit $code
       - name: Persist SR80 artifacts safely
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
