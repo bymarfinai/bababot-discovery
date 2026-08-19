@@ -1,0 +1,90 @@
+{
+  "status": "COMPLETE_FROZEN_TUESDAY_A511_AUGUST_REPLAY",
+  "research_cutoff": "2026-07-30 UTC",
+  "freeze_date": "2026-08-16 WIB",
+  "historical_parity": {
+    "parent": {
+      "n": 139,
+      "wins": 79,
+      "losses": 60,
+      "wr": 0.5683453237410072,
+      "pnl": 95.73423284254761,
+      "pf": 1.4307417377463976,
+      "exp": 0.6887354880758821
+    },
+    "a52": {
+      "n": 139,
+      "wins": 83,
+      "losses": 56,
+      "wr": 0.5971223021582733,
+      "pnl": 105.90402032685056,
+      "pf": 1.5007642010964874,
+      "exp": 0.7618994268118745
+    },
+    "a59": {
+      "n": 139,
+      "wins": 89,
+      "losses": 50,
+      "wr": 0.6402877697841727,
+      "pnl": 120.26714578412741,
+      "pf": 1.6382067099176643,
+      "exp": 0.8652312646340101
+    },
+    "a511": {
+      "n": 139,
+      "wins": 89,
+      "losses": 50,
+      "wr": 0.6402877697841727,
+      "pnl": 130.3285205371619,
+      "pf": 1.69159815640554,
+      "exp": 0.9376152556630352
+    },
+    "a52_actions": 7,
+    "fastmr_actions": 12,
+    "recoveries": 4,
+    "checks": {
+      "n139": true,
+      "parent_w79": true,
+      "parent_pnl": true,
+      "a52_w83": true,
+      "a52_pnl": true,
+      "a52_actions7": true,
+      "a59_w89": true,
+      "a59_pnl": true,
+      "fast_actions12": true,
+      "a511_w89": true,
+      "a511_pnl": true,
+      "recoveries4": true
+    },
+    "pass": true
+  },
+  "dates": [
+    "2026-08-04",
+    "2026-08-11",
+    "2026-08-18"
+  ],
+  "parent_august": {
+    "n": 3,
+    "wins": 0,
+    "losses": 3,
+    "wr": 0.0,
+    "pnl": -5.6777177416451865,
+    "pf": 0.0,
+    "exp": -1.8925725805483955
+  },
+  "champion_august": {
+    "n": 3,
+    "wins": 0,
+    "losses": 3,
+    "wr": 0.0,
+    "pnl": -5.6777177416451865,
+    "pf": 0.0,
+    "exp": -1.8925725805483955
+  },
+  "delta_champion_vs_parent": 0.0,
+  "a52_actions": 0,
+  "fastmr_actions": 0,
+  "runner_recoveries": 0,
+  "forward_post_freeze_n": 1,
+  "guardrail": "Frozen rules unchanged. Aug4/11 are data-level post-cutoff retrospective observations; Aug18 is post-freeze forward. N=3 cannot prove or reject the edge."
+}
