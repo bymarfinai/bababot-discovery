@@ -1,0 +1,2084 @@
+{
+  "protocol": "BTC_H1_PREVIOUS_DAY_VOLUME_PROFILE_VP1",
+  "coverage": {
+    "first5m": "2020-01-01 00:00:00+00:00",
+    "last5m": "2026-08-18 23:55:00+00:00",
+    "rows5m": 697536,
+    "rows1h": 58128,
+    "profiles": 2422
+  },
+  "fixed": {
+    "bins": 100,
+    "value_area_fraction": 0.7,
+    "event_hours_utc": [
+      4,
+      8,
+      18,
+      19
+    ],
+    "fee": 0.0015,
+    "max_hold_hours": 6
+  },
+  "event_count": 1133,
+  "partition_counts": {
+    "external": 339,
+    "development": 578,
+    "reference_validation": 203,
+    "reference_full": 781,
+    "august": 13
+  },
+  "stats": {
+    "external": {
+      "ALL": {
+        "direction": {
+          "n": 339,
+          "pos1h": 0.4631268436578171,
+          "pos3h": 0.5132743362831859,
+          "avg3h": 0.0006225881923544921,
+          "median3h": 0.0002785521405914704
+        },
+        "poc": {
+          "events": 339,
+          "eligible": 305,
+          "target": 122,
+          "adverse": 183,
+          "time": 0,
+          "hit_rate": 0.4
+        },
+        "value_rotation": {
+          "events": 339,
+          "eligible": 339,
+          "target": 62,
+          "adverse": 277,
+          "time": 0,
+          "hit_rate": 0.18289085545722714
+        },
+        "execution": {
+          "n": 339,
+          "tp": 107,
+          "sl": 232,
+          "time": 0,
+          "wr": 0.31563421828908556,
+          "pnl": -539.8720639302362,
+          "expectancy": -1.5925429614461246,
+          "median_risk": 0.005574798782070946
+        }
+      },
+      "LONG": {
+        "direction": {
+          "n": 169,
+          "pos1h": 0.47337278106508873,
+          "pos3h": 0.5443786982248521,
+          "avg3h": 0.0017825742558146942,
+          "median3h": 0.0008639507129890589
+        },
+        "poc": {
+          "events": 169,
+          "eligible": 148,
+          "target": 59,
+          "adverse": 89,
+          "time": 0,
+          "hit_rate": 0.39864864864864863
+        },
+        "value_rotation": {
+          "events": 169,
+          "eligible": 169,
+          "target": 35,
+          "adverse": 134,
+          "time": 0,
+          "hit_rate": 0.20710059171597633
+        },
+        "execution": {
+          "n": 169,
+          "tp": 52,
+          "sl": 117,
+          "time": 0,
+          "wr": 0.3076923076923077,
+          "pnl": -329.7698464961885,
+          "expectancy": -1.951300866841352,
+          "median_risk": 0.005909831244627494
+        }
+      },
+      "SHORT": {
+        "direction": {
+          "n": 170,
+          "pos1h": 0.45294117647058824,
+          "pos3h": 0.4823529411764706,
+          "avg3h": -0.000530574423673591,
+          "median3h": -0.0005607643166890552
+        },
+        "poc": {
+          "events": 170,
+          "eligible": 157,
+          "target": 63,
+          "adverse": 94,
+          "time": 0,
+          "hit_rate": 0.4012738853503185
+        },
+        "value_rotation": {
+          "events": 170,
+          "eligible": 170,
+          "target": 27,
+          "adverse": 143,
+          "time": 0,
+          "hit_rate": 0.1588235294117647
+        },
+        "execution": {
+          "n": 170,
+          "tp": 55,
+          "sl": 115,
+          "time": 0,
+          "wr": 0.3235294117647059,
+          "pnl": -210.10221743404767,
+          "expectancy": -1.2358953966708686,
+          "median_risk": 0.005430636385937274
+        }
+      },
+      "11:00_LONG": {
+        "direction": {
+          "n": 45,
+          "pos1h": 0.4444444444444444,
+          "pos3h": 0.6222222222222222,
+          "avg3h": 0.0010888583635462609,
+          "median3h": 0.001540191089007159
+        },
+        "poc": {
+          "events": 45,
+          "eligible": 41,
+          "target": 14,
+          "adverse": 27,
+          "time": 0,
+          "hit_rate": 0.34146341463414637
+        },
+        "value_rotation": {
+          "events": 45,
+          "eligible": 45,
+          "target": 8,
+          "adverse": 37,
+          "time": 0,
+          "hit_rate": 0.17777777777777778
+        },
+        "execution": {
+          "n": 45,
+          "tp": 9,
+          "sl": 36,
+          "time": 0,
+          "wr": 0.2,
+          "pnl": -93.0907338506,
+          "expectancy": -2.068682974457778,
+          "median_risk": 0.006386110476112299
+        }
+      },
+      "11:00_SHORT": {
+        "direction": {
+          "n": 45,
+          "pos1h": 0.37777777777777777,
+          "pos3h": 0.4666666666666667,
+          "avg3h": -0.0016499278750122532,
+          "median3h": -0.000844580451782484
+        },
+        "poc": {
+          "events": 45,
+          "eligible": 42,
+          "target": 16,
+          "adverse": 26,
+          "time": 0,
+          "hit_rate": 0.38095238095238093
+        },
+        "value_rotation": {
+          "events": 45,
+          "eligible": 45,
+          "target": 9,
+          "adverse": 36,
+          "time": 0,
+          "hit_rate": 0.2
+        },
+        "execution": {
+          "n": 45,
+          "tp": 14,
+          "sl": 31,
+          "time": 0,
+          "wr": 0.3111111111111111,
+          "pnl": -62.33318726279383,
+          "expectancy": -1.385181939173196,
+          "median_risk": 0.004656181449789826
+        }
+      },
+      "15:00_LONG": {
+        "direction": {
+          "n": 59,
+          "pos1h": 0.3898305084745763,
+          "pos3h": 0.4406779661016949,
+          "avg3h": -7.217284590653343e-05,
+          "median3h": -0.00043615676469843656
+        },
+        "poc": {
+          "events": 59,
+          "eligible": 51,
+          "target": 16,
+          "adverse": 35,
+          "time": 0,
+          "hit_rate": 0.3137254901960784
+        },
+        "value_rotation": {
+          "events": 59,
+          "eligible": 59,
+          "target": 9,
+          "adverse": 50,
+          "time": 0,
+          "hit_rate": 0.15254237288135594
+        },
+        "execution": {
+          "n": 59,
+          "tp": 14,
+          "sl": 45,
+          "time": 0,
+          "wr": 0.23728813559322035,
+          "pnl": -139.2597250134454,
+          "expectancy": -2.3603343222617865,
+          "median_risk": 0.006281237887349796
+        }
+      },
+      "15:00_SHORT": {
+        "direction": {
+          "n": 50,
+          "pos1h": 0.42,
+          "pos3h": 0.52,
+          "avg3h": -0.000612908948690567,
+          "median3h": 0.0003395748473624116
+        },
+        "poc": {
+          "events": 50,
+          "eligible": 47,
+          "target": 20,
+          "adverse": 27,
+          "time": 0,
+          "hit_rate": 0.425531914893617
+        },
+        "value_rotation": {
+          "events": 50,
+          "eligible": 50,
+          "target": 8,
+          "adverse": 42,
+          "time": 0,
+          "hit_rate": 0.16
+        },
+        "execution": {
+          "n": 50,
+          "tp": 15,
+          "sl": 35,
+          "time": 0,
+          "wr": 0.3,
+          "pnl": -64.43377098496383,
+          "expectancy": -1.2886754196992767,
+          "median_risk": 0.005743077098818102
+        }
+      },
+      "01:00_LONG": {
+        "direction": {
+          "n": 29,
+          "pos1h": 0.5862068965517241,
+          "pos3h": 0.6551724137931034,
+          "avg3h": 0.005467189841291579,
+          "median3h": 0.002280794485698623
+        },
+        "poc": {
+          "events": 29,
+          "eligible": 25,
+          "target": 16,
+          "adverse": 9,
+          "time": 0,
+          "hit_rate": 0.64
+        },
+        "value_rotation": {
+          "events": 29,
+          "eligible": 29,
+          "target": 8,
+          "adverse": 21,
+          "time": 0,
+          "hit_rate": 0.27586206896551724
+        },
+        "execution": {
+          "n": 29,
+          "tp": 15,
+          "sl": 14,
+          "time": 0,
+          "wr": 0.5172413793103449,
+          "pnl": -46.89730932906927,
+          "expectancy": -1.6171485975541129,
+          "median_risk": 0.005325721144417219
+        }
+      },
+      "01:00_SHORT": {
+        "direction": {
+          "n": 37,
+          "pos1h": 0.7297297297297297,
+          "pos3h": 0.6486486486486487,
+          "avg3h": 0.003511133861088592,
+          "median3h": 0.0012232795656758055
+        },
+        "poc": {
+          "events": 37,
+          "eligible": 35,
+          "target": 20,
+          "adverse": 15,
+          "time": 0,
+          "hit_rate": 0.5714285714285714
+        },
+        "value_rotation": {
+          "events": 37,
+          "eligible": 37,
+          "target": 5,
+          "adverse": 32,
+          "time": 0,
+          "hit_rate": 0.13513513513513514
+        },
+        "execution": {
+          "n": 37,
+          "tp": 19,
+          "sl": 18,
+          "time": 0,
+          "wr": 0.5135135135135135,
+          "pnl": 13.499625384684034,
+          "expectancy": 0.3648547401265955,
+          "median_risk": 0.005573908236132672
+        }
+      },
+      "02:00_LONG": {
+        "direction": {
+          "n": 36,
+          "pos1h": 0.5555555555555556,
+          "pos3h": 0.5277777777777778,
+          "avg3h": 0.0027212809828925347,
+          "median3h": 0.0011446535775142541
+        },
+        "poc": {
+          "events": 36,
+          "eligible": 31,
+          "target": 13,
+          "adverse": 18,
+          "time": 0,
+          "hit_rate": 0.41935483870967744
+        },
+        "value_rotation": {
+          "events": 36,
+          "eligible": 36,
+          "target": 10,
+          "adverse": 26,
+          "time": 0,
+          "hit_rate": 0.2777777777777778
+        },
+        "execution": {
+          "n": 36,
+          "tp": 14,
+          "sl": 22,
+          "time": 0,
+          "wr": 0.3888888888888889,
+          "pnl": -50.52207830307386,
+          "expectancy": -1.403391063974274,
+          "median_risk": 0.006054992907054502
+        }
+      },
+      "02:00_SHORT": {
+        "direction": {
+          "n": 38,
+          "pos1h": 0.3157894736842105,
+          "pos3h": 0.2894736842105263,
+          "avg3h": -0.003032036923018648,
+          "median3h": -0.002506700790327776
+        },
+        "poc": {
+          "events": 38,
+          "eligible": 33,
+          "target": 7,
+          "adverse": 26,
+          "time": 0,
+          "hit_rate": 0.21212121212121213
+        },
+        "value_rotation": {
+          "events": 38,
+          "eligible": 38,
+          "target": 5,
+          "adverse": 33,
+          "time": 0,
+          "hit_rate": 0.13157894736842105
+        },
+        "execution": {
+          "n": 38,
+          "tp": 7,
+          "sl": 31,
+          "time": 0,
+          "wr": 0.18421052631578946,
+          "pnl": -96.83488457097404,
+          "expectancy": -2.548286436078264,
+          "median_risk": 0.005072038699446672
+        }
+      }
+    },
+    "development": {
+      "ALL": {
+        "direction": {
+          "n": 578,
+          "pos1h": 0.4913494809688581,
+          "pos3h": 0.4982698961937716,
+          "avg3h": -0.00036099866002435187,
+          "median3h": -5.773685523291494e-06
+        },
+        "poc": {
+          "events": 578,
+          "eligible": 537,
+          "target": 212,
+          "adverse": 325,
+          "time": 0,
+          "hit_rate": 0.3947858472998138
+        },
+        "value_rotation": {
+          "events": 578,
+          "eligible": 578,
+          "target": 104,
+          "adverse": 474,
+          "time": 0,
+          "hit_rate": 0.17993079584775087
+        },
+        "execution": {
+          "n": 578,
+          "tp": 160,
+          "sl": 418,
+          "time": 0,
+          "wr": 0.2768166089965398,
+          "pnl": -884.8812981492614,
+          "expectancy": -1.5309365019883414,
+          "median_risk": 0.003595813057488106
+        }
+      },
+      "LONG": {
+        "direction": {
+          "n": 286,
+          "pos1h": 0.5244755244755245,
+          "pos3h": 0.5314685314685315,
+          "avg3h": -0.00041304694557850404,
+          "median3h": 0.00031429478048727866
+        },
+        "poc": {
+          "events": 286,
+          "eligible": 271,
+          "target": 104,
+          "adverse": 167,
+          "time": 0,
+          "hit_rate": 0.3837638376383764
+        },
+        "value_rotation": {
+          "events": 286,
+          "eligible": 286,
+          "target": 52,
+          "adverse": 234,
+          "time": 0,
+          "hit_rate": 0.18181818181818182
+        },
+        "execution": {
+          "n": 286,
+          "tp": 78,
+          "sl": 208,
+          "time": 0,
+          "wr": 0.2727272727272727,
+          "pnl": -481.8772885308731,
+          "expectancy": -1.684885624233822,
+          "median_risk": 0.003718210223909224
+        }
+      },
+      "SHORT": {
+        "direction": {
+          "n": 292,
+          "pos1h": 0.4589041095890411,
+          "pos3h": 0.4657534246575342,
+          "avg3h": -0.0003100198597898056,
+          "median3h": -0.000244785698740424
+        },
+        "poc": {
+          "events": 292,
+          "eligible": 266,
+          "target": 108,
+          "adverse": 158,
+          "time": 0,
+          "hit_rate": 0.40601503759398494
+        },
+        "value_rotation": {
+          "events": 292,
+          "eligible": 292,
+          "target": 52,
+          "adverse": 240,
+          "time": 0,
+          "hit_rate": 0.1780821917808219
+        },
+        "execution": {
+          "n": 292,
+          "tp": 82,
+          "sl": 210,
+          "time": 0,
+          "wr": 0.2808219178082192,
+          "pnl": -403.00400961838824,
+          "expectancy": -1.3801507178711927,
+          "median_risk": 0.0032398926998832636
+        }
+      },
+      "11:00_LONG": {
+        "direction": {
+          "n": 86,
+          "pos1h": 0.5348837209302325,
+          "pos3h": 0.5348837209302325,
+          "avg3h": 0.00058479393149864,
+          "median3h": 0.0002073905728586789
+        },
+        "poc": {
+          "events": 86,
+          "eligible": 85,
+          "target": 28,
+          "adverse": 57,
+          "time": 0,
+          "hit_rate": 0.32941176470588235
+        },
+        "value_rotation": {
+          "events": 86,
+          "eligible": 86,
+          "target": 9,
+          "adverse": 77,
+          "time": 0,
+          "hit_rate": 0.10465116279069768
+        },
+        "execution": {
+          "n": 86,
+          "tp": 21,
+          "sl": 65,
+          "time": 0,
+          "wr": 0.2441860465116279,
+          "pnl": -111.95333908167753,
+          "expectancy": -1.3017830125776457,
+          "median_risk": 0.002894869544116913
+        }
+      },
+      "11:00_SHORT": {
+        "direction": {
+          "n": 66,
+          "pos1h": 0.5303030303030303,
+          "pos3h": 0.5757575757575758,
+          "avg3h": 0.0012808884419864292,
+          "median3h": 0.0006179822478569186
+        },
+        "poc": {
+          "events": 66,
+          "eligible": 62,
+          "target": 26,
+          "adverse": 36,
+          "time": 0,
+          "hit_rate": 0.41935483870967744
+        },
+        "value_rotation": {
+          "events": 66,
+          "eligible": 66,
+          "target": 9,
+          "adverse": 57,
+          "time": 0,
+          "hit_rate": 0.13636363636363635
+        },
+        "execution": {
+          "n": 66,
+          "tp": 21,
+          "sl": 45,
+          "time": 0,
+          "wr": 0.3181818181818182,
+          "pnl": -31.396499022536023,
+          "expectancy": -0.4757045306444852,
+          "median_risk": 0.001929990369628386
+        }
+      },
+      "15:00_LONG": {
+        "direction": {
+          "n": 80,
+          "pos1h": 0.45,
+          "pos3h": 0.5375,
+          "avg3h": 0.0002329437485544525,
+          "median3h": 0.0002147690362428456
+        },
+        "poc": {
+          "events": 80,
+          "eligible": 73,
+          "target": 21,
+          "adverse": 52,
+          "time": 0,
+          "hit_rate": 0.2876712328767123
+        },
+        "value_rotation": {
+          "events": 80,
+          "eligible": 80,
+          "target": 14,
+          "adverse": 66,
+          "time": 0,
+          "hit_rate": 0.175
+        },
+        "execution": {
+          "n": 80,
+          "tp": 18,
+          "sl": 62,
+          "time": 0,
+          "wr": 0.225,
+          "pnl": -152.11905000747717,
+          "expectancy": -1.9014881250934645,
+          "median_risk": 0.003847528411273866
+        }
+      },
+      "15:00_SHORT": {
+        "direction": {
+          "n": 93,
+          "pos1h": 0.44086021505376344,
+          "pos3h": 0.4838709677419355,
+          "avg3h": -0.0004478159229672392,
+          "median3h": -0.00020220957062599965
+        },
+        "poc": {
+          "events": 93,
+          "eligible": 88,
+          "target": 38,
+          "adverse": 50,
+          "time": 0,
+          "hit_rate": 0.4318181818181818
+        },
+        "value_rotation": {
+          "events": 93,
+          "eligible": 93,
+          "target": 16,
+          "adverse": 77,
+          "time": 0,
+          "hit_rate": 0.17204301075268819
+        },
+        "execution": {
+          "n": 93,
+          "tp": 28,
+          "sl": 65,
+          "time": 0,
+          "wr": 0.3010752688172043,
+          "pnl": -116.02324567645898,
+          "expectancy": -1.247561781467301,
+          "median_risk": 0.002907967066659683
+        }
+      },
+      "01:00_LONG": {
+        "direction": {
+          "n": 63,
+          "pos1h": 0.5555555555555556,
+          "pos3h": 0.5079365079365079,
+          "avg3h": -0.003265208648582473,
+          "median3h": 0.00011837375976586628
+        },
+        "poc": {
+          "events": 63,
+          "eligible": 59,
+          "target": 28,
+          "adverse": 31,
+          "time": 0,
+          "hit_rate": 0.4745762711864407
+        },
+        "value_rotation": {
+          "events": 63,
+          "eligible": 63,
+          "target": 16,
+          "adverse": 47,
+          "time": 0,
+          "hit_rate": 0.25396825396825395
+        },
+        "execution": {
+          "n": 63,
+          "tp": 22,
+          "sl": 41,
+          "time": 0,
+          "wr": 0.3492063492063492,
+          "pnl": -130.8965777163727,
+          "expectancy": -2.0777234558154394,
+          "median_risk": 0.005294905946611954
+        }
+      },
+      "01:00_SHORT": {
+        "direction": {
+          "n": 73,
+          "pos1h": 0.4246575342465753,
+          "pos3h": 0.3835616438356164,
+          "avg3h": -0.0013039034196794727,
+          "median3h": -0.0009480192779487417
+        },
+        "poc": {
+          "events": 73,
+          "eligible": 64,
+          "target": 24,
+          "adverse": 40,
+          "time": 0,
+          "hit_rate": 0.375
+        },
+        "value_rotation": {
+          "events": 73,
+          "eligible": 73,
+          "target": 15,
+          "adverse": 58,
+          "time": 0,
+          "hit_rate": 0.2054794520547945
+        },
+        "execution": {
+          "n": 73,
+          "tp": 19,
+          "sl": 54,
+          "time": 0,
+          "wr": 0.2602739726027397,
+          "pnl": -136.64643291890485,
+          "expectancy": -1.871868944094587,
+          "median_risk": 0.0039012036172471573
+        }
+      },
+      "02:00_LONG": {
+        "direction": {
+          "n": 57,
+          "pos1h": 0.5789473684210527,
+          "pos3h": 0.543859649122807,
+          "avg3h": 0.0003271743935439365,
+          "median3h": 0.0008357155410809725
+        },
+        "poc": {
+          "events": 57,
+          "eligible": 54,
+          "target": 27,
+          "adverse": 27,
+          "time": 0,
+          "hit_rate": 0.5
+        },
+        "value_rotation": {
+          "events": 57,
+          "eligible": 57,
+          "target": 13,
+          "adverse": 44,
+          "time": 0,
+          "hit_rate": 0.22807017543859648
+        },
+        "execution": {
+          "n": 57,
+          "tp": 17,
+          "sl": 40,
+          "time": 0,
+          "wr": 0.2982456140350877,
+          "pnl": -86.90832172534571,
+          "expectancy": -1.5247073986902757,
+          "median_risk": 0.003252974400698227
+        }
+      },
+      "02:00_SHORT": {
+        "direction": {
+          "n": 60,
+          "pos1h": 0.45,
+          "pos3h": 0.4166666666666667,
+          "avg3h": -0.00063721009595288,
+          "median3h": -0.0002950032644264411
+        },
+        "poc": {
+          "events": 60,
+          "eligible": 52,
+          "target": 20,
+          "adverse": 32,
+          "time": 0,
+          "hit_rate": 0.38461538461538464
+        },
+        "value_rotation": {
+          "events": 60,
+          "eligible": 60,
+          "target": 12,
+          "adverse": 48,
+          "time": 0,
+          "hit_rate": 0.2
+        },
+        "execution": {
+          "n": 60,
+          "tp": 14,
+          "sl": 46,
+          "time": 0,
+          "wr": 0.23333333333333334,
+          "pnl": -118.93783200048837,
+          "expectancy": -1.9822972000081396,
+          "median_risk": 0.004764502088487546
+        }
+      }
+    },
+    "reference_validation": {
+      "ALL": {
+        "direction": {
+          "n": 203,
+          "pos1h": 0.5714285714285714,
+          "pos3h": 0.47783251231527096,
+          "avg3h": -0.000557713518792942,
+          "median3h": -0.00019823099023108526
+        },
+        "poc": {
+          "events": 203,
+          "eligible": 184,
+          "target": 72,
+          "adverse": 112,
+          "time": 0,
+          "hit_rate": 0.391304347826087
+        },
+        "value_rotation": {
+          "events": 203,
+          "eligible": 203,
+          "target": 30,
+          "adverse": 173,
+          "time": 0,
+          "hit_rate": 0.1477832512315271
+        },
+        "execution": {
+          "n": 203,
+          "tp": 48,
+          "sl": 155,
+          "time": 0,
+          "wr": 0.23645320197044334,
+          "pnl": -321.4158826131097,
+          "expectancy": -1.5833294710005406,
+          "median_risk": 0.0033225741077540353
+        }
+      },
+      "LONG": {
+        "direction": {
+          "n": 93,
+          "pos1h": 0.5806451612903226,
+          "pos3h": 0.44086021505376344,
+          "avg3h": -0.000519578546984427,
+          "median3h": -0.00024865053800871006
+        },
+        "poc": {
+          "events": 93,
+          "eligible": 85,
+          "target": 36,
+          "adverse": 49,
+          "time": 0,
+          "hit_rate": 0.4235294117647059
+        },
+        "value_rotation": {
+          "events": 93,
+          "eligible": 93,
+          "target": 11,
+          "adverse": 82,
+          "time": 0,
+          "hit_rate": 0.11827956989247312
+        },
+        "execution": {
+          "n": 93,
+          "tp": 20,
+          "sl": 73,
+          "time": 0,
+          "wr": 0.21505376344086022,
+          "pnl": -160.46835416140004,
+          "expectancy": -1.725466173778495,
+          "median_risk": 0.0033225741077540353
+        }
+      },
+      "SHORT": {
+        "direction": {
+          "n": 110,
+          "pos1h": 0.5636363636363636,
+          "pos3h": 0.509090909090909,
+          "avg3h": -0.000589954904049232,
+          "median3h": 2.218960776523282e-05
+        },
+        "poc": {
+          "events": 110,
+          "eligible": 99,
+          "target": 36,
+          "adverse": 63,
+          "time": 0,
+          "hit_rate": 0.36363636363636365
+        },
+        "value_rotation": {
+          "events": 110,
+          "eligible": 110,
+          "target": 19,
+          "adverse": 91,
+          "time": 0,
+          "hit_rate": 0.17272727272727273
+        },
+        "execution": {
+          "n": 110,
+          "tp": 28,
+          "sl": 82,
+          "time": 0,
+          "wr": 0.2545454545454545,
+          "pnl": -160.94752845170964,
+          "expectancy": -1.4631593495609967,
+          "median_risk": 0.0033660716110433756
+        }
+      },
+      "11:00_LONG": {
+        "direction": {
+          "n": 34,
+          "pos1h": 0.5882352941176471,
+          "pos3h": 0.38235294117647056,
+          "avg3h": -0.0016423748692690574,
+          "median3h": -0.0008297643873368399
+        },
+        "poc": {
+          "events": 34,
+          "eligible": 32,
+          "target": 13,
+          "adverse": 19,
+          "time": 0,
+          "hit_rate": 0.40625
+        },
+        "value_rotation": {
+          "events": 34,
+          "eligible": 34,
+          "target": 5,
+          "adverse": 29,
+          "time": 0,
+          "hit_rate": 0.14705882352941177
+        },
+        "execution": {
+          "n": 34,
+          "tp": 5,
+          "sl": 29,
+          "time": 0,
+          "wr": 0.14705882352941177,
+          "pnl": -72.82407379101413,
+          "expectancy": -2.1418845232651216,
+          "median_risk": 0.0029786506401345983
+        }
+      },
+      "11:00_SHORT": {
+        "direction": {
+          "n": 31,
+          "pos1h": 0.5806451612903226,
+          "pos3h": 0.45161290322580644,
+          "avg3h": -0.00012523231137448376,
+          "median3h": -0.0004372156223142465
+        },
+        "poc": {
+          "events": 31,
+          "eligible": 27,
+          "target": 9,
+          "adverse": 18,
+          "time": 0,
+          "hit_rate": 0.3333333333333333
+        },
+        "value_rotation": {
+          "events": 31,
+          "eligible": 31,
+          "target": 5,
+          "adverse": 26,
+          "time": 0,
+          "hit_rate": 0.16129032258064516
+        },
+        "execution": {
+          "n": 31,
+          "tp": 8,
+          "sl": 23,
+          "time": 0,
+          "wr": 0.25806451612903225,
+          "pnl": -32.85354589284045,
+          "expectancy": -1.0597918029948532,
+          "median_risk": 0.0026295936122243397
+        }
+      },
+      "15:00_LONG": {
+        "direction": {
+          "n": 23,
+          "pos1h": 0.5652173913043478,
+          "pos3h": 0.6086956521739131,
+          "avg3h": 0.00011383089054112951,
+          "median3h": 0.000525954369279269
+        },
+        "poc": {
+          "events": 23,
+          "eligible": 21,
+          "target": 9,
+          "adverse": 12,
+          "time": 0,
+          "hit_rate": 0.42857142857142855
+        },
+        "value_rotation": {
+          "events": 23,
+          "eligible": 23,
+          "target": 1,
+          "adverse": 22,
+          "time": 0,
+          "hit_rate": 0.043478260869565216
+        },
+        "execution": {
+          "n": 23,
+          "tp": 6,
+          "sl": 17,
+          "time": 0,
+          "wr": 0.2608695652173913,
+          "pnl": -29.803145865617754,
+          "expectancy": -1.2957889506790328,
+          "median_risk": 0.002414207660955196
+        }
+      },
+      "15:00_SHORT": {
+        "direction": {
+          "n": 31,
+          "pos1h": 0.6129032258064516,
+          "pos3h": 0.7096774193548387,
+          "avg3h": 0.00036838526271509137,
+          "median3h": 0.001304553971352873
+        },
+        "poc": {
+          "events": 31,
+          "eligible": 31,
+          "target": 14,
+          "adverse": 17,
+          "time": 0,
+          "hit_rate": 0.45161290322580644
+        },
+        "value_rotation": {
+          "events": 31,
+          "eligible": 31,
+          "target": 7,
+          "adverse": 24,
+          "time": 0,
+          "hit_rate": 0.22580645161290322
+        },
+        "execution": {
+          "n": 31,
+          "tp": 12,
+          "sl": 19,
+          "time": 0,
+          "wr": 0.3870967741935484,
+          "pnl": -9.73687348799471,
+          "expectancy": -0.3140926931611197,
+          "median_risk": 0.003575884979595236
+        }
+      },
+      "01:00_LONG": {
+        "direction": {
+          "n": 20,
+          "pos1h": 0.5,
+          "pos3h": 0.4,
+          "avg3h": 0.0006075396703774383,
+          "median3h": -0.0011403389655741392
+        },
+        "poc": {
+          "events": 20,
+          "eligible": 17,
+          "target": 9,
+          "adverse": 8,
+          "time": 0,
+          "hit_rate": 0.5294117647058824
+        },
+        "value_rotation": {
+          "events": 20,
+          "eligible": 20,
+          "target": 3,
+          "adverse": 17,
+          "time": 0,
+          "hit_rate": 0.15
+        },
+        "execution": {
+          "n": 20,
+          "tp": 5,
+          "sl": 15,
+          "time": 0,
+          "wr": 0.25,
+          "pnl": -31.234648054831784,
+          "expectancy": -1.561732402741589,
+          "median_risk": 0.004898149044574885
+        }
+      },
+      "01:00_SHORT": {
+        "direction": {
+          "n": 23,
+          "pos1h": 0.43478260869565216,
+          "pos3h": 0.4782608695652174,
+          "avg3h": -0.0009528514527581893,
+          "median3h": -0.0004012460400282247
+        },
+        "poc": {
+          "events": 23,
+          "eligible": 19,
+          "target": 4,
+          "adverse": 15,
+          "time": 0,
+          "hit_rate": 0.21052631578947367
+        },
+        "value_rotation": {
+          "events": 23,
+          "eligible": 23,
+          "target": 3,
+          "adverse": 20,
+          "time": 0,
+          "hit_rate": 0.13043478260869565
+        },
+        "execution": {
+          "n": 23,
+          "tp": 4,
+          "sl": 19,
+          "time": 0,
+          "wr": 0.17391304347826086,
+          "pnl": -56.68581658547861,
+          "expectancy": -2.464600721107766,
+          "median_risk": 0.0049773710340130705
+        }
+      },
+      "02:00_LONG": {
+        "direction": {
+          "n": 16,
+          "pos1h": 0.6875,
+          "pos3h": 0.375,
+          "avg3h": -0.00045306020027490596,
+          "median3h": -0.0012909696401556259
+        },
+        "poc": {
+          "events": 16,
+          "eligible": 15,
+          "target": 5,
+          "adverse": 10,
+          "time": 0,
+          "hit_rate": 0.3333333333333333
+        },
+        "value_rotation": {
+          "events": 16,
+          "eligible": 16,
+          "target": 2,
+          "adverse": 14,
+          "time": 0,
+          "hit_rate": 0.125
+        },
+        "execution": {
+          "n": 16,
+          "tp": 4,
+          "sl": 12,
+          "time": 0,
+          "wr": 0.25,
+          "pnl": -26.606486449936416,
+          "expectancy": -1.662905403121026,
+          "median_risk": 0.003321813064281815
+        }
+      },
+      "02:00_SHORT": {
+        "direction": {
+          "n": 25,
+          "pos1h": 0.6,
+          "pos3h": 0.36,
+          "avg3h": -0.00202068790094144,
+          "median3h": -0.0014721680658895675
+        },
+        "poc": {
+          "events": 25,
+          "eligible": 22,
+          "target": 9,
+          "adverse": 13,
+          "time": 0,
+          "hit_rate": 0.4090909090909091
+        },
+        "value_rotation": {
+          "events": 25,
+          "eligible": 25,
+          "target": 4,
+          "adverse": 21,
+          "time": 0,
+          "hit_rate": 0.16
+        },
+        "execution": {
+          "n": 25,
+          "tp": 4,
+          "sl": 21,
+          "time": 0,
+          "wr": 0.16,
+          "pnl": -61.67129248539587,
+          "expectancy": -2.4668516994158347,
+          "median_risk": 0.0035401316502329367
+        }
+      }
+    },
+    "reference_full": {
+      "ALL": {
+        "direction": {
+          "n": 781,
+          "pos1h": 0.5121638924455826,
+          "pos3h": 0.49295774647887325,
+          "avg3h": -0.00041212941076702,
+          "median3h": -3.6802455459783445e-05
+        },
+        "poc": {
+          "events": 781,
+          "eligible": 721,
+          "target": 284,
+          "adverse": 437,
+          "time": 0,
+          "hit_rate": 0.39389736477115117
+        },
+        "value_rotation": {
+          "events": 781,
+          "eligible": 781,
+          "target": 134,
+          "adverse": 647,
+          "time": 0,
+          "hit_rate": 0.17157490396927016
+        },
+        "execution": {
+          "n": 781,
+          "tp": 208,
+          "sl": 573,
+          "time": 0,
+          "wr": 0.26632522407170295,
+          "pnl": -1206.2971807623712,
+          "expectancy": -1.5445546488634714,
+          "median_risk": 0.0034943599803825406
+        }
+      },
+      "LONG": {
+        "direction": {
+          "n": 379,
+          "pos1h": 0.5382585751978892,
+          "pos3h": 0.5092348284960422,
+          "avg3h": -0.00043918794539578857,
+          "median3h": 0.00011837375976586628
+        },
+        "poc": {
+          "events": 379,
+          "eligible": 356,
+          "target": 140,
+          "adverse": 216,
+          "time": 0,
+          "hit_rate": 0.39325842696629215
+        },
+        "value_rotation": {
+          "events": 379,
+          "eligible": 379,
+          "target": 63,
+          "adverse": 316,
+          "time": 0,
+          "hit_rate": 0.1662269129287599
+        },
+        "execution": {
+          "n": 379,
+          "tp": 98,
+          "sl": 281,
+          "time": 0,
+          "wr": 0.25857519788918204,
+          "pnl": -642.3456426922733,
+          "expectancy": -1.6948433844123305,
+          "median_risk": 0.003547720578537861
+        }
+      },
+      "SHORT": {
+        "direction": {
+          "n": 402,
+          "pos1h": 0.48756218905472637,
+          "pos3h": 0.47761194029850745,
+          "avg3h": -0.00038661900125382776,
+          "median3h": -0.00017970201914563333
+        },
+        "poc": {
+          "events": 402,
+          "eligible": 365,
+          "target": 144,
+          "adverse": 221,
+          "time": 0,
+          "hit_rate": 0.39452054794520547
+        },
+        "value_rotation": {
+          "events": 402,
+          "eligible": 402,
+          "target": 71,
+          "adverse": 331,
+          "time": 0,
+          "hit_rate": 0.17661691542288557
+        },
+        "execution": {
+          "n": 402,
+          "tp": 110,
+          "sl": 292,
+          "time": 0,
+          "wr": 0.2736318407960199,
+          "pnl": -563.9515380700979,
+          "expectancy": -1.4028645225624325,
+          "median_risk": 0.003252331224952087
+        }
+      },
+      "11:00_LONG": {
+        "direction": {
+          "n": 120,
+          "pos1h": 0.55,
+          "pos3h": 0.49166666666666664,
+          "avg3h": -4.6237228718874296e-05,
+          "median3h": -2.0975793933730724e-05
+        },
+        "poc": {
+          "events": 120,
+          "eligible": 117,
+          "target": 41,
+          "adverse": 76,
+          "time": 0,
+          "hit_rate": 0.3504273504273504
+        },
+        "value_rotation": {
+          "events": 120,
+          "eligible": 120,
+          "target": 14,
+          "adverse": 106,
+          "time": 0,
+          "hit_rate": 0.11666666666666667
+        },
+        "execution": {
+          "n": 120,
+          "tp": 26,
+          "sl": 94,
+          "time": 0,
+          "wr": 0.21666666666666667,
+          "pnl": -184.77741287269163,
+          "expectancy": -1.5398117739390969,
+          "median_risk": 0.002894869544116913
+        }
+      },
+      "11:00_SHORT": {
+        "direction": {
+          "n": 97,
+          "pos1h": 0.5463917525773195,
+          "pos3h": 0.5360824742268041,
+          "avg3h": 0.0008315096445205704,
+          "median3h": 0.0003994841748198308
+        },
+        "poc": {
+          "events": 97,
+          "eligible": 89,
+          "target": 35,
+          "adverse": 54,
+          "time": 0,
+          "hit_rate": 0.39325842696629215
+        },
+        "value_rotation": {
+          "events": 97,
+          "eligible": 97,
+          "target": 14,
+          "adverse": 83,
+          "time": 0,
+          "hit_rate": 0.14432989690721648
+        },
+        "execution": {
+          "n": 97,
+          "tp": 29,
+          "sl": 68,
+          "time": 0,
+          "wr": 0.29896907216494845,
+          "pnl": -64.25004491537648,
+          "expectancy": -0.6623715970657369,
+          "median_risk": 0.0024595280268508036
+        }
+      },
+      "15:00_LONG": {
+        "direction": {
+          "n": 103,
+          "pos1h": 0.47572815533980584,
+          "pos3h": 0.5533980582524272,
+          "avg3h": 0.000206345731716526,
+          "median3h": 0.0004163349378054626
+        },
+        "poc": {
+          "events": 103,
+          "eligible": 94,
+          "target": 30,
+          "adverse": 64,
+          "time": 0,
+          "hit_rate": 0.3191489361702128
+        },
+        "value_rotation": {
+          "events": 103,
+          "eligible": 103,
+          "target": 15,
+          "adverse": 88,
+          "time": 0,
+          "hit_rate": 0.14563106796116504
+        },
+        "execution": {
+          "n": 103,
+          "tp": 24,
+          "sl": 79,
+          "time": 0,
+          "wr": 0.23300970873786409,
+          "pnl": -181.92219587309495,
+          "expectancy": -1.7662349113892712,
+          "median_risk": 0.003720846357297515
+        }
+      },
+      "15:00_SHORT": {
+        "direction": {
+          "n": 124,
+          "pos1h": 0.4838709677419355,
+          "pos3h": 0.5403225806451613,
+          "avg3h": -0.00024376562654665658,
+          "median3h": 0.0004420773961108515
+        },
+        "poc": {
+          "events": 124,
+          "eligible": 119,
+          "target": 52,
+          "adverse": 67,
+          "time": 0,
+          "hit_rate": 0.4369747899159664
+        },
+        "value_rotation": {
+          "events": 124,
+          "eligible": 124,
+          "target": 23,
+          "adverse": 101,
+          "time": 0,
+          "hit_rate": 0.18548387096774194
+        },
+        "execution": {
+          "n": 124,
+          "tp": 40,
+          "sl": 84,
+          "time": 0,
+          "wr": 0.3225806451612903,
+          "pnl": -125.76011916445368,
+          "expectancy": -1.0141945093907556,
+          "median_risk": 0.002919383804700218
+        }
+      },
+      "01:00_LONG": {
+        "direction": {
+          "n": 83,
+          "pos1h": 0.5421686746987951,
+          "pos3h": 0.4819277108433735,
+          "avg3h": -0.0023320162825680364,
+          "median3h": -0.00024865053800871006
+        },
+        "poc": {
+          "events": 83,
+          "eligible": 76,
+          "target": 37,
+          "adverse": 39,
+          "time": 0,
+          "hit_rate": 0.4868421052631579
+        },
+        "value_rotation": {
+          "events": 83,
+          "eligible": 83,
+          "target": 19,
+          "adverse": 64,
+          "time": 0,
+          "hit_rate": 0.2289156626506024
+        },
+        "execution": {
+          "n": 83,
+          "tp": 27,
+          "sl": 56,
+          "time": 0,
+          "wr": 0.3253012048192771,
+          "pnl": -162.13122577120453,
+          "expectancy": -1.953388262303669,
+          "median_risk": 0.005104751111763261
+        }
+      },
+      "01:00_SHORT": {
+        "direction": {
+          "n": 96,
+          "pos1h": 0.4270833333333333,
+          "pos3h": 0.40625,
+          "avg3h": -0.0012197972192712486,
+          "median3h": -0.0009019542554359328
+        },
+        "poc": {
+          "events": 96,
+          "eligible": 83,
+          "target": 28,
+          "adverse": 55,
+          "time": 0,
+          "hit_rate": 0.3373493975903614
+        },
+        "value_rotation": {
+          "events": 96,
+          "eligible": 96,
+          "target": 18,
+          "adverse": 78,
+          "time": 0,
+          "hit_rate": 0.1875
+        },
+        "execution": {
+          "n": 96,
+          "tp": 23,
+          "sl": 73,
+          "time": 0,
+          "wr": 0.23958333333333334,
+          "pnl": -193.33224950438347,
+          "expectancy": -2.0138775990039943,
+          "median_risk": 0.004387955652280374
+        }
+      },
+      "02:00_LONG": {
+        "direction": {
+          "n": 73,
+          "pos1h": 0.6027397260273972,
+          "pos3h": 0.5068493150684932,
+          "avg3h": 0.0001561640716110395,
+          "median3h": 0.00033301243044592255
+        },
+        "poc": {
+          "events": 73,
+          "eligible": 69,
+          "target": 32,
+          "adverse": 37,
+          "time": 0,
+          "hit_rate": 0.463768115942029
+        },
+        "value_rotation": {
+          "events": 73,
+          "eligible": 73,
+          "target": 15,
+          "adverse": 58,
+          "time": 0,
+          "hit_rate": 0.2054794520547945
+        },
+        "execution": {
+          "n": 73,
+          "tp": 21,
+          "sl": 52,
+          "time": 0,
+          "wr": 0.2876712328767123,
+          "pnl": -113.51480817528213,
+          "expectancy": -1.5549973722641388,
+          "median_risk": 0.003252974400698227
+        }
+      },
+      "02:00_SHORT": {
+        "direction": {
+          "n": 85,
+          "pos1h": 0.49411764705882355,
+          "pos3h": 0.4,
+          "avg3h": -0.0010441153327142212,
+          "median3h": -0.000611531284790745
+        },
+        "poc": {
+          "events": 85,
+          "eligible": 74,
+          "target": 29,
+          "adverse": 45,
+          "time": 0,
+          "hit_rate": 0.3918918918918919
+        },
+        "value_rotation": {
+          "events": 85,
+          "eligible": 85,
+          "target": 16,
+          "adverse": 69,
+          "time": 0,
+          "hit_rate": 0.18823529411764706
+        },
+        "execution": {
+          "n": 85,
+          "tp": 18,
+          "sl": 67,
+          "time": 0,
+          "wr": 0.21176470588235294,
+          "pnl": -180.60912448588422,
+          "expectancy": -2.1248132292456967,
+          "median_risk": 0.0042205521244141056
+        }
+      }
+    },
+    "august": {
+      "ALL": {
+        "direction": {
+          "n": 13,
+          "pos1h": 0.46153846153846156,
+          "pos3h": 0.6153846153846154,
+          "avg3h": 0.001225845339283963,
+          "median3h": 0.0008081577124456896
+        },
+        "poc": {
+          "events": 13,
+          "eligible": 12,
+          "target": 6,
+          "adverse": 6,
+          "time": 0,
+          "hit_rate": 0.5
+        },
+        "value_rotation": {
+          "events": 13,
+          "eligible": 13,
+          "target": 4,
+          "adverse": 9,
+          "time": 0,
+          "hit_rate": 0.3076923076923077
+        },
+        "execution": {
+          "n": 13,
+          "tp": 4,
+          "sl": 9,
+          "time": 0,
+          "wr": 0.3076923076923077,
+          "pnl": -9.047768686445176,
+          "expectancy": -0.695982206649629,
+          "median_risk": 0.0018927654825520656
+        }
+      },
+      "LONG": {
+        "direction": {
+          "n": 4,
+          "pos1h": 0.5,
+          "pos3h": 1.0,
+          "avg3h": 0.004198991156878773,
+          "median3h": 0.004276726913908679
+        },
+        "poc": {
+          "events": 4,
+          "eligible": 4,
+          "target": 3,
+          "adverse": 1,
+          "time": 0,
+          "hit_rate": 0.75
+        },
+        "value_rotation": {
+          "events": 4,
+          "eligible": 4,
+          "target": 1,
+          "adverse": 3,
+          "time": 0,
+          "hit_rate": 0.25
+        },
+        "execution": {
+          "n": 4,
+          "tp": 2,
+          "sl": 2,
+          "time": 0,
+          "wr": 0.5,
+          "pnl": -0.4470211281373304,
+          "expectancy": -0.1117552820343326,
+          "median_risk": 0.003189440553959178
+        }
+      },
+      "SHORT": {
+        "direction": {
+          "n": 9,
+          "pos1h": 0.4444444444444444,
+          "pos3h": 0.4444444444444444,
+          "avg3h": -9.555280186928577e-05,
+          "median3h": -0.0003572049797480048
+        },
+        "poc": {
+          "events": 9,
+          "eligible": 8,
+          "target": 3,
+          "adverse": 5,
+          "time": 0,
+          "hit_rate": 0.375
+        },
+        "value_rotation": {
+          "events": 9,
+          "eligible": 9,
+          "target": 3,
+          "adverse": 6,
+          "time": 0,
+          "hit_rate": 0.3333333333333333
+        },
+        "execution": {
+          "n": 9,
+          "tp": 2,
+          "sl": 7,
+          "time": 0,
+          "wr": 0.2222222222222222,
+          "pnl": -8.600747558307846,
+          "expectancy": -0.9556386175897607,
+          "median_risk": 0.0018927654825520656
+        }
+      },
+      "11:00_LONG": {
+        "direction": {
+          "n": 0,
+          "pos1h": null,
+          "pos3h": null,
+          "avg3h": null,
+          "median3h": null
+        },
+        "poc": {
+          "events": 0,
+          "eligible": 0,
+          "target": 0,
+          "adverse": 0,
+          "time": 0,
+          "hit_rate": null
+        },
+        "value_rotation": {
+          "events": 0,
+          "eligible": 0,
+          "target": 0,
+          "adverse": 0,
+          "time": 0,
+          "hit_rate": null
+        },
+        "execution": {
+          "n": 0,
+          "tp": 0,
+          "sl": 0,
+          "time": 0,
+          "wr": null,
+          "pnl": 0.0,
+          "expectancy": null,
+          "median_risk": null
+        }
+      },
+      "11:00_SHORT": {
+        "direction": {
+          "n": 1,
+          "pos1h": 1.0,
+          "pos3h": 1.0,
+          "avg3h": 0.0003536505298413761,
+          "median3h": 0.0003536505298413761
+        },
+        "poc": {
+          "events": 1,
+          "eligible": 1,
+          "target": 1,
+          "adverse": 0,
+          "time": 0,
+          "hit_rate": 1.0
+        },
+        "value_rotation": {
+          "events": 1,
+          "eligible": 1,
+          "target": 1,
+          "adverse": 0,
+          "time": 0,
+          "hit_rate": 1.0
+        },
+        "execution": {
+          "n": 1,
+          "tp": 0,
+          "sl": 1,
+          "time": 0,
+          "wr": 0.0,
+          "pnl": -1.2741322875004246,
+          "expectancy": -1.2741322875004246,
+          "median_risk": 0.0010482645750008492
+        }
+      },
+      "15:00_LONG": {
+        "direction": {
+          "n": 1,
+          "pos1h": 1.0,
+          "pos3h": 1.0,
+          "avg3h": 0.0065008369943770905,
+          "median3h": 0.0065008369943770905
+        },
+        "poc": {
+          "events": 1,
+          "eligible": 1,
+          "target": 1,
+          "adverse": 0,
+          "time": 0,
+          "hit_rate": 1.0
+        },
+        "value_rotation": {
+          "events": 1,
+          "eligible": 1,
+          "target": 1,
+          "adverse": 0,
+          "time": 0,
+          "hit_rate": 1.0
+        },
+        "execution": {
+          "n": 1,
+          "tp": 1,
+          "sl": 0,
+          "time": 0,
+          "wr": 1.0,
+          "pnl": 3.1301301715954724,
+          "expectancy": 3.1301301715954724,
+          "median_risk": 0.004760260343190945
+        }
+      },
+      "15:00_SHORT": {
+        "direction": {
+          "n": 4,
+          "pos1h": 0.5,
+          "pos3h": 0.5,
+          "avg3h": 9.807658001673158e-05,
+          "median3h": -7.519115952459021e-05
+        },
+        "poc": {
+          "events": 4,
+          "eligible": 4,
+          "target": 1,
+          "adverse": 3,
+          "time": 0,
+          "hit_rate": 0.25
+        },
+        "value_rotation": {
+          "events": 4,
+          "eligible": 4,
+          "target": 1,
+          "adverse": 3,
+          "time": 0,
+          "hit_rate": 0.25
+        },
+        "execution": {
+          "n": 4,
+          "tp": 1,
+          "sl": 3,
+          "time": 0,
+          "wr": 0.25,
+          "pnl": -3.6373802864538236,
+          "expectancy": -0.9093450716134559,
+          "median_risk": 0.0018522170099269392
+        }
+      },
+      "01:00_LONG": {
+        "direction": {
+          "n": 1,
+          "pos1h": 0.0,
+          "pos3h": 1.0,
+          "avg3h": 0.0037856140272347627,
+          "median3h": 0.0037856140272347627
+        },
+        "poc": {
+          "events": 1,
+          "eligible": 1,
+          "target": 0,
+          "adverse": 1,
+          "time": 0,
+          "hit_rate": 0.0
+        },
+        "value_rotation": {
+          "events": 1,
+          "eligible": 1,
+          "target": 0,
+          "adverse": 1,
+          "time": 0,
+          "hit_rate": 0.0
+        },
+        "execution": {
+          "n": 1,
+          "tp": 0,
+          "sl": 1,
+          "time": 0,
+          "wr": 0.0,
+          "pnl": -3.3382217525729994,
+          "expectancy": -3.3382217525729994,
+          "median_risk": 0.005176443505145999
+        }
+      },
+      "01:00_SHORT": {
+        "direction": {
+          "n": 3,
+          "pos1h": 0.0,
+          "pos3h": 0.0,
+          "avg3h": -0.0015778640940126525,
+          "median3h": -0.0015453866084473855
+        },
+        "poc": {
+          "events": 3,
+          "eligible": 2,
+          "target": 0,
+          "adverse": 2,
+          "time": 0,
+          "hit_rate": 0.0
+        },
+        "value_rotation": {
+          "events": 3,
+          "eligible": 3,
+          "target": 0,
+          "adverse": 3,
+          "time": 0,
+          "hit_rate": 0.0
+        },
+        "execution": {
+          "n": 3,
+          "tp": 0,
+          "sl": 3,
+          "time": 0,
+          "wr": 0.0,
+          "pnl": -5.385617725629629,
+          "expectancy": -1.7952059085432097,
+          "median_risk": 0.00225305622905149
+        }
+      },
+      "02:00_LONG": {
+        "direction": {
+          "n": 2,
+          "pos1h": 0.5,
+          "pos3h": 1.0,
+          "avg3h": 0.0032547568029516194,
+          "median3h": 0.0032547568029516194
+        },
+        "poc": {
+          "events": 2,
+          "eligible": 2,
+          "target": 2,
+          "adverse": 0,
+          "time": 0,
+          "hit_rate": 1.0
+        },
+        "value_rotation": {
+          "events": 2,
+          "eligible": 2,
+          "target": 0,
+          "adverse": 2,
+          "time": 0,
+          "hit_rate": 0.0
+        },
+        "execution": {
+          "n": 2,
+          "tp": 1,
+          "sl": 1,
+          "time": 0,
+          "wr": 0.5,
+          "pnl": -0.2389295471598034,
+          "expectancy": -0.1194647735799017,
+          "median_risk": 0.0013796912175676078
+        }
+      },
+      "02:00_SHORT": {
+        "direction": {
+          "n": 1,
+          "pos1h": 1.0,
+          "pos3h": 1.0,
+          "avg3h": 0.003127660215306083,
+          "median3h": 0.003127660215306083
+        },
+        "poc": {
+          "events": 1,
+          "eligible": 1,
+          "target": 1,
+          "adverse": 0,
+          "time": 0,
+          "hit_rate": 1.0
+        },
+        "value_rotation": {
+          "events": 1,
+          "eligible": 1,
+          "target": 1,
+          "adverse": 0,
+          "time": 0,
+          "hit_rate": 1.0
+        },
+        "execution": {
+          "n": 1,
+          "tp": 1,
+          "sl": 0,
+          "time": 0,
+          "wr": 1.0,
+          "pnl": 1.6963827412760326,
+          "expectancy": 1.6963827412760326,
+          "median_risk": 0.0018927654825520656
+        }
+      }
+    }
+  },
+  "external_blocks": {
+    "LONG": [
+      {
+        "block": "B1",
+        "n": 42,
+        "poc": {
+          "events": 42,
+          "eligible": 38,
+          "target": 18,
+          "adverse": 20,
+          "time": 0,
+          "hit_rate": 0.47368421052631576
+        }
+      },
+      {
+        "block": "B2",
+        "n": 42,
+        "poc": {
+          "events": 42,
+          "eligible": 38,
+          "target": 11,
+          "adverse": 27,
+          "time": 0,
+          "hit_rate": 0.2894736842105263
+        }
+      },
+      {
+        "block": "B3",
+        "n": 42,
+        "poc": {
+          "events": 42,
+          "eligible": 38,
+          "target": 17,
+          "adverse": 21,
+          "time": 0,
+          "hit_rate": 0.4473684210526316
+        }
+      },
+      {
+        "block": "B4",
+        "n": 43,
+        "poc": {
+          "events": 43,
+          "eligible": 34,
+          "target": 13,
+          "adverse": 21,
+          "time": 0,
+          "hit_rate": 0.38235294117647056
+        }
+      }
+    ],
+    "SHORT": [
+      {
+        "block": "B1",
+        "n": 42,
+        "poc": {
+          "events": 42,
+          "eligible": 38,
+          "target": 18,
+          "adverse": 20,
+          "time": 0,
+          "hit_rate": 0.47368421052631576
+        }
+      },
+      {
+        "block": "B2",
+        "n": 43,
+        "poc": {
+          "events": 43,
+          "eligible": 40,
+          "target": 13,
+          "adverse": 27,
+          "time": 0,
+          "hit_rate": 0.325
+        }
+      },
+      {
+        "block": "B3",
+        "n": 42,
+        "poc": {
+          "events": 42,
+          "eligible": 38,
+          "target": 19,
+          "adverse": 19,
+          "time": 0,
+          "hit_rate": 0.5
+        }
+      },
+      {
+        "block": "B4",
+        "n": 43,
+        "poc": {
+          "events": 43,
+          "eligible": 41,
+          "target": 13,
+          "adverse": 28,
+          "time": 0,
+          "hit_rate": 0.3170731707317073
+        }
+      }
+    ]
+  },
+  "labels": {
+    "LONG": {
+      "poc_supported": false,
+      "candidate80": false,
+      "execution_supported": false
+    },
+    "SHORT": {
+      "poc_supported": false,
+      "candidate80": false,
+      "execution_supported": false
+    }
+  },
+  "VP1_POC_ROTATION_SUPPORTED": false,
+  "VP1_80_CANDIDATE": false,
+  "VP1_EXECUTION_SUPPORTED": false
+}
