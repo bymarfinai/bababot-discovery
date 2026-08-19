@@ -1,0 +1,58 @@
+{
+  "status": "FORWARD_SHADOW_IMPLEMENTATION_PARITY_PASS",
+  "model_fingerprint_sha256": "4b3227c5b8a2d4636725f6e079d4c6e2d0948f1f1627e93919f6ebfa3f59dc83",
+  "probability_tolerance": 1e-08,
+  "pnl_tolerance": 1e-10,
+  "max_abs_g1_august": 5.959608917471826e-10,
+  "max_abs_g6_august": 5.551115123125783e-17,
+  "max_abs_a511_august": 8.881784197001252e-16,
+  "checks": {
+    "model_fingerprint_valid": true,
+    "g1_august_probability_max_abs_le_1e8": true,
+    "g6_august_weekly_p_sell_max_abs_le_1e8": true,
+    "a511_august_pnl_max_abs_le_1e10": true
+  },
+  "rows": [
+    {
+      "date_wib": "2026-08-04",
+      "decision_t_utc": "2026-08-03 23:00:00+00:00",
+      "p_buy": 0.42379640329627905,
+      "p_neutral": 0.1914954815675337,
+      "p_sell": 0.3847081151361872,
+      "g1_predicted": "BUY_COMPATIBLE",
+      "weekly_mean_p_sell_168h": 0.394579931628491,
+      "weekly_sell_health": -0.046546055326538216,
+      "g7_diagnostic_weight": 0.894483533722797,
+      "a511_pnl": -4.7500000000000036,
+      "reference_a511_pnl": -4.750000000000004
+    },
+    {
+      "date_wib": "2026-08-11",
+      "decision_t_utc": "2026-08-10 23:00:00+00:00",
+      "p_buy": 0.305435493229321,
+      "p_neutral": 0.36230837361121604,
+      "p_sell": 0.332256133159463,
+      "g1_predicted": "NEUTRAL",
+      "weekly_mean_p_sell_168h": 0.3357428913216648,
+      "weekly_sell_health": -0.1053830956333644,
+      "g7_diagnostic_weight": 0.7611043131673226,
+      "a511_pnl": -0.8242332486813879,
+      "reference_a511_pnl": -0.8242332486813879
+    },
+    {
+      "date_wib": "2026-08-18",
+      "decision_t_utc": "2026-08-17 23:00:00+00:00",
+      "p_buy": 0.32692087681674337,
+      "p_neutral": 0.3625161568853138,
+      "p_sell": 0.3105629662979428,
+      "g1_predicted": "NEUTRAL",
+      "weekly_mean_p_sell_168h": 0.32111753304427626,
+      "weekly_sell_health": -0.12000845391075293,
+      "g7_diagnostic_weight": 0.7279497072046511,
+      "a511_pnl": -0.10348449296379503,
+      "reference_a511_pnl": -0.103484492963795
+    }
+  ],
+  "pass": true,
+  "guardrail": "August is implementation parity fixture only. First new forward evidence remains 2026-08-25 WIB. Live BBC untouched."
+}
