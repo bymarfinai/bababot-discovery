@@ -1,22 +1,22 @@
-name: BTC H1 LOW_REJECT Structure LR1 Runner
+name: BTC H1 LOW_REJECT StdDev SD1 Runner
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_h1_low_reject_structure_lr1.py'
-      - 'BTC_H1_LowReject_Structure_LR1_Preregistration.md'
+      - 'research/btc_h1_low_reject_stddev_sd1.py'
+      - 'BTC_H1_LowReject_StdDev_SD1_Preregistration.md'
       - '.github/workflows/btc-friday-allhour-candle-c0.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-h1-low-reject-structure-lr1
+  group: btc-h1-low-reject-stddev-sd1
   cancel-in-progress: true
 
 jobs:
-  lr1:
+  sd1:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -28,36 +28,36 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install numpy pandas requests scikit-learn
-      - name: Run frozen LR1
-        id: lr1run
+      - name: Run frozen SD1
+        id: sd1run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_h1_low_reject_structure_lr1.py > BTC_H1_LowReject_Structure_LR1_Run.log 2>&1
+          PYTHONPATH=research python research/btc_h1_low_reject_stddev_sd1.py > BTC_H1_LowReject_StdDev_SD1_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_H1_LowReject_Structure_LR1_EXIT_CODE.txt
-          cat BTC_H1_LowReject_Structure_LR1_Run.log
+          echo "$code" > BTC_H1_LowReject_StdDev_SD1_EXIT_CODE.txt
+          cat BTC_H1_LowReject_StdDev_SD1_Run.log
           exit $code
-      - name: Persist LR1 artifacts safely
+      - name: Persist SD1 artifacts safely
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_H1_LowReject_Structure_LR1_EXIT_CODE.txt BTC_H1_LowReject_Structure_LR1_Run.log
-          for f in BTC_H1_LowReject_Structure_LR1_Result.md BTC_H1_LowReject_Structure_LR1_Result.json BTC_H1_LowReject_Structure_LR1_Events.csv BTC_H1_LowReject_Structure_LR1_August.csv BTC_H1_LowReject_Structure_LR1_Leafs.csv; do
+          git add BTC_H1_LowReject_StdDev_SD1_EXIT_CODE.txt BTC_H1_LowReject_StdDev_SD1_Run.log
+          for f in BTC_H1_LowReject_StdDev_SD1_Result.md BTC_H1_LowReject_StdDev_SD1_Result.json BTC_H1_LowReject_StdDev_SD1_Grid.csv BTC_H1_LowReject_StdDev_SD1_August.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git stash push --include-untracked -m h1-lr1-artifacts
+            git stash push --include-untracked -m h1-sd1-artifacts
             git pull --rebase origin main
             git stash pop
-            git add BTC_H1_LowReject_Structure_LR1_EXIT_CODE.txt BTC_H1_LowReject_Structure_LR1_Run.log
-            for f in BTC_H1_LowReject_Structure_LR1_Result.md BTC_H1_LowReject_Structure_LR1_Result.json BTC_H1_LowReject_Structure_LR1_Events.csv BTC_H1_LowReject_Structure_LR1_August.csv BTC_H1_LowReject_Structure_LR1_Leafs.csv; do
+            git add BTC_H1_LowReject_StdDev_SD1_EXIT_CODE.txt BTC_H1_LowReject_StdDev_SD1_Run.log
+            for f in BTC_H1_LowReject_StdDev_SD1_Result.md BTC_H1_LowReject_StdDev_SD1_Result.json BTC_H1_LowReject_StdDev_SD1_Grid.csv BTC_H1_LowReject_StdDev_SD1_August.csv; do
               if [ -f "$f" ]; then git add "$f"; fi
             done
-            git commit -m "research: persist H1 LOW_REJECT structure LR1"
+            git commit -m "research: persist H1 LOW_REJECT StdDev SD1"
             git push
           fi
-      - name: Fail if LR1 failed
-        if: steps.lr1run.outcome == 'failure'
+      - name: Fail if SD1 failed
+        if: steps.sd1run.outcome == 'failure'
         run: exit 1
