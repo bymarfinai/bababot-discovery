@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'research/btc_friday_sr81_prior_proof_level.py'
+      - 'research/btc_friday_sr81_prior_proof_level_fast.py'
       - 'BTC_Friday_SR81_Prior_Proof_Level_Preregistration.md'
       - '.github/workflows/btc-friday-allhour-candle-c0.yml'
 
@@ -28,12 +29,12 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install numpy pandas requests scikit-learn
-      - name: Run exact frozen SR81
+      - name: Run exact frozen SR81 with equivalent fast ATR lookup
         id: sr81run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_friday_sr81_prior_proof_level.py > BTC_Friday_SR81_Prior_Proof_Level_Run.log 2>&1
+          PYTHONPATH=research python research/btc_friday_sr81_prior_proof_level_fast.py > BTC_Friday_SR81_Prior_Proof_Level_Run.log 2>&1
           code=$?
           echo "$code" > BTC_Friday_SR81_Prior_Proof_Level_EXIT_CODE.txt
           cat BTC_Friday_SR81_Prior_Proof_Level_Run.log
