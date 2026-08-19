@@ -1,8 +1,8 @@
-name: Sunday SF14 August Morphology Replay
+name: Frozen Tuesday A5.11 August Replay
 on:
   push:
     paths:
-      - 'research/sunday_fridaymethod_sf14_august_morphology_replay.py'
+      - 'research/tuesday_a511_true_oos_august.py'
       - '.github/workflows/f621-analysis.yml'
   workflow_dispatch:
 permissions:
@@ -17,32 +17,37 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install numpy pandas requests
-      - name: Run Sunday SF14 and persist once
+      - name: Run frozen Tuesday A5.11 August replay and persist
         shell: bash
         run: |
           set +e
           cd research
-          SUNFM14_OUT=sunfm14_out python sunday_fridaymethod_sf14_august_morphology_replay.py > ../SUNFM14_RUN.log 2>&1
+          TUEA511_OUT=tuea511_out python tuesday_a511_true_oos_august.py > ../TUEA511_RUN.log 2>&1
           rc=$?
           cd ..
-          cat SUNFM14_RUN.log
-          printf '%s\n' "$rc" > SUNFM14_EXIT_CODE.txt
+          cat TUEA511_RUN.log
+          printf '%s\n' "$rc" > TUEA511_EXIT_CODE.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$rc" -eq 0 ]; then
-            cp research/sunfm14_out/SUNDAY_FRIDAY_METHOD_SF14_AUGUST_REPLAY.md BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay.md
-            cp research/sunfm14_out/sunfm14_summary.json BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_Summary.json
-            cp research/sunfm14_out/sunfm14_rows.csv BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_Rows.csv
-            rm -f BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_ERROR.log
-            git add BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay.md BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_Summary.json BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_Rows.csv SUNFM14_EXIT_CODE.txt
-            git add -u BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_ERROR.log 2>/dev/null || true
-            msg="research: persist Sunday SF14 August morphology replay"
+            cp research/tuea511_out/TUESDAY_A511_TRUE_OOS_AUGUST.md BTC_Temporal_Tuesday_A511_True_OOS_August.md
+            cp research/tuea511_out/tuesday_a511_true_oos_august_summary.json BTC_Temporal_Tuesday_A511_True_OOS_August_Summary.json
+            cp research/tuea511_out/tuesday_a511_true_oos_august_rows.csv BTC_Temporal_Tuesday_A511_True_OOS_August_Rows.csv
+            rm -f BTC_Temporal_Tuesday_A511_True_OOS_August_ERROR.log
+            rm -f BTC_Temporal_Tuesday_A511_Parity_Failure.json
+            git add BTC_Temporal_Tuesday_A511_True_OOS_August.md BTC_Temporal_Tuesday_A511_True_OOS_August_Summary.json BTC_Temporal_Tuesday_A511_True_OOS_August_Rows.csv TUEA511_EXIT_CODE.txt
+            git add -u BTC_Temporal_Tuesday_A511_True_OOS_August_ERROR.log BTC_Temporal_Tuesday_A511_Parity_Failure.json 2>/dev/null || true
+            msg="research: persist frozen Tuesday A5.11 August replay"
           else
-            cp SUNFM14_RUN.log BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_ERROR.log
-            git add BTC_Temporal_Sunday_FridayMethod_SF14_August_Replay_ERROR.log SUNFM14_EXIT_CODE.txt
-            msg="ci: persist Sunday SF14 traceback"
+            cp TUEA511_RUN.log BTC_Temporal_Tuesday_A511_True_OOS_August_ERROR.log
+            if [ -f research/tuea511_out/tuesday_a511_parity_failure.json ]; then
+              cp research/tuea511_out/tuesday_a511_parity_failure.json BTC_Temporal_Tuesday_A511_Parity_Failure.json
+              git add BTC_Temporal_Tuesday_A511_Parity_Failure.json
+            fi
+            git add BTC_Temporal_Tuesday_A511_True_OOS_August_ERROR.log TUEA511_EXIT_CODE.txt
+            msg="ci: persist Tuesday A5.11 August replay traceback"
           fi
 
           git diff --cached --quiet || git commit -m "$msg"
@@ -52,10 +57,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sunfm14-output
+          name: tuea511-output
           path: |
-            SUNFM14_RUN.log
-            SUNFM14_EXIT_CODE.txt
-            research/sunfm14_out/SUNDAY_FRIDAY_METHOD_SF14_AUGUST_REPLAY.md
-            research/sunfm14_out/sunfm14_summary.json
-            research/sunfm14_out/sunfm14_rows.csv
+            TUEA511_RUN.log
+            TUEA511_EXIT_CODE.txt
+            research/tuea511_out/TUESDAY_A511_TRUE_OOS_AUGUST.md
+            research/tuea511_out/tuesday_a511_true_oos_august_summary.json
+            research/tuea511_out/tuesday_a511_true_oos_august_rows.csv
+            research/tuea511_out/tuesday_a511_parity_failure.json
