@@ -1,0 +1,63 @@
+name: BTC Global Regime G0
+on:
+  push:
+    paths:
+      - 'research/g0_global_pooled_regime_dataset.py'
+      - '.github/workflows/g0-global-regime.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - name: Run preregistered G0 and persist
+        shell: bash
+        run: |
+          set +e
+          cd research
+          G0_OUT=g0_out python g0_global_pooled_regime_dataset.py > ../G0_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat G0_RUN.log
+          printf '%s\n' "$rc" > G0_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            cp research/g0_out/BTC_GLOBAL_REGIME_G0_RESULT.md BTC_Global_Regime_G0_Result.md
+            cp research/g0_out/g0_summary.json BTC_Global_Regime_G0_Summary.json
+            cp research/g0_out/g0_tuesday_crosscheck.csv BTC_Global_Regime_G0_Tuesday_Crosscheck.csv
+            cp research/g0_out/g0_pooled_hourly_states.csv BTC_Global_Regime_G0_Pooled_Hourly_States.csv
+            rm -f BTC_Global_Regime_G0_ERROR.log
+            git add BTC_Global_Regime_G0_Result.md BTC_Global_Regime_G0_Summary.json BTC_Global_Regime_G0_Tuesday_Crosscheck.csv BTC_Global_Regime_G0_Pooled_Hourly_States.csv G0_EXIT_CODE.txt
+            git add -u BTC_Global_Regime_G0_ERROR.log 2>/dev/null || true
+            msg="research: persist pooled BTC regime G0 result"
+          else
+            cp G0_RUN.log BTC_Global_Regime_G0_ERROR.log
+            git add BTC_Global_Regime_G0_ERROR.log G0_EXIT_CODE.txt
+            msg="ci: persist pooled BTC regime G0 traceback"
+          fi
+
+          git diff --cached --quiet || git commit -m "$msg"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: btc-global-regime-g0-output
+          path: |
+            G0_RUN.log
+            G0_EXIT_CODE.txt
+            research/g0_out/BTC_GLOBAL_REGIME_G0_RESULT.md
+            research/g0_out/g0_summary.json
+            research/g0_out/g0_tuesday_crosscheck.csv
+            research/g0_out/g0_pooled_hourly_states.csv
