@@ -1,0 +1,63 @@
+name: BTC Global Regime G3
+on:
+  push:
+    paths:
+      - 'research/g3_relative_sell_lift_gate.py'
+      - '.github/workflows/g3-global-regime.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas
+      - name: Run preregistered G3 and persist
+        shell: bash
+        run: |
+          set +e
+          cd research
+          G3_OUT=g3_out G1_POOL=../BTC_Global_Regime_G1_Pooled_WalkForward_Predictions.csv G1_TUE=../BTC_Global_Regime_G1_Tuesday_Overlay.csv G1_AUG=../BTC_Global_Regime_G1_August_Tuesday.csv G0_DATA=../BTC_Global_Regime_G0_Pooled_Hourly_States.csv python g3_relative_sell_lift_gate.py > ../G3_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat G3_RUN.log
+          printf '%s\n' "$rc" > G3_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            cp research/g3_out/BTC_GLOBAL_REGIME_G3_RESULT.md BTC_Global_Regime_G3_Result.md
+            cp research/g3_out/g3_summary.json BTC_Global_Regime_G3_Summary.json
+            cp research/g3_out/g3_tuesday_rows.csv BTC_Global_Regime_G3_Tuesday_Rows.csv
+            cp research/g3_out/g3_august.csv BTC_Global_Regime_G3_August.csv
+            rm -f BTC_Global_Regime_G3_ERROR.log
+            git add BTC_Global_Regime_G3_Result.md BTC_Global_Regime_G3_Summary.json BTC_Global_Regime_G3_Tuesday_Rows.csv BTC_Global_Regime_G3_August.csv G3_EXIT_CODE.txt
+            git add -u BTC_Global_Regime_G3_ERROR.log 2>/dev/null || true
+            msg="research: persist G3 relative SELL lift gate"
+          else
+            cp G3_RUN.log BTC_Global_Regime_G3_ERROR.log
+            git add BTC_Global_Regime_G3_ERROR.log G3_EXIT_CODE.txt
+            msg="ci: persist G3 relative SELL lift traceback"
+          fi
+
+          git diff --cached --quiet || git commit -m "$msg"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: btc-global-regime-g3-output
+          path: |
+            G3_RUN.log
+            G3_EXIT_CODE.txt
+            research/g3_out/BTC_GLOBAL_REGIME_G3_RESULT.md
+            research/g3_out/g3_summary.json
+            research/g3_out/g3_tuesday_rows.csv
+            research/g3_out/g3_august.csv
