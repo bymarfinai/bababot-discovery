@@ -7,12 +7,18 @@ on:
       - 'research/btc_friday_sr82_external_holdout_support.py'
       - 'BTC_Friday_SR82_External_Holdout_Support_Preregistration.md'
       - '.github/workflows/btc-friday-sr82-external-holdout.yml'
+  pull_request:
+    paths:
+      - 'SR82_PR_TRIGGER.md'
+      - 'research/btc_friday_sr82_external_holdout_support.py'
+      - 'BTC_Friday_SR82_External_Holdout_Support_Preregistration.md'
+      - '.github/workflows/btc-friday-sr82-external-holdout.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-sr82-external-holdout
+  group: btc-friday-sr82-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -39,7 +45,7 @@ jobs:
           cat BTC_Friday_SR82_External_Holdout_Support_Run.log
           exit $code
       - name: Persist artifacts
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
