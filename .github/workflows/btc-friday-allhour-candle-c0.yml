@@ -1,22 +1,22 @@
-name: BTC Friday Derivatives C5 Runner
+name: BTC Friday Selective AI C6 Runner
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_friday_15m_derivatives_c5.py'
-      - 'BTC_Friday_15m_Derivatives_C5_Preregistration.md'
+      - 'research/btc_friday_selective_ai_c6.py'
+      - 'BTC_Friday_Selective_AI_C6_Preregistration.md'
       - '.github/workflows/btc-friday-allhour-candle-c0.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-c5-derivatives
+  group: btc-friday-c6-selective-ai
   cancel-in-progress: true
 
 jobs:
-  c5:
+  c6:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -27,37 +27,37 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install numpy pandas requests scikit-learn
-      - name: Run frozen C5
-        id: c5run
+        run: pip install numpy pandas scikit-learn
+      - name: Run frozen C6
+        id: c6run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_friday_15m_derivatives_c5.py > BTC_Friday_15m_Derivatives_C5_Run.log 2>&1
+          PYTHONPATH=research python research/btc_friday_selective_ai_c6.py > BTC_Friday_Selective_AI_C6_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_Friday_15m_Derivatives_C5_EXIT_CODE.txt
-          cat BTC_Friday_15m_Derivatives_C5_Run.log
+          echo "$code" > BTC_Friday_Selective_AI_C6_EXIT_CODE.txt
+          cat BTC_Friday_Selective_AI_C6_Run.log
           exit $code
-      - name: Persist C5 artifacts safely
+      - name: Persist C6 artifacts safely
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Friday_15m_Derivatives_C5_EXIT_CODE.txt BTC_Friday_15m_Derivatives_C5_Run.log
-          for f in BTC_Friday_15m_Derivatives_C5_Result.md BTC_Friday_15m_Derivatives_C5_Result.json BTC_Friday_15m_Derivatives_C5_Rows.csv; do
+          git add BTC_Friday_Selective_AI_C6_EXIT_CODE.txt BTC_Friday_Selective_AI_C6_Run.log
+          for f in BTC_Friday_Selective_AI_C6_Result.md BTC_Friday_Selective_AI_C6_Result.json BTC_Friday_Selective_AI_C6_Predictions.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git stash push --include-untracked -m c5-artifacts
+            git stash push --include-untracked -m c6-artifacts
             git pull --rebase origin main
             git stash pop
-            git add BTC_Friday_15m_Derivatives_C5_EXIT_CODE.txt BTC_Friday_15m_Derivatives_C5_Run.log
-            for f in BTC_Friday_15m_Derivatives_C5_Result.md BTC_Friday_15m_Derivatives_C5_Result.json BTC_Friday_15m_Derivatives_C5_Rows.csv; do
+            git add BTC_Friday_Selective_AI_C6_EXIT_CODE.txt BTC_Friday_Selective_AI_C6_Run.log
+            for f in BTC_Friday_Selective_AI_C6_Result.md BTC_Friday_Selective_AI_C6_Result.json BTC_Friday_Selective_AI_C6_Predictions.csv; do
               if [ -f "$f" ]; then git add "$f"; fi
             done
-            git commit -m "research: persist BTC Friday derivatives C5 result"
+            git commit -m "research: persist BTC Friday selective AI C6 result"
             git push
           fi
-      - name: Fail if C5 failed
-        if: steps.c5run.outcome == 'failure'
+      - name: Fail if C6 failed
+        if: steps.c6run.outcome == 'failure'
         run: exit 1
