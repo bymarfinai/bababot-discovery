@@ -7,12 +7,18 @@ on:
       - 'research/btc_friday_sr81_prior_proof_level.py'
       - 'BTC_Friday_SR81_Prior_Proof_Level_Preregistration.md'
       - '.github/workflows/btc-friday-preentry-fingerprint-p2.yml'
+  pull_request:
+    paths:
+      - 'SR81_PR_TRIGGER.md'
+      - 'research/btc_friday_sr81_prior_proof_level.py'
+      - 'BTC_Friday_SR81_Prior_Proof_Level_Preregistration.md'
+      - '.github/workflows/btc-friday-preentry-fingerprint-p2.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-sr81-prior-proof
+  group: btc-friday-sr81-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -39,7 +45,7 @@ jobs:
           cat BTC_Friday_SR81_Prior_Proof_Level_Run.log
           exit $code
       - name: Persist SR81 artifacts safely
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
