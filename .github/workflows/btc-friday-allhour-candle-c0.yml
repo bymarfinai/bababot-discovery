@@ -1,22 +1,22 @@
-name: BTC Friday Sequence C3 Runner
+name: BTC Friday SR81 Isolated Runner
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_friday_15m_sequence_c3.py'
-      - 'BTC_Friday_15m_Sequence_C3_Preregistration.md'
+      - 'research/btc_friday_sr81_prior_proof_level.py'
+      - 'BTC_Friday_SR81_Prior_Proof_Level_Preregistration.md'
       - '.github/workflows/btc-friday-allhour-candle-c0.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-sequence-c3
+  group: btc-friday-sr81-isolated
   cancel-in-progress: true
 
 jobs:
-  c3:
+  sr81:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -27,37 +27,37 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install numpy pandas requests
-      - name: Run frozen C3
-        id: c3run
+        run: pip install numpy pandas requests scikit-learn
+      - name: Run exact frozen SR81
+        id: sr81run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_friday_15m_sequence_c3.py > BTC_Friday_15m_Sequence_C3_Run.log 2>&1
+          PYTHONPATH=research python research/btc_friday_sr81_prior_proof_level.py > BTC_Friday_SR81_Prior_Proof_Level_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_Friday_15m_Sequence_C3_EXIT_CODE.txt
-          cat BTC_Friday_15m_Sequence_C3_Run.log
+          echo "$code" > BTC_Friday_SR81_Prior_Proof_Level_EXIT_CODE.txt
+          cat BTC_Friday_SR81_Prior_Proof_Level_Run.log
           exit $code
-      - name: Persist C3 artifacts safely
+      - name: Persist exact SR81 artifacts safely
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Friday_15m_Sequence_C3_EXIT_CODE.txt BTC_Friday_15m_Sequence_C3_Run.log
-          for f in BTC_Friday_15m_Sequence_C3_Result.md BTC_Friday_15m_Sequence_C3_Result.json BTC_Friday_15m_Sequence_C3_Rows.csv BTC_Friday_15m_Sequence_C3_Discovery_Archetypes.csv; do
+          git add BTC_Friday_SR81_Prior_Proof_Level_EXIT_CODE.txt BTC_Friday_SR81_Prior_Proof_Level_Run.log
+          for f in BTC_Friday_SR81_Prior_Proof_Level_Result.md BTC_Friday_SR81_Prior_Proof_Level_Result.json BTC_Friday_SR81_Prior_Proof_Level_Rows.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git stash push --include-untracked -m c3-artifacts
+            git stash push --include-untracked -m sr81-isolated-artifacts
             git pull --rebase origin main
             git stash pop
-            git add BTC_Friday_15m_Sequence_C3_EXIT_CODE.txt BTC_Friday_15m_Sequence_C3_Run.log
-            for f in BTC_Friday_15m_Sequence_C3_Result.md BTC_Friday_15m_Sequence_C3_Result.json BTC_Friday_15m_Sequence_C3_Rows.csv BTC_Friday_15m_Sequence_C3_Discovery_Archetypes.csv; do
+            git add BTC_Friday_SR81_Prior_Proof_Level_EXIT_CODE.txt BTC_Friday_SR81_Prior_Proof_Level_Run.log
+            for f in BTC_Friday_SR81_Prior_Proof_Level_Result.md BTC_Friday_SR81_Prior_Proof_Level_Result.json BTC_Friday_SR81_Prior_Proof_Level_Rows.csv; do
               if [ -f "$f" ]; then git add "$f"; fi
             done
-            git commit -m "research: persist BTC Friday 15m sequence C3 result"
+            git commit -m "research: persist exact BTC Friday SR81 prior-proof result"
             git push
           fi
-      - name: Fail if C3 failed
-        if: steps.c3run.outcome == 'failure'
+      - name: Fail if SR81 failed
+        if: steps.sr81run.outcome == 'failure'
         run: exit 1
