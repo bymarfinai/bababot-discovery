@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'research/g8_freeze_forward_shadow_model.py'
+      - 'research/g8_freeze_forward_shadow_model_numeric_compat.py'
       - '.github/workflows/g8-forward-shadow-freeze.yml'
   workflow_dispatch:
 permissions:
@@ -22,7 +23,7 @@ jobs:
         run: |
           set +e
           cd research
-          G8FREEZE_OUT=g8freeze_out python g8_freeze_forward_shadow_model.py > ../G8_FREEZE_RUN.log 2>&1
+          G8FREEZE_OUT=g8freeze_out python g8_freeze_forward_shadow_model_numeric_compat.py > ../G8_FREEZE_RUN.log 2>&1
           rc=$?
           cd ..
           cat G8_FREEZE_RUN.log
