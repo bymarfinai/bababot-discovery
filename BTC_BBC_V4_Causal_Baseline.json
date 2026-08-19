@@ -1,0 +1,706 @@
+{
+  "phase": "BBC_V4_CAUSAL_BASELINE",
+  "status": "RESEARCH_ONLY",
+  "generated_at_utc": "2026-08-19T08:28:42.629406+00:00",
+  "end_exclusive_utc": "2026-08-19T00:00:00+00:00",
+  "pairs": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "BNBUSDT"
+  ],
+  "windows_days": [
+    90,
+    120,
+    971
+  ],
+  "definition": {
+    "primary_entry": "next_1h_open_after_completed_1h_signal",
+    "control_entry": "completed_1h_close_proxy",
+    "same_hour_15m_mtf": false,
+    "sideways_trades": false,
+    "ema_period": 7,
+    "tp_pct": 0.013,
+    "sl_pct": 0.013,
+    "bull_body_ratio_min": 0.5,
+    "bear_body_ratio_min": 0.6,
+    "roundtrip_cost_pct": 0.0015,
+    "reference_notional_usd": 500.0,
+    "threshold_sweep": false
+  },
+  "data": {
+    "BTCUSDT": {
+      "bars": 24720,
+      "first_utc": "2023-10-23T00:00:00+00:00",
+      "last_open_utc": "2026-08-17T23:00:00+00:00"
+    },
+    "ETHUSDT": {
+      "bars": 24720,
+      "first_utc": "2023-10-23T00:00:00+00:00",
+      "last_open_utc": "2026-08-17T23:00:00+00:00"
+    },
+    "SOLUSDT": {
+      "bars": 24720,
+      "first_utc": "2023-10-23T00:00:00+00:00",
+      "last_open_utc": "2026-08-17T23:00:00+00:00"
+    },
+    "BNBUSDT": {
+      "bars": 24720,
+      "first_utc": "2023-10-23T00:00:00+00:00",
+      "last_open_utc": "2026-08-17T23:00:00+00:00"
+    }
+  },
+  "windows": {
+    "90": {
+      "close_proxy": {
+        "overall": {
+          "trades": 400,
+          "wins": 190,
+          "losses": 210,
+          "wr_pct": 47.5,
+          "pnl_usd": -430.0,
+          "expectancy_usd": -1.075,
+          "profit_factor": 0.718,
+          "max_drawdown_usd": 534.5,
+          "max_loss_streak": 10
+        },
+        "by_pair": {
+          "BTCUSDT": {
+            "trades": 77,
+            "wins": 40,
+            "losses": 37,
+            "wr_pct": 51.95,
+            "pnl_usd": -38.25,
+            "expectancy_usd": -0.4968,
+            "profit_factor": 0.857,
+            "max_drawdown_usd": 85.5,
+            "max_loss_streak": 4
+          },
+          "ETHUSDT": {
+            "trades": 106,
+            "wins": 51,
+            "losses": 55,
+            "wr_pct": 48.11,
+            "pnl_usd": -105.5,
+            "expectancy_usd": -0.9953,
+            "profit_factor": 0.735,
+            "max_drawdown_usd": 157.75,
+            "max_loss_streak": 5
+          },
+          "SOLUSDT": {
+            "trades": 129,
+            "wins": 56,
+            "losses": 73,
+            "wr_pct": 43.41,
+            "pnl_usd": -207.25,
+            "expectancy_usd": -1.6066,
+            "profit_factor": 0.608,
+            "max_drawdown_usd": 228.5,
+            "max_loss_streak": 9
+          },
+          "BNBUSDT": {
+            "trades": 88,
+            "wins": 43,
+            "losses": 45,
+            "wr_pct": 48.86,
+            "pnl_usd": -79.0,
+            "expectancy_usd": -0.8977,
+            "profit_factor": 0.758,
+            "max_drawdown_usd": 115.75,
+            "max_loss_streak": 9
+          }
+        },
+        "by_block": {
+          "Q1": {
+            "trades": 132,
+            "wins": 55,
+            "losses": 77,
+            "wr_pct": 41.67,
+            "pnl_usd": -242.0,
+            "expectancy_usd": -1.8333,
+            "profit_factor": 0.567,
+            "max_drawdown_usd": 256.25,
+            "max_loss_streak": 9
+          },
+          "Q2": {
+            "trades": 112,
+            "wins": 49,
+            "losses": 63,
+            "wr_pct": 43.75,
+            "pnl_usd": -175.0,
+            "expectancy_usd": -1.5625,
+            "profit_factor": 0.617,
+            "max_drawdown_usd": 220.75,
+            "max_loss_streak": 7
+          },
+          "Q3": {
+            "trades": 92,
+            "wins": 48,
+            "losses": 44,
+            "wr_pct": 52.17,
+            "pnl_usd": -43.0,
+            "expectancy_usd": -0.4674,
+            "profit_factor": 0.865,
+            "max_drawdown_usd": 110.25,
+            "max_loss_streak": 9
+          },
+          "Q4": {
+            "trades": 64,
+            "wins": 38,
+            "losses": 26,
+            "wr_pct": 59.38,
+            "pnl_usd": 30.0,
+            "expectancy_usd": 0.4687,
+            "profit_factor": 1.159,
+            "max_drawdown_usd": 45.0,
+            "max_loss_streak": 4
+          }
+        }
+      },
+      "next_open_strict": {
+        "overall": {
+          "trades": 401,
+          "wins": 195,
+          "losses": 206,
+          "wr_pct": 48.63,
+          "pnl_usd": -372.25,
+          "expectancy_usd": -0.9283,
+          "profit_factor": 0.751,
+          "max_drawdown_usd": 482.75,
+          "max_loss_streak": 10
+        },
+        "by_pair": {
+          "BTCUSDT": {
+            "trades": 77,
+            "wins": 40,
+            "losses": 37,
+            "wr_pct": 51.95,
+            "pnl_usd": -38.25,
+            "expectancy_usd": -0.4968,
+            "profit_factor": 0.857,
+            "max_drawdown_usd": 85.5,
+            "max_loss_streak": 4
+          },
+          "ETHUSDT": {
+            "trades": 106,
+            "wins": 51,
+            "losses": 55,
+            "wr_pct": 48.11,
+            "pnl_usd": -105.5,
+            "expectancy_usd": -0.9953,
+            "profit_factor": 0.735,
+            "max_drawdown_usd": 157.75,
+            "max_loss_streak": 5
+          },
+          "SOLUSDT": {
+            "trades": 130,
+            "wins": 61,
+            "losses": 69,
+            "wr_pct": 46.92,
+            "pnl_usd": -149.5,
+            "expectancy_usd": -1.15,
+            "profit_factor": 0.701,
+            "max_drawdown_usd": 188.75,
+            "max_loss_streak": 9
+          },
+          "BNBUSDT": {
+            "trades": 88,
+            "wins": 43,
+            "losses": 45,
+            "wr_pct": 48.86,
+            "pnl_usd": -79.0,
+            "expectancy_usd": -0.8977,
+            "profit_factor": 0.758,
+            "max_drawdown_usd": 115.75,
+            "max_loss_streak": 9
+          }
+        },
+        "by_block": {
+          "Q1": {
+            "trades": 133,
+            "wins": 56,
+            "losses": 77,
+            "wr_pct": 42.11,
+            "pnl_usd": -236.25,
+            "expectancy_usd": -1.7763,
+            "profit_factor": 0.577,
+            "max_drawdown_usd": 250.5,
+            "max_loss_streak": 9
+          },
+          "Q2": {
+            "trades": 112,
+            "wins": 49,
+            "losses": 63,
+            "wr_pct": 43.75,
+            "pnl_usd": -175.0,
+            "expectancy_usd": -1.5625,
+            "profit_factor": 0.617,
+            "max_drawdown_usd": 220.75,
+            "max_loss_streak": 7
+          },
+          "Q3": {
+            "trades": 92,
+            "wins": 52,
+            "losses": 40,
+            "wr_pct": 56.52,
+            "pnl_usd": 9.0,
+            "expectancy_usd": 0.0978,
+            "profit_factor": 1.031,
+            "max_drawdown_usd": 64.25,
+            "max_loss_streak": 8
+          },
+          "Q4": {
+            "trades": 64,
+            "wins": 38,
+            "losses": 26,
+            "wr_pct": 59.38,
+            "pnl_usd": 30.0,
+            "expectancy_usd": 0.4687,
+            "profit_factor": 1.159,
+            "max_drawdown_usd": 45.0,
+            "max_loss_streak": 4
+          }
+        }
+      },
+      "timing_delta_next_open_minus_close": {
+        "pnl_usd": 57.75,
+        "wr_pct": 1.13,
+        "expectancy_usd": 0.1467
+      }
+    },
+    "120": {
+      "close_proxy": {
+        "overall": {
+          "trades": 516,
+          "wins": 244,
+          "losses": 272,
+          "wr_pct": 47.29,
+          "pnl_usd": -569.0,
+          "expectancy_usd": -1.1027,
+          "profit_factor": 0.711,
+          "max_drawdown_usd": 667.5,
+          "max_loss_streak": 10
+        },
+        "by_pair": {
+          "BTCUSDT": {
+            "trades": 102,
+            "wins": 54,
+            "losses": 48,
+            "wr_pct": 52.94,
+            "pnl_usd": -37.5,
+            "expectancy_usd": -0.3676,
+            "profit_factor": 0.892,
+            "max_drawdown_usd": 93.0,
+            "max_loss_streak": 4
+          },
+          "ETHUSDT": {
+            "trades": 137,
+            "wins": 65,
+            "losses": 72,
+            "wr_pct": 47.45,
+            "pnl_usd": -148.25,
+            "expectancy_usd": -1.0821,
+            "profit_factor": 0.716,
+            "max_drawdown_usd": 207.75,
+            "max_loss_streak": 5
+          },
+          "SOLUSDT": {
+            "trades": 166,
+            "wins": 72,
+            "losses": 94,
+            "wr_pct": 43.37,
+            "pnl_usd": -267.5,
+            "expectancy_usd": -1.6114,
+            "profit_factor": 0.607,
+            "max_drawdown_usd": 298.75,
+            "max_loss_streak": 9
+          },
+          "BNBUSDT": {
+            "trades": 111,
+            "wins": 53,
+            "losses": 58,
+            "wr_pct": 47.75,
+            "pnl_usd": -115.75,
+            "expectancy_usd": -1.0428,
+            "profit_factor": 0.725,
+            "max_drawdown_usd": 144.25,
+            "max_loss_streak": 9
+          }
+        },
+        "by_block": {
+          "Q1": {
+            "trades": 116,
+            "wins": 54,
+            "losses": 62,
+            "wr_pct": 46.55,
+            "pnl_usd": -139.0,
+            "expectancy_usd": -1.1983,
+            "profit_factor": 0.691,
+            "max_drawdown_usd": 163.0,
+            "max_loss_streak": 9
+          },
+          "Q2": {
+            "trades": 168,
+            "wins": 69,
+            "losses": 99,
+            "wr_pct": 41.07,
+            "pnl_usd": -321.0,
+            "expectancy_usd": -1.9107,
+            "profit_factor": 0.553,
+            "max_drawdown_usd": 352.5,
+            "max_loss_streak": 10
+          },
+          "Q3": {
+            "trades": 138,
+            "wins": 67,
+            "losses": 71,
+            "wr_pct": 48.55,
+            "pnl_usd": -129.5,
+            "expectancy_usd": -0.9384,
+            "profit_factor": 0.748,
+            "max_drawdown_usd": 153.25,
+            "max_loss_streak": 8
+          },
+          "Q4": {
+            "trades": 94,
+            "wins": 54,
+            "losses": 40,
+            "wr_pct": 57.45,
+            "pnl_usd": 20.5,
+            "expectancy_usd": 0.2181,
+            "profit_factor": 1.071,
+            "max_drawdown_usd": 69.75,
+            "max_loss_streak": 9
+          }
+        }
+      },
+      "next_open_strict": {
+        "overall": {
+          "trades": 519,
+          "wins": 250,
+          "losses": 269,
+          "wr_pct": 48.17,
+          "pnl_usd": -512.75,
+          "expectancy_usd": -0.988,
+          "profit_factor": 0.737,
+          "max_drawdown_usd": 610.0,
+          "max_loss_streak": 10
+        },
+        "by_pair": {
+          "BTCUSDT": {
+            "trades": 102,
+            "wins": 54,
+            "losses": 48,
+            "wr_pct": 52.94,
+            "pnl_usd": -37.5,
+            "expectancy_usd": -0.3676,
+            "profit_factor": 0.892,
+            "max_drawdown_usd": 93.0,
+            "max_loss_streak": 4
+          },
+          "ETHUSDT": {
+            "trades": 137,
+            "wins": 65,
+            "losses": 72,
+            "wr_pct": 47.45,
+            "pnl_usd": -148.25,
+            "expectancy_usd": -1.0821,
+            "profit_factor": 0.716,
+            "max_drawdown_usd": 207.75,
+            "max_loss_streak": 5
+          },
+          "SOLUSDT": {
+            "trades": 168,
+            "wins": 77,
+            "losses": 91,
+            "wr_pct": 45.83,
+            "pnl_usd": -217.0,
+            "expectancy_usd": -1.2917,
+            "profit_factor": 0.671,
+            "max_drawdown_usd": 259.0,
+            "max_loss_streak": 9
+          },
+          "BNBUSDT": {
+            "trades": 112,
+            "wins": 54,
+            "losses": 58,
+            "wr_pct": 48.21,
+            "pnl_usd": -110.0,
+            "expectancy_usd": -0.9821,
+            "profit_factor": 0.738,
+            "max_drawdown_usd": 138.5,
+            "max_loss_streak": 9
+          }
+        },
+        "by_block": {
+          "Q1": {
+            "trades": 118,
+            "wins": 55,
+            "losses": 63,
+            "wr_pct": 46.61,
+            "pnl_usd": -140.5,
+            "expectancy_usd": -1.1907,
+            "profit_factor": 0.692,
+            "max_drawdown_usd": 157.25,
+            "max_loss_streak": 9
+          },
+          "Q2": {
+            "trades": 169,
+            "wins": 70,
+            "losses": 99,
+            "wr_pct": 41.42,
+            "pnl_usd": -315.25,
+            "expectancy_usd": -1.8654,
+            "profit_factor": 0.561,
+            "max_drawdown_usd": 346.75,
+            "max_loss_streak": 10
+          },
+          "Q3": {
+            "trades": 138,
+            "wins": 67,
+            "losses": 71,
+            "wr_pct": 48.55,
+            "pnl_usd": -129.5,
+            "expectancy_usd": -0.9384,
+            "profit_factor": 0.748,
+            "max_drawdown_usd": 153.25,
+            "max_loss_streak": 8
+          },
+          "Q4": {
+            "trades": 94,
+            "wins": 58,
+            "losses": 36,
+            "wr_pct": 61.7,
+            "pnl_usd": 72.5,
+            "expectancy_usd": 0.7713,
+            "profit_factor": 1.278,
+            "max_drawdown_usd": 45.0,
+            "max_loss_streak": 4
+          }
+        }
+      },
+      "timing_delta_next_open_minus_close": {
+        "pnl_usd": 56.25,
+        "wr_pct": 0.88,
+        "expectancy_usd": 0.1147
+      }
+    },
+    "971": {
+      "close_proxy": {
+        "overall": {
+          "trades": 5639,
+          "wins": 2812,
+          "losses": 2827,
+          "wr_pct": 49.87,
+          "pnl_usd": -4326.75,
+          "expectancy_usd": -0.7673,
+          "profit_factor": 0.789,
+          "max_drawdown_usd": 4428.5,
+          "max_loss_streak": 15
+        },
+        "by_pair": {
+          "BTCUSDT": {
+            "trades": 1075,
+            "wins": 556,
+            "losses": 519,
+            "wr_pct": 51.72,
+            "pnl_usd": -565.75,
+            "expectancy_usd": -0.5263,
+            "profit_factor": 0.85,
+            "max_drawdown_usd": 661.5,
+            "max_loss_streak": 11
+          },
+          "ETHUSDT": {
+            "trades": 1423,
+            "wins": 718,
+            "losses": 705,
+            "wr_pct": 50.46,
+            "pnl_usd": -982.75,
+            "expectancy_usd": -0.6906,
+            "profit_factor": 0.808,
+            "max_drawdown_usd": 1073.75,
+            "max_loss_streak": 9
+          },
+          "SOLUSDT": {
+            "trades": 1858,
+            "wins": 895,
+            "losses": 963,
+            "wr_pct": 48.17,
+            "pnl_usd": -1835.5,
+            "expectancy_usd": -0.9879,
+            "profit_factor": 0.737,
+            "max_drawdown_usd": 1852.5,
+            "max_loss_streak": 13
+          },
+          "BNBUSDT": {
+            "trades": 1283,
+            "wins": 643,
+            "losses": 640,
+            "wr_pct": 50.12,
+            "pnl_usd": -942.75,
+            "expectancy_usd": -0.7348,
+            "profit_factor": 0.797,
+            "max_drawdown_usd": 973.75,
+            "max_loss_streak": 9
+          }
+        },
+        "by_block": {
+          "Q1": {
+            "trades": 1527,
+            "wins": 767,
+            "losses": 760,
+            "wr_pct": 50.23,
+            "pnl_usd": -1099.75,
+            "expectancy_usd": -0.7202,
+            "profit_factor": 0.8,
+            "max_drawdown_usd": 1142.75,
+            "max_loss_streak": 8
+          },
+          "Q2": {
+            "trades": 1582,
+            "wins": 775,
+            "losses": 807,
+            "wr_pct": 48.99,
+            "pnl_usd": -1394.5,
+            "expectancy_usd": -0.8815,
+            "profit_factor": 0.762,
+            "max_drawdown_usd": 1413.0,
+            "max_loss_streak": 15
+          },
+          "Q3": {
+            "trades": 1374,
+            "wins": 689,
+            "losses": 685,
+            "wr_pct": 50.15,
+            "pnl_usd": -1004.5,
+            "expectancy_usd": -0.7311,
+            "profit_factor": 0.798,
+            "max_drawdown_usd": 1121.0,
+            "max_loss_streak": 12
+          },
+          "Q4": {
+            "trades": 1156,
+            "wins": 581,
+            "losses": 575,
+            "wr_pct": 50.26,
+            "pnl_usd": -828.0,
+            "expectancy_usd": -0.7163,
+            "profit_factor": 0.801,
+            "max_drawdown_usd": 929.75,
+            "max_loss_streak": 10
+          }
+        }
+      },
+      "next_open_strict": {
+        "overall": {
+          "trades": 5652,
+          "wins": 2828,
+          "losses": 2824,
+          "wr_pct": 50.04,
+          "pnl_usd": -4213.0,
+          "expectancy_usd": -0.7454,
+          "profit_factor": 0.794,
+          "max_drawdown_usd": 4320.75,
+          "max_loss_streak": 15
+        },
+        "by_pair": {
+          "BTCUSDT": {
+            "trades": 1076,
+            "wins": 559,
+            "losses": 517,
+            "wr_pct": 51.95,
+            "pnl_usd": -534.0,
+            "expectancy_usd": -0.4963,
+            "profit_factor": 0.858,
+            "max_drawdown_usd": 634.5,
+            "max_loss_streak": 11
+          },
+          "ETHUSDT": {
+            "trades": 1424,
+            "wins": 718,
+            "losses": 706,
+            "wr_pct": 50.42,
+            "pnl_usd": -990.0,
+            "expectancy_usd": -0.6952,
+            "profit_factor": 0.807,
+            "max_drawdown_usd": 1081.0,
+            "max_loss_streak": 9
+          },
+          "SOLUSDT": {
+            "trades": 1868,
+            "wins": 907,
+            "losses": 961,
+            "wr_pct": 48.55,
+            "pnl_usd": -1752.0,
+            "expectancy_usd": -0.9379,
+            "profit_factor": 0.749,
+            "max_drawdown_usd": 1787.0,
+            "max_loss_streak": 13
+          },
+          "BNBUSDT": {
+            "trades": 1284,
+            "wins": 644,
+            "losses": 640,
+            "wr_pct": 50.16,
+            "pnl_usd": -937.0,
+            "expectancy_usd": -0.7298,
+            "profit_factor": 0.798,
+            "max_drawdown_usd": 968.0,
+            "max_loss_streak": 9
+          }
+        },
+        "by_block": {
+          "Q1": {
+            "trades": 1530,
+            "wins": 772,
+            "losses": 758,
+            "wr_pct": 50.46,
+            "pnl_usd": -1056.5,
+            "expectancy_usd": -0.6905,
+            "profit_factor": 0.808,
+            "max_drawdown_usd": 1099.5,
+            "max_loss_streak": 8
+          },
+          "Q2": {
+            "trades": 1586,
+            "wins": 779,
+            "losses": 807,
+            "wr_pct": 49.12,
+            "pnl_usd": -1371.5,
+            "expectancy_usd": -0.8648,
+            "profit_factor": 0.766,
+            "max_drawdown_usd": 1390.0,
+            "max_loss_streak": 15
+          },
+          "Q3": {
+            "trades": 1378,
+            "wins": 690,
+            "losses": 688,
+            "wr_pct": 50.07,
+            "pnl_usd": -1020.5,
+            "expectancy_usd": -0.7406,
+            "profit_factor": 0.795,
+            "max_drawdown_usd": 1137.0,
+            "max_loss_streak": 13
+          },
+          "Q4": {
+            "trades": 1158,
+            "wins": 587,
+            "losses": 571,
+            "wr_pct": 50.69,
+            "pnl_usd": -764.5,
+            "expectancy_usd": -0.6602,
+            "profit_factor": 0.815,
+            "max_drawdown_usd": 872.25,
+            "max_loss_streak": 10
+          }
+        }
+      },
+      "timing_delta_next_open_minus_close": {
+        "pnl_usd": 113.75,
+        "wr_pct": 0.17,
+        "expectancy_usd": 0.0219
+      }
+    }
+  }
+}
