@@ -29,3 +29,5 @@ Canonical V2 variant is chosen solely by minimum absolute error versus `(24,17,1
 After parity selection, replay 2026-08-01 onward using available completed official Binance 5m data and separately report the unchanged TP1%/SL1% 6h diagnostic. No 1m data.
 
 No post-result window/threshold/direction/TP-SL rescue is allowed.
+
+CI trigger note: workflow existed before this push; no research rule changed.
