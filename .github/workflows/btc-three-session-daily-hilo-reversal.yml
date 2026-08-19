@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'research/btc_three_session_daily_hilo_reversal.py'
+      - 'research/btc_three_session_daily_hilo_reversal_fixed.py'
       - 'BTC_ThreeSession_DailyHighLow_Reversal_Preregistration.md'
       - '.github/workflows/btc-three-session-daily-hilo-reversal.yml'
 
@@ -33,7 +34,7 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_three_session_daily_hilo_reversal.py > BTC_ThreeSession_DailyHighLow_Reversal_Run.log 2>&1
+          PYTHONPATH=research python research/btc_three_session_daily_hilo_reversal_fixed.py > BTC_ThreeSession_DailyHighLow_Reversal_Run.log 2>&1
           code=$?
           echo "$code" > BTC_ThreeSession_DailyHighLow_Reversal_EXIT_CODE.txt
           cat BTC_ThreeSession_DailyHighLow_Reversal_Run.log
