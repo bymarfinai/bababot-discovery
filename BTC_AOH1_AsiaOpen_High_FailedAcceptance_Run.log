@@ -1,0 +1,163 @@
+downloaded 10/75 archives
+downloaded 20/75 archives
+downloaded 30/75 archives
+downloaded 40/75 archives
+downloaded 50/75 archives
+downloaded 60/75 archives
+downloaded 70/75 archives
+coverage 2021-12-01 00:00:00+00:00 -> 2026-08-18 23:55:00+00:00 rows5m=495936 rows15m=165312
+{
+  "protocol": "BTC_AOH1_ASIA_OPEN_HIGH_FAILED_ACCEPTANCE_NET1R",
+  "coverage": {
+    "first_ts": "2021-12-01 00:00:00+00:00",
+    "last_ts": "2026-08-18 23:55:00+00:00",
+    "rows5m": 495936,
+    "rows15m": 165312
+  },
+  "external_2022_2023": {
+    "reclaim_candidates": 45,
+    "n": 14,
+    "confirmation_rate": 0.3111111111111111,
+    "tp": 5,
+    "sl": 9,
+    "time": 0,
+    "decisive_n": 14,
+    "decisive_wr": 0.35714285714285715,
+    "net_positive_rate": 0.35714285714285715,
+    "pnl": -27.333454706720154,
+    "avg_risk_pct": 0.010516680804877448,
+    "median_risk_pct": 0.008256095812808211,
+    "avg_raw_target_pct": 0.013516680804877449,
+    "avg_ret60": 0.002255904237749655,
+    "avg_ret120": 0.003510746746776093,
+    "avg_ret240": 0.004211086725698471
+  },
+  "reference_2023_2026": {
+    "reclaim_candidates": 68,
+    "n": 25,
+    "confirmation_rate": 0.36764705882352944,
+    "tp": 5,
+    "sl": 20,
+    "time": 0,
+    "decisive_n": 25,
+    "decisive_wr": 0.2,
+    "net_positive_rate": 0.2,
+    "pnl": -44.26542529137432,
+    "avg_risk_pct": 0.005808950693335657,
+    "median_risk_pct": 0.0055253772098886504,
+    "avg_raw_target_pct": 0.008808950693335656,
+    "avg_ret60": -0.001193646535817628,
+    "avg_ret120": -0.002276490019985698,
+    "avg_ret240": -0.002019647651242191
+  },
+  "august_2026": {
+    "reclaim_candidates": 0,
+    "n": 0,
+    "confirmation_rate": null,
+    "tp": 0,
+    "sl": 0,
+    "time": 0,
+    "decisive_n": 0,
+    "decisive_wr": null,
+    "net_positive_rate": null,
+    "pnl": 0.0,
+    "avg_risk_pct": null,
+    "median_risk_pct": null,
+    "avg_raw_target_pct": null,
+    "avg_ret60": null,
+    "avg_ret120": null,
+    "avg_ret240": null
+  },
+  "external_blocks": [
+    {
+      "block": "B1",
+      "reclaim_candidates": 3,
+      "n": 3,
+      "confirmation_rate": 1.0,
+      "tp": 2,
+      "sl": 1,
+      "time": 0,
+      "decisive_n": 3,
+      "decisive_wr": 0.6666666666666666,
+      "net_positive_rate": 0.6666666666666666,
+      "pnl": 8.340163354159774,
+      "avg_risk_pct": 0.013913425838626281,
+      "median_risk_pct": 0.013279975403779648,
+      "avg_raw_target_pct": 0.01691342583862628,
+      "avg_ret60": 0.0028579471924560645,
+      "avg_ret120": 0.006326831133666656,
+      "avg_ret240": 0.006238633879466083
+    },
+    {
+      "block": "B2",
+      "reclaim_candidates": 4,
+      "n": 4,
+      "confirmation_rate": 1.0,
+      "tp": 2,
+      "sl": 2,
+      "time": 0,
+      "decisive_n": 4,
+      "decisive_wr": 0.5,
+      "net_positive_rate": 0.5,
+      "pnl": -15.056896226900642,
+      "avg_risk_pct": 0.012880955470964194,
+      "median_risk_pct": 0.009556031981523435,
+      "avg_raw_target_pct": 0.015880955470964193,
+      "avg_ret60": 0.003588002095195458,
+      "avg_ret120": 0.004655675711337444,
+      "avg_ret240": 0.005895286583598301
+    },
+    {
+      "block": "B3",
+      "reclaim_candidates": 3,
+      "n": 3,
+      "confirmation_rate": 1.0,
+      "tp": 0,
+      "sl": 3,
+      "time": 0,
+      "decisive_n": 3,
+      "decisive_wr": 0.0,
+      "net_positive_rate": 0.0,
+      "pnl": -10.51916650773603,
+      "avg_risk_pct": 0.005512777671824019,
+      "median_risk_pct": 0.00561158554125828,
+      "avg_raw_target_pct": 0.00851277767182402,
+      "avg_ret60": 0.0008475375363089926,
+      "avg_ret120": 0.00045821725850495694,
+      "avg_ret240": 0.001778174643348191
+    },
+    {
+      "block": "B4",
+      "reclaim_candidates": 4,
+      "n": 4,
+      "confirmation_rate": 1.0,
+      "tp": 1,
+      "sl": 3,
+      "time": 0,
+      "decisive_n": 4,
+      "decisive_wr": 0.25,
+      "net_positive_rate": 0.25,
+      "pnl": -10.097555326243256,
+      "avg_risk_pct": 0.009357774713269148,
+      "median_risk_pct": 0.009597052042008024,
+      "avg_raw_target_pct": 0.012357774713269149,
+      "avg_ret60": 0.0015285491903545417,
+      "avg_ret120": 0.0025431516082501716,
+      "avg_ret240": 0.0028309105642356403
+    }
+  ],
+  "gate": {
+    "AOH1_EXTERNAL_SUPPORT": false,
+    "AOH1_80_CANDIDATE": false,
+    "positive_blocks": 1,
+    "blocks_wr_gt50": 1
+  },
+  "guardrails": {
+    "one_minute_used": false,
+    "asia_anchor_utc": "00:00",
+    "window_minutes": 90,
+    "fee": 0.0015,
+    "net_rr": "1:1 by target raw_reward=risk+2*fee",
+    "max_hold_hours": 6
+  }
+}
