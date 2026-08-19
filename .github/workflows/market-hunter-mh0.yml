@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'research/market_hunter_mh0_cross_sectional.py'
+      - 'research/market_hunter_mh0_datavision_runner.py'
       - 'MARKET_HUNTER_MH0_Preregistration.md'
       - '.github/workflows/market-hunter-mh0.yml'
 
@@ -26,12 +27,12 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install numpy pandas requests
-      - name: Run preregistered MH0
+      - name: Run preregistered MH0 via official Data Vision archives
         id: run
         continue-on-error: true
         run: |
           set +e
-          python research/market_hunter_mh0_cross_sectional.py > MARKET_HUNTER_MH0_Run.log 2>&1
+          python research/market_hunter_mh0_datavision_runner.py > MARKET_HUNTER_MH0_Run.log 2>&1
           code=$?
           echo "$code" > MARKET_HUNTER_MH0_EXIT_CODE.txt
           cat MARKET_HUNTER_MH0_Run.log
