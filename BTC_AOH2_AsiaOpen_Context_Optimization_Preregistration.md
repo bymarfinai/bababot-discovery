@@ -117,3 +117,5 @@ If external sample is below N12, the rule cannot be labeled 80% even if observed
 - no post-result weekday/weekend carve-out;
 - no direction flip;
 - no live BBC changes.
+
+CI trigger note only; research rules above are unchanged.
