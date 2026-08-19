@@ -1,54 +1,63 @@
-name: BTC Friday AllHour Candle C0
+name: BTC Friday Candle C2 Runner
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_friday_allhour_candle_c0.py'
-      - 'BTC_Friday_AllHour_Candle_C0_Preregistration.md'
+      - 'research/btc_friday_all5m_candle_c2.py'
+      - 'BTC_Friday_All5m_Candle_C2_Preregistration.md'
       - '.github/workflows/btc-friday-allhour-candle-c0.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-friday-allhour-candle-c0
-  cancel-in-progress: false
+  group: btc-friday-candle-c2
+  cancel-in-progress: true
 
 jobs:
-  backtest:
+  c2:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install numpy pandas requests scikit-learn
-      - name: Run frozen C0
-        id: run
+        run: pip install numpy pandas requests
+      - name: Run frozen C2
+        id: c2run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_friday_allhour_candle_c0.py > BTC_Friday_AllHour_Candle_C0_Run.log 2>&1
+          PYTHONPATH=research python research/btc_friday_all5m_candle_c2.py > BTC_Friday_All5m_Candle_C2_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_Friday_AllHour_Candle_C0_EXIT_CODE.txt
-          cat BTC_Friday_AllHour_Candle_C0_Run.log
+          echo "$code" > BTC_Friday_All5m_Candle_C2_EXIT_CODE.txt
+          cat BTC_Friday_All5m_Candle_C2_Run.log
           exit $code
-      - name: Persist artifacts
+      - name: Persist C2 artifacts safely
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_Friday_AllHour_Candle_C0_EXIT_CODE.txt BTC_Friday_AllHour_Candle_C0_Run.log
-          for f in BTC_Friday_AllHour_Candle_C0_Result.md BTC_Friday_AllHour_Candle_C0_Result.json BTC_Friday_AllHour_Candle_C0_Rows.csv; do
+          git add BTC_Friday_All5m_Candle_C2_EXIT_CODE.txt BTC_Friday_All5m_Candle_C2_Run.log
+          for f in BTC_Friday_All5m_Candle_C2_Result.md BTC_Friday_All5m_Candle_C2_Result.json BTC_Friday_All5m_Candle_C2_Rows.csv BTC_Friday_All5m_Candle_C2_Discovery_Archetypes.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git commit -m "research: persist BTC Friday allhour candle C0 result"
+            git stash push --include-untracked -m c2-artifacts
+            git pull --rebase origin main
+            git stash pop
+            git add BTC_Friday_All5m_Candle_C2_EXIT_CODE.txt BTC_Friday_All5m_Candle_C2_Run.log
+            for f in BTC_Friday_All5m_Candle_C2_Result.md BTC_Friday_All5m_Candle_C2_Result.json BTC_Friday_All5m_Candle_C2_Rows.csv BTC_Friday_All5m_Candle_C2_Discovery_Archetypes.csv; do
+              if [ -f "$f" ]; then git add "$f"; fi
+            done
+            git commit -m "research: persist BTC Friday all5m candle C2 result"
             git push
           fi
-      - name: Fail if test failed
-        if: steps.run.outcome == 'failure'
+      - name: Fail if C2 failed
+        if: steps.c2run.outcome == 'failure'
         run: exit 1
