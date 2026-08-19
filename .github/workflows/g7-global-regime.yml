@@ -1,0 +1,63 @@
+name: BTC Global Regime G7
+on:
+  push:
+    paths:
+      - 'research/g7_weekly_health_risk_governor.py'
+      - '.github/workflows/g7-global-regime.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas
+      - name: Run preregistered G7 and persist
+        shell: bash
+        run: |
+          set +e
+          cd research
+          G7_OUT=g7_out G6_TUE=../BTC_Global_Regime_G6_Tuesday_Rows.csv G6_AUG=../BTC_Global_Regime_G6_August.csv G5_TUE=../BTC_Global_Regime_G5_Tuesday_Rows.csv python g7_weekly_health_risk_governor.py > ../G7_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat G7_RUN.log
+          printf '%s\n' "$rc" > G7_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            cp research/g7_out/BTC_GLOBAL_REGIME_G7_RESULT.md BTC_Global_Regime_G7_Result.md
+            cp research/g7_out/g7_summary.json BTC_Global_Regime_G7_Summary.json
+            cp research/g7_out/g7_tuesday_rows.csv BTC_Global_Regime_G7_Tuesday_Rows.csv
+            cp research/g7_out/g7_august.csv BTC_Global_Regime_G7_August.csv
+            rm -f BTC_Global_Regime_G7_ERROR.log
+            git add BTC_Global_Regime_G7_Result.md BTC_Global_Regime_G7_Summary.json BTC_Global_Regime_G7_Tuesday_Rows.csv BTC_Global_Regime_G7_August.csv G7_EXIT_CODE.txt
+            git add -u BTC_Global_Regime_G7_ERROR.log 2>/dev/null || true
+            msg="research: persist G7 weekly health risk governor"
+          else
+            cp G7_RUN.log BTC_Global_Regime_G7_ERROR.log
+            git add BTC_Global_Regime_G7_ERROR.log G7_EXIT_CODE.txt
+            msg="ci: persist G7 weekly risk governor traceback"
+          fi
+
+          git diff --cached --quiet || git commit -m "$msg"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: btc-global-regime-g7-output
+          path: |
+            G7_RUN.log
+            G7_EXIT_CODE.txt
+            research/g7_out/BTC_GLOBAL_REGIME_G7_RESULT.md
+            research/g7_out/g7_summary.json
+            research/g7_out/g7_tuesday_rows.csv
+            research/g7_out/g7_august.csv
