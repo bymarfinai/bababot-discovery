@@ -1,0 +1,65 @@
+name: Tuesday Forward Evaluator Synthetic Test
+on:
+  push:
+    paths:
+      - 'BTC_Tuesday_A511_Forward_Promotion_Protocol.md'
+      - 'BTC_Tuesday_Forward_Shadow_Model_State.json'
+      - 'research/tuesday_a511_forward_evaluator.py'
+      - 'research/tuesday_a511_forward_evaluator_synthetic_test.py'
+      - '.github/workflows/tuesday-forward-evaluator-synthetic-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  synthetic-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas
+      - name: Run synthetic decision-state fixtures
+        shell: bash
+        run: |
+          set +e
+          cd research
+          python tuesday_a511_forward_evaluator_synthetic_test.py > ../FORWARD_EVALUATOR_SYNTHETIC_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat FORWARD_EVALUATOR_SYNTHETIC_RUN.log
+          printf '%s\n' "$rc" > FORWARD_EVALUATOR_SYNTHETIC_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            rm -f BTC_Tuesday_A511_Forward_Evaluator_Synthetic_Test_ERROR.log
+            git add BTC_Tuesday_A511_Forward_Evaluator_Synthetic_Test.json BTC_Tuesday_A511_Forward_Evaluator_Synthetic_Test.md FORWARD_EVALUATOR_SYNTHETIC_EXIT_CODE.txt
+            git add -u BTC_Tuesday_A511_Forward_Evaluator_Synthetic_Test_ERROR.log 2>/dev/null || true
+            msg="test: persist Tuesday forward evaluator synthetic pass"
+          else
+            cp FORWARD_EVALUATOR_SYNTHETIC_RUN.log BTC_Tuesday_A511_Forward_Evaluator_Synthetic_Test_ERROR.log
+            git add BTC_Tuesday_A511_Forward_Evaluator_Synthetic_Test_ERROR.log FORWARD_EVALUATOR_SYNTHETIC_EXIT_CODE.txt
+            msg="test: persist Tuesday forward evaluator synthetic failure"
+          fi
+
+          if ! git diff --cached --quiet; then
+            git commit -m "$msg"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tuesday-forward-evaluator-synthetic-${{ github.run_id }}
+          path: |
+            FORWARD_EVALUATOR_SYNTHETIC_RUN.log
+            FORWARD_EVALUATOR_SYNTHETIC_EXIT_CODE.txt
+            BTC_Tuesday_A511_Forward_Evaluator_Synthetic_Test.json
+            BTC_Tuesday_A511_Forward_Evaluator_Synthetic_Test.md
+            BTC_Tuesday_A511_Forward_Evaluator_Synthetic_Test_ERROR.log
