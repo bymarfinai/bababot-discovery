@@ -1,0 +1,63 @@
+name: BTC Global Regime G5
+on:
+  push:
+    paths:
+      - 'research/g5_causal_regime_risk_governor.py'
+      - '.github/workflows/g5-global-regime.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas
+      - name: Run preregistered G5 and persist
+        shell: bash
+        run: |
+          set +e
+          cd research
+          G5_OUT=g5_out G1_POOL=../BTC_Global_Regime_G1_Pooled_WalkForward_Predictions.csv G1_TUE=../BTC_Global_Regime_G1_Tuesday_Overlay.csv G1_AUG=../BTC_Global_Regime_G1_August_Tuesday.csv G0_DATA=../BTC_Global_Regime_G0_Pooled_Hourly_States.csv python g5_causal_regime_risk_governor.py > ../G5_RUN.log 2>&1
+          rc=$?
+          cd ..
+          cat G5_RUN.log
+          printf '%s\n' "$rc" > G5_EXIT_CODE.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$rc" -eq 0 ]; then
+            cp research/g5_out/BTC_GLOBAL_REGIME_G5_RESULT.md BTC_Global_Regime_G5_Result.md
+            cp research/g5_out/g5_summary.json BTC_Global_Regime_G5_Summary.json
+            cp research/g5_out/g5_tuesday_rows.csv BTC_Global_Regime_G5_Tuesday_Rows.csv
+            cp research/g5_out/g5_august.csv BTC_Global_Regime_G5_August.csv
+            rm -f BTC_Global_Regime_G5_ERROR.log
+            git add BTC_Global_Regime_G5_Result.md BTC_Global_Regime_G5_Summary.json BTC_Global_Regime_G5_Tuesday_Rows.csv BTC_Global_Regime_G5_August.csv G5_EXIT_CODE.txt
+            git add -u BTC_Global_Regime_G5_ERROR.log 2>/dev/null || true
+            msg="research: persist G5 causal regime risk governor"
+          else
+            cp G5_RUN.log BTC_Global_Regime_G5_ERROR.log
+            git add BTC_Global_Regime_G5_ERROR.log G5_EXIT_CODE.txt
+            msg="ci: persist G5 risk governor traceback"
+          fi
+
+          git diff --cached --quiet || git commit -m "$msg"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          exit "$rc"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: btc-global-regime-g5-output
+          path: |
+            G5_RUN.log
+            G5_EXIT_CODE.txt
+            research/g5_out/BTC_GLOBAL_REGIME_G5_RESULT.md
+            research/g5_out/g5_summary.json
+            research/g5_out/g5_tuesday_rows.csv
+            research/g5_out/g5_august.csv
