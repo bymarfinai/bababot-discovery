@@ -137,3 +137,42 @@ Verdicts:
 Interpretation: measured Distribution beyond the accumulation range solves AMD2's reward-distance eligibility problem but not the probability problem. FVG mitigation frequently precedes a return toward/across the opposite accumulation boundary, yet continuation one full accumulation range beyond that boundary is uncommon within the frozen six-hour execution window.
 
 Do not rescue AMD3 by testing 0.25x/0.5x/0.75x/1.5x/2.0x expansion multiples on the same evidence, changing entry depth, widening hold, or isolating London SHORT post-hoc. Any future AMD/FVG experiment must introduce a materially different causal information state rather than interpolate a target after seeing AMD2/AMD3.
+
+## AMD4 — exact AMD2 mitigation entry -> FVG far-edge invalidation SL -> opposite accumulation boundary TP — REJECT
+
+Materially different risk hypothesis from AMD2/AMD3:
+- retain exact AMD2 accumulation, first-session manipulation, exact opposite FVG, first near-edge mitigation entry, six-hour mitigation window and six-hour hold;
+- target returns to the original opposite accumulation boundary;
+- SHORT SL = bearish FVG far/upper edge = manipulation-candle low;
+- LONG SL = bullish FVG far/lower edge = manipulation-candle high;
+- no stop buffer or ATR padding;
+- only trades with modeled net RR >=1:1 after 0.15% fee are executable.
+
+Coverage: 2020-01-01 through available 2026-08-18 completed H1 archive, 58,128 rows; exact FVG events 253.
+
+The tighter FVG invalidation stop substantially increased RR eligibility versus the manipulation-extreme control:
+- development: 23 FVG-stop eligible vs 7 manipulation-stop eligible;
+- reference validation: 6 vs 1;
+- external 2020-2021: 24 vs 3.
+However the tight stop was invalidated far too often:
+- development: 3TP/19SL/1TIME, decisive WR13.64%, PnL -$18.41, expectancy -$0.80/trade, median raw risk0.13%, median net RR3.09;
+- reference validation: 0TP/5SL/1TIME, decisive WR0.00%, PnL -$8.13, expectancy -$1.35/trade, median raw risk0.09%, median net RR2.61;
+- external: 5TP/19SL/0TIME, decisive WR20.83%, PnL -$7.93, expectancy -$0.33/trade, median raw risk0.16%, median net RR2.19;
+- August: 0 RR-eligible events.
+
+External chronological blocks:
+- B1 N6 WR33.33%, -$0.13;
+- B2 N6 WR0.00%, -$6.64;
+- B3 N6 WR16.67%, -$6.55;
+- B4 N6 WR33.33%, +$5.40.
+No block stability or support.
+
+Side/session diagnostics are non-promotable. External London SHORT was the least-bad cell (N2, 1TP/1SL, WR50%, +$10.40), but validation London SHORT had N1 and lost. No side/session carve-out survives.
+
+Verdicts:
+- `AMD4_FVG_STOP_SUPPORTED=FAIL`
+- `AMD4_80_CANDIDATE=FAIL`
+
+Interpretation: the AMD3 observation that price often reaches the opposite accumulation boundary does not translate into a tradable edge by shrinking the stop to full FVG invalidation. The market frequently mitigates through the entire H1 FVG before any later rotation, so the far FVG edge is too tight as a stop even though it creates attractive nominal RR. This is consistent with the broader path-dependency problem seen across the session-sweep research: direction can eventually be right while the adverse excursion first invalidates a tight structural stop.
+
+Do not rescue AMD4 by adding arbitrary buffers beyond the FVG edge, choosing partial-FVG entries, changing the target, widening the hold, or isolating London SHORT. Any future AMD/FVG experiment must introduce a materially different causal mechanism rather than interpolate between FVG-edge and manipulation-extreme stops.
