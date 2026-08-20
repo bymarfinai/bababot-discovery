@@ -1,22 +1,22 @@
-name: BTC H1 Previous-Day Volume Profile VP1 Runner
+name: BTC H1 AMD FVG AMD1 Runner
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_h1_previous_day_volume_profile_vp1.py'
-      - 'BTC_H1_PreviousDay_VolumeProfile_VP1_Preregistration.md'
+      - 'research/btc_h1_amd_fvg_amd1.py'
+      - 'BTC_H1_AMD_FVG_AMD1_Preregistration.md'
       - '.github/workflows/btc-friday-allhour-candle-c0.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-h1-previous-day-volume-profile-vp1
+  group: btc-h1-amd-fvg-amd1
   cancel-in-progress: true
 
 jobs:
-  vp1:
+  amd1:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -27,37 +27,37 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install numpy pandas requests
-      - name: Run frozen VP1
-        id: vp1run
+        run: pip install numpy pandas requests scikit-learn
+      - name: Run frozen AMD1
+        id: amd1run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_h1_previous_day_volume_profile_vp1.py > BTC_H1_PreviousDay_VolumeProfile_VP1_Run.log 2>&1
+          PYTHONPATH=research python research/btc_h1_amd_fvg_amd1.py > BTC_H1_AMD_FVG_AMD1_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_H1_PreviousDay_VolumeProfile_VP1_EXIT_CODE.txt
-          cat BTC_H1_PreviousDay_VolumeProfile_VP1_Run.log
+          echo "$code" > BTC_H1_AMD_FVG_AMD1_EXIT_CODE.txt
+          cat BTC_H1_AMD_FVG_AMD1_Run.log
           exit $code
-      - name: Persist VP1 artifacts safely
+      - name: Persist AMD1 artifacts safely
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_H1_PreviousDay_VolumeProfile_VP1_EXIT_CODE.txt BTC_H1_PreviousDay_VolumeProfile_VP1_Run.log
-          for f in BTC_H1_PreviousDay_VolumeProfile_VP1_Result.md BTC_H1_PreviousDay_VolumeProfile_VP1_Result.json BTC_H1_PreviousDay_VolumeProfile_VP1_Events.csv BTC_H1_PreviousDay_VolumeProfile_VP1_August.csv BTC_H1_PreviousDay_VolumeProfile_VP1_Profiles.csv; do
+          git add BTC_H1_AMD_FVG_AMD1_EXIT_CODE.txt BTC_H1_AMD_FVG_AMD1_Run.log
+          for f in BTC_H1_AMD_FVG_AMD1_Result.md BTC_H1_AMD_FVG_AMD1_Result.json BTC_H1_AMD_FVG_AMD1_Events.csv BTC_H1_AMD_FVG_AMD1_August.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git stash push --include-untracked -m h1-vp1-artifacts
+            git stash push --include-untracked -m h1-amd1-artifacts
             git pull --rebase origin main
             git stash pop
-            git add BTC_H1_PreviousDay_VolumeProfile_VP1_EXIT_CODE.txt BTC_H1_PreviousDay_VolumeProfile_VP1_Run.log
-            for f in BTC_H1_PreviousDay_VolumeProfile_VP1_Result.md BTC_H1_PreviousDay_VolumeProfile_VP1_Result.json BTC_H1_PreviousDay_VolumeProfile_VP1_Events.csv BTC_H1_PreviousDay_VolumeProfile_VP1_August.csv BTC_H1_PreviousDay_VolumeProfile_VP1_Profiles.csv; do
+            git add BTC_H1_AMD_FVG_AMD1_EXIT_CODE.txt BTC_H1_AMD_FVG_AMD1_Run.log
+            for f in BTC_H1_AMD_FVG_AMD1_Result.md BTC_H1_AMD_FVG_AMD1_Result.json BTC_H1_AMD_FVG_AMD1_Events.csv BTC_H1_AMD_FVG_AMD1_August.csv; do
               if [ -f "$f" ]; then git add "$f"; fi
             done
-            git commit -m "research: persist H1 previous-day volume profile VP1"
+            git commit -m "research: persist BTC H1 AMD FVG AMD1"
             git push
           fi
-      - name: Fail if VP1 failed
-        if: steps.vp1run.outcome == 'failure'
+      - name: Fail if AMD1 failed
+        if: steps.amd1run.outcome == 'failure'
         run: exit 1
