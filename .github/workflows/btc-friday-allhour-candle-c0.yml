@@ -1,22 +1,22 @@
-name: BTC H1 AMD FVG Mitigation AMD2 Runner
+name: BTC H1 AMD FVG Distribution Expansion AMD3 Runner
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_h1_amd_fvg_mitigation_amd2_runner.py'
-      - 'BTC_H1_AMD_FVG_Mitigation_AMD2_Preregistration.md'
+      - 'research/btc_h1_amd_fvg_distribution_expansion_amd3.py'
+      - 'BTC_H1_AMD_FVG_DistributionExpansion_AMD3_Preregistration.md'
       - '.github/workflows/btc-friday-allhour-candle-c0.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-h1-amd-fvg-mitigation-amd2
+  group: btc-h1-amd-fvg-distribution-expansion-amd3
   cancel-in-progress: true
 
 jobs:
-  amd2:
+  amd3:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -28,36 +28,36 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install numpy pandas requests scikit-learn
-      - name: Run frozen AMD2
-        id: amd2run
+      - name: Run frozen AMD3
+        id: amd3run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_h1_amd_fvg_mitigation_amd2_runner.py > BTC_H1_AMD_FVG_Mitigation_AMD2_Run.log 2>&1
+          PYTHONPATH=research python research/btc_h1_amd_fvg_distribution_expansion_amd3.py > BTC_H1_AMD_FVG_DistributionExpansion_AMD3_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_H1_AMD_FVG_Mitigation_AMD2_EXIT_CODE.txt
-          cat BTC_H1_AMD_FVG_Mitigation_AMD2_Run.log
+          echo "$code" > BTC_H1_AMD_FVG_DistributionExpansion_AMD3_EXIT_CODE.txt
+          cat BTC_H1_AMD_FVG_DistributionExpansion_AMD3_Run.log
           exit $code
-      - name: Persist AMD2 artifacts safely
+      - name: Persist AMD3 artifacts safely
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_H1_AMD_FVG_Mitigation_AMD2_EXIT_CODE.txt BTC_H1_AMD_FVG_Mitigation_AMD2_Run.log
-          for f in BTC_H1_AMD_FVG_Mitigation_AMD2_Result.md BTC_H1_AMD_FVG_Mitigation_AMD2_Result.json BTC_H1_AMD_FVG_Mitigation_AMD2_Events.csv BTC_H1_AMD_FVG_Mitigation_AMD2_August.csv; do
+          git add BTC_H1_AMD_FVG_DistributionExpansion_AMD3_EXIT_CODE.txt BTC_H1_AMD_FVG_DistributionExpansion_AMD3_Run.log
+          for f in BTC_H1_AMD_FVG_DistributionExpansion_AMD3_Result.md BTC_H1_AMD_FVG_DistributionExpansion_AMD3_Result.json BTC_H1_AMD_FVG_DistributionExpansion_AMD3_Events.csv BTC_H1_AMD_FVG_DistributionExpansion_AMD3_August.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git stash push --include-untracked -m h1-amd2-artifacts
+            git stash push --include-untracked -m h1-amd3-artifacts
             git pull --rebase origin main
             git stash pop
-            git add BTC_H1_AMD_FVG_Mitigation_AMD2_EXIT_CODE.txt BTC_H1_AMD_FVG_Mitigation_AMD2_Run.log
-            for f in BTC_H1_AMD_FVG_Mitigation_AMD2_Result.md BTC_H1_AMD_FVG_Mitigation_AMD2_Result.json BTC_H1_AMD_FVG_Mitigation_AMD2_Events.csv BTC_H1_AMD_FVG_Mitigation_AMD2_August.csv; do
+            git add BTC_H1_AMD_FVG_DistributionExpansion_AMD3_EXIT_CODE.txt BTC_H1_AMD_FVG_DistributionExpansion_AMD3_Run.log
+            for f in BTC_H1_AMD_FVG_DistributionExpansion_AMD3_Result.md BTC_H1_AMD_FVG_DistributionExpansion_AMD3_Result.json BTC_H1_AMD_FVG_DistributionExpansion_AMD3_Events.csv BTC_H1_AMD_FVG_DistributionExpansion_AMD3_August.csv; do
               if [ -f "$f" ]; then git add "$f"; fi
             done
-            git commit -m "research: persist BTC H1 AMD FVG mitigation AMD2"
+            git commit -m "research: persist BTC H1 AMD FVG distribution expansion AMD3"
             git push
           fi
-      - name: Fail if AMD2 failed
-        if: steps.amd2run.outcome == 'failure'
+      - name: Fail if AMD3 failed
+        if: steps.amd3run.outcome == 'failure'
         run: exit 1
