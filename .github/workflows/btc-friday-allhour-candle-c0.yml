@@ -1,22 +1,22 @@
-name: BTC H1 AMD FVG Invalidation AMD4 Runner
+name: BTC H1 Failed FVG Retest IFVG1 Runner
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'research/btc_h1_amd_fvg_fvg_invalidation_amd4.py'
-      - 'BTC_H1_AMD_FVG_FVGInvalidation_AMD4_Preregistration.md'
+      - 'research/btc_h1_ifvg_failed_fvg_retest_ifvg1.py'
+      - 'BTC_H1_IFVG_FailedFVG_Retest_IFVG1_Preregistration.md'
       - '.github/workflows/btc-friday-allhour-candle-c0.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: btc-h1-amd-fvg-invalidation-amd4
+  group: btc-h1-failed-fvg-retest-ifvg1
   cancel-in-progress: true
 
 jobs:
-  amd4:
+  ifvg1:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -28,36 +28,36 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install numpy pandas requests scikit-learn
-      - name: Run frozen AMD4
-        id: amd4run
+      - name: Run frozen IFVG1
+        id: ifvg1run
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_h1_amd_fvg_fvg_invalidation_amd4.py > BTC_H1_AMD_FVG_FVGInvalidation_AMD4_Run.log 2>&1
+          PYTHONPATH=research python research/btc_h1_ifvg_failed_fvg_retest_ifvg1.py > BTC_H1_IFVG_FailedFVG_Retest_IFVG1_Run.log 2>&1
           code=$?
-          echo "$code" > BTC_H1_AMD_FVG_FVGInvalidation_AMD4_EXIT_CODE.txt
-          cat BTC_H1_AMD_FVG_FVGInvalidation_AMD4_Run.log
+          echo "$code" > BTC_H1_IFVG_FailedFVG_Retest_IFVG1_EXIT_CODE.txt
+          cat BTC_H1_IFVG_FailedFVG_Retest_IFVG1_Run.log
           exit $code
-      - name: Persist AMD4 artifacts safely
+      - name: Persist IFVG1 artifacts safely
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BTC_H1_AMD_FVG_FVGInvalidation_AMD4_EXIT_CODE.txt BTC_H1_AMD_FVG_FVGInvalidation_AMD4_Run.log
-          for f in BTC_H1_AMD_FVG_FVGInvalidation_AMD4_Result.md BTC_H1_AMD_FVG_FVGInvalidation_AMD4_Result.json BTC_H1_AMD_FVG_FVGInvalidation_AMD4_Events.csv BTC_H1_AMD_FVG_FVGInvalidation_AMD4_August.csv; do
+          git add BTC_H1_IFVG_FailedFVG_Retest_IFVG1_EXIT_CODE.txt BTC_H1_IFVG_FailedFVG_Retest_IFVG1_Run.log
+          for f in BTC_H1_IFVG_FailedFVG_Retest_IFVG1_Result.md BTC_H1_IFVG_FailedFVG_Retest_IFVG1_Result.json BTC_H1_IFVG_FailedFVG_Retest_IFVG1_Events.csv BTC_H1_IFVG_FailedFVG_Retest_IFVG1_August.csv; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
           if ! git diff --cached --quiet; then
-            git stash push --include-untracked -m h1-amd4-artifacts
+            git stash push --include-untracked -m h1-ifvg1-artifacts
             git pull --rebase origin main
             git stash pop
-            git add BTC_H1_AMD_FVG_FVGInvalidation_AMD4_EXIT_CODE.txt BTC_H1_AMD_FVG_FVGInvalidation_AMD4_Run.log
-            for f in BTC_H1_AMD_FVG_FVGInvalidation_AMD4_Result.md BTC_H1_AMD_FVG_FVGInvalidation_AMD4_Result.json BTC_H1_AMD_FVG_FVGInvalidation_AMD4_Events.csv BTC_H1_AMD_FVG_FVGInvalidation_AMD4_August.csv; do
+            git add BTC_H1_IFVG_FailedFVG_Retest_IFVG1_EXIT_CODE.txt BTC_H1_IFVG_FailedFVG_Retest_IFVG1_Run.log
+            for f in BTC_H1_IFVG_FailedFVG_Retest_IFVG1_Result.md BTC_H1_IFVG_FailedFVG_Retest_IFVG1_Result.json BTC_H1_IFVG_FailedFVG_Retest_IFVG1_Events.csv BTC_H1_IFVG_FailedFVG_Retest_IFVG1_August.csv; do
               if [ -f "$f" ]; then git add "$f"; fi
             done
-            git commit -m "research: persist BTC H1 AMD FVG invalidation AMD4"
+            git commit -m "research: persist BTC H1 failed FVG retest IFVG1"
             git push
           fi
-      - name: Fail if AMD4 failed
-        if: steps.amd4run.outcome == 'failure'
+      - name: Fail if IFVG1 failed
+        if: steps.ifvg1run.outcome == 'failure'
         run: exit 1
