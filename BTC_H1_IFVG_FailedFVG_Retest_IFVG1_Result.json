@@ -1,0 +1,657 @@
+{
+  "protocol": "BTC_H1_IFVG_FAILED_FVG_RETEST_IFVG1",
+  "coverage": {
+    "first": "2020-01-01 00:00:00+00:00",
+    "last": "2026-08-18 23:00:00+00:00",
+    "rows": 58128
+  },
+  "exact_fvg_total": 253,
+  "aggregate": {
+    "development": {
+      "fvg_n": 125,
+      "failure_n": 57,
+      "failure_rate": 0.456,
+      "retest_n": 50,
+      "retest_rate_of_failure": 0.8771929824561403,
+      "eligible_n": 32,
+      "trade": {
+        "n": 32,
+        "tp": 3,
+        "sl": 29,
+        "time": 0,
+        "wr": 0.09375,
+        "pnl": -24.5018292217058,
+        "exp": -0.7656821631783063,
+        "medrisk": 0.0012315738182471668,
+        "medrr": 2.419973713180358
+      }
+    },
+    "reference_validation": {
+      "fvg_n": 47,
+      "failure_n": 17,
+      "failure_rate": 0.3617021276595745,
+      "retest_n": 14,
+      "retest_rate_of_failure": 0.8235294117647058,
+      "eligible_n": 7,
+      "trade": {
+        "n": 7,
+        "tp": 0,
+        "sl": 7,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -12.177720153040317,
+        "exp": -1.739674307577188,
+        "medrisk": 0.0018597790935082476,
+        "medrr": 1.9199118334823646
+      }
+    },
+    "external": {
+      "fvg_n": 79,
+      "failure_n": 29,
+      "failure_rate": 0.3670886075949367,
+      "retest_n": 22,
+      "retest_rate_of_failure": 0.7586206896551724,
+      "eligible_n": 20,
+      "trade": {
+        "n": 20,
+        "tp": 6,
+        "sl": 14,
+        "time": 0,
+        "wr": 0.3,
+        "pnl": 13.69092894639694,
+        "exp": 0.684546447319847,
+        "medrisk": 0.0021891691559682803,
+        "medrr": 3.0407627095464953
+      }
+    },
+    "august": {
+      "fvg_n": 2,
+      "failure_n": 1,
+      "failure_rate": 0.5,
+      "retest_n": 1,
+      "retest_rate_of_failure": 1.0,
+      "eligible_n": 1,
+      "trade": {
+        "n": 1,
+        "tp": 0,
+        "sl": 0,
+        "time": 1,
+        "wr": null,
+        "pnl": 0.07324305049530365,
+        "exp": 0.07324305049530365,
+        "medrisk": 0.0013565681152230198,
+        "medrr": 1.5915664187265777
+      }
+    }
+  },
+  "matrix": [
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "fvg_n": 5,
+      "failure_n": 5,
+      "failure_rate": 1.0,
+      "retest_n": 5,
+      "retest_rate_of_failure": 1.0,
+      "eligible_n": 5,
+      "trade": {
+        "n": 5,
+        "tp": 0,
+        "sl": 5,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -6.011519809965675,
+        "exp": -1.202303961993135,
+        "medrisk": 0.0005936036822474638,
+        "medrr": 2.9853887460560045
+      }
+    },
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "fvg_n": 7,
+      "failure_n": 7,
+      "failure_rate": 1.0,
+      "retest_n": 6,
+      "retest_rate_of_failure": 0.8571428571428571,
+      "eligible_n": 3,
+      "trade": {
+        "n": 3,
+        "tp": 0,
+        "sl": 3,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -3.385882630620948,
+        "exp": -1.128627543540316,
+        "medrisk": 0.0005561671875034289,
+        "medrr": 1.2529230893264558
+      }
+    },
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 12,
+      "failure_n": 12,
+      "failure_rate": 1.0,
+      "retest_n": 11,
+      "retest_rate_of_failure": 0.9166666666666666,
+      "eligible_n": 7,
+      "trade": {
+        "n": 7,
+        "tp": 2,
+        "sl": 5,
+        "time": 0,
+        "wr": 0.2857142857142857,
+        "pnl": 5.048096598726618,
+        "exp": 0.7211566569609454,
+        "medrisk": 0.002585446527012208,
+        "medrr": 2.0246893293504518
+      }
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "fvg_n": 8,
+      "failure_n": 8,
+      "failure_rate": 1.0,
+      "retest_n": 4,
+      "retest_rate_of_failure": 0.5,
+      "eligible_n": 3,
+      "trade": {
+        "n": 3,
+        "tp": 0,
+        "sl": 3,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -4.403513693946609,
+        "exp": -1.4678378979822029,
+        "medrisk": 0.0014833666606071624,
+        "medrr": 2.141699418090973
+      }
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "fvg_n": 9,
+      "failure_n": 9,
+      "failure_rate": 1.0,
+      "retest_n": 9,
+      "retest_rate_of_failure": 1.0,
+      "eligible_n": 6,
+      "trade": {
+        "n": 6,
+        "tp": 0,
+        "sl": 6,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -11.409115082398717,
+        "exp": -1.9015191803997862,
+        "medrisk": 0.001354739630149871,
+        "medrr": 2.330465889500331
+      }
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 16,
+      "failure_n": 16,
+      "failure_rate": 1.0,
+      "retest_n": 15,
+      "retest_rate_of_failure": 0.9375,
+      "eligible_n": 8,
+      "trade": {
+        "n": 8,
+        "tp": 1,
+        "sl": 7,
+        "time": 0,
+        "wr": 0.125,
+        "pnl": -4.339894603500468,
+        "exp": -0.5424868254375586,
+        "medrisk": 0.00035751751190168533,
+        "medrr": 2.6123612920099335
+      }
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "fvg_n": 1,
+      "failure_n": 1,
+      "failure_rate": 1.0,
+      "retest_n": 1,
+      "retest_rate_of_failure": 1.0,
+      "eligible_n": 0,
+      "trade": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "fvg_n": 2,
+      "failure_n": 2,
+      "failure_rate": 1.0,
+      "retest_n": 2,
+      "retest_rate_of_failure": 1.0,
+      "eligible_n": 1,
+      "trade": {
+        "n": 1,
+        "tp": 0,
+        "sl": 1,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -1.1012340495984707,
+        "exp": -1.1012340495984707,
+        "medrisk": 0.0007024680991969415,
+        "medrr": 1.9199118334823646
+      }
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 4,
+      "failure_n": 4,
+      "failure_rate": 1.0,
+      "retest_n": 4,
+      "retest_rate_of_failure": 1.0,
+      "eligible_n": 3,
+      "trade": {
+        "n": 3,
+        "tp": 0,
+        "sl": 3,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -6.576993317826295,
+        "exp": -2.1923311059420985,
+        "medrisk": 0.00208521806942409,
+        "medrr": 3.039067532512727
+      }
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "fvg_n": 3,
+      "failure_n": 3,
+      "failure_rate": 1.0,
+      "retest_n": 2,
+      "retest_rate_of_failure": 0.6666666666666666,
+      "eligible_n": 0,
+      "trade": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "fvg_n": 5,
+      "failure_n": 5,
+      "failure_rate": 1.0,
+      "retest_n": 4,
+      "retest_rate_of_failure": 0.8,
+      "eligible_n": 2,
+      "trade": {
+        "n": 2,
+        "tp": 0,
+        "sl": 2,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -2.0487276492216546,
+        "exp": -1.0243638246108273,
+        "medrisk": 0.0005487276492216546,
+        "medrr": 1.7915839890474532
+      }
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 2,
+      "failure_n": 2,
+      "failure_rate": 1.0,
+      "retest_n": 1,
+      "retest_rate_of_failure": 0.5,
+      "eligible_n": 1,
+      "trade": {
+        "n": 1,
+        "tp": 0,
+        "sl": 1,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -2.450765136393896,
+        "exp": -2.450765136393896,
+        "medrisk": 0.003401530272787792,
+        "medrr": 1.4261184044678048
+      }
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "fvg_n": 3,
+      "failure_n": 3,
+      "failure_rate": 1.0,
+      "retest_n": 2,
+      "retest_rate_of_failure": 0.6666666666666666,
+      "eligible_n": 2,
+      "trade": {
+        "n": 2,
+        "tp": 1,
+        "sl": 1,
+        "time": 0,
+        "wr": 0.5,
+        "pnl": 7.535444092354226,
+        "exp": 3.767722046177113,
+        "medrisk": 0.00580256495741956,
+        "medrr": 1.6890681983983697
+      }
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "fvg_n": 3,
+      "failure_n": 3,
+      "failure_rate": 1.0,
+      "retest_n": 1,
+      "retest_rate_of_failure": 0.3333333333333333,
+      "eligible_n": 0,
+      "trade": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 7,
+      "failure_n": 7,
+      "failure_rate": 1.0,
+      "retest_n": 6,
+      "retest_rate_of_failure": 0.8571428571428571,
+      "eligible_n": 5,
+      "trade": {
+        "n": 5,
+        "tp": 0,
+        "sl": 5,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -7.645588401138298,
+        "exp": -1.5291176802276596,
+        "medrisk": 0.00169588999314654,
+        "medrr": 4.462521339826457
+      }
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "fvg_n": 8,
+      "failure_n": 8,
+      "failure_rate": 1.0,
+      "retest_n": 6,
+      "retest_rate_of_failure": 0.75,
+      "eligible_n": 6,
+      "trade": {
+        "n": 6,
+        "tp": 2,
+        "sl": 4,
+        "time": 0,
+        "wr": 0.3333333333333333,
+        "pnl": 13.917718838138487,
+        "exp": 2.3196198063564144,
+        "medrisk": 0.0021163616513414953,
+        "medrr": 3.66119131458201
+      }
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "fvg_n": 5,
+      "failure_n": 5,
+      "failure_rate": 1.0,
+      "retest_n": 4,
+      "retest_rate_of_failure": 0.8,
+      "eligible_n": 4,
+      "trade": {
+        "n": 4,
+        "tp": 2,
+        "sl": 2,
+        "time": 0,
+        "wr": 0.5,
+        "pnl": 1.9083845373622734,
+        "exp": 0.47709613434056836,
+        "medrisk": 0.0026090251943117725,
+        "medrr": 2.2217102220591407
+      }
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 3,
+      "failure_n": 3,
+      "failure_rate": 1.0,
+      "retest_n": 3,
+      "retest_rate_of_failure": 1.0,
+      "eligible_n": 3,
+      "trade": {
+        "n": 3,
+        "tp": 1,
+        "sl": 2,
+        "time": 0,
+        "wr": 0.3333333333333333,
+        "pnl": -2.02503012031975,
+        "exp": -0.6750100401065833,
+        "medrisk": 0.005584826132771338,
+        "medrr": 2.4373168736521182
+      }
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "fvg_n": 0,
+      "failure_n": 0,
+      "failure_rate": null,
+      "retest_n": 0,
+      "retest_rate_of_failure": null,
+      "eligible_n": 0,
+      "trade": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "fvg_n": 0,
+      "failure_n": 0,
+      "failure_rate": null,
+      "retest_n": 0,
+      "retest_rate_of_failure": null,
+      "eligible_n": 0,
+      "trade": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 0,
+      "failure_n": 0,
+      "failure_rate": null,
+      "retest_n": 0,
+      "retest_rate_of_failure": null,
+      "eligible_n": 0,
+      "trade": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "fvg_n": 0,
+      "failure_n": 0,
+      "failure_rate": null,
+      "retest_n": 0,
+      "retest_rate_of_failure": null,
+      "eligible_n": 0,
+      "trade": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "fvg_n": 0,
+      "failure_n": 0,
+      "failure_rate": null,
+      "retest_n": 0,
+      "retest_rate_of_failure": null,
+      "eligible_n": 0,
+      "trade": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 1,
+      "failure_n": 1,
+      "failure_rate": 1.0,
+      "retest_n": 1,
+      "retest_rate_of_failure": 1.0,
+      "eligible_n": 1,
+      "trade": {
+        "n": 1,
+        "tp": 0,
+        "sl": 0,
+        "time": 1,
+        "wr": null,
+        "pnl": 0.07324305049530365,
+        "exp": 0.07324305049530365,
+        "medrisk": 0.0013565681152230198,
+        "medrr": 1.5915664187265777
+      }
+    }
+  ],
+  "external_blocks": [
+    {
+      "block": "B1",
+      "n": 5,
+      "tp": 0,
+      "sl": 5,
+      "time": 0,
+      "wr": 0.0,
+      "pnl": -6.1716500143320765
+    },
+    {
+      "block": "B2",
+      "n": 5,
+      "tp": 0,
+      "sl": 5,
+      "time": 0,
+      "wr": 0.0,
+      "pnl": -19.760885927227847
+    },
+    {
+      "block": "B3",
+      "n": 5,
+      "tp": 3,
+      "sl": 2,
+      "time": 0,
+      "wr": 0.6,
+      "pnl": 27.55162759800137
+    },
+    {
+      "block": "B4",
+      "n": 5,
+      "tp": 3,
+      "sl": 2,
+      "time": 0,
+      "wr": 0.6,
+      "pnl": 12.071837289955496
+    }
+  ],
+  "IFVG1_SUPPORTED": false,
+  "IFVG1_80_CANDIDATE": false
+}
