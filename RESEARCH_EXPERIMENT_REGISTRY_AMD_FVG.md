@@ -97,3 +97,43 @@ Verdicts:
 Interpretation: using the FVG as a mitigation entry zone is more faithful to the requested execution model and materially improves entry location versus AMD1 chase entry, but it still does not create a robust executable edge under the frozen H1 geometry. The main structural failure is that the opposite accumulation boundary is usually too close to provide net RR1:1 relative to the manipulation-extreme stop; forcing a synthetic net1R target also fails OOS.
 
 Do not rescue AMD2 by choosing midpoint/25%/75% FVG entries, extending the mitigation window, changing accumulation length, allowing later FVGs, post-hoc isolating London SHORT or NY LONG, or altering the Distribution TP after seeing this evidence.
+
+## AMD3 — exact AMD2 FVG mitigation entry -> 1.0x accumulation-range Distribution extension — REJECT
+
+Materially different target hypothesis from AMD2:
+- retain exact AMD2 signal, FVG mitigation entry, structural manipulation-extreme SL, six-hour mitigation window and six-hour hold;
+- define `RANGE = acc_high - acc_low`;
+- LONG Distribution TP = `acc_high + RANGE`;
+- SHORT Distribution TP = `acc_low - RANGE`;
+- only one frozen extension multiple: 1.0x; no grid;
+- primary trade only when measured target provides modeled net RR >=1:1 after 0.15% round-trip fee.
+
+Coverage: 2020-01-01 through available 2026-08-18 completed H1 archive, 58,128 rows; exact FVG events 253.
+
+The farther measured Distribution target greatly increased RR-eligible counts versus AMD2, but execution quality collapsed:
+- development: 42 eligible, 4TP/14SL/24TIME, decisive WR22.22%, PnL -$63.65, expectancy -$1.52/trade, median risk0.94%, median net RR1.68;
+- reference validation: 9 eligible, 1TP/5SL/3TIME, decisive WR16.67%, PnL -$13.31, expectancy -$1.48/trade, median risk0.48%, median net RR2.13;
+- external 2020-2021: 40 eligible, 4TP/16SL/20TIME, decisive WR20.00%, PnL -$89.62, expectancy -$2.24/trade, median risk1.18%, median net RR1.60;
+- August: 0 eligible.
+
+External chronological measured-expansion blocks:
+- B1 N10 WR50.00%, +$8.35;
+- B2 N10 WR16.67%, -$23.88;
+- B3 N10 WR25.00%, -$23.73;
+- B4 N10 WR0.00%, -$50.36.
+There is strong deterioration and no stable expansion edge.
+
+Important diagnostic: the original opposite accumulation boundary itself was reached much more often after FVG mitigation than a full 1.0x extension:
+- validation: 15 boundary-evaluable events, decisive reach rate69.23%;
+- external: 51 boundary-evaluable events, decisive reach rate76.09%.
+This suggests the AMD/FVG sequence may often rotate back through the accumulation range, but the move frequently does not continue into a full measured Distribution expansion before structural invalidation/time-out. Because AMD2 showed the boundary usually lacks net1:1 geometry and AMD3 showed a 1.0x extension is too ambitious, this does NOT authorize post-hoc target interpolation.
+
+Descriptive side/session cells are not promotable. London SHORT again looked relatively better (validation expansion N3, decisive WR50%, +$0.74; external N8, decisive WR50%, +$5.22), but samples are tiny and this cell was already hypothesis-generating from AMD2.
+
+Verdicts:
+- `AMD3_EXPANSION_SUPPORTED=FAIL`
+- `AMD3_80_CANDIDATE=FAIL`
+
+Interpretation: measured Distribution beyond the accumulation range solves AMD2's reward-distance eligibility problem but not the probability problem. FVG mitigation frequently precedes a return toward/across the opposite accumulation boundary, yet continuation one full accumulation range beyond that boundary is uncommon within the frozen six-hour execution window.
+
+Do not rescue AMD3 by testing 0.25x/0.5x/0.75x/1.5x/2.0x expansion multiples on the same evidence, changing entry depth, widening hold, or isolating London SHORT post-hoc. Any future AMD/FVG experiment must introduce a materially different causal information state rather than interpolate a target after seeing AMD2/AMD3.
