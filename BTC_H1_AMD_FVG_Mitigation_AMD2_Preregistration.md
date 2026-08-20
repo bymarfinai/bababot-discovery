@@ -61,8 +61,10 @@ For every valid mitigation fill, separately test a synthetic target at `structur
 
 ### 8. Exit timing
 - Maximum hold: **6 completed 1H candles from the mitigation fill candle**.
-- Same-hour ambiguity is adverse-first.
-- On the fill candle, if both entry and SL are contained in the OHLC range, assume fill then SL. If entry and TP are both reachable on the same candle, adverse-first ordering applies.
+- Same-hour ambiguity is conservative/adverse-first.
+- On the fill candle, if both entry and SL are contained in the OHLC range, assume fill then **SL**.
+- If the fill candle also contains the TP but does not hit SL, **do not credit that TP on the fill candle** because the target may have occurred before the limit entry intrabar. TP search begins from the following completed 1H candle.
+- From later candles, if TP and SL are both hit in the same 1H candle, assume **SL first**.
 - TIME exits use the sixth candle close in signed trade direction, less fee.
 
 ## Evidence partitions
