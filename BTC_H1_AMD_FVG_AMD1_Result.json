@@ -1,0 +1,675 @@
+{
+  "protocol": "BTC_H1_AMD_FVG_AMD1",
+  "coverage": {
+    "first": "2020-01-01 00:00:00+00:00",
+    "last": "2026-08-18 23:00:00+00:00",
+    "rows1h": 58128
+  },
+  "counts": {
+    "all": 2157,
+    "reference": 1474,
+    "development": 1031,
+    "reference_validation": 443,
+    "external": 661,
+    "august": 21,
+    "fvg_all": 253
+  },
+  "reference_cut_ts": "2025-03-18 00:00:00+00:00",
+  "summary": {
+    "development": {
+      "baseline": {
+        "direction": {
+          "n": 1031,
+          "pos1h": 0.5150339476236664,
+          "pos3h": 0.542192046556741,
+          "avg3h": 0.0003746319966777213,
+          "median3h": 0.000547675731258912
+        },
+        "execution": {
+          "n": 1031,
+          "invalid": 0,
+          "tp": 297,
+          "sl": 734,
+          "time": 0,
+          "wr": 0.2880698351115422,
+          "pnl": -1127.2309865288712,
+          "expectancy": -1.0933375233063736,
+          "median_risk": 0.0036622894262203797
+        }
+      },
+      "fvg": {
+        "direction": {
+          "n": 125,
+          "pos1h": 0.512,
+          "pos3h": 0.52,
+          "avg3h": 0.0002595186021625837,
+          "median3h": 4.346445109415509e-05
+        },
+        "execution": {
+          "n": 125,
+          "invalid": 0,
+          "tp": 21,
+          "sl": 104,
+          "time": 0,
+          "wr": 0.168,
+          "pnl": -811.0495699466155,
+          "expectancy": -6.488396559572924,
+          "median_risk": 0.014144844179248321
+        }
+      }
+    },
+    "reference_validation": {
+      "baseline": {
+        "direction": {
+          "n": 443,
+          "pos1h": 0.5079006772009029,
+          "pos3h": 0.5282167042889391,
+          "avg3h": 0.00017133079909628703,
+          "median3h": 0.00033240494514852337
+        },
+        "execution": {
+          "n": 443,
+          "invalid": 0,
+          "tp": 108,
+          "sl": 335,
+          "time": 0,
+          "wr": 0.24379232505643342,
+          "pnl": -623.7271517186423,
+          "expectancy": -1.4079619677621722,
+          "median_risk": 0.003267712898462861
+        }
+      },
+      "fvg": {
+        "direction": {
+          "n": 47,
+          "pos1h": 0.5531914893617021,
+          "pos3h": 0.5531914893617021,
+          "avg3h": 0.0016184291328850272,
+          "median3h": 0.0009165717045500621
+        },
+        "execution": {
+          "n": 47,
+          "invalid": 0,
+          "tp": 9,
+          "sl": 38,
+          "time": 0,
+          "wr": 0.19148936170212766,
+          "pnl": -226.2041198425976,
+          "expectancy": -4.8128536136722895,
+          "median_risk": 0.010915866032145076
+        }
+      }
+    },
+    "external": {
+      "baseline": {
+        "direction": {
+          "n": 661,
+          "pos1h": 0.5204236006051437,
+          "pos3h": 0.5143721633888049,
+          "avg3h": -0.00025448560236818906,
+          "median3h": 0.00031546388856784624
+        },
+        "execution": {
+          "n": 661,
+          "invalid": 0,
+          "tp": 195,
+          "sl": 466,
+          "time": 0,
+          "wr": 0.2950075642965204,
+          "pnl": -1323.472911628116,
+          "expectancy": -2.00222830806069,
+          "median_risk": 0.006322310555811904
+        }
+      },
+      "fvg": {
+        "direction": {
+          "n": 79,
+          "pos1h": 0.5189873417721519,
+          "pos3h": 0.5063291139240507,
+          "avg3h": 0.001046844790421614,
+          "median3h": 9.521401430445664e-05
+        },
+        "execution": {
+          "n": 79,
+          "invalid": 0,
+          "tp": 13,
+          "sl": 66,
+          "time": 0,
+          "wr": 0.16455696202531644,
+          "pnl": -786.0202011001005,
+          "expectancy": -9.949622798735449,
+          "median_risk": 0.01990670961124352
+        }
+      }
+    },
+    "august": {
+      "baseline": {
+        "direction": {
+          "n": 21,
+          "pos1h": 0.47619047619047616,
+          "pos3h": 0.6190476190476191,
+          "avg3h": 9.666242528061364e-05,
+          "median3h": 0.0007232240567158765
+        },
+        "execution": {
+          "n": 21,
+          "invalid": 0,
+          "tp": 5,
+          "sl": 16,
+          "time": 0,
+          "wr": 0.23809523809523808,
+          "pnl": -20.373048131962143,
+          "expectancy": -0.9701451491410544,
+          "median_risk": 0.002323493770911851
+        }
+      },
+      "fvg": {
+        "direction": {
+          "n": 2,
+          "pos1h": 0.5,
+          "pos3h": 0.0,
+          "avg3h": -0.002277960076740748,
+          "median3h": -0.002277960076740748
+        },
+        "execution": {
+          "n": 2,
+          "invalid": 0,
+          "tp": 0,
+          "sl": 2,
+          "time": 0,
+          "wr": 0.0,
+          "pnl": -11.832433169206467,
+          "expectancy": -5.916216584603234,
+          "median_risk": 0.010332433169206467
+        }
+      }
+    }
+  },
+  "matrix": [
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "ALL",
+      "baseline_n": 514,
+      "baseline_pos3h": 0.5408560311284046,
+      "fvg_n": 69,
+      "fvg_pos3h": 0.463768115942029,
+      "conversion": 0.13424124513618677,
+      "uplift": -0.07708791518637564,
+      "fvg_exec_n": 69,
+      "fvg_exec_wr": 0.17391304347826086,
+      "fvg_exec_pnl": -416.0625503237295
+    },
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "baseline_n": 152,
+      "baseline_pos3h": 0.5789473684210527,
+      "fvg_n": 16,
+      "fvg_pos3h": 0.4375,
+      "conversion": 0.10526315789473684,
+      "uplift": -0.14144736842105265,
+      "fvg_exec_n": 16,
+      "fvg_exec_wr": 0.1875,
+      "fvg_exec_pnl": -71.47028475807682
+    },
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "baseline_n": 158,
+      "baseline_pos3h": 0.5506329113924051,
+      "fvg_n": 17,
+      "fvg_pos3h": 0.5882352941176471,
+      "conversion": 0.10759493670886076,
+      "uplift": 0.03760238272524197,
+      "fvg_exec_n": 17,
+      "fvg_exec_wr": 0.29411764705882354,
+      "fvg_exec_pnl": -69.92265792769156
+    },
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "baseline_n": 204,
+      "baseline_pos3h": 0.5049019607843137,
+      "fvg_n": 36,
+      "fvg_pos3h": 0.4166666666666667,
+      "conversion": 0.17647058823529413,
+      "uplift": -0.08823529411764702,
+      "fvg_exec_n": 36,
+      "fvg_exec_wr": 0.1111111111111111,
+      "fvg_exec_pnl": -274.6696076379611
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "ALL",
+      "baseline_n": 517,
+      "baseline_pos3h": 0.5435203094777563,
+      "fvg_n": 56,
+      "fvg_pos3h": 0.5892857142857143,
+      "conversion": 0.10831721470019343,
+      "uplift": 0.04576540480795799,
+      "fvg_exec_n": 56,
+      "fvg_exec_wr": 0.16071428571428573,
+      "fvg_exec_pnl": -394.987019622886
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "baseline_n": 158,
+      "baseline_pos3h": 0.5886075949367089,
+      "fvg_n": 14,
+      "fvg_pos3h": 0.7142857142857143,
+      "conversion": 0.08860759493670886,
+      "uplift": 0.1256781193490054,
+      "fvg_exec_n": 14,
+      "fvg_exec_wr": 0.0,
+      "fvg_exec_pnl": -129.97096463510206
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "baseline_n": 171,
+      "baseline_pos3h": 0.5029239766081871,
+      "fvg_n": 10,
+      "fvg_pos3h": 0.4,
+      "conversion": 0.05847953216374269,
+      "uplift": -0.10292397660818708,
+      "fvg_exec_n": 10,
+      "fvg_exec_wr": 0.2,
+      "fvg_exec_pnl": -24.289321874912698
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "baseline_n": 188,
+      "baseline_pos3h": 0.5425531914893617,
+      "fvg_n": 32,
+      "fvg_pos3h": 0.59375,
+      "conversion": 0.1702127659574468,
+      "uplift": 0.05119680851063835,
+      "fvg_exec_n": 32,
+      "fvg_exec_wr": 0.21875,
+      "fvg_exec_pnl": -240.72673311287124
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "ALL",
+      "baseline_n": 227,
+      "baseline_pos3h": 0.5110132158590308,
+      "fvg_n": 25,
+      "fvg_pos3h": 0.44,
+      "conversion": 0.11013215859030837,
+      "uplift": -0.07101321585903081,
+      "fvg_exec_n": 25,
+      "fvg_exec_wr": 0.12,
+      "fvg_exec_pnl": -160.78704417950524
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "baseline_n": 73,
+      "baseline_pos3h": 0.5068493150684932,
+      "fvg_n": 9,
+      "fvg_pos3h": 0.4444444444444444,
+      "conversion": 0.1232876712328767,
+      "uplift": -0.06240487062404876,
+      "fvg_exec_n": 9,
+      "fvg_exec_wr": 0.0,
+      "fvg_exec_pnl": -100.26429818887958
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "baseline_n": 64,
+      "baseline_pos3h": 0.46875,
+      "fvg_n": 7,
+      "fvg_pos3h": 0.2857142857142857,
+      "conversion": 0.109375,
+      "uplift": -0.1830357142857143,
+      "fvg_exec_n": 7,
+      "fvg_exec_wr": 0.2857142857142857,
+      "fvg_exec_pnl": -4.207033566718241
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "baseline_n": 90,
+      "baseline_pos3h": 0.5444444444444444,
+      "fvg_n": 9,
+      "fvg_pos3h": 0.5555555555555556,
+      "conversion": 0.1,
+      "uplift": 0.011111111111111183,
+      "fvg_exec_n": 9,
+      "fvg_exec_wr": 0.1111111111111111,
+      "fvg_exec_pnl": -56.31571242390742
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "ALL",
+      "baseline_n": 216,
+      "baseline_pos3h": 0.5462962962962963,
+      "fvg_n": 22,
+      "fvg_pos3h": 0.6818181818181818,
+      "conversion": 0.10185185185185185,
+      "uplift": 0.1355218855218855,
+      "fvg_exec_n": 22,
+      "fvg_exec_wr": 0.2727272727272727,
+      "fvg_exec_pnl": -65.4170756630924
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "baseline_n": 77,
+      "baseline_pos3h": 0.5584415584415584,
+      "fvg_n": 5,
+      "fvg_pos3h": 0.8,
+      "conversion": 0.06493506493506493,
+      "uplift": 0.24155844155844164,
+      "fvg_exec_n": 5,
+      "fvg_exec_wr": 0.2,
+      "fvg_exec_pnl": -11.502026644004584
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "baseline_n": 70,
+      "baseline_pos3h": 0.5857142857142857,
+      "fvg_n": 7,
+      "fvg_pos3h": 0.42857142857142855,
+      "conversion": 0.1,
+      "uplift": -0.1571428571428572,
+      "fvg_exec_n": 7,
+      "fvg_exec_wr": 0.42857142857142855,
+      "fvg_exec_pnl": -1.1465809716919493
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "baseline_n": 69,
+      "baseline_pos3h": 0.4927536231884058,
+      "fvg_n": 10,
+      "fvg_pos3h": 0.8,
+      "conversion": 0.14492753623188406,
+      "uplift": 0.3072463768115942,
+      "fvg_exec_n": 10,
+      "fvg_exec_wr": 0.2,
+      "fvg_exec_pnl": -52.76846804739587
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "ALL",
+      "baseline_n": 333,
+      "baseline_pos3h": 0.5105105105105106,
+      "fvg_n": 38,
+      "fvg_pos3h": 0.47368421052631576,
+      "conversion": 0.11411411411411411,
+      "uplift": -0.03682629998419479,
+      "fvg_exec_n": 38,
+      "fvg_exec_wr": 0.13157894736842105,
+      "fvg_exec_pnl": -405.3048743866347
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "baseline_n": 127,
+      "baseline_pos3h": 0.5039370078740157,
+      "fvg_n": 17,
+      "fvg_pos3h": 0.47058823529411764,
+      "conversion": 0.13385826771653545,
+      "uplift": -0.0333487725798981,
+      "fvg_exec_n": 17,
+      "fvg_exec_wr": 0.11764705882352941,
+      "fvg_exec_pnl": -159.1600210145702
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "baseline_n": 109,
+      "baseline_pos3h": 0.5412844036697247,
+      "fvg_n": 13,
+      "fvg_pos3h": 0.46153846153846156,
+      "conversion": 0.11926605504587157,
+      "uplift": -0.07974594213126318,
+      "fvg_exec_n": 13,
+      "fvg_exec_wr": 0.15384615384615385,
+      "fvg_exec_pnl": -151.0407431122714
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "baseline_n": 97,
+      "baseline_pos3h": 0.4845360824742268,
+      "fvg_n": 8,
+      "fvg_pos3h": 0.5,
+      "conversion": 0.08247422680412371,
+      "uplift": 0.015463917525773196,
+      "fvg_exec_n": 8,
+      "fvg_exec_wr": 0.125,
+      "fvg_exec_pnl": -95.104110259793
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "ALL",
+      "baseline_n": 328,
+      "baseline_pos3h": 0.5182926829268293,
+      "fvg_n": 41,
+      "fvg_pos3h": 0.5365853658536586,
+      "conversion": 0.125,
+      "uplift": 0.018292682926829285,
+      "fvg_exec_n": 41,
+      "fvg_exec_wr": 0.1951219512195122,
+      "fvg_exec_pnl": -380.715326713466
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "baseline_n": 113,
+      "baseline_pos3h": 0.6106194690265486,
+      "fvg_n": 12,
+      "fvg_pos3h": 0.5833333333333334,
+      "conversion": 0.10619469026548672,
+      "uplift": -0.027286135693215252,
+      "fvg_exec_n": 12,
+      "fvg_exec_wr": 0.16666666666666666,
+      "fvg_exec_pnl": -92.92081559239794
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "baseline_n": 113,
+      "baseline_pos3h": 0.45132743362831856,
+      "fvg_n": 13,
+      "fvg_pos3h": 0.5384615384615384,
+      "conversion": 0.11504424778761062,
+      "uplift": 0.08713410483321987,
+      "fvg_exec_n": 13,
+      "fvg_exec_wr": 0.15384615384615385,
+      "fvg_exec_pnl": -121.61606606896616
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "baseline_n": 102,
+      "baseline_pos3h": 0.49019607843137253,
+      "fvg_n": 16,
+      "fvg_pos3h": 0.5,
+      "conversion": 0.1568627450980392,
+      "uplift": 0.009803921568627472,
+      "fvg_exec_n": 16,
+      "fvg_exec_wr": 0.25,
+      "fvg_exec_pnl": -166.17844505210192
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "ALL",
+      "baseline_n": 14,
+      "baseline_pos3h": 0.7857142857142857,
+      "fvg_n": 2,
+      "fvg_pos3h": 0.0,
+      "conversion": 0.14285714285714285,
+      "uplift": -0.7857142857142857,
+      "fvg_exec_n": 2,
+      "fvg_exec_wr": 0.0,
+      "fvg_exec_pnl": -11.832433169206467
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "baseline_n": 6,
+      "baseline_pos3h": 0.8333333333333334,
+      "fvg_n": 0,
+      "fvg_pos3h": null,
+      "conversion": 0.0,
+      "uplift": null,
+      "fvg_exec_n": 0,
+      "fvg_exec_wr": null,
+      "fvg_exec_pnl": 0.0
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "baseline_n": 4,
+      "baseline_pos3h": 0.75,
+      "fvg_n": 0,
+      "fvg_pos3h": null,
+      "conversion": 0.0,
+      "uplift": null,
+      "fvg_exec_n": 0,
+      "fvg_exec_wr": null,
+      "fvg_exec_pnl": 0.0
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "baseline_n": 4,
+      "baseline_pos3h": 0.75,
+      "fvg_n": 2,
+      "fvg_pos3h": 0.0,
+      "conversion": 0.5,
+      "uplift": -0.75,
+      "fvg_exec_n": 2,
+      "fvg_exec_wr": 0.0,
+      "fvg_exec_pnl": -11.832433169206467
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "ALL",
+      "baseline_n": 7,
+      "baseline_pos3h": 0.2857142857142857,
+      "fvg_n": 0,
+      "fvg_pos3h": null,
+      "conversion": 0.0,
+      "uplift": null,
+      "fvg_exec_n": 0,
+      "fvg_exec_wr": null,
+      "fvg_exec_pnl": 0.0
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "baseline_n": 2,
+      "baseline_pos3h": 0.0,
+      "fvg_n": 0,
+      "fvg_pos3h": null,
+      "conversion": 0.0,
+      "uplift": null,
+      "fvg_exec_n": 0,
+      "fvg_exec_wr": null,
+      "fvg_exec_pnl": 0.0
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "baseline_n": 1,
+      "baseline_pos3h": 1.0,
+      "fvg_n": 0,
+      "fvg_pos3h": null,
+      "conversion": 0.0,
+      "uplift": null,
+      "fvg_exec_n": 0,
+      "fvg_exec_wr": null,
+      "fvg_exec_pnl": 0.0
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "baseline_n": 4,
+      "baseline_pos3h": 0.25,
+      "fvg_n": 0,
+      "fvg_pos3h": null,
+      "conversion": 0.0,
+      "uplift": null,
+      "fvg_exec_n": 0,
+      "fvg_exec_wr": null,
+      "fvg_exec_pnl": 0.0
+    }
+  ],
+  "external_fvg_blocks": [
+    {
+      "block": "B1",
+      "n": 19,
+      "pos1h": 0.42105263157894735,
+      "pos3h": 0.47368421052631576,
+      "avg3h": 0.004358225633376067,
+      "median3h": -0.0003296529271779036
+    },
+    {
+      "block": "B2",
+      "n": 20,
+      "pos1h": 0.5,
+      "pos3h": 0.45,
+      "avg3h": -0.00045054598888362717,
+      "median3h": -0.0005075612641970983
+    },
+    {
+      "block": "B3",
+      "n": 20,
+      "pos1h": 0.7,
+      "pos3h": 0.65,
+      "avg3h": 0.0014790862561891993,
+      "median3h": 0.0010123046681671521
+    },
+    {
+      "block": "B4",
+      "n": 20,
+      "pos1h": 0.45,
+      "pos3h": 0.45,
+      "avg3h": -0.001033817696847461,
+      "median3h": -0.0026114813333102393
+    }
+  ],
+  "AMD1_FVG_DIRECTION_SUPPORTED": false,
+  "AMD1_80_CANDIDATE": false,
+  "AMD1_EXECUTION_SUPPORTED": false
+}
