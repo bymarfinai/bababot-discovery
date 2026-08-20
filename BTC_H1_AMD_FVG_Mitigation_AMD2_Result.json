@@ -1,0 +1,949 @@
+{
+  "protocol": "BTC_H1_AMD_FVG_MITIGATION_AMD2",
+  "coverage": {
+    "first": "2020-01-01 00:00:00+00:00",
+    "last": "2026-08-18 23:00:00+00:00",
+    "rows": 58128
+  },
+  "reference_cut": "2025-03-18 00:00:00+00:00",
+  "exact_fvg_total": 253,
+  "aggregate": {
+    "development": {
+      "fvg_n": 125,
+      "filled_n": 83,
+      "fill_rate": 0.664,
+      "rr_n": 7,
+      "dist": {
+        "n": 7,
+        "tp": 0,
+        "sl": 4,
+        "time": 3,
+        "wr": 0.0,
+        "pnl": -19.847926882344893,
+        "exp": -2.8354181260492703,
+        "medrisk": 0.010417312313243143,
+        "medrr": 1.4188360924955485
+      },
+      "net1r": {
+        "n": 83,
+        "tp": 14,
+        "sl": 35,
+        "time": 34,
+        "wr": 0.2857142857142857,
+        "pnl": -106.57904083964137,
+        "exp": -1.2840848293932694,
+        "medrisk": 0.009358958534513429,
+        "medrr": 1.0
+      }
+    },
+    "reference_validation": {
+      "fvg_n": 47,
+      "filled_n": 28,
+      "fill_rate": 0.5957446808510638,
+      "rr_n": 1,
+      "dist": {
+        "n": 1,
+        "tp": 0,
+        "sl": 0,
+        "time": 1,
+        "wr": null,
+        "pnl": -0.14277226788691968,
+        "exp": -0.14277226788691968,
+        "medrisk": 0.004498426898316597,
+        "medrr": 1.1756586610000832
+      },
+      "net1r": {
+        "n": 28,
+        "tp": 5,
+        "sl": 13,
+        "time": 10,
+        "wr": 0.2777777777777778,
+        "pnl": -34.16886131031212,
+        "exp": -1.2203164753682898,
+        "medrisk": 0.006421171147622588,
+        "medrr": 1.0
+      }
+    },
+    "external": {
+      "fvg_n": 79,
+      "filled_n": 61,
+      "fill_rate": 0.7721518987341772,
+      "rr_n": 3,
+      "dist": {
+        "n": 3,
+        "tp": 1,
+        "sl": 1,
+        "time": 1,
+        "wr": 0.5,
+        "pnl": 5.284726834775872,
+        "exp": 1.7615756115919572,
+        "medrisk": 0.007262684379127184,
+        "medrr": 1.216753703458901
+      },
+      "net1r": {
+        "n": 61,
+        "tp": 12,
+        "sl": 17,
+        "time": 32,
+        "wr": 0.41379310344827586,
+        "pnl": -75.48281539295971,
+        "exp": -1.237423203163274,
+        "medrisk": 0.015358359580896078,
+        "medrr": 1.0
+      }
+    },
+    "august": {
+      "fvg_n": 2,
+      "filled_n": 2,
+      "fill_rate": 1.0,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 1,
+        "tp": 0,
+        "sl": 0,
+        "time": 1,
+        "wr": null,
+        "pnl": -2.1178905687544707,
+        "exp": -2.1178905687544707,
+        "medrisk": 0.007392956950540731,
+        "medrr": 1.0
+      }
+    }
+  },
+  "matrix": [
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "fvg_n": 16,
+      "filled_n": 10,
+      "fill_rate": 0.625,
+      "rr_n": 1,
+      "dist": {
+        "n": 1,
+        "tp": 0,
+        "sl": 1,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -3.5921429423696107,
+        "exp": -3.5921429423696107,
+        "medrisk": 0.005684285884739222,
+        "medrr": 1.4487016599819114
+      },
+      "net1r": {
+        "n": 10,
+        "tp": 2,
+        "sl": 4,
+        "time": 4,
+        "wr": 0.3333333333333333,
+        "pnl": -12.842082421477453,
+        "exp": -1.2842082421477454,
+        "medrisk": 0.006275288189576133,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "fvg_n": 17,
+      "filled_n": 12,
+      "fill_rate": 0.7058823529411765,
+      "rr_n": 2,
+      "dist": {
+        "n": 2,
+        "tp": 0,
+        "sl": 2,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -10.389497036028217,
+        "exp": -5.194748518014109,
+        "medrisk": 0.008889497036028218,
+        "medrr": 1.166488718146288
+      },
+      "net1r": {
+        "n": 12,
+        "tp": 3,
+        "sl": 8,
+        "time": 1,
+        "wr": 0.2727272727272727,
+        "pnl": -30.961972711652002,
+        "exp": -2.5801643926376667,
+        "medrisk": 0.008940381899333296,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 36,
+      "filled_n": 24,
+      "fill_rate": 0.6666666666666666,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 24,
+        "tp": 3,
+        "sl": 12,
+        "time": 9,
+        "wr": 0.2,
+        "pnl": -49.707856370935524,
+        "exp": -2.0711606821223136,
+        "medrisk": 0.00699807409777878,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "fvg_n": 14,
+      "filled_n": 8,
+      "fill_rate": 0.5714285714285714,
+      "rr_n": 2,
+      "dist": {
+        "n": 2,
+        "tp": 0,
+        "sl": 1,
+        "time": 1,
+        "wr": 0.0,
+        "pnl": -5.845250454984115,
+        "exp": -2.9226252274920577,
+        "medrisk": 0.011659134871394115,
+        "medrr": 2.1731414165136886
+      },
+      "net1r": {
+        "n": 8,
+        "tp": 0,
+        "sl": 1,
+        "time": 7,
+        "wr": 0.0,
+        "pnl": 2.0961958283744107,
+        "exp": 0.26202447854680133,
+        "medrisk": 0.01064748001096307,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "fvg_n": 10,
+      "filled_n": 9,
+      "fill_rate": 0.9,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 9,
+        "tp": 2,
+        "sl": 3,
+        "time": 4,
+        "wr": 0.4,
+        "pnl": -1.0433489823250917,
+        "exp": -0.11592766470278797,
+        "medrisk": 0.0044586553790085135,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 32,
+      "filled_n": 20,
+      "fill_rate": 0.625,
+      "rr_n": 2,
+      "dist": {
+        "n": 2,
+        "tp": 0,
+        "sl": 0,
+        "time": 2,
+        "wr": null,
+        "pnl": -0.02103644896295087,
+        "exp": -0.010518224481475436,
+        "medrisk": 0.02232697707594929,
+        "medrr": 1.3530236773037083
+      },
+      "net1r": {
+        "n": 20,
+        "tp": 4,
+        "sl": 7,
+        "time": 9,
+        "wr": 0.36363636363636365,
+        "pnl": -14.119976181625706,
+        "exp": -0.7059988090812853,
+        "medrisk": 0.013706145009321016,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "fvg_n": 9,
+      "filled_n": 6,
+      "fill_rate": 0.6666666666666666,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 6,
+        "tp": 0,
+        "sl": 4,
+        "time": 2,
+        "wr": 0.0,
+        "pnl": -15.374923696793319,
+        "exp": -2.5624872827988865,
+        "medrisk": 0.006783354712451841,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "fvg_n": 7,
+      "filled_n": 6,
+      "fill_rate": 0.8571428571428571,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 6,
+        "tp": 1,
+        "sl": 4,
+        "time": 1,
+        "wr": 0.2,
+        "pnl": -5.8792479780863065,
+        "exp": -0.9798746630143844,
+        "medrisk": 0.004247713510294167,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 9,
+      "filled_n": 6,
+      "fill_rate": 0.6666666666666666,
+      "rr_n": 1,
+      "dist": {
+        "n": 1,
+        "tp": 0,
+        "sl": 0,
+        "time": 1,
+        "wr": null,
+        "pnl": -0.14277226788691968,
+        "exp": -0.14277226788691968,
+        "medrisk": 0.004498426898316597,
+        "medrr": 1.1756586610000832
+      },
+      "net1r": {
+        "n": 6,
+        "tp": 1,
+        "sl": 2,
+        "time": 3,
+        "wr": 0.3333333333333333,
+        "pnl": -10.977276832454802,
+        "exp": -1.829546138742467,
+        "medrisk": 0.01101725404918319,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "fvg_n": 5,
+      "filled_n": 2,
+      "fill_rate": 0.4,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 2,
+        "tp": 1,
+        "sl": 1,
+        "time": 0,
+        "wr": 0.5,
+        "pnl": 1.211311598262875,
+        "exp": 0.6056557991314375,
+        "medrisk": 0.006537524778393024,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "fvg_n": 7,
+      "filled_n": 4,
+      "fill_rate": 0.5714285714285714,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 4,
+        "tp": 2,
+        "sl": 1,
+        "time": 1,
+        "wr": 0.6666666666666666,
+        "pnl": 5.085537781906923,
+        "exp": 1.2713844454767307,
+        "medrisk": 0.004772461321638005,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 10,
+      "filled_n": 4,
+      "fill_rate": 0.4,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 4,
+        "tp": 0,
+        "sl": 1,
+        "time": 3,
+        "wr": 0.0,
+        "pnl": -8.234262183147482,
+        "exp": -2.0585655457868706,
+        "medrisk": 0.014442289164472598,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "fvg_n": 17,
+      "filled_n": 11,
+      "fill_rate": 0.6470588235294118,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 11,
+        "tp": 0,
+        "sl": 6,
+        "time": 5,
+        "wr": 0.0,
+        "pnl": -48.32565154858954,
+        "exp": -4.393241049871777,
+        "medrisk": 0.015540914072970547,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "fvg_n": 13,
+      "filled_n": 12,
+      "fill_rate": 0.9230769230769231,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 12,
+        "tp": 4,
+        "sl": 4,
+        "time": 4,
+        "wr": 0.5,
+        "pnl": -19.04068487614766,
+        "exp": -1.5867237396789717,
+        "medrisk": 0.014740207701369499,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 8,
+      "filled_n": 8,
+      "fill_rate": 1.0,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 8,
+        "tp": 1,
+        "sl": 0,
+        "time": 7,
+        "wr": 1.0,
+        "pnl": 0.033121243206301276,
+        "exp": 0.0041401554007876595,
+        "medrisk": 0.019574106414728894,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "fvg_n": 12,
+      "filled_n": 7,
+      "fill_rate": 0.5833333333333334,
+      "rr_n": 1,
+      "dist": {
+        "n": 1,
+        "tp": 0,
+        "sl": 1,
+        "time": 0,
+        "wr": 0.0,
+        "pnl": -3.7798562014404187,
+        "exp": -3.7798562014404187,
+        "medrisk": 0.006059712402880837,
+        "medrr": 1.5492297340091776
+      },
+      "net1r": {
+        "n": 7,
+        "tp": 0,
+        "sl": 3,
+        "time": 4,
+        "wr": 0.0,
+        "pnl": -24.187501245120725,
+        "exp": -3.4553573207315322,
+        "medrisk": 0.008010182667566873,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "fvg_n": 13,
+      "filled_n": 9,
+      "fill_rate": 0.6923076923076923,
+      "rr_n": 1,
+      "dist": {
+        "n": 1,
+        "tp": 1,
+        "sl": 0,
+        "time": 0,
+        "wr": 1.0,
+        "pnl": 12.174270613780175,
+        "exp": 12.174270613780175,
+        "medrisk": 0.022040604499339374,
+        "medrr": 1.0343209847582142
+      },
+      "net1r": {
+        "n": 9,
+        "tp": 4,
+        "sl": 1,
+        "time": 4,
+        "wr": 0.8,
+        "pnl": 21.545676659677316,
+        "exp": 2.3939640732974796,
+        "medrisk": 0.015358359580896078,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 16,
+      "filled_n": 14,
+      "fill_rate": 0.875,
+      "rr_n": 1,
+      "dist": {
+        "n": 1,
+        "tp": 0,
+        "sl": 0,
+        "time": 1,
+        "wr": null,
+        "pnl": -3.109687577563885,
+        "exp": -3.109687577563885,
+        "medrisk": 0.007262684379127184,
+        "medrr": 1.216753703458901
+      },
+      "net1r": {
+        "n": 14,
+        "tp": 3,
+        "sl": 3,
+        "time": 8,
+        "wr": 0.5,
+        "pnl": -5.5077756259853885,
+        "exp": -0.39341254471324205,
+        "medrisk": 0.014800730743223665,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "fvg_n": 0,
+      "filled_n": 0,
+      "fill_rate": null,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "fvg_n": 0,
+      "filled_n": 0,
+      "fill_rate": null,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 2,
+      "filled_n": 2,
+      "fill_rate": 1.0,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 1,
+        "tp": 0,
+        "sl": 0,
+        "time": 1,
+        "wr": null,
+        "pnl": -2.1178905687544707,
+        "exp": -2.1178905687544707,
+        "medrisk": 0.007392956950540731,
+        "medrr": 1.0
+      }
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "fvg_n": 0,
+      "filled_n": 0,
+      "fill_rate": null,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "fvg_n": 0,
+      "filled_n": 0,
+      "fill_rate": null,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "fvg_n": 0,
+      "filled_n": 0,
+      "fill_rate": null,
+      "rr_n": 0,
+      "dist": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      },
+      "net1r": {
+        "n": 0,
+        "tp": 0,
+        "sl": 0,
+        "time": 0,
+        "wr": null,
+        "pnl": 0.0,
+        "exp": null,
+        "medrisk": null,
+        "medrr": null
+      }
+    }
+  ],
+  "external_distribution_blocks": [
+    {
+      "block": "B1",
+      "n": 0,
+      "tp": 0,
+      "sl": 0,
+      "time": 0,
+      "wr": null,
+      "pnl": 0.0
+    },
+    {
+      "block": "B2",
+      "n": 1,
+      "tp": 0,
+      "sl": 1,
+      "time": 0,
+      "wr": 0.0,
+      "pnl": -3.7798562014404187
+    },
+    {
+      "block": "B3",
+      "n": 1,
+      "tp": 0,
+      "sl": 0,
+      "time": 1,
+      "wr": null,
+      "pnl": -3.109687577563885
+    },
+    {
+      "block": "B4",
+      "n": 1,
+      "tp": 1,
+      "sl": 0,
+      "time": 0,
+      "wr": 1.0,
+      "pnl": 12.174270613780175
+    }
+  ],
+  "external_net1r_blocks": [
+    {
+      "block": "B1",
+      "n": 15,
+      "tp": 5,
+      "sl": 1,
+      "time": 9,
+      "wr": 0.8333333333333334,
+      "pnl": 14.800607157170163
+    },
+    {
+      "block": "B2",
+      "n": 15,
+      "tp": 3,
+      "sl": 5,
+      "time": 7,
+      "wr": 0.375,
+      "pnl": -28.0353925733286
+    },
+    {
+      "block": "B3",
+      "n": 15,
+      "tp": 3,
+      "sl": 5,
+      "time": 7,
+      "wr": 0.375,
+      "pnl": -48.47127554225643
+    },
+    {
+      "block": "B4",
+      "n": 16,
+      "tp": 1,
+      "sl": 6,
+      "time": 9,
+      "wr": 0.14285714285714285,
+      "pnl": -13.776754434544836
+    }
+  ],
+  "AMD2_DISTRIBUTION_SUPPORTED": false,
+  "AMD2_80_CANDIDATE": false,
+  "AMD2_NET1R_SUPPORTED": false
+}
