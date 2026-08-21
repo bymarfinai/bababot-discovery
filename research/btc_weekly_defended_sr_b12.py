@@ -15,14 +15,16 @@ from sklearn.linear_model import LogisticRegression
 import btc_weekly_mtf_level_atlas_b11 as b11
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT_MD = ROOT / "BTC_WEEKLY_DEFENDED_SR_B12_Result.md"
-OUT_JSON = ROOT / "BTC_WEEKLY_DEFENDED_SR_B12_Result.json"
-OUT_SEL = ROOT / "BTC_WEEKLY_DEFENDED_SR_B12_Selected.csv"
-OUT_ATLAS = ROOT / "BTC_WEEKLY_DEFENDED_SR_B12_Atlas.csv"
-OUT_THRESH = ROOT / "BTC_WEEKLY_DEFENDED_SR_B12_Thresholds.csv"
-OUT_ZERO = ROOT / "BTC_WEEKLY_DEFENDED_SR_B12_ZeroWeeks.csv"
+OUT_MD = ROOT / "BTC_WEEKLY_DEFENDED_SR_B13_Result.md"
+OUT_JSON = ROOT / "BTC_WEEKLY_DEFENDED_SR_B13_Result.json"
+OUT_SEL = ROOT / "BTC_WEEKLY_DEFENDED_SR_B13_Selected.csv"
+OUT_ATLAS = ROOT / "BTC_WEEKLY_DEFENDED_SR_B13_Atlas.csv"
+OUT_THRESH = ROOT / "BTC_WEEKLY_DEFENDED_SR_B13_Thresholds.csv"
+OUT_ZERO = ROOT / "BTC_WEEKLY_DEFENDED_SR_B13_ZeroWeeks.csv"
 
-IMPL = "B12_V1"
+# B13 is a pure ID renumbering because another preregistered experiment had already
+# claimed B12. No trading rule changed after the failed reporting-only B12 run.
+IMPL = "B13_V1_FIX1"
 SOURCE_TFS = ["H1", "H4", "D1", "W1"]
 TF_HOURS = {"H1": 1, "H4": 4, "D1": 24, "W1": 168}
 MAX_AGE_HOURS = {"H1": 168, "H4": 336, "D1": 720, "W1": 2016}
@@ -64,7 +66,6 @@ def confirmed_swing_state(src: pd.DataFrame, kind: str):
             ok = a[j] > np.max(a[j-2:j]) and a[j] >= np.max(a[j+1:j+3])
         else:
             ok = a[j] < np.min(a[j-2:j]) and a[j] <= np.min(a[j+1:j+3])
-        # Pivot is known at the START of j+3 after both right bars complete.
         if ok and j+3 < len(src):
             events[j+3] = (float(a[j]), int(j))
     lastv = np.nan
@@ -91,7 +92,6 @@ def generate_origin_zones(src: pd.DataFrame, tf: str):
         if not np.isfinite(atr[k]) or atr[k] <= 0:
             continue
 
-        # Demand: completed bullish BOS of an already-known confirmed swing high.
         if np.isfinite(shi[k]) and c[k] > shi[k]:
             candidates = [p for p in range(max(0, k-ORIGIN_LOOKBACK), k) if c[p] < o[p]]
             if candidates:
@@ -114,7 +114,6 @@ def generate_origin_zones(src: pd.DataFrame, tf: str):
                     })
                     seen.add(key)
 
-        # Supply: completed bearish BOS of already-known confirmed swing low.
         if np.isfinite(slo[k]) and c[k] < slo[k]:
             candidates = [p for p in range(max(0, k-ORIGIN_LOOKBACK), k) if c[p] > o[p]]
             if candidates:
@@ -254,10 +253,10 @@ def build_signals(h1: pd.DataFrame):
         zone_counts.append({"source_tf":tf,"origins":len(origins),"flips":len(flips),"defended_signals":got})
     q = pd.DataFrame(signals)
     if q.empty:
-        raise RuntimeError("B12 generated no defended-zone signals")
-    q["age_hours"] = (pd.to_datetime(q.touch_ts, utc=True)-pd.to_datetime(q.create_ts, utc=True)).dt.total_seconds()/3600.0
-    q["week"] = q.signal_ts.map(lambda t: b11.week_key(b11.week_start(t)))
-    q["is_tp"] = (q.reason == "TP").astype(int)
+        raise RuntimeError("B13 generated no defended-zone signals")
+    q["age_hours"] = (pd.to_datetime(q["touch_ts"], utc=True)-pd.to_datetime(q["create_ts"], utc=True)).dt.total_seconds()/3600.0
+    q["week"] = q["signal_ts"].map(lambda t: b11.week_key(b11.week_start(t)))
+    q["is_tp"] = (q["reason"] == "TP").astype(int)
     return q.sort_values(["signal_ts","source_tf","zone_kind"]).reset_index(drop=True), zone_counts
 
 
@@ -275,16 +274,31 @@ def week_keys(weeks):
     return {b11.week_key(w) for w in weeks}
 
 
+def ensure_week(sig):
+    q = sig.copy()
+    if "week" not in q.columns:
+        if "signal_ts" not in q.columns:
+            q["week"] = pd.Series(index=q.index, dtype=object)
+        else:
+            q["week"] = q["signal_ts"].map(lambda t: b11.week_key(b11.week_start(t)))
+    return q
+
+
 def oracle_summary(sig, weeks):
+    sig = ensure_week(sig)
     keys = week_keys(weeks)
-    q = sig[sig.week.isin(keys) & sig.signal_ts.map(in_scan_window)].copy()
+    if len(sig):
+        mask = sig["week"].isin(keys) & sig["signal_ts"].map(in_scan_window)
+        q = sig.loc[mask].copy()
+    else:
+        q = sig.copy()
     rows = []
     zero_signal = []
     zero_tp = []
     for w in weeks:
         k = b11.week_key(w)
-        x = q[q.week == k]
-        n = len(x); wins = int(x.is_tp.sum()) if n else 0
+        x = q.loc[q["week"] == k] if "week" in q.columns else q.iloc[0:0]
+        n = len(x); wins = int(x["is_tp"].sum()) if n and "is_tp" in x.columns else 0
         rows.append({"week":k,"signals":n,"tp_signals":wins})
         if n == 0: zero_signal.append(k)
         if wins == 0: zero_tp.append(k)
@@ -305,10 +319,10 @@ def atlas_summary(sig):
     for (tf,kind),g in sig.groupby(["source_tf","zone_kind"]):
         for part in ("development","external","reference_validation","august"):
             weeks=partition_weeks(part); keys=week_keys(weeks)
-            x=g[g.week.isin(keys)&g.signal_ts.map(in_scan_window)]
+            x=g.loc[g["week"].isin(keys) & g["signal_ts"].map(in_scan_window)].copy()
             o,_=oracle_summary(x,weeks)
             rows.append({"source_tf":tf,"zone_kind":kind,"partition":part,
-                         "signals":len(x),"raw_wr":float(x.is_tp.mean()) if len(x) else None,
+                         "signals":len(x),"raw_wr":float(x["is_tp"].mean()) if len(x) else None,
                          "signal_coverage":o["signal_coverage"],"oracle_tp_coverage":o["oracle_tp_coverage"],
                          "median_signals_week":o["median_signals_week"],"median_tp_signals_week":o["median_tp_signals_week"]})
     return pd.DataFrame(rows)
@@ -321,17 +335,17 @@ def fit_model(dev):
     ])
     model = LogisticRegression(C=0.5, solver="liblinear", class_weight="balanced", max_iter=2000, random_state=20260821)
     pipe = Pipeline([("pre",pre),("lr",model)])
-    pipe.fit(dev[CAT_FEATURES+NUM_FEATURES], dev.is_tp.to_numpy(int))
+    pipe.fit(dev[CAT_FEATURES+NUM_FEATURES], dev["is_tp"].to_numpy(int))
     return pipe
 
 
 def route(sig, weeks, threshold=None, route_name="MODEL"):
     keys=week_keys(weeks)
-    q=sig[sig.week.isin(keys)&sig.signal_ts.map(in_scan_window)].copy()
+    q=sig.loc[sig["week"].isin(keys)&sig["signal_ts"].map(in_scan_window)].copy()
     if threshold is not None:
-        q=q[q.prob>=threshold]
+        q=q.loc[q["prob"]>=threshold]
     if q.empty:
-        q["route"] = []
+        q["route"] = pd.Series(index=q.index, dtype=object)
         return q
     q=q.sort_values(["signal_ts","prob"],ascending=[True,False]).groupby("week",as_index=False).head(1).copy()
     q["route"]=route_name
@@ -342,14 +356,14 @@ def stat(q,weeks):
     nweek=len(weeks)
     if q.empty:
         return {"weeks":nweek,"n":0,"coverage":0.0,"tp":0,"sl":0,"time":0,"wr":None,"exp":None,"pf":None,"max_ls":0}
-    win=(q.reason=="TP").to_numpy(bool); a=q.net_ret.to_numpy(float)
+    win=(q["reason"]=="TP").to_numpy(bool); a=q["net_ret"].to_numpy(float)
     gp=float(a[a>0].sum()); gl=float(-a[a<=0].sum())
     streak=mx=0
     for v in win:
         if not v: streak+=1; mx=max(mx,streak)
         else: streak=0
-    return {"weeks":nweek,"n":int(len(q)),"coverage":float(q.week.nunique()/nweek) if nweek else 0.0,
-            "tp":int((q.reason=="TP").sum()),"sl":int((q.reason=="SL").sum()),"time":int((q.reason=="TIME").sum()),
+    return {"weeks":nweek,"n":int(len(q)),"coverage":float(q["week"].nunique()/nweek) if nweek else 0.0,
+            "tp":int((q["reason"]=="TP").sum()),"sl":int((q["reason"]=="SL").sum()),"time":int((q["reason"]=="TIME").sum()),
             "wr":float(win.mean()),"exp":float(a.mean()),"pf":float(gp/gl) if gl>0 else (999.0 if gp>0 else 0.0),"max_ls":int(mx)}
 
 
@@ -357,7 +371,7 @@ def blocks(q,weeks):
     arr=list(weeks); edges=np.linspace(0,len(arr),5,dtype=int); out=[]
     for i in range(4):
         ww=arr[edges[i]:edges[i+1]]; keys=week_keys(ww)
-        x=q[q.week.isin(keys)] if not q.empty else q
+        x=q.loc[q["week"].isin(keys)] if not q.empty else q
         out.append(stat(x,ww))
     return out
 
@@ -381,9 +395,8 @@ def main():
     h1=b11.load_h1()
     print(f"H1 {h1.index.min()} -> {h1.index.max()} rows={len(h1)}")
     sig,zone_counts=build_signals(h1)
-    sig=sig[sig.signal_ts>=b11.EXT0].copy()
+    sig=sig.loc[sig["signal_ts"]>=b11.EXT0].copy()
 
-    # Stage A: descriptive oracle only. Candidate formation itself is causal.
     oracle={}; zero_rows=[]
     for part in ("development","external","reference_validation","august"):
         weeks=partition_weeks(part)
@@ -396,25 +409,24 @@ def main():
 
     oracle100=(oracle["external"]["oracle_tp_coverage"]==1.0 and oracle["reference_validation"]["oracle_tp_coverage"]==1.0)
 
-    # Stage B: train only on development defended signals.
     dev_keys=week_keys(partition_weeks("development"))
-    dev=sig[sig.week.isin(dev_keys)&sig.signal_ts.map(in_scan_window)].copy()
-    if dev.is_tp.nunique()<2:
+    dev=sig.loc[sig["week"].isin(dev_keys)&sig["signal_ts"].map(in_scan_window)].copy()
+    if dev["is_tp"].nunique()<2:
         raise RuntimeError("development labels lack both classes")
     model=fit_model(dev)
     sig["prob"]=model.predict_proba(sig[CAT_FEATURES+NUM_FEATURES])[:,1]
 
-    dev_sc=sig[sig.week.isin(dev_keys)&sig.signal_ts.map(in_scan_window)]
+    dev_sc=sig.loc[sig["week"].isin(dev_keys)&sig["signal_ts"].map(in_scan_window)]
     threshold_rows=[]
     for qv in THRESH_Q:
-        th=float(np.quantile(dev_sc.prob.to_numpy(float),qv))
+        th=float(np.quantile(dev_sc["prob"].to_numpy(float),qv))
         r=route(sig,partition_weeks("development"),th,f"MODEL_Q{qv:.3f}")
         s=stat(r,partition_weeks("development"))
         threshold_rows.append({"quantile":qv,"threshold":th,**s})
     tdf=pd.DataFrame(threshold_rows)
-    tdf["wr_sort"]=tdf.wr.fillna(-1.0); tdf["exp_sort"]=tdf.exp.fillna(-999.0); tdf["pf_sort"]=tdf.pf.fillna(-1.0)
+    tdf["wr_sort"]=tdf["wr"].fillna(-1.0); tdf["exp_sort"]=tdf["exp"].fillna(-999.0); tdf["pf_sort"]=tdf["pf"].fillna(-1.0)
     tdf=tdf.sort_values(["coverage","wr_sort","exp_sort","pf_sort","quantile"],ascending=[False,False,False,False,True]).reset_index(drop=True)
-    chosen_q=float(tdf.iloc[0].quantile); chosen_th=float(tdf.iloc[0].threshold)
+    chosen_q=float(tdf.iloc[0]["quantile"]); chosen_th=float(tdf.iloc[0]["threshold"])
     tdf.to_csv(OUT_THRESH,index=False)
 
     selectors={}; selected=[]
@@ -439,21 +451,24 @@ def main():
             highp=True
 
     result={
-        "experiment":"B12_DEFENDED_SR","implementation_revision":IMPL,
+        "experiment":"B13_DEFENDED_SR","implementation_revision":IMPL,
+        "renumber_note":"Originally preregistered under defended-S/R B12, renumbered to B13 before any valid defended-S/R result because a separate level-survival experiment already occupied B12. Trading logic unchanged.",
         "coverage":{"first":str(h1.index.min()),"last":str(h1.index.max()),"h1_rows":int(len(h1))},
         "frozen":{"source_tfs":SOURCE_TFS,"max_age_hours":MAX_AGE_HOURS,"origin_lookback":ORIGIN_LOOKBACK,
                   "min_displacement_atr":MIN_DISP_ATR,"confirm_bars":CONFIRM_BARS,"min_confirm_body_atr":MIN_CONFIRM_BODY_ATR,
                   "chosen_threshold_quantile":chosen_q,"chosen_threshold":chosen_th},
         "zone_counts":zone_counts,"oracle":oracle,"selectors":selectors,
-        "gates":{"B12_DEFENDED_ORACLE_100":"PASS" if oracle100 else "FAIL",
-                 "B12_ROBUST_WEEKLY_100":"PASS" if robust else "FAIL",
-                 "B12_HIGH_PRECISION_WEEKLY":"PASS" if highp else "FAIL","passing_selector":passing},
+        "gates":{"B13_DEFENDED_ORACLE_100":"PASS" if oracle100 else "FAIL",
+                 "B13_ROBUST_WEEKLY_100":"PASS" if robust else "FAIL",
+                 "B13_HIGH_PRECISION_WEEKLY":"PASS" if highp else "FAIL","passing_selector":passing},
         "live_bbc_untouched":True,
     }
     OUT_JSON.write_text(json.dumps(result,indent=2,default=str),encoding="utf-8")
 
-    verdict="B12_ROBUST_WEEKLY_100_PASS" if robust else ("B12_DEFENDED_ORACLE_100_SELECTOR_FAIL" if oracle100 else "B12_DEFENDED_ORACLE_NOT_100")
-    md=["# BTC Weekly Defended S/R B12 — Result","",f"Implementation revision **{IMPL}**.","",f"**Verdict: {verdict}**","",
+    verdict="B13_ROBUST_WEEKLY_100_PASS" if robust else ("B13_DEFENDED_ORACLE_100_SELECTOR_FAIL" if oracle100 else "B13_DEFENDED_ORACLE_NOT_100")
+    md=["# BTC Weekly Defended S/R B13 — Result","",f"Implementation revision **{IMPL}**.","",
+        "Renumber note: preregistered logic was originally labeled defended-S/R B12, but a separate level-survival experiment had already occupied B12. Renumbering occurred before any valid defended-S/R result; trading logic is unchanged.","",
+        f"**Verdict: {verdict}**","",
         f"Coverage **{h1.index.min()} -> {h1.index.max()}**, official Binance BTCUSDT H1 rows **{len(h1):,}**.","",
         "Definition: H1/H4/D1/W1 displacement-origin or accepted polarity-flip zone; fresh first H1 revisit; no close through distal; directional H1 reclaim above/below proximal; body >=0.25 ATR; micro-BOS; next-H1-open execution; net +1.00% vs -1.00%; 0.15% fee; adverse-first; same-week exit.","",
         "## Stage A — defended-zone feasibility (hindsight outcome only; NOT a strategy)","",
@@ -470,8 +485,8 @@ def main():
     md += ["","## Source-zone counts","","| TF | Origins | Flips | Defended signals |","|---|---:|---:|---:|"]
     for r in zone_counts:
         md.append(f"| {r['source_tf']} | {r['origins']} | {r['flips']} | {r['defended_signals']} |")
-    md += ["","## Gates","",f"- B12_DEFENDED_ORACLE_100: **{'PASS' if oracle100 else 'FAIL'}**",
-           f"- B12_ROBUST_WEEKLY_100: **{'PASS' if robust else 'FAIL'}**",f"- B12_HIGH_PRECISION_WEEKLY: **{'PASS' if highp else 'FAIL'}**","",
+    md += ["","## Gates","",f"- B13_DEFENDED_ORACLE_100: **{'PASS' if oracle100 else 'FAIL'}**",
+           f"- B13_ROBUST_WEEKLY_100: **{'PASS' if robust else 'FAIL'}**",f"- B13_HIGH_PRECISION_WEEKLY: **{'PASS' if highp else 'FAIL'}**","",
            "If the oracle gate fails, this frozen defended-S/R vocabulary itself does not contain a +1R winner in every week; selector tuning cannot mathematically rescue those zero-TP weeks.","",
            "No post-result retuning is promoted. Live BBC untouched."]
     OUT_MD.write_text("\n".join(md)+"\n",encoding="utf-8")
