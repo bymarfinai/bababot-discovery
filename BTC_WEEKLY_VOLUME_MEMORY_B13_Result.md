@@ -1,32 +1,3 @@
-archives 10 / 102
-archives 20 / 102
-archives 30 / 102
-archives 40 / 102
-archives 50 / 102
-archives 60 / 102
-archives 70 / 102
-archives 80 / 102
-archives 90 / 102
-archives 100 / 102
-15m 232608 2020-01-01 00:00:00+00:00 2026-08-19 23:45:00+00:00
-profile H1 10000 / 58152
-profile H1 20000 / 58152
-profile H1 30000 / 58152
-profile H1 40000 / 58152
-profile H1 50000 / 58152
-profile H4 10000 / 14538
-H1 58152
-H4 14538
-D1 2423
-W1 345
-volume atlas FAST H1
-candidates so far 490095
-volume atlas FAST H4
-candidates so far 670589
-volume atlas FAST D1
-candidates so far 708641
-volume atlas FAST W1
-candidates so far 714819
 # BTC Weekly Volume-Memory Levels B13 — Result
 
 **Verdict: B13_NO_ROBUST_WEEKLY_100**
