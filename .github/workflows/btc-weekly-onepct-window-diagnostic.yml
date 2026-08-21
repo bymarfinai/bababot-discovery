@@ -1,0 +1,37 @@
+name: BTC Weekly 1pct Window Diagnostic
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_weekly_onepct_window_diag.py'
+      - '.github/workflows/btc-weekly-onepct-window-diagnostic.yml'
+permissions:
+  contents: write
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install numpy pandas requests scikit-learn
+      - name: Compile
+        run: python -m py_compile research/btc_weekly_onepct_window_diag.py
+      - name: Run
+        run: PYTHONPATH=research python research/btc_weekly_onepct_window_diag.py > BTC_WEEKLY_ONEPCT_WINDOW_Run.log 2>&1
+      - name: Persist
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_WEEKLY_ONEPCT_WINDOW_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m "research: persist BTC weekly 1pct winning-window diagnostic"
+            for n in 1 2 3 4 5; do
+              git pull --rebase origin main && git push origin HEAD:main && exit 0
+              sleep $((n*3))
+            done
+            exit 1
+          fi
