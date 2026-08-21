@@ -431,3 +431,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# no-op workflow retrigger marker; frozen H4P1 logic unchanged
