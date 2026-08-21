@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# B22A descriptive trigger: 2026-08-21
 from __future__ import annotations
 
 import json
@@ -54,7 +55,6 @@ def summarize_seed(x5,states,seeds,cohort):
 
 def main():
     x5,cov=b21.load5(); states=b21.build_state_table(x5)
-    # Descriptive 5m scale on analysis window.
     xa=x5[(x5.index>=b21.ANALYSIS_START)&(x5.index<b21.END)].copy()
     prev=xa.close.shift(1)
     tr=pd.concat([(xa.high-xa.low),(xa.high-prev).abs(),(xa.low-prev).abs()],axis=1).max(axis=1)
