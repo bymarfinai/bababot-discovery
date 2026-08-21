@@ -1,0 +1,35 @@
+name: B23C
+on:
+  push:
+    paths:
+      - '.github/workflows/b23c.yml'
+      - 'research/btc_strong_state_entry_by_tf_b23c.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Runner heartbeat
+        run: |
+          echo "RUNNING run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_STRONG_STATE_ENTRY_BY_TF_B23C_Status.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add BTC_STRONG_STATE_ENTRY_BY_TF_B23C_Status.txt
+          git commit -m 'ci: mark B23C runner started' || true
+          git push || true
+      - run: pip install numpy pandas requests
+      - run: python -m py_compile research/btc_strong_state_entry_by_tf_b23c.py
+      - run: cd research && python btc_strong_state_entry_by_tf_b23c.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase
+          git add BTC_STRONG_STATE_ENTRY_BY_TF_B23C_Result.md BTC_STRONG_STATE_ENTRY_BY_TF_B23C_Result.json BTC_STRONG_STATE_ENTRY_BY_TF_B23C_Summary.csv BTC_STRONG_STATE_ENTRY_BY_TF_B23C_Trades.csv
+          git commit -m 'research: persist B23C result' || true
+          git push
