@@ -79,6 +79,9 @@ At each admitted first-pullback entry, freeze the latest causally available 1h A
 
 This label is for mechanism forensics, not a trading TP.
 
+### Frozen forensic cohort
+To avoid duplicate copies of the same 4h activation across multiple entry/regime variants, the **primary discriminator fitting cohort is `5m / R4_FRESH` only**. The 15m and R1H4 variants are still reported as secondary label-rate diagnostics, but they are not pooled into the SMD screen or decision-tree fit.
+
 ## Frozen pre-entry forensic features
 Only information available by the signal close may be used.
 
