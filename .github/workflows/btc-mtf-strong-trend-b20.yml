@@ -1,0 +1,57 @@
+name: BTC MTF Strong Trend B20
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/btc-mtf-strong-trend-b20.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Runner heartbeat
+        run: |
+          echo "RUNNING run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_MTF_STRONG_TREND_B20_Status.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add BTC_MTF_STRONG_TREND_B20_Status.txt
+          git commit -m "ci: mark B20 runner started" || true
+          git push || true
+      - name: Install dependencies
+        run: pip install numpy pandas requests scikit-learn
+      - name: Compile B20
+        run: python -m py_compile research/btc_mtf_strong_trend_b20.py
+      - name: Run B20
+        id: runb20
+        shell: bash
+        run: |
+          set +e
+          PYTHONUNBUFFERED=1 PYTHONPATH=research python -u research/btc_mtf_strong_trend_b20.py 2>&1 | tee BTC_MTF_STRONG_TREND_B20_Run.log
+          code=${PIPESTATUS[0]}
+          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+          exit ${code}
+      - name: Persist
+        if: always()
+        run: |
+          git pull --rebase || true
+          git add BTC_MTF_STRONG_TREND_B20_* || true
+          if [ -f BTC_MTF_STRONG_TREND_B20_Result.md ]; then
+            echo "COMPLETED run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} ended_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_MTF_STRONG_TREND_B20_Status.txt
+          else
+            echo "FAILED run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} ended_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ) exit_code=${{ steps.runb20.outputs.exit_code }}" > BTC_MTF_STRONG_TREND_B20_Status.txt
+          fi
+          git add BTC_MTF_STRONG_TREND_B20_Status.txt BTC_MTF_STRONG_TREND_B20_Run.log || true
+          git commit -m "research: persist MTF strong trend B20 run state" || true
+          git push || true
