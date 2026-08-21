@@ -1,0 +1,1574 @@
+{
+  "protocol": "BTC_H4_AMD_FVG_PATHMAP_H4P1",
+  "coverage": {
+    "first": "2020-01-01 00:00:00+00:00",
+    "last": "2026-08-19 23:00:00+00:00",
+    "source_1h_rows": 58152
+  },
+  "h4_construction": "session-anchored synthetic 4H from four consecutive official H1 bars",
+  "aggregate": {
+    "development": {
+      "manip_n": 915,
+      "fvg_n": 100,
+      "fvg_rate": 0.1092896174863388,
+      "near_n": 70,
+      "near_rate": 0.7,
+      "far_n": 51,
+      "far_rate": 0.51,
+      "near_to_far_rate": 0.7285714285714285,
+      "near_to_far_den": 70,
+      "manip_extreme_n": 25,
+      "manip_extreme_rate": 0.25,
+      "opp_n": 82,
+      "opp_rate": 0.82,
+      "both_n": 35,
+      "both_rate": 0.35,
+      "both_order": {
+        "OPP_FIRST": 19,
+        "FAR_FIRST": 9,
+        "SAME_BAR": 7
+      },
+      "failure_n": 39,
+      "failure_rate": 0.39,
+      "failure_eval_n": 39,
+      "failure_retest_n": 32,
+      "failure_retest_rate": 0.8205128205128205,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 26,
+          "rate": 0.26
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY}",
+          "n": 5,
+          "rate": 0.05
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,MANIP_EXTREME,NEAR}",
+          "n": 5,
+          "rate": 0.05
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +6:NEAR",
+          "n": 4,
+          "rate": 0.04
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY} -> +4:FAR",
+          "n": 3,
+          "rate": 0.03
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +8:NEAR",
+          "n": 3,
+          "rate": 0.03
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY}",
+          "n": 3,
+          "rate": 0.03
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR}",
+          "n": 3,
+          "rate": 0.03
+        }
+      ]
+    },
+    "reference_validation": {
+      "manip_n": 417,
+      "fvg_n": 43,
+      "fvg_rate": 0.10311750599520383,
+      "near_n": 30,
+      "near_rate": 0.6976744186046512,
+      "far_n": 26,
+      "far_rate": 0.6046511627906976,
+      "near_to_far_rate": 0.8666666666666667,
+      "near_to_far_den": 30,
+      "manip_extreme_n": 12,
+      "manip_extreme_rate": 0.27906976744186046,
+      "opp_n": 38,
+      "opp_rate": 0.8837209302325582,
+      "both_n": 22,
+      "both_rate": 0.5116279069767442,
+      "both_order": {
+        "OPP_FIRST": 12,
+        "SAME_BAR": 10
+      },
+      "failure_n": 21,
+      "failure_rate": 0.4883720930232558,
+      "failure_eval_n": 21,
+      "failure_retest_n": 15,
+      "failure_retest_rate": 0.7142857142857143,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 10,
+          "rate": 0.23255813953488372
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY}",
+          "n": 7,
+          "rate": 0.16279069767441862
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +8:SAME_BAR{FAR,NEAR}",
+          "n": 2,
+          "rate": 0.046511627906976744
+        },
+        {
+          "path": "+4:OPP_BOUNDARY",
+          "n": 2,
+          "rate": 0.046511627906976744
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +5:NEAR -> +6:FAR",
+          "n": 1,
+          "rate": 0.023255813953488372
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +6:NEAR -> +8:FAR",
+          "n": 1,
+          "rate": 0.023255813953488372
+        },
+        {
+          "path": "+4:SAME_BAR{FAR,MANIP_EXTREME,NEAR}",
+          "n": 1,
+          "rate": 0.023255813953488372
+        },
+        {
+          "path": "+5:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.023255813953488372
+        }
+      ]
+    },
+    "external": {
+      "manip_n": 586,
+      "fvg_n": 48,
+      "fvg_rate": 0.08191126279863481,
+      "near_n": 30,
+      "near_rate": 0.625,
+      "far_n": 22,
+      "far_rate": 0.4583333333333333,
+      "near_to_far_rate": 0.7333333333333333,
+      "near_to_far_den": 30,
+      "manip_extreme_n": 10,
+      "manip_extreme_rate": 0.20833333333333334,
+      "opp_n": 45,
+      "opp_rate": 0.9375,
+      "both_n": 20,
+      "both_rate": 0.4166666666666667,
+      "both_order": {
+        "OPP_FIRST": 15,
+        "FAR_FIRST": 3,
+        "SAME_BAR": 2
+      },
+      "failure_n": 13,
+      "failure_rate": 0.2708333333333333,
+      "failure_eval_n": 13,
+      "failure_retest_n": 8,
+      "failure_retest_rate": 0.6153846153846154,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 15,
+          "rate": 0.3125
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY}",
+          "n": 3,
+          "rate": 0.0625
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +7:SAME_BAR{FAR,NEAR}",
+          "n": 2,
+          "rate": 0.041666666666666664
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +4:NEAR",
+          "n": 2,
+          "rate": 0.041666666666666664
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY} -> +4:MANIP_EXTREME",
+          "n": 2,
+          "rate": 0.041666666666666664
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +6:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.020833333333333332
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY} -> +8:SAME_BAR{FAR,MANIP_EXTREME}",
+          "n": 1,
+          "rate": 0.020833333333333332
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY} -> +5:FAR -> +6:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.020833333333333332
+        }
+      ]
+    },
+    "august": {
+      "manip_n": 6,
+      "fvg_n": 2,
+      "fvg_rate": 0.3333333333333333,
+      "near_n": 2,
+      "near_rate": 1.0,
+      "far_n": 1,
+      "far_rate": 0.5,
+      "near_to_far_rate": 0.5,
+      "near_to_far_den": 2,
+      "manip_extreme_n": 1,
+      "manip_extreme_rate": 0.5,
+      "opp_n": 2,
+      "opp_rate": 1.0,
+      "both_n": 1,
+      "both_rate": 0.5,
+      "both_order": {
+        "SAME_BAR": 1
+      },
+      "failure_n": 1,
+      "failure_rate": 0.5,
+      "failure_eval_n": 1,
+      "failure_retest_n": 1,
+      "failure_retest_rate": 1.0,
+      "top_paths": [
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.5
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,MANIP_EXTREME,NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.5
+        }
+      ]
+    }
+  },
+  "matrix": [
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "manip_n": 117,
+      "fvg_n": 13,
+      "fvg_rate": 0.1111111111111111,
+      "near_n": 11,
+      "near_rate": 0.8461538461538461,
+      "far_n": 10,
+      "far_rate": 0.7692307692307693,
+      "near_to_far_rate": 0.9090909090909091,
+      "near_to_far_den": 11,
+      "manip_extreme_n": 3,
+      "manip_extreme_rate": 0.23076923076923078,
+      "opp_n": 11,
+      "opp_rate": 0.8461538461538461,
+      "both_n": 8,
+      "both_rate": 0.6153846153846154,
+      "both_order": {
+        "OPP_FIRST": 6,
+        "SAME_BAR": 1,
+        "FAR_FIRST": 1
+      },
+      "failure_n": 7,
+      "failure_rate": 0.5384615384615384,
+      "failure_eval_n": 7,
+      "failure_retest_n": 6,
+      "failure_retest_rate": 0.8571428571428571,
+      "top_paths": [
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY} -> +4:FAR",
+          "n": 2,
+          "rate": 0.15384615384615385
+        },
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 2,
+          "rate": 0.15384615384615385
+        },
+        {
+          "path": "+5:OPP_BOUNDARY -> +6:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,MANIP_EXTREME,NEAR}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +8:SAME_BAR{FAR,MANIP_EXTREME,NEAR}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY} -> +5:FAR",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +7:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        }
+      ]
+    },
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "manip_n": 138,
+      "fvg_n": 13,
+      "fvg_rate": 0.09420289855072464,
+      "near_n": 6,
+      "near_rate": 0.46153846153846156,
+      "far_n": 5,
+      "far_rate": 0.38461538461538464,
+      "near_to_far_rate": 0.8333333333333334,
+      "near_to_far_den": 6,
+      "manip_extreme_n": 2,
+      "manip_extreme_rate": 0.15384615384615385,
+      "opp_n": 12,
+      "opp_rate": 0.9230769230769231,
+      "both_n": 4,
+      "both_rate": 0.3076923076923077,
+      "both_order": {
+        "SAME_BAR": 3,
+        "OPP_FIRST": 1
+      },
+      "failure_n": 3,
+      "failure_rate": 0.23076923076923078,
+      "failure_eval_n": 3,
+      "failure_retest_n": 1,
+      "failure_retest_rate": 0.3333333333333333,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 6,
+          "rate": 0.46153846153846156
+        },
+        {
+          "path": "+4:OPP_BOUNDARY -> +5:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +8:NEAR",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY} -> +8:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY} -> +4:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+4:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.07692307692307693
+        }
+      ]
+    },
+    {
+      "partition": "development",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "manip_n": 200,
+      "fvg_n": 13,
+      "fvg_rate": 0.065,
+      "near_n": 6,
+      "near_rate": 0.46153846153846156,
+      "far_n": 2,
+      "far_rate": 0.15384615384615385,
+      "near_to_far_rate": 0.3333333333333333,
+      "near_to_far_den": 6,
+      "manip_extreme_n": 1,
+      "manip_extreme_rate": 0.07692307692307693,
+      "opp_n": 13,
+      "opp_rate": 1.0,
+      "both_n": 2,
+      "both_rate": 0.15384615384615385,
+      "both_order": {
+        "OPP_FIRST": 2
+      },
+      "failure_n": 2,
+      "failure_rate": 0.15384615384615385,
+      "failure_eval_n": 2,
+      "failure_retest_n": 2,
+      "failure_retest_rate": 1.0,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 6,
+          "rate": 0.46153846153846156
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +6:NEAR",
+          "n": 2,
+          "rate": 0.15384615384615385
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:NEAR -> +7:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +4:NEAR -> +7:SAME_BAR{FAR,MANIP_EXTREME}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +6:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+4:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.07692307692307693
+        }
+      ]
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "manip_n": 131,
+      "fvg_n": 15,
+      "fvg_rate": 0.11450381679389313,
+      "near_n": 12,
+      "near_rate": 0.8,
+      "far_n": 10,
+      "far_rate": 0.6666666666666666,
+      "near_to_far_rate": 0.8333333333333334,
+      "near_to_far_den": 12,
+      "manip_extreme_n": 7,
+      "manip_extreme_rate": 0.4666666666666667,
+      "opp_n": 7,
+      "opp_rate": 0.4666666666666667,
+      "both_n": 4,
+      "both_rate": 0.26666666666666666,
+      "both_order": {
+        "OPP_FIRST": 2,
+        "FAR_FIRST": 2
+      },
+      "failure_n": 8,
+      "failure_rate": 0.5333333333333333,
+      "failure_eval_n": 8,
+      "failure_retest_n": 5,
+      "failure_retest_rate": 0.625,
+      "top_paths": [
+        {
+          "path": "+3:SAME_BAR{FAR,MANIP_EXTREME,NEAR}",
+          "n": 3,
+          "rate": 0.2
+        },
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 2,
+          "rate": 0.13333333333333333
+        },
+        {
+          "path": "NONE",
+          "n": 1,
+          "rate": 0.06666666666666667
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR} -> +6:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.06666666666666667
+        },
+        {
+          "path": "+6:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.06666666666666667
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.06666666666666667
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +4:SAME_BAR{FAR,MANIP_EXTREME,NEAR}",
+          "n": 1,
+          "rate": 0.06666666666666667
+        },
+        {
+          "path": "+3:NEAR",
+          "n": 1,
+          "rate": 0.06666666666666667
+        }
+      ]
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "manip_n": 135,
+      "fvg_n": 24,
+      "fvg_rate": 0.17777777777777778,
+      "near_n": 19,
+      "near_rate": 0.7916666666666666,
+      "far_n": 15,
+      "far_rate": 0.625,
+      "near_to_far_rate": 0.7894736842105263,
+      "near_to_far_den": 19,
+      "manip_extreme_n": 7,
+      "manip_extreme_rate": 0.2916666666666667,
+      "opp_n": 19,
+      "opp_rate": 0.7916666666666666,
+      "both_n": 10,
+      "both_rate": 0.4166666666666667,
+      "both_order": {
+        "FAR_FIRST": 4,
+        "OPP_FIRST": 4,
+        "SAME_BAR": 2
+      },
+      "failure_n": 10,
+      "failure_rate": 0.4166666666666667,
+      "failure_eval_n": 10,
+      "failure_retest_n": 10,
+      "failure_retest_rate": 1.0,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 4,
+          "rate": 0.16666666666666666
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR} -> +7:OPP_BOUNDARY",
+          "n": 2,
+          "rate": 0.08333333333333333
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +7:NEAR",
+          "n": 2,
+          "rate": 0.08333333333333333
+        },
+        {
+          "path": "+5:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.041666666666666664
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR} -> +7:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.041666666666666664
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +4:SAME_BAR{FAR,NEAR} -> +5:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.041666666666666664
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY} -> +4:FAR",
+          "n": 1,
+          "rate": 0.041666666666666664
+        },
+        {
+          "path": "+4:NEAR -> +5:FAR -> +6:OPP_BOUNDARY -> +8:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.041666666666666664
+        }
+      ]
+    },
+    {
+      "partition": "development",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "manip_n": 194,
+      "fvg_n": 22,
+      "fvg_rate": 0.1134020618556701,
+      "near_n": 16,
+      "near_rate": 0.7272727272727273,
+      "far_n": 9,
+      "far_rate": 0.4090909090909091,
+      "near_to_far_rate": 0.5625,
+      "near_to_far_den": 16,
+      "manip_extreme_n": 5,
+      "manip_extreme_rate": 0.22727272727272727,
+      "opp_n": 20,
+      "opp_rate": 0.9090909090909091,
+      "both_n": 7,
+      "both_rate": 0.3181818181818182,
+      "both_order": {
+        "OPP_FIRST": 4,
+        "FAR_FIRST": 2,
+        "SAME_BAR": 1
+      },
+      "failure_n": 9,
+      "failure_rate": 0.4090909090909091,
+      "failure_eval_n": 9,
+      "failure_retest_n": 8,
+      "failure_retest_rate": 0.8888888888888888,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 6,
+          "rate": 0.2727272727272727
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +6:NEAR",
+          "n": 2,
+          "rate": 0.09090909090909091
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY}",
+          "n": 2,
+          "rate": 0.09090909090909091
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +5:SAME_BAR{FAR,NEAR}",
+          "n": 2,
+          "rate": 0.09090909090909091
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +7:SAME_BAR{FAR,MANIP_EXTREME,NEAR}",
+          "n": 1,
+          "rate": 0.045454545454545456
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +4:SAME_BAR{FAR,NEAR} -> +7:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.045454545454545456
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR} -> +5:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.045454545454545456
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,MANIP_EXTREME,NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.045454545454545456
+        }
+      ]
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "manip_n": 61,
+      "fvg_n": 4,
+      "fvg_rate": 0.06557377049180328,
+      "near_n": 3,
+      "near_rate": 0.75,
+      "far_n": 3,
+      "far_rate": 0.75,
+      "near_to_far_rate": 1.0,
+      "near_to_far_den": 3,
+      "manip_extreme_n": 2,
+      "manip_extreme_rate": 0.5,
+      "opp_n": 4,
+      "opp_rate": 1.0,
+      "both_n": 3,
+      "both_rate": 0.75,
+      "both_order": {
+        "OPP_FIRST": 2,
+        "SAME_BAR": 1
+      },
+      "failure_n": 3,
+      "failure_rate": 0.75,
+      "failure_eval_n": 3,
+      "failure_retest_n": 3,
+      "failure_retest_rate": 1.0,
+      "top_paths": [
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.25
+        },
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.25
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +4:SAME_BAR{FAR,NEAR} -> +6:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.25
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY} -> +4:FAR -> +7:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.25
+        }
+      ]
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "manip_n": 62,
+      "fvg_n": 6,
+      "fvg_rate": 0.0967741935483871,
+      "near_n": 2,
+      "near_rate": 0.3333333333333333,
+      "far_n": 2,
+      "far_rate": 0.3333333333333333,
+      "near_to_far_rate": 1.0,
+      "near_to_far_den": 2,
+      "manip_extreme_n": 1,
+      "manip_extreme_rate": 0.16666666666666666,
+      "opp_n": 6,
+      "opp_rate": 1.0,
+      "both_n": 2,
+      "both_rate": 0.3333333333333333,
+      "both_order": {
+        "OPP_FIRST": 1,
+        "SAME_BAR": 1
+      },
+      "failure_n": 1,
+      "failure_rate": 0.16666666666666666,
+      "failure_eval_n": 1,
+      "failure_retest_n": 1,
+      "failure_retest_rate": 1.0,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 3,
+          "rate": 0.5
+        },
+        {
+          "path": "+4:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.16666666666666666
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +7:SAME_BAR{FAR,NEAR} -> +8:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.16666666666666666
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.16666666666666666
+        }
+      ]
+    },
+    {
+      "partition": "reference_validation",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "manip_n": 76,
+      "fvg_n": 6,
+      "fvg_rate": 0.07894736842105263,
+      "near_n": 3,
+      "near_rate": 0.5,
+      "far_n": 3,
+      "far_rate": 0.5,
+      "near_to_far_rate": 1.0,
+      "near_to_far_den": 3,
+      "manip_extreme_n": 0,
+      "manip_extreme_rate": 0.0,
+      "opp_n": 6,
+      "opp_rate": 1.0,
+      "both_n": 3,
+      "both_rate": 0.5,
+      "both_order": {
+        "SAME_BAR": 2,
+        "OPP_FIRST": 1
+      },
+      "failure_n": 2,
+      "failure_rate": 0.3333333333333333,
+      "failure_eval_n": 2,
+      "failure_retest_n": 1,
+      "failure_retest_rate": 0.5,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 2,
+          "rate": 0.3333333333333333
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY}",
+          "n": 2,
+          "rate": 0.3333333333333333
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +6:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.16666666666666666
+        },
+        {
+          "path": "+5:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.16666666666666666
+        }
+      ]
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "manip_n": 62,
+      "fvg_n": 6,
+      "fvg_rate": 0.0967741935483871,
+      "near_n": 4,
+      "near_rate": 0.6666666666666666,
+      "far_n": 4,
+      "far_rate": 0.6666666666666666,
+      "near_to_far_rate": 1.0,
+      "near_to_far_den": 4,
+      "manip_extreme_n": 2,
+      "manip_extreme_rate": 0.3333333333333333,
+      "opp_n": 3,
+      "opp_rate": 0.5,
+      "both_n": 1,
+      "both_rate": 0.16666666666666666,
+      "both_order": {
+        "SAME_BAR": 1
+      },
+      "failure_n": 4,
+      "failure_rate": 0.6666666666666666,
+      "failure_eval_n": 4,
+      "failure_retest_n": 2,
+      "failure_retest_rate": 0.5,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 2,
+          "rate": 0.3333333333333333
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.16666666666666666
+        },
+        {
+          "path": "+4:SAME_BAR{FAR,MANIP_EXTREME,NEAR}",
+          "n": 1,
+          "rate": 0.16666666666666666
+        },
+        {
+          "path": "+5:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.16666666666666666
+        },
+        {
+          "path": "+4:SAME_BAR{FAR,NEAR} -> +8:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.16666666666666666
+        }
+      ]
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "manip_n": 79,
+      "fvg_n": 15,
+      "fvg_rate": 0.189873417721519,
+      "near_n": 14,
+      "near_rate": 0.9333333333333333,
+      "far_n": 10,
+      "far_rate": 0.6666666666666666,
+      "near_to_far_rate": 0.7142857142857143,
+      "near_to_far_den": 14,
+      "manip_extreme_n": 5,
+      "manip_extreme_rate": 0.3333333333333333,
+      "opp_n": 13,
+      "opp_rate": 0.8666666666666667,
+      "both_n": 9,
+      "both_rate": 0.6,
+      "both_order": {
+        "OPP_FIRST": 6,
+        "SAME_BAR": 3
+      },
+      "failure_n": 8,
+      "failure_rate": 0.5333333333333333,
+      "failure_eval_n": 8,
+      "failure_retest_n": 5,
+      "failure_retest_rate": 0.625,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY -> +8:SAME_BAR{FAR,NEAR}",
+          "n": 2,
+          "rate": 0.13333333333333333
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +6:NEAR -> +8:FAR",
+          "n": 1,
+          "rate": 0.06666666666666667
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY} -> +7:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.06666666666666667
+        },
+        {
+          "path": "+4:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.06666666666666667
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +4:NEAR -> +5:FAR",
+          "n": 1,
+          "rate": 0.06666666666666667
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +5:NEAR -> +6:FAR -> +7:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.06666666666666667
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY} -> +5:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.06666666666666667
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR} -> +6:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.06666666666666667
+        }
+      ]
+    },
+    {
+      "partition": "reference_validation",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "manip_n": 77,
+      "fvg_n": 6,
+      "fvg_rate": 0.07792207792207792,
+      "near_n": 4,
+      "near_rate": 0.6666666666666666,
+      "far_n": 4,
+      "far_rate": 0.6666666666666666,
+      "near_to_far_rate": 1.0,
+      "near_to_far_den": 4,
+      "manip_extreme_n": 2,
+      "manip_extreme_rate": 0.3333333333333333,
+      "opp_n": 6,
+      "opp_rate": 1.0,
+      "both_n": 4,
+      "both_rate": 0.6666666666666666,
+      "both_order": {
+        "OPP_FIRST": 2,
+        "SAME_BAR": 2
+      },
+      "failure_n": 3,
+      "failure_rate": 0.5,
+      "failure_eval_n": 3,
+      "failure_retest_n": 3,
+      "failure_retest_rate": 1.0,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 2,
+          "rate": 0.3333333333333333
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +5:NEAR -> +6:FAR",
+          "n": 1,
+          "rate": 0.16666666666666666
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY} -> +6:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.16666666666666666
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +4:SAME_BAR{FAR,NEAR} -> +7:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.16666666666666666
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.16666666666666666
+        }
+      ]
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "manip_n": 87,
+      "fvg_n": 10,
+      "fvg_rate": 0.11494252873563218,
+      "near_n": 5,
+      "near_rate": 0.5,
+      "far_n": 5,
+      "far_rate": 0.5,
+      "near_to_far_rate": 1.0,
+      "near_to_far_den": 5,
+      "manip_extreme_n": 3,
+      "manip_extreme_rate": 0.3,
+      "opp_n": 9,
+      "opp_rate": 0.9,
+      "both_n": 4,
+      "both_rate": 0.4,
+      "both_order": {
+        "OPP_FIRST": 4
+      },
+      "failure_n": 4,
+      "failure_rate": 0.4,
+      "failure_eval_n": 4,
+      "failure_retest_n": 1,
+      "failure_retest_rate": 0.25,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 5,
+          "rate": 0.5
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY} -> +8:SAME_BAR{FAR,MANIP_EXTREME}",
+          "n": 1,
+          "rate": 0.1
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +8:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.1
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +4:SAME_BAR{FAR,NEAR} -> +5:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.1
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR} -> +4:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.1
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY} -> +6:FAR",
+          "n": 1,
+          "rate": 0.1
+        }
+      ]
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "manip_n": 104,
+      "fvg_n": 13,
+      "fvg_rate": 0.125,
+      "near_n": 9,
+      "near_rate": 0.6923076923076923,
+      "far_n": 7,
+      "far_rate": 0.5384615384615384,
+      "near_to_far_rate": 0.7777777777777778,
+      "near_to_far_den": 9,
+      "manip_extreme_n": 2,
+      "manip_extreme_rate": 0.15384615384615385,
+      "opp_n": 13,
+      "opp_rate": 1.0,
+      "both_n": 7,
+      "both_rate": 0.5384615384615384,
+      "both_order": {
+        "OPP_FIRST": 6,
+        "SAME_BAR": 1
+      },
+      "failure_n": 2,
+      "failure_rate": 0.15384615384615385,
+      "failure_eval_n": 2,
+      "failure_retest_n": 2,
+      "failure_retest_rate": 1.0,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 3,
+          "rate": 0.23076923076923078
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +6:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY} -> +4:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +5:NEAR",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+4:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY} -> +4:FAR",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +7:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.07692307692307693
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +6:NEAR -> +7:FAR",
+          "n": 1,
+          "rate": 0.07692307692307693
+        }
+      ]
+    },
+    {
+      "partition": "external",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "manip_n": 108,
+      "fvg_n": 7,
+      "fvg_rate": 0.06481481481481481,
+      "near_n": 6,
+      "near_rate": 0.8571428571428571,
+      "far_n": 4,
+      "far_rate": 0.5714285714285714,
+      "near_to_far_rate": 0.6666666666666666,
+      "near_to_far_den": 6,
+      "manip_extreme_n": 2,
+      "manip_extreme_rate": 0.2857142857142857,
+      "opp_n": 7,
+      "opp_rate": 1.0,
+      "both_n": 4,
+      "both_rate": 0.5714285714285714,
+      "both_order": {
+        "OPP_FIRST": 2,
+        "FAR_FIRST": 2
+      },
+      "failure_n": 2,
+      "failure_rate": 0.2857142857142857,
+      "failure_eval_n": 2,
+      "failure_retest_n": 2,
+      "failure_retest_rate": 1.0,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY -> +7:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.14285714285714285
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +4:NEAR",
+          "n": 1,
+          "rate": 0.14285714285714285
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY} -> +5:FAR -> +6:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.14285714285714285
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR} -> +5:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.14285714285714285
+        },
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.14285714285714285
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,MANIP_EXTREME,NEAR} -> +4:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.14285714285714285
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.14285714285714285
+        }
+      ]
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "manip_n": 109,
+      "fvg_n": 3,
+      "fvg_rate": 0.027522935779816515,
+      "near_n": 2,
+      "near_rate": 0.6666666666666666,
+      "far_n": 1,
+      "far_rate": 0.3333333333333333,
+      "near_to_far_rate": 0.5,
+      "near_to_far_den": 2,
+      "manip_extreme_n": 1,
+      "manip_extreme_rate": 0.3333333333333333,
+      "opp_n": 3,
+      "opp_rate": 1.0,
+      "both_n": 1,
+      "both_rate": 0.3333333333333333,
+      "both_order": {
+        "OPP_FIRST": 1
+      },
+      "failure_n": 1,
+      "failure_rate": 0.3333333333333333,
+      "failure_eval_n": 1,
+      "failure_retest_n": 1,
+      "failure_retest_rate": 1.0,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.3333333333333333
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.3333333333333333
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +5:SAME_BAR{FAR,NEAR} -> +8:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.3333333333333333
+        }
+      ]
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "manip_n": 88,
+      "fvg_n": 9,
+      "fvg_rate": 0.10227272727272728,
+      "near_n": 6,
+      "near_rate": 0.6666666666666666,
+      "far_n": 3,
+      "far_rate": 0.3333333333333333,
+      "near_to_far_rate": 0.5,
+      "near_to_far_den": 6,
+      "manip_extreme_n": 1,
+      "manip_extreme_rate": 0.1111111111111111,
+      "opp_n": 8,
+      "opp_rate": 0.8888888888888888,
+      "both_n": 2,
+      "both_rate": 0.2222222222222222,
+      "both_order": {
+        "FAR_FIRST": 1,
+        "SAME_BAR": 1
+      },
+      "failure_n": 3,
+      "failure_rate": 0.3333333333333333,
+      "failure_eval_n": 3,
+      "failure_retest_n": 2,
+      "failure_retest_rate": 0.6666666666666666,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 2,
+          "rate": 0.2222222222222222
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.1111111111111111
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR} -> +4:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.1111111111111111
+        },
+        {
+          "path": "+4:NEAR -> +6:FAR",
+          "n": 1,
+          "rate": 0.1111111111111111
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,NEAR,OPP_BOUNDARY} -> +4:MANIP_EXTREME",
+          "n": 1,
+          "rate": 0.1111111111111111
+        },
+        {
+          "path": "+8:OPP_BOUNDARY",
+          "n": 1,
+          "rate": 0.1111111111111111
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +8:NEAR",
+          "n": 1,
+          "rate": 0.1111111111111111
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +7:NEAR",
+          "n": 1,
+          "rate": 0.1111111111111111
+        }
+      ]
+    },
+    {
+      "partition": "external",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "manip_n": 90,
+      "fvg_n": 6,
+      "fvg_rate": 0.06666666666666667,
+      "near_n": 2,
+      "near_rate": 0.3333333333333333,
+      "far_n": 2,
+      "far_rate": 0.3333333333333333,
+      "near_to_far_rate": 1.0,
+      "near_to_far_den": 2,
+      "manip_extreme_n": 1,
+      "manip_extreme_rate": 0.16666666666666666,
+      "opp_n": 5,
+      "opp_rate": 0.8333333333333334,
+      "both_n": 2,
+      "both_rate": 0.3333333333333333,
+      "both_order": {
+        "OPP_FIRST": 2
+      },
+      "failure_n": 1,
+      "failure_rate": 0.16666666666666666,
+      "failure_eval_n": 1,
+      "failure_retest_n": 0,
+      "failure_retest_rate": 0.0,
+      "top_paths": [
+        {
+          "path": "+3:OPP_BOUNDARY",
+          "n": 3,
+          "rate": 0.5
+        },
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY} -> +6:SAME_BAR{FAR,MANIP_EXTREME}",
+          "n": 1,
+          "rate": 0.16666666666666666
+        },
+        {
+          "path": "NONE",
+          "n": 1,
+          "rate": 0.16666666666666666
+        },
+        {
+          "path": "+3:OPP_BOUNDARY -> +5:SAME_BAR{FAR,NEAR}",
+          "n": 1,
+          "rate": 0.16666666666666666
+        }
+      ]
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "ASIA_OPEN",
+      "manip_n": 1,
+      "fvg_n": 0,
+      "fvg_rate": null,
+      "near_n": 0,
+      "near_rate": null,
+      "far_n": 0,
+      "far_rate": null,
+      "near_to_far_rate": null,
+      "near_to_far_den": 0,
+      "manip_extreme_n": 0,
+      "manip_extreme_rate": null,
+      "opp_n": 0,
+      "opp_rate": null,
+      "both_n": 0,
+      "both_rate": null,
+      "both_order": {},
+      "failure_n": 0,
+      "failure_rate": null,
+      "failure_eval_n": 0,
+      "failure_retest_n": 0,
+      "failure_retest_rate": null,
+      "top_paths": []
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "LONDON_OPEN",
+      "manip_n": 2,
+      "fvg_n": 2,
+      "fvg_rate": 1.0,
+      "near_n": 2,
+      "near_rate": 1.0,
+      "far_n": 1,
+      "far_rate": 0.5,
+      "near_to_far_rate": 0.5,
+      "near_to_far_den": 2,
+      "manip_extreme_n": 1,
+      "manip_extreme_rate": 0.5,
+      "opp_n": 2,
+      "opp_rate": 1.0,
+      "both_n": 1,
+      "both_rate": 0.5,
+      "both_order": {
+        "SAME_BAR": 1
+      },
+      "failure_n": 1,
+      "failure_rate": 0.5,
+      "failure_eval_n": 1,
+      "failure_retest_n": 1,
+      "failure_retest_rate": 1.0,
+      "top_paths": [
+        {
+          "path": "+3:SAME_BAR{NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.5
+        },
+        {
+          "path": "+3:SAME_BAR{FAR,MANIP_EXTREME,NEAR,OPP_BOUNDARY}",
+          "n": 1,
+          "rate": 0.5
+        }
+      ]
+    },
+    {
+      "partition": "august",
+      "side": "LONG",
+      "session": "NEW_YORK_OPEN",
+      "manip_n": 3,
+      "fvg_n": 0,
+      "fvg_rate": null,
+      "near_n": 0,
+      "near_rate": null,
+      "far_n": 0,
+      "far_rate": null,
+      "near_to_far_rate": null,
+      "near_to_far_den": 0,
+      "manip_extreme_n": 0,
+      "manip_extreme_rate": null,
+      "opp_n": 0,
+      "opp_rate": null,
+      "both_n": 0,
+      "both_rate": null,
+      "both_order": {},
+      "failure_n": 0,
+      "failure_rate": null,
+      "failure_eval_n": 0,
+      "failure_retest_n": 0,
+      "failure_retest_rate": null,
+      "top_paths": []
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "ASIA_OPEN",
+      "manip_n": 0,
+      "fvg_n": 0,
+      "fvg_rate": null,
+      "near_n": 0,
+      "near_rate": null,
+      "far_n": 0,
+      "far_rate": null,
+      "near_to_far_rate": null,
+      "near_to_far_den": 0,
+      "manip_extreme_n": 0,
+      "manip_extreme_rate": null,
+      "opp_n": 0,
+      "opp_rate": null,
+      "both_n": 0,
+      "both_rate": null,
+      "both_order": {},
+      "failure_n": 0,
+      "failure_rate": null,
+      "failure_eval_n": 0,
+      "failure_retest_n": 0,
+      "failure_retest_rate": null,
+      "top_paths": []
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "LONDON_OPEN",
+      "manip_n": 0,
+      "fvg_n": 0,
+      "fvg_rate": null,
+      "near_n": 0,
+      "near_rate": null,
+      "far_n": 0,
+      "far_rate": null,
+      "near_to_far_rate": null,
+      "near_to_far_den": 0,
+      "manip_extreme_n": 0,
+      "manip_extreme_rate": null,
+      "opp_n": 0,
+      "opp_rate": null,
+      "both_n": 0,
+      "both_rate": null,
+      "both_order": {},
+      "failure_n": 0,
+      "failure_rate": null,
+      "failure_eval_n": 0,
+      "failure_retest_n": 0,
+      "failure_retest_rate": null,
+      "top_paths": []
+    },
+    {
+      "partition": "august",
+      "side": "SHORT",
+      "session": "NEW_YORK_OPEN",
+      "manip_n": 0,
+      "fvg_n": 0,
+      "fvg_rate": null,
+      "near_n": 0,
+      "near_rate": null,
+      "far_n": 0,
+      "far_rate": null,
+      "near_to_far_rate": null,
+      "near_to_far_den": 0,
+      "manip_extreme_n": 0,
+      "manip_extreme_rate": null,
+      "opp_n": 0,
+      "opp_rate": null,
+      "both_n": 0,
+      "both_rate": null,
+      "both_order": {},
+      "failure_n": 0,
+      "failure_rate": null,
+      "failure_eval_n": 0,
+      "failure_retest_n": 0,
+      "failure_retest_rate": null,
+      "top_paths": []
+    }
+  ],
+  "predeclared_transitions": {
+    "FVG_TO_NEAR": {
+      "validation_rate": 0.6976744186046512,
+      "validation_n": 43,
+      "external_rate": 0.625,
+      "external_n": 48
+    },
+    "NEAR_TO_FAR": {
+      "validation_rate": 0.8666666666666667,
+      "validation_n": 30,
+      "external_rate": 0.7333333333333333,
+      "external_n": 30
+    },
+    "FAILURE_TO_RETEST": {
+      "validation_rate": 0.7142857142857143,
+      "validation_n": 21,
+      "external_rate": 0.6153846153846154,
+      "external_n": 13
+    }
+  },
+  "H4P1_80_TRANSITION_FOUND": false,
+  "H4P1_80_TRANSITIONS": []
+}
