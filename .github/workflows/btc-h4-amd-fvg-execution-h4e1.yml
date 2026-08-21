@@ -1,0 +1,63 @@
+name: BTC H4 AMD FVG Execution H4E1 Runner
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_h4_amd_fvg_execution_h4e1.py'
+      - 'BTC_H4_AMD_FVG_Execution_H4E1_Preregistration.md'
+      - '.github/workflows/btc-h4-amd-fvg-execution-h4e1.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: btc-h4-amd-fvg-execution-h4e1
+  cancel-in-progress: true
+
+jobs:
+  h4e1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests scikit-learn
+      - name: Run frozen H4E1
+        id: h4e1run
+        continue-on-error: true
+        run: |
+          set +e
+          PYTHONPATH=research python research/btc_h4_amd_fvg_execution_h4e1.py > BTC_H4_AMD_FVG_Execution_H4E1_Run.log 2>&1
+          code=$?
+          echo "$code" > BTC_H4_AMD_FVG_Execution_H4E1_EXIT_CODE.txt
+          cat BTC_H4_AMD_FVG_Execution_H4E1_Run.log
+          exit $code
+      - name: Persist H4E1 artifacts safely
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_H4_AMD_FVG_Execution_H4E1_EXIT_CODE.txt BTC_H4_AMD_FVG_Execution_H4E1_Run.log
+          for f in BTC_H4_AMD_FVG_Execution_H4E1_Result.md BTC_H4_AMD_FVG_Execution_H4E1_Result.json BTC_H4_AMD_FVG_Execution_H4E1_Events.csv BTC_H4_AMD_FVG_Execution_H4E1_August.csv; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git stash push --include-untracked -m h4e1-artifacts
+            git pull --rebase origin main
+            git stash pop
+            git add BTC_H4_AMD_FVG_Execution_H4E1_EXIT_CODE.txt BTC_H4_AMD_FVG_Execution_H4E1_Run.log
+            for f in BTC_H4_AMD_FVG_Execution_H4E1_Result.md BTC_H4_AMD_FVG_Execution_H4E1_Result.json BTC_H4_AMD_FVG_Execution_H4E1_Events.csv BTC_H4_AMD_FVG_Execution_H4E1_August.csv; do
+              if [ -f "$f" ]; then git add "$f"; fi
+            done
+            git commit -m "research: persist BTC H4 AMD FVG execution H4E1"
+            git push
+          fi
+      - name: Fail if H4E1 failed
+        if: steps.h4e1run.outcome == 'failure'
+        run: exit 1
