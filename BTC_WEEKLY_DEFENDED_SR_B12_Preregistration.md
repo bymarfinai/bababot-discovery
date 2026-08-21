@@ -1,9 +1,11 @@
 # BTC Weekly Defended S/R B12 — Preregistration
 
-## Purpose
-Test a materially stricter definition of support/resistance than B11's prior/rolling/swing price levels. B12 treats support/resistance as a **stateful defended zone**: a causal displacement origin must create structural consequence first, remain fresh, then survive its first revisit with a completed-H1 failed-break/reclaim plus micro structure break.
+> **Canonical ID correction before any valid result:** this defended-S/R study is **B13**. A separate, earlier preregistered experiment had already occupied B12 (`BTC_WEEKLY_LEVEL_SURVIVAL_B12_Preregistration.md`). The first defended-S/R run failed only in reporting before a valid result existed. The trading definition, partitions, features, execution, and acceptance rules below are unchanged; all B12 defended-S/R gate labels below are to be read as their B13 equivalents in the valid result.
 
-This is not a repeat of V4-A1.3. V4-A1.3 was restricted to 1H liquidity-sweep-origin zones, 5m/15m first-retest resolution, and did not test net-fee weekly one-entry coverage. B12 uses H1/H4/D1/W1 source zones, does not require a preceding liquidity sweep, requires fresh first-revisit defense on completed H1, models fees and net ±1%, and explicitly tests complete-week feasibility plus a causal selector.
+## Purpose
+Test a materially stricter definition of support/resistance than B11's prior/rolling/swing price levels. B13 treats support/resistance as a **stateful defended zone**: a causal displacement origin must create structural consequence first, remain fresh, then survive its first revisit with a completed-H1 failed-break/reclaim plus micro structure break.
+
+This is not a repeat of V4-A1.3. V4-A1.3 was restricted to 1H liquidity-sweep-origin zones, 5m/15m first-retest resolution, and did not test net-fee weekly one-entry coverage. B13 uses H1/H4/D1/W1 source zones, does not require a preceding liquidity sweep, requires fresh first-revisit defense on completed H1, models fees and net ±1%, and explicitly tests complete-week feasibility plus a causal selector.
 
 ## Core questions
 1. Does every complete week contain at least one causally formed defended S/R signal that subsequently reaches net +1.00% before net -1.00%?
@@ -120,8 +122,8 @@ For every complete week and each partition, report:
 
 The oracle may use realized outcome only to answer whether a winner existed among signals that were themselves formed causally. It is **not** a deployable selector and must never be reported as strategy WR.
 
-### B12 structural feasibility gate
-`B12_DEFENDED_ORACLE_100` passes only if BOTH external and reference validation have 100% complete-week coverage with >=1 causal defended TP signal in every week.
+### B13 structural feasibility gate
+`B13_DEFENDED_ORACLE_100` passes only if BOTH external and reference validation have 100% complete-week coverage with >=1 causal defended TP signal in every week.
 
 ## Stage B — causal one-trade selector
 Candidate features are frozen before results:
@@ -171,7 +173,7 @@ Also report a causal `FIRST_DEFENSE` baseline: first defended-zone signal of eac
 No forced non-S/R fallback exists. A week with no selected defended-zone signal is a coverage failure.
 
 ## Acceptance gates
-### `B12_ROBUST_WEEKLY_100`
+### `B13_ROBUST_WEEKLY_100`
 PASS only if the same frozen causal selector in BOTH external and reference validation has:
 - 100% complete-week coverage;
 - exactly one selected trade per complete week;
@@ -181,7 +183,7 @@ PASS only if the same frozen causal selector in BOTH external and reference vali
 - PF > 1;
 - every chronological quarter positive.
 
-### `B12_HIGH_PRECISION_WEEKLY`
+### `B13_HIGH_PRECISION_WEEKLY`
 Secondary PASS only if BOTH untouched partitions have:
 - 100% coverage;
 - WR >= 80%;
@@ -191,7 +193,7 @@ Secondary PASS only if BOTH untouched partitions have:
 - at least 3/4 chronological quarters positive.
 
 ## Anti-rescue
-After B12 result generation, do not change displacement threshold, pivot definition, origin lookback, zone geometry, source timeframes, age limits, flip acceptance, H1 defense confirmation, body threshold, micro-BOS rule, fee, barriers, week cutoff, model hyperparameters, feature set, or threshold grid to rescue the result. Any such change is a new preregistered experiment.
+After the valid B13 result generation, do not change displacement threshold, pivot definition, origin lookback, zone geometry, source timeframes, age limits, flip acceptance, H1 defense confirmation, body threshold, micro-BOS rule, fee, barriers, week cutoff, model hyperparameters, feature set, or threshold grid to rescue the result. Any such change is a new preregistered experiment.
 
 No result from Stage A may be converted post hoc into a selector rule. No losing/zero-signal week may be removed.
 
