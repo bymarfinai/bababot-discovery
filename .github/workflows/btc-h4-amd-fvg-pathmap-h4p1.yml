@@ -61,3 +61,5 @@ jobs:
       - name: Fail if H4P1 failed
         if: steps.h4p1run.outcome == 'failure'
         run: exit 1
+
+# dedicated workflow retrigger; frozen H4P1 logic unchanged
