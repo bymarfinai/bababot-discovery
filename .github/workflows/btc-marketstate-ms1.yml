@@ -5,6 +5,8 @@ on:
   push:
     paths:
       - 'research/btc_marketstate_ms1.py'
+      - 'research/btc_marketstate_ms1_runner.py'
+      - 'research/ms1_funding_source.py'
       - 'BTC_MarketState_MS1_Preregistration.md'
       - '.github/workflows/btc-marketstate-ms1.yml'
 
@@ -31,7 +33,7 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          PYTHONPATH=research python research/btc_marketstate_ms1.py > BTC_MarketState_MS1_Run.log 2>&1
+          PYTHONPATH=research python research/btc_marketstate_ms1_runner.py > BTC_MarketState_MS1_Run.log 2>&1
           code=$?
           echo "$code" > BTC_MarketState_MS1_EXIT_CODE.txt
           cat BTC_MarketState_MS1_Run.log
