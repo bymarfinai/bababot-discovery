@@ -34,3 +34,4 @@ jobs:
           git add BTC_CROSSOVER_CYCLE_ENTRY_B23E_Result.md BTC_CROSSOVER_CYCLE_ENTRY_B23E_Summary.csv BTC_CROSSOVER_CYCLE_ENTRY_B23E_Trades.csv
           git commit -m 'research: persist B23E crossover-cycle result' || true
           git push
+# trigger: corrected one-entry-per-cycle experiment
