@@ -1,12 +1,3 @@
-downloaded 10/98 archives
-downloaded 20/98 archives
-downloaded 30/98 archives
-downloaded 40/98 archives
-downloaded 50/98 archives
-downloaded 60/98 archives
-downloaded 70/98 archives
-downloaded 80/98 archives
-downloaded 90/98 archives
 # BTC Weekly Structural Confluence B8 — Result
 
 **Verdict: B8_NO_ROBUST_WEEKLY_100**
@@ -49,4 +40,3 @@ Coverage **2020-01-01 00:00:00+00:00 -> 2026-08-19 23:00:00+00:00**, official H1
 - `B8_HIGH_PRECISION_WEEKLY`: **FAIL**
 
 Frozen preregistration honored. No post-result threshold/session/Fib/FVG/ORB/RR/hold rescue. Live BBC untouched.
-
