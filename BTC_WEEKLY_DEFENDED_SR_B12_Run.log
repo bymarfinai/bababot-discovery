@@ -1,0 +1,33 @@
+downloaded 10/102 archives
+downloaded 20/102 archives
+downloaded 30/102 archives
+downloaded 40/102 archives
+downloaded 50/102 archives
+downloaded 60/102 archives
+downloaded 70/102 archives
+downloaded 80/102 archives
+downloaded 90/102 archives
+downloaded 100/102 archives
+H1 2020-01-01 00:00:00+00:00 -> 2026-08-19 23:00:00+00:00 rows=58152
+H1: origins=2653 flips=1727 zones=4380
+  H1 defense scan 2000/4380 signals=338
+  H1 defense scan 4000/4380 signals=757
+H4: origins=710 flips=380 zones=1090
+D1: origins=109 flips=36 zones=145
+W1: origins=21 flips=1 zones=22
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_weekly_defended_sr_b12.py", line 481, in <module>
+    main()
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_weekly_defended_sr_b12.py", line 395, in main
+    atlas=atlas_summary(sig); atlas.to_csv(OUT_ATLAS,index=False)
+          ^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_weekly_defended_sr_b12.py", line 309, in atlas_summary
+    o,_=oracle_summary(x,weeks)
+        ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_weekly_defended_sr_b12.py", line 286, in oracle_summary
+    x = q[q.week == k]
+          ^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/generic.py", line 6194, in __getattr__
+    return object.__getattribute__(self, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DataFrame' object has no attribute 'week'
