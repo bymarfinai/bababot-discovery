@@ -1,0 +1,423 @@
+{
+  "protocol": "BTC_WEEKLY100_CAUSAL_W100V1",
+  "coverage": {
+    "first": "2020-01-01 00:00:00+00:00",
+    "last": "2026-08-19 23:00:00+00:00",
+    "h1_rows": 58152
+  },
+  "timeframes": {
+    "H1": {
+      "threshold": 2.557609161414759,
+      "quantile": 0.9853852557580243,
+      "development_weeks": 158,
+      "development_opportunities": 10811,
+      "raw_opportunities": 24492,
+      "partitions": {
+        "external": {
+          "n": 62,
+          "tp": 26,
+          "sl": 33,
+          "time": 3,
+          "decisive_wr": 0.4406779661016949,
+          "positive_wr": 0.43548387096774194,
+          "pnl": -47.116732329696454,
+          "exp": -0.7599472956402654,
+          "pf": 0.6731614513879932,
+          "trades_per_week": 0.5904761904761905,
+          "weeks_traded": 62,
+          "weeks_total": 105,
+          "weeks_no_trade": 43
+        },
+        "development": {
+          "n": 101,
+          "tp": 37,
+          "sl": 64,
+          "time": 0,
+          "decisive_wr": 0.36633663366336633,
+          "positive_wr": 0.36633663366336633,
+          "pnl": -56.80437859601024,
+          "exp": -0.5624195900595073,
+          "pf": 0.6853717560198584,
+          "trades_per_week": 0.6392405063291139,
+          "weeks_traded": 101,
+          "weeks_total": 158,
+          "weeks_no_trade": 57
+        },
+        "reference_validation": {
+          "n": 54,
+          "tp": 21,
+          "sl": 31,
+          "time": 2,
+          "decisive_wr": 0.40384615384615385,
+          "positive_wr": 0.4074074074074074,
+          "pnl": -18.100955468931833,
+          "exp": -0.3352028790542932,
+          "pf": 0.778958213769186,
+          "trades_per_week": 0.6506024096385542,
+          "weeks_traded": 54,
+          "weeks_total": 83,
+          "weeks_no_trade": 29
+        },
+        "august": {
+          "n": 3,
+          "tp": 0,
+          "sl": 3,
+          "time": 0,
+          "decisive_wr": 0.0,
+          "positive_wr": 0.0,
+          "pnl": -3.420445055961533,
+          "exp": -1.1401483519871778,
+          "pf": 0.0,
+          "trades_per_week": 0.75,
+          "weeks_traded": 3,
+          "weeks_total": 4,
+          "weeks_no_trade": 1
+        }
+      },
+      "blocks": {
+        "external": [
+          {
+            "block": "B1",
+            "n": 15,
+            "tp": 6,
+            "sl": 8,
+            "time": 1,
+            "wr": 0.42857142857142855,
+            "pnl": -22.07919085817513
+          },
+          {
+            "block": "B2",
+            "n": 16,
+            "tp": 3,
+            "sl": 12,
+            "time": 1,
+            "wr": 0.2,
+            "pnl": -34.233141715577275
+          },
+          {
+            "block": "B3",
+            "n": 15,
+            "tp": 5,
+            "sl": 10,
+            "time": 0,
+            "wr": 0.3333333333333333,
+            "pnl": -19.63482810763208
+          },
+          {
+            "block": "B4",
+            "n": 16,
+            "tp": 12,
+            "sl": 3,
+            "time": 1,
+            "wr": 0.8,
+            "pnl": 28.83042835168804
+          }
+        ],
+        "development": [
+          {
+            "block": "B1",
+            "n": 25,
+            "tp": 13,
+            "sl": 12,
+            "time": 0,
+            "wr": 0.52,
+            "pnl": 7.448533579638086
+          },
+          {
+            "block": "B2",
+            "n": 25,
+            "tp": 5,
+            "sl": 20,
+            "time": 0,
+            "wr": 0.2,
+            "pnl": -35.150045087619716
+          },
+          {
+            "block": "B3",
+            "n": 25,
+            "tp": 10,
+            "sl": 15,
+            "time": 0,
+            "wr": 0.4,
+            "pnl": -10.6942117378609
+          },
+          {
+            "block": "B4",
+            "n": 26,
+            "tp": 9,
+            "sl": 17,
+            "time": 0,
+            "wr": 0.34615384615384615,
+            "pnl": -18.408655350167706
+          }
+        ],
+        "reference_validation": [
+          {
+            "block": "B1",
+            "n": 13,
+            "tp": 6,
+            "sl": 6,
+            "time": 1,
+            "wr": 0.5,
+            "pnl": -4.329926832759809
+          },
+          {
+            "block": "B2",
+            "n": 14,
+            "tp": 4,
+            "sl": 10,
+            "time": 0,
+            "wr": 0.2857142857142857,
+            "pnl": -9.602928181794137
+          },
+          {
+            "block": "B3",
+            "n": 13,
+            "tp": 6,
+            "sl": 7,
+            "time": 0,
+            "wr": 0.46153846153846156,
+            "pnl": 1.827200075346462
+          },
+          {
+            "block": "B4",
+            "n": 14,
+            "tp": 5,
+            "sl": 8,
+            "time": 1,
+            "wr": 0.38461538461538464,
+            "pnl": -5.995300529724345
+          }
+        ],
+        "august": [
+          {
+            "block": "B1",
+            "n": 0,
+            "tp": 0,
+            "sl": 0,
+            "time": 0,
+            "wr": null,
+            "pnl": 0.0
+          },
+          {
+            "block": "B2",
+            "n": 1,
+            "tp": 0,
+            "sl": 1,
+            "time": 0,
+            "wr": 0.0,
+            "pnl": -1.0889830508474523
+          },
+          {
+            "block": "B3",
+            "n": 1,
+            "tp": 0,
+            "sl": 1,
+            "time": 0,
+            "wr": 0.0,
+            "pnl": -0.86912892926913
+          },
+          {
+            "block": "B4",
+            "n": 1,
+            "tp": 0,
+            "sl": 1,
+            "time": 0,
+            "wr": 0.0,
+            "pnl": -1.4623330758449509
+          }
+        ]
+      }
+    },
+    "H4": {
+      "threshold": 1.5500010778682616,
+      "quantile": 0.9382088384825968,
+      "development_weeks": 158,
+      "development_opportunities": 2557,
+      "raw_opportunities": 5888,
+      "partitions": {
+        "external": {
+          "n": 57,
+          "tp": 21,
+          "sl": 34,
+          "time": 2,
+          "decisive_wr": 0.38181818181818183,
+          "positive_wr": 0.38596491228070173,
+          "pnl": -54.3567977500537,
+          "exp": -0.9536280307026965,
+          "pf": 0.7709177959859953,
+          "trades_per_week": 0.5428571428571428,
+          "weeks_traded": 57,
+          "weeks_total": 105,
+          "weeks_no_trade": 48
+        },
+        "development": {
+          "n": 108,
+          "tp": 50,
+          "sl": 58,
+          "time": 0,
+          "decisive_wr": 0.46296296296296297,
+          "positive_wr": 0.46296296296296297,
+          "pnl": 0.1830309751014445,
+          "exp": 0.001694731250939301,
+          "pf": 1.0006429496563929,
+          "trades_per_week": 0.6835443037974683,
+          "weeks_traded": 108,
+          "weeks_total": 158,
+          "weeks_no_trade": 50
+        },
+        "reference_validation": {
+          "n": 46,
+          "tp": 18,
+          "sl": 28,
+          "time": 0,
+          "decisive_wr": 0.391304347826087,
+          "positive_wr": 0.391304347826087,
+          "pnl": -20.62438858786339,
+          "exp": -0.4483562736492041,
+          "pf": 0.8115177680429759,
+          "trades_per_week": 0.5542168674698795,
+          "weeks_traded": 46,
+          "weeks_total": 83,
+          "weeks_no_trade": 37
+        },
+        "august": {
+          "n": 0,
+          "tp": 0,
+          "sl": 0,
+          "time": 0,
+          "decisive_wr": null,
+          "positive_wr": null,
+          "pnl": 0.0,
+          "exp": null,
+          "pf": null,
+          "trades_per_week": 0.0,
+          "weeks_traded": 0,
+          "weeks_total": 4,
+          "weeks_no_trade": 4
+        }
+      },
+      "blocks": {
+        "external": [
+          {
+            "block": "B1",
+            "n": 14,
+            "tp": 8,
+            "sl": 5,
+            "time": 1,
+            "wr": 0.6153846153846154,
+            "pnl": 49.06495597234085
+          },
+          {
+            "block": "B2",
+            "n": 14,
+            "tp": 5,
+            "sl": 9,
+            "time": 0,
+            "wr": 0.35714285714285715,
+            "pnl": -22.996420421617525
+          },
+          {
+            "block": "B3",
+            "n": 14,
+            "tp": 5,
+            "sl": 9,
+            "time": 0,
+            "wr": 0.35714285714285715,
+            "pnl": -11.801856906180342
+          },
+          {
+            "block": "B4",
+            "n": 15,
+            "tp": 3,
+            "sl": 11,
+            "time": 1,
+            "wr": 0.21428571428571427,
+            "pnl": -68.62347639459668
+          }
+        ],
+        "development": [
+          {
+            "block": "B1",
+            "n": 27,
+            "tp": 17,
+            "sl": 10,
+            "time": 0,
+            "wr": 0.6296296296296297,
+            "pnl": 64.85026914788644
+          },
+          {
+            "block": "B2",
+            "n": 27,
+            "tp": 9,
+            "sl": 18,
+            "time": 0,
+            "wr": 0.3333333333333333,
+            "pnl": -40.08050007467118
+          },
+          {
+            "block": "B3",
+            "n": 27,
+            "tp": 10,
+            "sl": 17,
+            "time": 0,
+            "wr": 0.37037037037037035,
+            "pnl": -31.741253751498675
+          },
+          {
+            "block": "B4",
+            "n": 27,
+            "tp": 14,
+            "sl": 13,
+            "time": 0,
+            "wr": 0.5185185185185185,
+            "pnl": 7.154515653384865
+          }
+        ],
+        "reference_validation": [
+          {
+            "block": "B1",
+            "n": 11,
+            "tp": 4,
+            "sl": 7,
+            "time": 0,
+            "wr": 0.36363636363636365,
+            "pnl": -11.693406260706217
+          },
+          {
+            "block": "B2",
+            "n": 12,
+            "tp": 0,
+            "sl": 12,
+            "time": 0,
+            "wr": 0.0,
+            "pnl": -38.250679903538355
+          },
+          {
+            "block": "B3",
+            "n": 11,
+            "tp": 8,
+            "sl": 3,
+            "time": 0,
+            "wr": 0.7272727272727273,
+            "pnl": 28.38009130704536
+          },
+          {
+            "block": "B4",
+            "n": 12,
+            "tp": 6,
+            "sl": 6,
+            "time": 0,
+            "wr": 0.5,
+            "pnl": 0.9396062693358216
+          }
+        ],
+        "august": []
+      }
+    }
+  },
+  "W100V1_ROBUST_100_FOUND": false,
+  "W100V1_ROBUST_100_TIMEFRAMES": [],
+  "W100V1_HIGH_PRECISION_CANDIDATE": false,
+  "W100V1_HIGH_PRECISION_TIMEFRAMES": []
+}

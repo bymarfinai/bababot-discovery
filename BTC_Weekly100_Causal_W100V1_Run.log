@@ -1,0 +1,61 @@
+downloaded 10/98 archives
+downloaded 20/98 archives
+downloaded 30/98 archives
+downloaded 40/98 archives
+downloaded 50/98 archives
+downloaded 60/98 archives
+downloaded 70/98 archives
+downloaded 80/98 archives
+downloaded 90/98 archives
+# BTC Weekly-100 Causal Search W100-V1 — Result
+
+Coverage **2020-01-01 00:00:00+00:00 -> 2026-08-19 23:00:00+00:00**, official H1 rows **58,152**.
+
+Development-only strength threshold targets ~1 raw breakout/week; first above-threshold signal per ISO week only. Net RR1:1 after 0.15% fee; H1 hold6H; H4 hold24H; adverse-first.
+
+| TF | Threshold | Partition | N | Trades/wk | Weeks | TP/SL/TIME | Decisive WR | Positive WR | PnL | Exp | PF |
+|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| H1 | 2.557609 | development | 101 | 0.64 | 101/158 | 37/64/0 | 36.63% | 36.63% | $-56.80 | $-0.56 | 0.685 |
+| H1 | 2.557609 | reference_validation | 54 | 0.65 | 54/83 | 21/31/2 | 40.38% | 40.74% | $-18.10 | $-0.34 | 0.779 |
+| H1 | 2.557609 | external | 62 | 0.59 | 62/105 | 26/33/3 | 44.07% | 43.55% | $-47.12 | $-0.76 | 0.673 |
+| H1 | 2.557609 | august | 3 | 0.75 | 3/4 | 0/3/0 | 0.00% | 0.00% | $-3.42 | $-1.14 | 0.000 |
+| H4 | 1.550001 | development | 108 | 0.68 | 108/158 | 50/58/0 | 46.30% | 46.30% | $+0.18 | $+0.00 | 1.001 |
+| H4 | 1.550001 | reference_validation | 46 | 0.55 | 46/83 | 18/28/0 | 39.13% | 39.13% | $-20.62 | $-0.45 | 0.812 |
+| H4 | 1.550001 | external | 57 | 0.54 | 57/105 | 21/34/2 | 38.18% | 38.60% | $-54.36 | $-0.95 | 0.771 |
+| H4 | 1.550001 | august | 0 | 0.00 | 0/4 | 0/0/0 | - | - | $+0.00 | - | - |
+
+## H1 blocks
+
+**reference_validation**
+- B1: N13, 6TP/6SL/1TIME, WR 50.00%, PnL $-4.33
+- B2: N14, 4TP/10SL/0TIME, WR 28.57%, PnL $-9.60
+- B3: N13, 6TP/7SL/0TIME, WR 46.15%, PnL $+1.83
+- B4: N14, 5TP/8SL/1TIME, WR 38.46%, PnL $-6.00
+**external**
+- B1: N15, 6TP/8SL/1TIME, WR 42.86%, PnL $-22.08
+- B2: N16, 3TP/12SL/1TIME, WR 20.00%, PnL $-34.23
+- B3: N15, 5TP/10SL/0TIME, WR 33.33%, PnL $-19.63
+- B4: N16, 12TP/3SL/1TIME, WR 80.00%, PnL $+28.83
+
+## H4 blocks
+
+**reference_validation**
+- B1: N11, 4TP/7SL/0TIME, WR 36.36%, PnL $-11.69
+- B2: N12, 0TP/12SL/0TIME, WR 0.00%, PnL $-38.25
+- B3: N11, 8TP/3SL/0TIME, WR 72.73%, PnL $+28.38
+- B4: N12, 6TP/6SL/0TIME, WR 50.00%, PnL $+0.94
+**external**
+- B1: N14, 8TP/5SL/1TIME, WR 61.54%, PnL $+49.06
+- B2: N14, 5TP/9SL/0TIME, WR 35.71%, PnL $-23.00
+- B3: N14, 5TP/9SL/0TIME, WR 35.71%, PnL $-11.80
+- B4: N15, 3TP/11SL/1TIME, WR 21.43%, PnL $-68.62
+
+## Verdicts
+
+**W100V1_ROBUST_100_FOUND: FAIL**
+Robust 100% timeframes: none
+**W100V1_HIGH_PRECISION_CANDIDATE: FAIL**
+High-precision timeframes: none
+
+No post-result threshold, weekday/session/side, RR, hold, or weekly-selection rescue.
+
