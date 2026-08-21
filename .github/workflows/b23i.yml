@@ -34,3 +34,4 @@ jobs:
           git add BTC_BEAR_CROSS_ONLY_EXIT_B23I_Result.md BTC_BEAR_CROSS_ONLY_EXIT_B23I_Summary.csv BTC_BEAR_CROSS_ONLY_EXIT_B23I_Trades.csv BTC_BEAR_CROSS_ONLY_EXIT_B23I_Cycles.csv
           git commit -m 'research: persist B23I bear-cross-only result' || true
           git push
+# trigger
