@@ -1,0 +1,10 @@
+{
+  "experiment": "B22B_STRONG_UPTREND_LIFECYCLE",
+  "data_rows_5m": 698112,
+  "coverage": 1.0,
+  "champion": null,
+  "validation": {
+    "B22B_REPLICATED_CLUE": false,
+    "HIGH_PRECISION_CLUE": false
+  }
+}
