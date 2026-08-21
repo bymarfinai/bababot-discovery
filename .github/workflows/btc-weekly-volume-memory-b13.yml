@@ -11,7 +11,7 @@ permissions:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
@@ -21,7 +21,10 @@ jobs:
       - name: Compile B13
         run: python -m py_compile research/btc_weekly_volume_memory_b13.py
       - name: Run B13
-        run: PYTHONPATH=research python research/btc_weekly_volume_memory_b13.py > BTC_WEEKLY_VOLUME_MEMORY_B13_Run.log 2>&1
+        shell: bash
+        run: |
+          set -o pipefail
+          PYTHONUNBUFFERED=1 PYTHONPATH=research python -u research/btc_weekly_volume_memory_b13.py 2>&1 | tee BTC_WEEKLY_VOLUME_MEMORY_B13_Run.log
       - name: Persist
         if: always()
         run: |
