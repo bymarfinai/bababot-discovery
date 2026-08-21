@@ -1,0 +1,56 @@
+archives 10 / 102
+archives 20 / 102
+archives 30 / 102
+archives 40 / 102
+archives 50 / 102
+archives 60 / 102
+archives 70 / 102
+archives 80 / 102
+archives 90 / 102
+archives 100 / 102
+15m 232608 2020-01-01 00:00:00+00:00 2026-08-19 23:45:00+00:00
+H1 58152
+W1 states 345
+# BTC Weekly W1 VAH Acceptance-Retest B16 — Result
+
+**Verdict: B16_NO_ROBUST_WEEKLY_100**
+
+15m rows **232,608**, H1 rows **58,152**, 2020-01-01 00:00:00+00:00 -> 2026-08-19 23:00:00+00:00.
+
+Frozen sequence: **W1 VAH breakout -> additional acceptance close(s) above -> first retest -> hold -> LONG next H1 open.**
+
+Frozen development PRIMARY_RULE: **A1_HOLD**
+
+## Primary rule
+
+| Partition | Weeks/N/Coverage | TP/SL/TIME | WR | Exp | PF | Max LS |
+|---|---:|---:|---:|---:|---:|---:|
+| development | 156/36/23.08% | 15/21/0 | 41.67% | -0.17% | 0.714 | 6 |
+| external | 103/30/29.13% | 8/22/0 | 26.67% | -0.47% | 0.364 | 6 |
+| reference_validation | 81/17/20.99% | 9/8/0 | 52.94% | 0.06% | 1.125 | 3 |
+| august | 2/0/0.00% | 0/0/0 | - | - | - | 0 |
+
+## B15 direct W1 VAH breakout baseline
+
+| Partition | Weeks/N/Coverage | TP/SL/TIME | WR | Exp | PF |
+|---|---:|---:|---:|---:|---:|
+| development | 156/82/52.56% | 49/33/0 | 59.76% | 0.20% | 1.485 |
+| external | 103/64/62.14% | 36/28/0 | 56.25% | 0.13% | 1.286 |
+| reference_validation | 81/47/58.02% | 24/23/0 | 51.06% | 0.02% | 1.043 |
+| august | 2/2/100.00% | 0/2/0 | 0.00% | -1.00% | 0.000 |
+
+## Development ranking
+
+| Rank | Rule | Coverage | WR | Wilson LB | PF | N |
+|---:|---|---:|---:|---:|---:|---:|
+| 1 | `A1_HOLD` | 23.08% | 41.67% | 27.14% | 0.714 | 36 |
+| 2 | `A2_HOLD` | 21.15% | 45.45% | 29.84% | 0.833 | 33 |
+| 3 | `A2_BODY` | 6.41% | 30.00% | 10.78% | 0.429 | 10 |
+| 4 | `A1_BODY` | 5.13% | 25.00% | 7.15% | 0.333 | 8 |
+
+## Gates
+
+- B16_ROBUST_WEEKLY_100: **FAIL**
+- B16_HIGH_PRECISION: **FAIL**
+
+No OOS retuning. Live BBC untouched.
