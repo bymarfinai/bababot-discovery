@@ -1,4 +1,5 @@
 name: B23F
+# trigger: continuation-entry correction
 on:
   push:
     paths:
