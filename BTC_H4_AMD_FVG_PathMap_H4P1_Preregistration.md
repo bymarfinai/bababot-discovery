@@ -100,3 +100,5 @@ After results, do not change:
 - session/side selection;
 - add ATR, body, volatility, weekday or other filters.
 Any strategy derived later must be separately preregistered from a causal state transition identified here.
+
+<!-- no-op workflow retrigger; frozen H4P1 rules unchanged -->
