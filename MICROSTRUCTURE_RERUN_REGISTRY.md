@@ -6,11 +6,11 @@
 
 | Priority | Historical experiment | What the old data actually observed | Rerun classification | New track | Status |
 |---:|---|---|---|---|---|
-| 1 | B18 Liquidity Sweep + Flow | H1 price-defined breach/reclaim + 15m aggregated taker flow | REPEAT_REQUIRED | `B18_MICRO_R1` | QUEUED |
-| 1 | C11A 1m Absorption | 5m price-vs-1m-aggregate taker-flow divergence | REPEAT_REQUIRED | `C11A_MICRO_R1` | QUEUED |
-| 1 | B15 W1 VAH breakout | causal structural W1 VAH breakout | VALID_SEED | `W1_VAH_MICRO_R1` | PREREGISTERED |
-| 2 | B17 W1 VAH false-break | structural geometry + aggregate taker/spot/derivative features | AUGMENT_WITH_MICROSTRUCTURE | `W1_VAH_MICRO_R1` | PREREGISTERED |
-| 2 | B19 Auction Quality | H1 displacement/acceptance + aggregate taker-flow persistence | AUGMENT_WITH_MICROSTRUCTURE | `B19_MICRO_R1` | QUEUED |
+| 1 | B18 Liquidity Sweep + Flow | H1 price-defined breach/reclaim + 15m aggregated taker flow | REPEAT_REQUIRED | `B18_MICRO_R1` | PREREGISTERED / BLOCKED_DATA_ACCESS |
+| 1 | C11A 1m Absorption | 5m price-vs-1m-aggregate taker-flow divergence | REPEAT_REQUIRED | `C11A_MICRO_R1` | PREREGISTERED / BLOCKED_DATA_ACCESS |
+| 1 | B15 W1 VAH breakout | causal structural W1 VAH breakout | VALID_SEED | `W1_VAH_MICRO_R1` | PREFLIGHT BLOCKED_DATA_ACCESS |
+| 2 | B17 W1 VAH false-break | structural geometry + aggregate taker/spot/derivative features | AUGMENT_WITH_MICROSTRUCTURE | `W1_VAH_MICRO_R1` | PREFLIGHT BLOCKED_DATA_ACCESS |
+| 2 | B19 Auction Quality | H1 displacement/acceptance + aggregate taker-flow persistence | AUGMENT_WITH_MICROSTRUCTURE | `B19_MICRO_R1` | QUEUED AFTER ACCESS |
 | 3 | session sweep / failed auction | price-defined high/low breach and reclaim | STRUCTURAL_RESULT_VALID | selective only | DEFERRED |
 | 3 | VP1 failed-auction reclaim | causal volume-profile boundary breach/reclaim | STRUCTURAL_RESULT_VALID | selective only | DEFERRED |
 | 4 | Potential B parity recovery | frozen structural/parity logic | NOT_DATA_RESOLUTION_FAILURE | none | DEFERRED |
@@ -38,6 +38,14 @@ Before any result-bearing rerun:
 
 If a gate fails, status is `BLOCKED_DATA_ACCESS` or `BLOCKED_DATA_COVERAGE`.
 
+### Current access state — 2026-08-21
+
+Automated GitHub Actions preflight completed and persisted `BTC_WEEKLY_W1_VAH_MICROSTRUCTURE_R1_Preflight.md` / `.json`.
+
+Current state: **`BLOCKED_DATA_ACCESS` because `COINDESK_API_KEY` is not configured in the repository Actions environment.**
+
+No label-conditioned microstructure analysis has run. No OHLC fallback occurred.
+
 ## Frozen first rerun
 
 `W1_VAH_MICRO_R1` is first because it does not invent a new structural setup. It reuses the B15/B17 direct W1 VAH candidate universe and asks a narrower question:
@@ -45,6 +53,18 @@ If a gate fails, status is `BLOCKED_DATA_ACCESS` or `BLOCKED_DATA_COVERAGE`.
 > Can true pre-entry L2 order-book state, tick-level aggressive trade flow, and timestamped OI distinguish the winners from losers of the already-frozen W1 VAH breakout?
 
 This prevents the richer dataset from being used to move the goalposts or manufacture new event timestamps.
+
+## Preregistered next reruns
+
+### `B18_MICRO_R1`
+Reuses B18 objective-pool structural events, finds the **true tick-level breach timestamp**, and measures trade/L2 state around the breach instead of assigning an entire 15m aggregate to `breach_flow`.
+
+Preregistration: `BTC_WEEKLY_LIQUIDITY_SWEEP_B18_MICRO_R1_Preregistration.md`.
+
+### `C11A_MICRO_R1`
+Reuses the frozen C11A proxy-event universe and tests whether the event actually contains passive-side L2 replenishment/depletion consistent with absorption.
+
+Preregistration: `BTC_FRIDAY_C11A_ABSORPTION_MICRO_R1_Preregistration.md`.
 
 ## Planned feature families
 
