@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_weekly_best_b7.py", line 136, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_weekly_best_b7.py", line 102, in main
+    ops=opportunities(k).sort_values('signal_ts').reset_index(drop=True)
+        ^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_weekly_best_b7.py", line 40, in opportunities
+    mom_signed=float(b.mom3 + b.loc)
+                     ~~~~~~~^~~~~~~
+TypeError: unsupported operand type(s) for +: 'float' and '_LocIndexer'
