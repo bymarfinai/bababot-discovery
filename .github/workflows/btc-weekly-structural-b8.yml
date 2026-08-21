@@ -17,7 +17,7 @@ jobs:
         with: {fetch-depth: 0}
       - uses: actions/setup-python@v5
         with: {python-version: '3.11'}
-      - run: pip install numpy pandas requests
+      - run: pip install numpy pandas requests scikit-learn
       - name: Compile B8
         run: python -m py_compile research/btc_weekly_structural_b8.py
       - name: Run B8
