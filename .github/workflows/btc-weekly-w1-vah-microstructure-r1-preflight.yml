@@ -1,0 +1,54 @@
+name: BTC W1 VAH Microstructure R1 Preflight
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/btc-weekly-w1-vah-microstructure-r1-preflight.yml'
+      - 'research/coindesk_microstructure.py'
+      - 'research/btc_weekly_w1_vah_microstructure_r1_preflight.py'
+      - 'BTC_WEEKLY_W1_VAH_MICROSTRUCTURE_R1_Preregistration.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COINDESK_API_KEY: ${{ secrets.COINDESK_API_KEY }}
+      COINDESK_FUTURES_MARKET: binance
+      COINDESK_FUTURES_INSTRUMENT: BTC-USDT-VANILLA-PERPETUAL
+      R1_PREFLIGHT_MINUTES: '5'
+      R1_L2_DEPTH: '1000'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install numpy pandas requests websocket-client
+
+      - name: Compile microstructure code
+        run: |
+          python -m py_compile research/coindesk_microstructure.py
+          python -m py_compile research/btc_weekly_w1_vah_microstructure_r1_preflight.py
+
+      - name: Run access and temporal-coverage preflight
+        run: PYTHONPATH=research python research/btc_weekly_w1_vah_microstructure_r1_preflight.py
+
+      - name: Persist preflight result
+        if: always()
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase || true
+          git add BTC_WEEKLY_W1_VAH_MICROSTRUCTURE_R1_Preflight.json BTC_WEEKLY_W1_VAH_MICROSTRUCTURE_R1_Preflight.md || true
+          git commit -m "research: record W1 VAH microstructure R1 preflight" || true
+          git push || true
