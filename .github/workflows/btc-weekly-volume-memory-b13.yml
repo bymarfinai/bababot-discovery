@@ -18,6 +18,16 @@ jobs:
         with: {fetch-depth: 0}
       - uses: actions/setup-python@v5
         with: {python-version: '3.11'}
+      - name: Runner heartbeat
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          printf 'RUNNING run_id=%s sha=%s started_utc=%s\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_WEEKLY_VOLUME_MEMORY_B13_Status.txt
+          git add BTC_WEEKLY_VOLUME_MEMORY_B13_Status.txt
+          git commit -m "ci: mark BTC weekly volume memory B13 running"
+          git pull --rebase origin main
+          git push origin HEAD:main
       - run: pip install numpy pandas requests scikit-learn
       - name: Compile B13 fast runner
         run: python -m py_compile research/btc_weekly_volume_memory_b13.py research/btc_weekly_volume_memory_b13_fast.py
@@ -31,6 +41,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          printf 'FINISHED run_id=%s sha=%s finished_utc=%s\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_WEEKLY_VOLUME_MEMORY_B13_Status.txt
           git add BTC_WEEKLY_VOLUME_MEMORY_B13_* || true
           if ! git diff --cached --quiet; then
             git commit -m "research: persist BTC weekly volume memory B13 result"
