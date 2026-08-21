@@ -16,6 +16,7 @@ OUTM = ROOT / "BTC_WEEKLY_ENTRYMAP_B9_Result.md"
 OUTC = ROOT / "BTC_WEEKLY_ENTRYMAP_B9_Selected.csv"
 OUTCOEF = ROOT / "BTC_WEEKLY_ENTRYMAP_B9_Coefficients.csv"
 
+IMPLEMENTATION_REVISION = "B9_TZFIX1"
 FEE = 0.0015
 EXT0 = pd.Timestamp("2020-01-01", tz="UTC")
 EXT1 = pd.Timestamp("2022-01-01", tz="UTC")
@@ -58,9 +59,14 @@ def add_previous_week_levels(x):
         "pw_hi": wk.high.shift(1),
         "pw_lo": wk.low.shift(1),
     })
-    z["week_start"] = keys.values
-    z["pw_hi"] = z.week_start.map(prev.pw_hi)
-    z["pw_lo"] = z.week_start.map(prev.pw_lo)
+    # Preserve timezone-aware Timestamp keys. `.values` would strip the tz and
+    # silently break mapping against the tz-aware weekly index.
+    z["week_start"] = keys
+    z["pw_hi"] = z["week_start"].map(prev.pw_hi)
+    z["pw_lo"] = z["week_start"].map(prev.pw_lo)
+    mapped = float(z.pw_hi.notna().mean())
+    if mapped < 0.90:
+        raise RuntimeError(f"previous-week mapping coverage too low: {mapped:.3f}")
     return z
 
 
@@ -296,7 +302,7 @@ def select_weekly(scored, threshold, weeks):
             continue
         chosen = None
         route = None
-        for ts, g in wk.sort_values(["signal_ts", "prob"], ascending=[True, False]).groupby("signal_ts", sort=True):
+        for _, g in wk.sort_values(["signal_ts", "prob"], ascending=[True, False]).groupby("signal_ts", sort=True):
             top = g.sort_values("prob", ascending=False).iloc[0]
             if bool(top.eligible) and float(top.prob) >= threshold:
                 chosen = top
@@ -398,6 +404,7 @@ def main():
 
     result = {
         "protocol": "BTC_WEEKLY_ENTRYMAP_B9",
+        "implementation_revision": IMPLEMENTATION_REVISION,
         "coverage": {
             "first": str(raw.ts.min()),
             "last": str(raw.ts.max()),
@@ -501,6 +508,8 @@ def main():
         "# BTC Weekly Entry Map B9 — Result",
         "",
         f"**Verdict: {result['verdict']}**",
+        "",
+        f"Implementation revision **{IMPLEMENTATION_REVISION}**.",
         "",
         f"Coverage **{result['coverage']['first']} -> {result['coverage']['last']}**, official H1 rows **{result['coverage']['h1_rows']:,}**.",
         "",
