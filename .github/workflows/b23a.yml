@@ -1,0 +1,21 @@
+name: B23A
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: cd research && python btc_strong_trend_episode_atlas_b23a.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase
+          git add BTC_STRONG_TREND_EPISODE_ATLAS_B23A_Result.md BTC_STRONG_TREND_EPISODE_ATLAS_B23A_Summary.csv BTC_STRONG_TREND_EPISODE_ATLAS_B23A_Episodes.csv
+          git commit -m 'research: persist B23A result' || true
+          git push
