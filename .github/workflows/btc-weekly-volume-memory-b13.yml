@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'research/btc_weekly_volume_memory_b13.py'
+      - 'research/btc_weekly_volume_memory_b13_fast.py'
       - 'BTC_WEEKLY_VOLUME_MEMORY_B13_Preregistration.md'
       - '.github/workflows/btc-weekly-volume-memory-b13.yml'
 permissions:
@@ -11,20 +12,20 @@ permissions:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
       - uses: actions/setup-python@v5
         with: {python-version: '3.11'}
       - run: pip install numpy pandas requests scikit-learn
-      - name: Compile B13
-        run: python -m py_compile research/btc_weekly_volume_memory_b13.py
-      - name: Run B13
+      - name: Compile B13 fast runner
+        run: python -m py_compile research/btc_weekly_volume_memory_b13.py research/btc_weekly_volume_memory_b13_fast.py
+      - name: Run B13 optimized
         shell: bash
         run: |
           set -o pipefail
-          PYTHONUNBUFFERED=1 PYTHONPATH=research python -u research/btc_weekly_volume_memory_b13.py 2>&1 | tee BTC_WEEKLY_VOLUME_MEMORY_B13_Run.log
+          PYTHONUNBUFFERED=1 PYTHONPATH=research python -u research/btc_weekly_volume_memory_b13_fast.py 2>&1 | tee BTC_WEEKLY_VOLUME_MEMORY_B13_Run.log
       - name: Persist
         if: always()
         run: |
