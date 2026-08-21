@@ -1,0 +1,50 @@
+name: BTC ORB B2 Simple Filters
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_orb_b2_simple_filters.py'
+      - 'BTC_ORB_B2_SimpleFilters_Preregistration.md'
+      - '.github/workflows/btc-orb-b2-simple-filters.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests
+      - name: Run frozen B2
+        id: run
+        continue-on-error: true
+        run: |
+          set +e
+          PYTHONPATH=research python research/btc_orb_b2_simple_filters.py > BTC_ORB_B2_SimpleFilters_Run.log 2>&1
+          code=$?
+          echo "$code" > BTC_ORB_B2_SimpleFilters_EXIT_CODE.txt
+          cat BTC_ORB_B2_SimpleFilters_Run.log
+          exit $code
+      - name: Persist artifacts
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_ORB_B2_SimpleFilters_EXIT_CODE.txt BTC_ORB_B2_SimpleFilters_Run.log
+          for f in BTC_ORB_B2_SimpleFilters_Result.md BTC_ORB_B2_SimpleFilters_Result.json BTC_ORB_B2_SimpleFilters_Trades.csv; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git commit -m "research: persist BTC ORB B2 simple filters result"
+            git push
+          fi
+      - name: Fail if test failed
+        if: steps.run.outcome == 'failure'
+        run: exit 1
