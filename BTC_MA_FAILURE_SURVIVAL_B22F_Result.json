@@ -1,0 +1,55 @@
+{
+  "experiment": "B22F_CONTINUOUS_MA_FAILURE_SURVIVAL",
+  "data_rows_5m": 698112,
+  "coverage": 1.0,
+  "gates": {
+    "5m_to_1h": {
+      "status": "FAIL",
+      "strong_effect": false,
+      "details": {
+        "external": {
+          "bear_n": 294,
+          "bull_n": 1032,
+          "bear_median_soft_bars": 7.0,
+          "bull_median_soft_bars": 7.0,
+          "bear_soft_survival_6": 0.54421768707483,
+          "bull_soft_survival_6": 0.502906976744186,
+          "survival_delta_pp": 4.1310710330643925
+        },
+        "development": {
+          "bear_n": 395,
+          "bull_n": 1239,
+          "bear_median_soft_bars": 7.0,
+          "bull_median_soft_bars": 6.0,
+          "bear_soft_survival_6": 0.5088607594936709,
+          "bull_soft_survival_6": 0.4891041162227603,
+          "survival_delta_pp": 1.9756643270910645
+        },
+        "reference_validation": {
+          "bear_n": 226,
+          "bull_n": 608,
+          "bear_median_soft_bars": 7.0,
+          "bull_median_soft_bars": 8.0,
+          "bear_soft_survival_6": 0.5132743362831859,
+          "bull_soft_survival_6": 0.569078947368421,
+          "survival_delta_pp": -5.580461108523515
+        }
+      }
+    },
+    "1h_to_4h": {
+      "status": "INCONCLUSIVE",
+      "strong_effect": false,
+      "details": {
+        "external": {
+          "status": "MISSING_STATE"
+        },
+        "development": {
+          "status": "MISSING_STATE"
+        },
+        "reference_validation": {
+          "status": "MISSING_STATE"
+        }
+      }
+    }
+  }
+}
