@@ -33,3 +33,4 @@ jobs:
           git add BTC_STRONG_TREND_TRANSITION_ATLAS_B23B_Result.md BTC_STRONG_TREND_TRANSITION_ATLAS_B23B_Summary.csv BTC_STRONG_TREND_TRANSITION_ATLAS_B23B_Episodes.csv
           git commit -m 'research: persist B23B result' || true
           git push
+# trigger-1
