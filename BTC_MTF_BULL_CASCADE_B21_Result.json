@@ -1,0 +1,99 @@
+{
+  "experiment": "B21_MTF_BULL_CASCADE",
+  "definition": "SMA7>SMA25>SMA99 and close>SMA25 on completed bars",
+  "data_rows_5m": 698112,
+  "data_start": "2020-01-01 00:00:00+00:00",
+  "data_end": "2026-08-20 23:55:00+00:00",
+  "coverage": 1.0,
+  "total_seeds": 17651,
+  "partition_seeds": {
+    "external": 5505,
+    "development": 7974,
+    "reference_validation": 4017,
+    "august": 155
+  },
+  "ordered_d1_cascades": {
+    "external": 0,
+    "development": 0,
+    "reference_validation": 0,
+    "august": 0
+  },
+  "fresh_seeds": {
+    "external": 1267,
+    "development": 2394,
+    "reference_validation": 1339,
+    "august": 51
+  },
+  "gates": {
+    "B21_PROPAGATION_SUPPORTED": false,
+    "B21_EARLY_ENTRY_CLUE": false,
+    "early_candidates": [],
+    "partition_detail": {
+      "external": {
+        "s3_seeds": 0,
+        "s4_seeds": 0,
+        "deepest_n30_stage": null,
+        "sample_ok": false,
+        "compare_ok": false,
+        "monotonic_ok": false,
+        "pass": false
+      },
+      "development": {
+        "s3_seeds": 0,
+        "s4_seeds": 0,
+        "deepest_n30_stage": null,
+        "sample_ok": false,
+        "compare_ok": false,
+        "monotonic_ok": false,
+        "pass": false
+      },
+      "reference_validation": {
+        "s3_seeds": 0,
+        "s4_seeds": 0,
+        "deepest_n30_stage": null,
+        "sample_ok": false,
+        "compare_ok": false,
+        "monotonic_ok": false,
+        "pass": false
+      }
+    }
+  },
+  "latest_state": {
+    "asof_research_clock": "2026-08-20 23:55:00+00:00",
+    "m5": {
+      "bull": true,
+      "last_on": "2026-08-20 23:05:00+00:00",
+      "last_off": "2026-08-20 23:00:00+00:00",
+      "close": 73078.2,
+      "sma25": 72817.636
+    },
+    "m15": {
+      "bull": true,
+      "last_on": "2026-08-20 23:15:00+00:00",
+      "last_off": "2026-08-20 23:00:00+00:00",
+      "close": 73079.1,
+      "sma25": 72687.59599999999
+    },
+    "h1": {
+      "bull": true,
+      "last_on": "2026-08-19 14:00:00+00:00",
+      "last_off": "2026-08-19 02:00:00+00:00",
+      "close": 72648.5,
+      "sma25": 71128.12800000001
+    },
+    "h4": {
+      "bull": true,
+      "last_on": "2026-08-19 20:00:00+00:00",
+      "last_off": "2026-08-10 16:00:00+00:00",
+      "close": 72649.7,
+      "sma25": 66058.052
+    },
+    "d1": {
+      "bull": false,
+      "last_on": "2026-04-27 00:00:00+00:00",
+      "last_off": "2026-05-17 00:00:00+00:00",
+      "close": 69310.0,
+      "sma25": 64158.984000000004
+    }
+  }
+}
