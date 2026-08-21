@@ -1,0 +1,10 @@
+{
+  "experiment": "B22C_HIERARCHICAL_STRONG_UPTREND",
+  "data_rows_5m": 698112,
+  "coverage": 1.0,
+  "champion": null,
+  "gates": {
+    "B22C_REPLICATED_CLUE": false,
+    "HIGH_PRECISION_CLUE": false
+  }
+}
