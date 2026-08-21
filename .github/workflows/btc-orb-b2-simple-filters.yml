@@ -17,6 +17,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -43,7 +45,8 @@ jobs:
           done
           if ! git diff --cached --quiet; then
             git commit -m "research: persist BTC ORB B2 simple filters result"
-            git push
+            git pull --rebase origin main
+            git push origin HEAD:main
           fi
       - name: Fail if test failed
         if: steps.run.outcome == 'failure'
