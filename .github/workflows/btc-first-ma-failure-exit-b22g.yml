@@ -1,0 +1,41 @@
+name: BTC First MA Failure Exit B22G
+
+on:
+  push:
+    paths:
+      - 'BTC_FIRST_MA_FAILURE_EXIT_B22G_Preregistration.md'
+      - 'research/btc_first_ma_failure_exit_b22g.py'
+      - '.github/workflows/btc-first-ma-failure-exit-b22g.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Runner heartbeat
+        run: |
+          echo "RUNNING run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_FIRST_MA_FAILURE_EXIT_B22G_Status.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add BTC_FIRST_MA_FAILURE_EXIT_B22G_Status.txt
+          git commit -m 'ci: mark B22G runner started' || true
+          git push || true
+      - name: Install dependencies
+        run: pip install numpy pandas requests
+      - name: Compile
+        run: python -m py_compile research/btc_first_ma_failure_exit_b22g.py
+      - name: Run B22G
+        run: cd research && python btc_first_ma_failure_exit_b22g.py
+      - name: Persist
+        run: |
+          git pull --rebase
+          git add BTC_FIRST_MA_FAILURE_EXIT_B22G_Result.md BTC_FIRST_MA_FAILURE_EXIT_B22G_Summary.csv BTC_FIRST_MA_FAILURE_EXIT_B22G_Trades.csv
+          git commit -m 'research: persist B22G first MA failure exit result' || true
+          git push
