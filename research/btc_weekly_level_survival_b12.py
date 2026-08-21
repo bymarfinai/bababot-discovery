@@ -17,6 +17,7 @@ OUT_JSON=ROOT/'BTC_WEEKLY_LEVEL_SURVIVAL_B12_Result.json'
 OUT_SEL=ROOT/'BTC_WEEKLY_LEVEL_SURVIVAL_B12_Selected.csv'
 OUT_THRESH=ROOT/'BTC_WEEKLY_LEVEL_SURVIVAL_B12_Thresholds.csv'
 OUT_IMP=ROOT/'BTC_WEEKLY_LEVEL_SURVIVAL_B12_Importances.csv'
+IMPL='B12_LS_FIX1'
 
 QUANTILES=[0.50,0.60,0.70,0.80,0.85,0.90,0.925,0.95,0.975,0.99,0.995]
 TF_CATS=['H1','H4','D1','W1']
@@ -48,7 +49,6 @@ def since_last_cross(a,level,cap=72):
     d=np.asarray(a,float)-float(level)
     ix=np.flatnonzero((d[:-1]*d[1:])<0)
     if not len(ix):return cap
-    # ix is transition from ix to ix+1; bars elapsed from newest crossing endpoint.
     return int(min(cap,len(a)-1-(int(ix[-1])+1)))
 
 def build_features(h1,cand):
@@ -135,7 +135,6 @@ def route(scored,threshold,weeks):
     q=scored[scored.week.isin(ws)&scored.signal_ts.map(scan_ok)&(scored.p_hold>=threshold)].copy()
     if q.empty:return q
     q=q.sort_values(['week','signal_ts','p_hold','event_key'],ascending=[True,True,False,True])
-    # At each timestamp, highest p event; then first qualifying timestamp/week.
     q=q.groupby(['week','signal_ts'],as_index=False,sort=False).head(1)
     q=q.sort_values(['week','signal_ts']).groupby('week',as_index=False,sort=False).head(1).copy()
     q['route']='LEVEL_SURVIVAL_TRIGGER'
@@ -181,7 +180,7 @@ def main():
     imp.to_csv(OUT_IMP,index=False)
     dev=meta.loc[dm].copy(); dev_weeks=b11.partition_weeks('development')
     tt=threshold_table(dev,dev_weeks); tt.to_csv(OUT_THRESH,index=False)
-    chosen=tt.iloc[0]; threshold=float(chosen.threshold); quantile=float(chosen.quantile)
+    chosen=tt.iloc[0]; threshold=float(chosen['threshold']); quantile=float(chosen['quantile'])
     summary={}; selected=[]
     diagnostics={}
     for part in ('development','external','reference_validation','august'):
@@ -199,12 +198,12 @@ def main():
     ew=b11.partition_weeks('external'); vw=b11.partition_weeks('reference_validation')
     robust=gate(summary['external']['stat'],summary['external']['blocks'],ew,1.0) and gate(summary['reference_validation']['stat'],summary['reference_validation']['blocks'],vw,1.0)
     highp=gate(summary['external']['stat'],summary['external']['blocks'],ew,0.80) and gate(summary['reference_validation']['stat'],summary['reference_validation']['blocks'],vw,0.80)
-    result={'experiment':'B12_LEVEL_SURVIVAL','threshold_quantile':quantile,'threshold':threshold,'feature_count':len(feat),
+    result={'experiment':'B12_LEVEL_SURVIVAL','implementation_revision':IMPL,'threshold_quantile':quantile,'threshold':threshold,'feature_count':len(feat),
             'development_candidate_n':int(dm.sum()),'summary':summary,'top_importances':imp.head(20).to_dict('records'),
             'gates':{'B12_ROBUST_WEEKLY_100':'PASS' if robust else 'FAIL','B12_HIGH_PRECISION_WEEKLY':'PASS' if highp else 'FAIL'},
             'live_bbc_untouched':True}
     OUT_JSON.write_text(json.dumps(result,indent=2,default=str),encoding='utf-8')
-    lines=['# BTC Weekly Level Survival B12 — Result','',f"**Verdict: {'B12_ROBUST_WEEKLY_100_PASS' if robust else 'B12_NO_ROBUST_WEEKLY_100'}**",'',
+    lines=['# BTC Weekly Level Survival B12 — Result','',f'Implementation revision **{IMPL}**.','',f"**Verdict: {'B12_ROBUST_WEEKLY_100_PASS' if robust else 'B12_NO_ROBUST_WEEKLY_100'}**",'',
            f'Frozen development threshold quantile **{quantile:.3f}**, p_hold threshold **{threshold:.6f}**.','',
            'Execution: completed level-touch H1 -> next H1 open; net +1% / -1%; 0.15% fee; adverse-first; no non-level fallback.','',
            '| Partition | Candidates / candidate WR / AUC | Weeks/N/Coverage | TP/SL/TIME | WR | Exp | PF | Max LS |',
@@ -215,7 +214,7 @@ def main():
     lines += ['','## Development threshold table','',
               '| Q | Threshold | Coverage | WR | Wilson LB | PF | N |','|---:|---:|---:|---:|---:|---:|---:|']
     for _,r in tt.sort_values('quantile').iterrows():
-        lines.append(f"| {r.quantile:.3f} | {r.threshold:.6f} | {pct(r.coverage)} | {pct(r.wr)} | {pct(r.wilson)} | {num(r.pf)} | {int(r.n)} |")
+        lines.append(f"| {r['quantile']:.3f} | {r['threshold']:.6f} | {pct(r['coverage'])} | {pct(r['wr'])} | {pct(r['wilson'])} | {num(r['pf'])} | {int(r['n'])} |")
     lines += ['','## Top model importances (descriptive only)','',
               '| Feature | Importance |','|---|---:|']
     for _,r in imp.head(15).iterrows():lines.append(f"| {r.feature} | {r.importance:.5f} |")
