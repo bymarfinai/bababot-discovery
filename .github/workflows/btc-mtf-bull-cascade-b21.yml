@@ -1,0 +1,59 @@
+name: BTC MTF Bull Cascade B21
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/btc-mtf-bull-cascade-b21.yml'
+      - 'research/btc_mtf_bull_cascade_b21.py'
+      - 'BTC_MTF_BULL_CASCADE_B21_Preregistration.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Runner heartbeat
+        run: |
+          echo "RUNNING run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_MTF_BULL_CASCADE_B21_Status.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add BTC_MTF_BULL_CASCADE_B21_Status.txt
+          git commit -m "ci: mark B21 runner started" || true
+          git push || true
+      - name: Install dependencies
+        run: pip install numpy pandas requests
+      - name: Compile B21
+        run: python -m py_compile research/btc_mtf_bull_cascade_b21.py
+      - name: Run B21
+        id: runb21
+        shell: bash
+        run: |
+          set +e
+          PYTHONUNBUFFERED=1 PYTHONPATH=research python -u research/btc_mtf_bull_cascade_b21.py 2>&1 | tee BTC_MTF_BULL_CASCADE_B21_Run.log
+          code=${PIPESTATUS[0]}
+          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+          exit ${code}
+      - name: Persist
+        if: always()
+        run: |
+          git pull --rebase || true
+          git add BTC_MTF_BULL_CASCADE_B21_* || true
+          if [ -f BTC_MTF_BULL_CASCADE_B21_Result.md ]; then
+            echo "COMPLETED run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} ended_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_MTF_BULL_CASCADE_B21_Status.txt
+          else
+            echo "FAILED run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} ended_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ) exit_code=${{ steps.runb21.outputs.exit_code }}" > BTC_MTF_BULL_CASCADE_B21_Status.txt
+          fi
+          git add BTC_MTF_BULL_CASCADE_B21_Status.txt BTC_MTF_BULL_CASCADE_B21_Run.log || true
+          git commit -m "research: persist B21 MTF bull cascade run state" || true
+          git push || true
