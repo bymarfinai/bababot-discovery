@@ -1,5 +1,3 @@
-/home/runner/work/bababot-discovery/bababot-discovery/research/btc_mtf_bull_cascade_b21.py:109: Pandas4Warning: 'd' is deprecated and will be removed in a future version, please use 'D' instead.
-  return src[['open', 'high', 'low', 'close']].resample(
 {
   "experiment": "B21_MTF_BULL_CASCADE",
   "definition": "SMA7>SMA25>SMA99 and close>SMA25 on completed bars",
@@ -15,9 +13,9 @@
     "august": 155
   },
   "ordered_d1_cascades": {
-    "external": 0,
-    "development": 0,
-    "reference_validation": 0,
+    "external": 387,
+    "development": 322,
+    "reference_validation": 199,
     "august": 0
   },
   "fresh_seeds": {
@@ -32,28 +30,28 @@
     "early_candidates": [],
     "partition_detail": {
       "external": {
-        "s3_seeds": 0,
-        "s4_seeds": 0,
-        "deepest_n30_stage": null,
-        "sample_ok": false,
+        "s3_seeds": 2144,
+        "s4_seeds": 387,
+        "deepest_n30_stage": 4,
+        "sample_ok": true,
         "compare_ok": false,
         "monotonic_ok": false,
         "pass": false
       },
       "development": {
-        "s3_seeds": 0,
-        "s4_seeds": 0,
-        "deepest_n30_stage": null,
-        "sample_ok": false,
+        "s3_seeds": 2841,
+        "s4_seeds": 322,
+        "deepest_n30_stage": 4,
+        "sample_ok": true,
         "compare_ok": false,
         "monotonic_ok": false,
         "pass": false
       },
       "reference_validation": {
-        "s3_seeds": 0,
-        "s4_seeds": 0,
-        "deepest_n30_stage": null,
-        "sample_ok": false,
+        "s3_seeds": 1411,
+        "s4_seeds": 199,
+        "deepest_n30_stage": 4,
+        "sample_ok": true,
         "compare_ok": false,
         "monotonic_ok": false,
         "pass": false

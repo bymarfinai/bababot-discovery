@@ -13,9 +13,9 @@
     "august": 155
   },
   "ordered_d1_cascades": {
-    "external": 0,
-    "development": 0,
-    "reference_validation": 0,
+    "external": 387,
+    "development": 322,
+    "reference_validation": 199,
     "august": 0
   },
   "fresh_seeds": {
@@ -30,28 +30,28 @@
     "early_candidates": [],
     "partition_detail": {
       "external": {
-        "s3_seeds": 0,
-        "s4_seeds": 0,
-        "deepest_n30_stage": null,
-        "sample_ok": false,
+        "s3_seeds": 2144,
+        "s4_seeds": 387,
+        "deepest_n30_stage": 4,
+        "sample_ok": true,
         "compare_ok": false,
         "monotonic_ok": false,
         "pass": false
       },
       "development": {
-        "s3_seeds": 0,
-        "s4_seeds": 0,
-        "deepest_n30_stage": null,
-        "sample_ok": false,
+        "s3_seeds": 2841,
+        "s4_seeds": 322,
+        "deepest_n30_stage": 4,
+        "sample_ok": true,
         "compare_ok": false,
         "monotonic_ok": false,
         "pass": false
       },
       "reference_validation": {
-        "s3_seeds": 0,
-        "s4_seeds": 0,
-        "deepest_n30_stage": null,
-        "sample_ok": false,
+        "s3_seeds": 1411,
+        "s4_seeds": 199,
+        "deepest_n30_stage": 4,
+        "sample_ok": true,
         "compare_ok": false,
         "monotonic_ok": false,
         "pass": false
@@ -95,5 +95,7 @@
       "close": 69310.0,
       "sma25": 64158.984000000004
     }
-  }
+  },
+  "implementation_revision": "B21_V1_R2_RESOLUTION_SAFE",
+  "supersedes_first_run": "run_id=32478430958"
 }
