@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-import json, math
+import json
 import numpy as np
 import pandas as pd
 
@@ -55,6 +55,9 @@ def prev_period_state(x15,kind):
 def cutoff(w):return w+pd.Timedelta(days=5,hours=12)
 def week_key(t):return vm.b11.week_key(vm.b11.week_start(pd.Timestamp(t)))
 def pool_family(level):return 'PD' if level.startswith('PD') else ('PW' if level.startswith('PW') else 'W1VA')
+def in_research(t):
+    t=pd.Timestamp(t)
+    return (vm.b11.EXT0<=t<vm.b11.VAL1) or (vm.b11.AUG0<=t<vm.b11.AUG1)
 
 
 def micro_flows(x15,signal_ts,level,is_upper):
@@ -86,7 +89,7 @@ def structural_events(h1,x15,states):
         valid=np.isfinite(lv)&np.array([x is not None and str(x)!='nan' for x in inst])
         seen=set()
         for i in range(len(idx)):
-            if not valid[i] or not vm.b11.is_in_any_partition(idx[i]):continue
+            if not valid[i] or not in_research(idx[i]):continue
             if idx[i]>cutoff(vm.b11.week_start(idx[i])):continue
             if pos=='UPPER':
                 if not (op[i]<=lv[i] and hi[i]>lv[i]):continue
