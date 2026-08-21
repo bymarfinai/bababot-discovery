@@ -34,3 +34,4 @@ jobs:
           git add BTC_FIRST_GREEN_AFTER_CROSS_B23G_Result.md BTC_FIRST_GREEN_AFTER_CROSS_B23G_Summary.csv BTC_FIRST_GREEN_AFTER_CROSS_B23G_Trades.csv BTC_FIRST_GREEN_AFTER_CROSS_B23G_Cycles.csv
           git commit -m 'research: persist B23G first-green-after-cross result' || true
           git push
+# trigger
