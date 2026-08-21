@@ -28,7 +28,7 @@ jobs:
           git commit -m 'ci: mark B22E runner started' || true
           git push || true
       - name: Install dependencies
-        run: pip install numpy pandas
+        run: pip install numpy pandas requests
       - name: Compile
         run: python -m py_compile research/btc_opposing_htf_fakeout_b22e.py research/btc_strong_uptrend_lifecycle_b22b.py research/btc_mtf_bull_cascade_b21.py
       - name: Run B22E
