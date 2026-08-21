@@ -1,19 +1,3 @@
-downloaded 10/102 archives
-downloaded 20/102 archives
-downloaded 30/102 archives
-downloaded 40/102 archives
-downloaded 50/102 archives
-downloaded 60/102 archives
-downloaded 70/102 archives
-downloaded 80/102 archives
-downloaded 90/102 archives
-downloaded 100/102 archives
-loaded 58152 2020-01-01 00:00:00+00:00 2026-08-19 23:00:00+00:00
-candidate atlas H1
-candidate atlas H4
-candidate atlas D1
-candidate atlas W1
-HOLD candidates 188513
 # BTC Weekly Level Survival B12 — Result
 
 Implementation revision **B12_LS_FIX1**.
