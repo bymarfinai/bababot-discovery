@@ -1,0 +1,24 @@
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_marketstate_ms2_positioning.py", line 159, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_marketstate_ms2_positioning.py", line 141, in main
+    x=prep();df=simulate(x).replace([np.inf,-np.inf],np.nan)
+      ^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_marketstate_ms2_positioning.py", line 82, in prep
+    x=pd.merge_asof(x.sort_values('ts'),m[cols].sort_values('ts'),on='ts',direction='backward',tolerance=pd.Timedelta(minutes=15))
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/reshape/merge.py", line 917, in merge_asof
+    op = _AsOfMerge(
+         ^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/reshape/merge.py", line 2353, in __init__
+    _OrderedMerge.__init__(
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/reshape/merge.py", line 2265, in __init__
+    _MergeOperation.__init__(
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/reshape/merge.py", line 1026, in __init__
+    self._maybe_require_matching_dtypes(self.left_join_keys, self.right_join_keys)
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/reshape/merge.py", line 2478, in _maybe_require_matching_dtypes
+    _check_dtype_match(lk, rk, i)
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/reshape/merge.py", line 2474, in _check_dtype_match
+    raise MergeError(msg)
+pandas.errors.MergeError: incompatible merge keys [0] datetime64[ms, UTC] and datetime64[us, UTC], must be the same type
