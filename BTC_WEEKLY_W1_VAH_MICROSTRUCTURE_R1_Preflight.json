@@ -1,0 +1,11 @@
+{
+  "protocol": "W1_VAH_MICRO_R1_PREFLIGHT",
+  "status": "BLOCKED_DATA_ACCESS",
+  "market": "binance",
+  "instrument": "BTC-USDT-VANILLA-PERPETUAL",
+  "probe_minutes": 5,
+  "depth": 1000,
+  "probes": [],
+  "labels_inspected": false,
+  "message": "COINDESK_API_KEY is not configured"
+}
