@@ -1,0 +1,48 @@
+name: BTC Weekly Liquidity Sweep Flow B18
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/btc-weekly-liquidity-sweep-flow-b18.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Runner heartbeat
+        run: |
+          echo "RUNNING sha=${GITHUB_SHA} started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_WEEKLY_LIQUIDITY_SWEEP_FLOW_B18_Status.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add BTC_WEEKLY_LIQUIDITY_SWEEP_FLOW_B18_Status.txt
+          git commit -m "ci: mark B18 runner started" || true
+          git push || true
+      - name: Install dependencies
+        run: pip install numpy pandas requests scikit-learn
+      - name: Compile B18
+        run: python -m py_compile research/btc_weekly_liquidity_sweep_flow_b18.py
+      - name: Run B18
+        run: PYTHONPATH=research python research/btc_weekly_liquidity_sweep_flow_b18.py
+      - name: Persist
+        if: always()
+        run: |
+          git pull --rebase || true
+          git add BTC_WEEKLY_LIQUIDITY_SWEEP_FLOW_B18_* || true
+          if [ -f BTC_WEEKLY_LIQUIDITY_SWEEP_FLOW_B18_Result.md ]; then
+            echo "COMPLETED sha=${GITHUB_SHA} ended_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_WEEKLY_LIQUIDITY_SWEEP_FLOW_B18_Status.txt
+            git add BTC_WEEKLY_LIQUIDITY_SWEEP_FLOW_B18_Status.txt
+          fi
+          git commit -m "research: persist liquidity sweep flow B18 result" || true
+          git push || true
