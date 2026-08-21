@@ -1,0 +1,54 @@
+name: BTC Market-State MS2 Positioning
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_marketstate_ms2_positioning.py'
+      - 'BTC_MarketState_MS2_Positioning_Preregistration.md'
+      - '.github/workflows/btc-marketstate-ms2-positioning.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: btc-marketstate-ms2-positioning
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests
+      - name: Run frozen MS2
+        id: run
+        continue-on-error: true
+        run: |
+          set +e
+          PYTHONPATH=research python research/btc_marketstate_ms2_positioning.py > BTC_MarketState_MS2_Positioning_Run.log 2>&1
+          code=$?
+          echo "$code" > BTC_MarketState_MS2_Positioning_EXIT_CODE.txt
+          cat BTC_MarketState_MS2_Positioning_Run.log
+          exit $code
+      - name: Persist artifacts
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_MarketState_MS2_Positioning_EXIT_CODE.txt BTC_MarketState_MS2_Positioning_Run.log
+          for f in BTC_MarketState_MS2_Positioning_Result.md BTC_MarketState_MS2_Positioning_Result.json BTC_MarketState_MS2_Positioning_Candidates.csv BTC_MarketState_MS2_Positioning_Aug19_20.csv; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git commit -m "research: persist BTC market-state MS2 positioning result"
+            git push
+          fi
+      - name: Fail if test failed
+        if: steps.run.outcome == 'failure'
+        run: exit 1
