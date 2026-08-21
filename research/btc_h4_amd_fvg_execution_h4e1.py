@@ -106,3 +106,5 @@ def main():
     md += ['','## Verdicts','',f"**H4E1_EXECUTION_SUPPORTED: {'PASS' if support else 'FAIL'}**",f"**H4E1_80_CANDIDATE: {'PASS' if c80 else 'FAIL'}**",'','No post-result entry-depth, stop-buffer, target, hold, side/session, gap-size, weekday, volatility, or accumulation/FVG retuning.']
     OUT_MD.write_text('\n'.join(md)+'\n'); print(OUT_MD.read_text())
 if __name__=='__main__': main()
+
+# no-op retrigger marker; frozen H4E1 logic unchanged
