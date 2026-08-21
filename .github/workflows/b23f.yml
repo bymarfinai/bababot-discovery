@@ -1,0 +1,36 @@
+name: B23F
+on:
+  push:
+    paths:
+      - '.github/workflows/b23f.yml'
+      - 'research/btc_continuation_after_cross_b23f.py'
+      - 'BTC_CONTINUATION_AFTER_CROSS_B23F_Preregistration.md'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Runner heartbeat
+        run: |
+          echo "RUNNING run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_CONTINUATION_AFTER_CROSS_B23F_Status.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add BTC_CONTINUATION_AFTER_CROSS_B23F_Status.txt
+          git commit -m 'ci: mark B23F runner started' || true
+          git push || true
+      - run: pip install numpy pandas requests
+      - run: python -m py_compile research/btc_continuation_after_cross_b23f.py
+      - run: cd research && python btc_continuation_after_cross_b23f.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase
+          git add BTC_CONTINUATION_AFTER_CROSS_B23F_Result.md BTC_CONTINUATION_AFTER_CROSS_B23F_Summary.csv BTC_CONTINUATION_AFTER_CROSS_B23F_Trades.csv BTC_CONTINUATION_AFTER_CROSS_B23F_Cycles.csv
+          git commit -m 'research: persist B23F continuation-after-cross result' || true
+          git push
