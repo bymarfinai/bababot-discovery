@@ -1,0 +1,39 @@
+name: BTC 5m Move Scale B22A
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/btc-5m-move-scale-b22a.yml'
+      - 'research/btc_5m_move_scale_b22a.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  descriptive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install numpy pandas requests
+      - name: Compile
+        run: python -m py_compile research/btc_5m_move_scale_b22a.py
+      - name: Run B22A
+        run: PYTHONPATH=research python -u research/btc_5m_move_scale_b22a.py 2>&1 | tee BTC_5M_MOVE_SCALE_B22A_Run.log
+      - name: Persist
+        if: always()
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase || true
+          git add BTC_5M_MOVE_SCALE_B22A_* || true
+          git commit -m "research: persist B22A 5m move-scale result" || true
+          git push || true
