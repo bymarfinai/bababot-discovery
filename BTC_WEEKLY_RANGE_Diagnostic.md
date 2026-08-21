@@ -1,0 +1,56 @@
+# BTC Weekly High-Low Range Diagnostic
+
+Coverage **2020-01-01 00:00:00+00:00 -> 2026-08-19 23:00:00+00:00**, official H1 rows **58,152**. Complete ISO weeks only: **345**.
+
+Two definitions are reported:
+- High→Low drawdown = `(High-Low)/High`.
+- Low→High upside = `(High-Low)/Low`.
+
+## Distribution
+
+| Metric | Mean | Median | Min | P10 | P25 | P75 | P90 | Max |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| High→Low | 11.56% | 10.04% | 3.00% | 5.35% | 7.45% | 14.47% | 19.56% | 55.74% |
+| Low→High | 13.80% | 11.16% | 3.09% | 5.66% | 8.04% | 16.92% | 24.32% | 125.92% |
+
+## Weekly high→low room thresholds
+
+- >=1%: **345/345 weeks (100.00%)**
+- >=2%: **345/345 weeks (100.00%)**
+- >=3%: **345/345 weeks (100.00%)**
+- >=4%: **339/345 weeks (98.26%)**
+- >=5%: **322/345 weeks (93.33%)**
+- >=7.5%: **255/345 weeks (73.91%)**
+- >=10%: **175/345 weeks (50.72%)**
+
+Extreme order: high occurred first in **172** weeks; low occurred first in **173** weeks.
+
+## 10 narrowest complete weeks
+
+| Week | High→Low | Low→High | Order |
+|---|---:|---:|---|
+| 2025-W38 | 3.00% | 3.09% | LOW_FIRST |
+| 2020-W29 | 3.22% | 3.33% | HIGH_FIRST |
+| 2023-W29 | 3.35% | 3.47% | LOW_FIRST |
+| 2023-W01 | 3.72% | 3.87% | LOW_FIRST |
+| 2022-W52 | 3.82% | 3.97% | HIGH_FIRST |
+| 2025-W16 | 3.91% | 4.07% | HIGH_FIRST |
+| 2023-W30 | 4.19% | 4.38% | HIGH_FIRST |
+| 2020-W27 | 4.23% | 4.42% | HIGH_FIRST |
+| 2023-W36 | 4.25% | 4.44% | LOW_FIRST |
+| 2020-W28 | 4.35% | 4.55% | LOW_FIRST |
+
+## 10 widest complete weeks
+
+| Week | High→Low | Low→High | Order |
+|---|---:|---:|---|
+| 2020-W11 | 55.74% | 125.92% | HIGH_FIRST |
+| 2021-W20 | 38.51% | 62.63% | HIGH_FIRST |
+| 2020-W12 | 36.14% | 56.58% | LOW_FIRST |
+| 2022-W24 | 34.54% | 52.77% | HIGH_FIRST |
+| 2021-W01 | 34.01% | 51.53% | LOW_FIRST |
+| 2021-W48 | 30.96% | 44.84% | HIGH_FIRST |
+| 2021-W30 | 26.95% | 36.90% | LOW_FIRST |
+| 2022-W45 | 26.59% | 36.22% | HIGH_FIRST |
+| 2021-W19 | 26.47% | 35.99% | HIGH_FIRST |
+| 2020-W53 | 25.61% | 34.42% | LOW_FIRST |
