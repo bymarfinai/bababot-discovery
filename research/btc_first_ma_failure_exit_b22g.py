@@ -75,10 +75,12 @@ def simulate(z: pd.DataFrame, hstate: np.ndarray, entry_tf: str, higher_tf: str,
                     cursor = e_i + 1; continue
                 entry = opens[e_i]; exit_px = opens[x_i]
                 path_hi = float(np.nanmax(highs[e_i:x_i])); path_lo = float(np.nanmin(lows[e_i:x_i]))
-                rows.append(dict(partition=part, entry_tf=entry_tf, higher_tf=higher_tf, higher_state=state,
-                                 exit_type=exit_type, signal_ts=idx[e_sig], entry_ts=idx[e_i], exit_ts=idx[x_i],
-                                 entry_px=entry, exit_px=exit_px, return=exit_px/entry-1,
-                                 mfe=path_hi/entry-1, mae=path_lo/entry-1, bars_held=int(x_i-e_i), exit_reason=reason))
+                rows.append({
+                    'partition': part, 'entry_tf': entry_tf, 'higher_tf': higher_tf, 'higher_state': state,
+                    'exit_type': exit_type, 'signal_ts': idx[e_sig], 'entry_ts': idx[e_i], 'exit_ts': idx[x_i],
+                    'entry_px': entry, 'exit_px': exit_px, 'return': exit_px/entry-1,
+                    'mfe': path_hi/entry-1, 'mae': path_lo/entry-1, 'bars_held': int(x_i-e_i), 'exit_reason': reason,
+                })
                 cursor = x_i
     return rows
 
