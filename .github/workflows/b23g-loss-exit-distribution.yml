@@ -1,0 +1,27 @@
+name: B23G Loss Exit Distribution
+on:
+  push:
+    paths:
+      - '.github/workflows/b23g-loss-exit-distribution.yml'
+      - 'research/b23g_loss_exit_distribution.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: python -m py_compile research/b23g_loss_exit_distribution.py
+      - run: cd research && python b23g_loss_exit_distribution.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase
+          git add BTC_FIRST_GREEN_AFTER_CROSS_B23G_LossExitDistribution.md BTC_FIRST_GREEN_AFTER_CROSS_B23G_LossExitDistribution.csv
+          git commit -m 'research: persist B23G loss-exit distribution' || true
+          git push
