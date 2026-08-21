@@ -1,5 +1,10 @@
 name: B23A
-on: workflow_dispatch
+on:
+  push:
+    paths:
+      - '.github/workflows/b23a.yml'
+      - 'research/btc_strong_trend_episode_atlas_b23a.py'
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
