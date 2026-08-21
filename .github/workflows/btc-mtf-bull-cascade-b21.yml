@@ -6,7 +6,9 @@ on:
     paths:
       - '.github/workflows/btc-mtf-bull-cascade-b21.yml'
       - 'research/btc_mtf_bull_cascade_b21.py'
+      - 'research/btc_mtf_bull_cascade_b21_fixed.py'
       - 'BTC_MTF_BULL_CASCADE_B21_Preregistration.md'
+      - 'BTC_MTF_BULL_CASCADE_B21_Implementation_Note.md'
   workflow_dispatch:
 
 permissions:
@@ -34,13 +36,15 @@ jobs:
       - name: Install dependencies
         run: pip install numpy pandas requests
       - name: Compile B21
-        run: python -m py_compile research/btc_mtf_bull_cascade_b21.py
-      - name: Run B21
+        run: |
+          python -m py_compile research/btc_mtf_bull_cascade_b21.py
+          python -m py_compile research/btc_mtf_bull_cascade_b21_fixed.py
+      - name: Run B21 corrected implementation
         id: runb21
         shell: bash
         run: |
           set +e
-          PYTHONUNBUFFERED=1 PYTHONPATH=research python -u research/btc_mtf_bull_cascade_b21.py 2>&1 | tee BTC_MTF_BULL_CASCADE_B21_Run.log
+          PYTHONUNBUFFERED=1 PYTHONPATH=research python -u research/btc_mtf_bull_cascade_b21_fixed.py 2>&1 | tee BTC_MTF_BULL_CASCADE_B21_Run.log
           code=${PIPESTATUS[0]}
           echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
           exit ${code}
@@ -55,5 +59,5 @@ jobs:
             echo "FAILED run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} ended_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ) exit_code=${{ steps.runb21.outputs.exit_code }}" > BTC_MTF_BULL_CASCADE_B21_Status.txt
           fi
           git add BTC_MTF_BULL_CASCADE_B21_Status.txt BTC_MTF_BULL_CASCADE_B21_Run.log || true
-          git commit -m "research: persist B21 MTF bull cascade run state" || true
+          git commit -m "research: persist corrected B21 MTF bull cascade run state" || true
           git push || true
