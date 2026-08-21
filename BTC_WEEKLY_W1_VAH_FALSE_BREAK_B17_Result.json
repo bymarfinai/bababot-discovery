@@ -1,0 +1,128 @@
+{
+  "experiment": "B17_W1_VAH_FALSE_BREAK_FILTER",
+  "revision": "B17_V1",
+  "baseline_sanity": {
+    "development": [
+      82,
+      49
+    ],
+    "external": [
+      64,
+      36
+    ],
+    "reference_validation": [
+      47,
+      24
+    ],
+    "august": [
+      2,
+      0
+    ]
+  },
+  "core_coverage": {
+    "development": 1.0,
+    "external": 1.0,
+    "reference_validation": 1.0,
+    "august": 1.0
+  },
+  "extended_coverage": {
+    "development": 0.7073170731707317,
+    "external": 0.65625,
+    "reference_validation": 1.0,
+    "august": 1.0
+  },
+  "extended_allowed": false,
+  "stable_differentiators": 1,
+  "selected_model": "CORE_TREE",
+  "selected_leaf": 1,
+  "selected_rule": "break_close_pos <= 0.67316833",
+  "baseline": {
+    "development": {
+      "n": 82,
+      "tp": 49,
+      "sl": 33,
+      "time": 0,
+      "wr": 0.5975609756097561,
+      "exp": 0.001951219512195186,
+      "pf": 1.4848484848485037,
+      "wilson": 0.489362574712238
+    },
+    "external": {
+      "n": 64,
+      "tp": 36,
+      "sl": 28,
+      "time": 0,
+      "wr": 0.5625,
+      "exp": 0.0012500000000000616,
+      "pf": 1.2857142857143014,
+      "wilson": 0.44085991778287875
+    },
+    "reference_validation": {
+      "n": 47,
+      "tp": 24,
+      "sl": 23,
+      "time": 0,
+      "wr": 0.5106382978723404,
+      "exp": 0.0002127659574468633,
+      "pf": 1.0434782608695767,
+      "wilson": 0.37242217589372884
+    },
+    "august": {
+      "n": 2,
+      "tp": 0,
+      "sl": 2,
+      "time": 0,
+      "wr": 0.0,
+      "exp": -0.009999999999999952,
+      "pf": 0.0,
+      "wilson": 0.0
+    }
+  },
+  "filtered": {
+    "development": {
+      "n": 17,
+      "tp": 15,
+      "sl": 2,
+      "time": 0,
+      "wr": 0.8823529411764706,
+      "exp": 0.007647058823529469,
+      "pf": 7.500000000000044,
+      "wilson": 0.6566315750229009
+    },
+    "external": {
+      "n": 11,
+      "tp": 4,
+      "sl": 7,
+      "time": 0,
+      "wr": 0.36363636363636365,
+      "exp": -0.0027272727272726724,
+      "pf": 0.571428571428578,
+      "wilson": 0.15166223614131386
+    },
+    "reference_validation": {
+      "n": 8,
+      "tp": 5,
+      "sl": 3,
+      "time": 0,
+      "wr": 0.625,
+      "exp": 0.0025000000000000456,
+      "pf": 1.6666666666666796,
+      "wilson": 0.3057378545838018
+    },
+    "august": {
+      "n": 2,
+      "tp": 0,
+      "sl": 2,
+      "time": 0,
+      "wr": 0.0,
+      "exp": -0.009999999999999952,
+      "pf": 0.0,
+      "wilson": 0.0
+    }
+  },
+  "gates": {
+    "B17_USEFUL_FALSE_BREAK_FILTER": "FAIL",
+    "B17_HIGH_PRECISION_FILTER": "FAIL"
+  },
+  "live_bbc_untouched": true
+}
