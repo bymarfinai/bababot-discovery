@@ -1,0 +1,36 @@
+name: BTC ORB B5 Confirmation Layer
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_orb_b5_confirmation.py'
+      - 'BTC_ORB_B5_Confirmation_Preregistration.md'
+      - '.github/workflows/btc-orb-b5-confirmation.yml'
+permissions:
+  contents: write
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install numpy pandas requests
+      - name: Run B5
+        run: PYTHONPATH=research python research/btc_orb_b5_confirmation.py > BTC_ORB_B5_Confirmation_Run.log 2>&1
+      - name: Persist
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BTC_ORB_B5_Confirmation_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m "research: persist BTC ORB B5 confirmation result"
+            for n in 1 2 3 4 5; do
+              git pull --rebase origin main && git push origin HEAD:main && exit 0
+              sleep $((n*3))
+            done
+            exit 1
+          fi
