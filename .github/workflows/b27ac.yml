@@ -1,0 +1,27 @@
+name: B27AC
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/b27ac.yml'
+      - 'research/btc_london_ny_e20_profit_lock_runner_b27ac.py'
+jobs:
+  run:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: python -m py_compile research/btc_london_ny_e20_profit_lock_runner_b27ac.py
+      - run: cd research && python btc_london_ny_e20_profit_lock_runner_b27ac.py
+      - name: Persist result
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 4189822+github-actions[bot]@users.noreply.github.com
+          git add BTC_LONDON_NY_E20_PROFIT_LOCK_RUNNER_B27AC_Result.md BTC_LONDON_NY_E20_PROFIT_LOCK_RUNNER_B27AC_Trades.csv BTC_LONDON_NY_E20_PROFIT_LOCK_RUNNER_B27AC_Summary.csv BTC_LONDON_NY_E20_PROFIT_LOCK_RUNNER_B27AC_Status.txt
+          git commit -m 'research: persist B27AC result' || true
+          git push
