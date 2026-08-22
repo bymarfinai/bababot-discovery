@@ -1,0 +1,36 @@
+name: B24A
+on:
+  push:
+    paths:
+      - '.github/workflows/b24a.yml'
+      - 'research/btc_pre_d1_good_cascade_b24a.py'
+      - 'BTC_PRE_D1_GOOD_CASCADE_B24A_Preregistration.md'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Runner heartbeat
+        run: |
+          echo "RUNNING run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_PRE_D1_GOOD_CASCADE_B24A_Status.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add BTC_PRE_D1_GOOD_CASCADE_B24A_Status.txt
+          git commit -m 'ci: mark B24A runner started' || true
+          git push || true
+      - run: pip install numpy pandas requests scikit-learn
+      - run: python -m py_compile research/btc_pre_d1_good_cascade_b24a.py
+      - run: cd research && python btc_pre_d1_good_cascade_b24a.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase
+          git add BTC_PRE_D1_GOOD_CASCADE_B24A_Result.md BTC_PRE_D1_GOOD_CASCADE_B24A_Result.json BTC_PRE_D1_GOOD_CASCADE_B24A_Events.csv BTC_PRE_D1_GOOD_CASCADE_B24A_Buckets.csv
+          git commit -m 'research: persist B24A pre-D1 detector result' || true
+          git push
