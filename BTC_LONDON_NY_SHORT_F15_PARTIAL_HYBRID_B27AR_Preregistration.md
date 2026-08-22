@@ -87,3 +87,5 @@ Benchmarks:
 10. No regime/confirmation/alternate stop/alternate split is introduced.
 
 Research only. Live BBC unchanged.
+
+CI execution-trigger edit only; no research semantics changed.
