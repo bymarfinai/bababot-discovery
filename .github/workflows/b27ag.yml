@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'research/btc_london_ny_4h_regime_alignment_b27ag.py'
+      - 'research/btc_london_ny_4h_regime_alignment_b27ag_fix.py'
       - 'BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_Preregistration.md'
       - '.github/workflows/b27ag.yml'
 
@@ -22,13 +23,15 @@ jobs:
           python-version: '3.11'
       - run: pip install pandas numpy requests
       - name: Compile
-        run: python -m py_compile research/btc_london_ny_4h_regime_alignment_b27ag.py
+        run: |
+          python -m py_compile research/btc_london_ny_4h_regime_alignment_b27ag.py
+          python -m py_compile research/btc_london_ny_4h_regime_alignment_b27ag_fix.py
       - name: Run and persist diagnostics
         shell: bash
         run: |
           set +e
           cd research
-          python btc_london_ny_4h_regime_alignment_b27ag.py > ../BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_CI_LOG.txt 2>&1
+          python btc_london_ny_4h_regime_alignment_b27ag_fix.py > ../BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_CI_LOG.txt 2>&1
           code=$?
           cd ..
           echo "EXIT_CODE=$code" >> BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_CI_LOG.txt
