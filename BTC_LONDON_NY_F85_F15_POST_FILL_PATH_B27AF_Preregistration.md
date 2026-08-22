@@ -33,15 +33,16 @@ Positive = intended direction; negative = adverse direction for both sides.
 1. H2 success/failure and terminal type.
 2. Fill-bar close progress in R.
 3. Whether fill-bar close is already on the wrong side of entry (`z_close < 0`).
-4. Pre-terminal wrong-side close rate, including fill-bar close and every later completed close strictly before terminal.
-5. Maximum consecutive wrong-side completed closes.
-6. Number of wrong-side close episodes (contiguous runs count once).
-7. Maximum adverse **close** excursion in R.
-8. Maximum favorable close excursion in R.
-9. Maximum adverse **wick** excursion from bars strictly after the fill bar and before terminal.
-10. Fraction of the mirrored 0.50R entry-to-invalidation distance consumed by adverse wick excursion. LONG F85->F35 and SHORT F15->F65 are both exactly 0.50R.
-11. Minutes from fill-bar start to H2/terminal.
-12. Whether the path ever completed a close on the wrong side before terminal.
+4. If a full next 5m bar exists strictly before terminal, its completed close progress and whether it is on the wrong side of entry. The eligible denominator is reported; immediate-next-bar H2/terminal paths are censored for this diagnostic rather than inferred.
+5. Pre-terminal wrong-side close rate, including fill-bar close and every later completed close strictly before terminal.
+6. Maximum consecutive wrong-side completed closes.
+7. Number of wrong-side close episodes (contiguous runs count once).
+8. Maximum adverse **close** excursion in R.
+9. Maximum favorable close excursion in R.
+10. Maximum adverse **wick** excursion from bars strictly after the fill bar and before terminal.
+11. Fraction of the mirrored 0.50R entry-to-invalidation distance consumed by adverse wick excursion. LONG F85->F35 and SHORT F15->F65 are both exactly 0.50R.
+12. Minutes from fill-bar start to H2/terminal.
+13. Whether the path ever completed a close on the wrong side before terminal.
 
 ## Reporting
 Report each major partition and pooled-major for LONG and SHORT, split into:
