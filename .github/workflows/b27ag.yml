@@ -23,21 +23,30 @@ jobs:
       - run: pip install pandas numpy requests
       - name: Compile
         run: python -m py_compile research/btc_london_ny_4h_regime_alignment_b27ag.py
-      - name: Run B27AG
-        run: cd research && python btc_london_ny_4h_regime_alignment_b27ag.py
-      - name: Persist results
+      - name: Run and persist diagnostics
+        shell: bash
         run: |
+          set +e
+          cd research
+          python btc_london_ny_4h_regime_alignment_b27ag.py > ../BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_CI_LOG.txt 2>&1
+          code=$?
+          cd ..
+          echo "EXIT_CODE=$code" >> BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_CI_LOG.txt
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_Result.md \
-                  BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_Detail.csv \
-                  BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_StructuralSummary.csv \
-                  BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_EconomicSummary.csv \
-                  BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_RegimeBars.csv \
-                  BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_Status.txt
-          if git diff --cached --quiet; then
-            echo 'No result changes'
-          else
-            git commit -m 'research: persist B27AG regime alignment result'
+          git add BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_CI_LOG.txt
+          for f in \
+            BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_Result.md \
+            BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_Detail.csv \
+            BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_StructuralSummary.csv \
+            BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_EconomicSummary.csv \
+            BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_RegimeBars.csv \
+            BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_Status.txt; do
+            if [ -f "$f" ]; then git add "$f"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git commit -m 'research: persist B27AG audit output'
             git push
           fi
+          exit $code
