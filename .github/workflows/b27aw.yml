@@ -2,6 +2,13 @@ name: B27AW short early path-shape atlas
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_london_ny_short_f15_early_path_shape_b27aw.py'
+      - 'BTC_LONDON_NY_SHORT_F15_EARLY_PATH_SHAPE_B27AW_Preregistration.md'
+      - '.github/workflows/b27aw.yml'
+      - '.b27aw-trigger'
   pull_request:
     paths:
       - 'research/btc_london_ny_short_f15_early_path_shape_b27aw.py'
@@ -25,7 +32,7 @@ jobs:
       - name: Run B27AW
         run: python research/btc_london_ny_short_f15_early_path_shape_b27aw.py
       - name: Persist results on main push only
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
