@@ -1,0 +1,36 @@
+name: B24B
+on:
+  push:
+    paths:
+      - '.github/workflows/b24b.yml'
+      - 'research/btc_pre_d1_forward_b24b.py'
+      - 'BTC_PRE_D1_FORWARD_B24B_Preregistration.md'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Runner heartbeat
+        run: |
+          echo "RUNNING run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_PRE_D1_FORWARD_B24B_Status.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add BTC_PRE_D1_FORWARD_B24B_Status.txt
+          git commit -m 'ci: mark B24B runner started' || true
+          git push || true
+      - run: pip install numpy pandas requests scikit-learn
+      - run: python -m py_compile research/btc_pre_d1_forward_b24b.py
+      - run: cd research && python btc_pre_d1_forward_b24b.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase
+          git add BTC_PRE_D1_FORWARD_B24B_Result.md BTC_PRE_D1_FORWARD_B24B_Result.json BTC_PRE_D1_FORWARD_B24B_Events.csv BTC_PRE_D1_FORWARD_B24B_Buckets.csv
+          git commit -m 'research: persist B24B corrected forward result' || true
+          git push
