@@ -1,0 +1,47 @@
+name: B27BD NY post-NY off-session SHORT audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BTC_NY_POSTNY_OFFSESSION_SHORT_B27BD_Preregistration.md'
+      - 'research/btc_ny_postny_offsession_short_b27bd.py'
+      - '.github/workflows/b27bd.yml'
+      - '.b27bd-trigger'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/btc_ny_postny_offsession_short_b27bd.py'
+      - '.github/workflows/b27bd.yml'
+      - '.b27bd-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_ny_postny_offsession_short_b27bd.py
+      - name: Run B27BD
+        run: python research/btc_ny_postny_offsession_short_b27bd.py
+      - name: Persist results on main push only
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && always()
+        run: |
+          if [ -f BTC_NY_POSTNY_OFFSESSION_SHORT_B27BD_Result.md ]; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add BTC_NY_POSTNY_OFFSESSION_SHORT_B27BD_Result.md \
+                    BTC_NY_POSTNY_OFFSESSION_SHORT_B27BD_Days.csv \
+                    BTC_NY_POSTNY_OFFSESSION_SHORT_B27BD_Setups.csv \
+                    BTC_NY_POSTNY_OFFSESSION_SHORT_B27BD_Trades.csv \
+                    BTC_NY_POSTNY_OFFSESSION_SHORT_B27BD_Summary.csv \
+                    BTC_NY_POSTNY_OFFSESSION_SHORT_B27BD_Status.txt
+            git diff --cached --quiet || git commit -m 'Persist B27BD off-session SHORT results'
+            git push
+          fi
