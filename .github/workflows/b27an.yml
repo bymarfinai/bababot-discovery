@@ -1,0 +1,43 @@
+name: B27AN short F15 extension economics
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_london_ny_short_f15_extension_econ_b27an.py'
+      - 'BTC_LONDON_NY_SHORT_F15_EXTENSION_ECON_B27AN_Preregistration.md'
+      - '.github/workflows/b27an.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Compile
+        run: python -m py_compile research/btc_london_ny_short_f15_extension_econ_b27an.py
+      - name: Run B27AN
+        run: cd research && python btc_london_ny_short_f15_extension_econ_b27an.py
+      - name: Persist results
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase || true
+          git add BTC_LONDON_NY_SHORT_F15_EXTENSION_ECON_B27AN_Result.md \
+                  BTC_LONDON_NY_SHORT_F15_EXTENSION_ECON_B27AN_Trades.csv \
+                  BTC_LONDON_NY_SHORT_F15_EXTENSION_ECON_B27AN_Summary.csv \
+                  BTC_LONDON_NY_SHORT_F15_EXTENSION_ECON_B27AN_Status.txt || true
+          if git diff --cached --quiet; then
+            echo 'No result changes'
+          else
+            git commit -m 'research: persist B27AN short F15 extension economics'
+            git push
+          fi
