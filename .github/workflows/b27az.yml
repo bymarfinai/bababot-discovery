@@ -1,0 +1,32 @@
+name: B27AZ post-H2 full-range entry zone
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_london_ny_short_post_h2_retrace_zone_b27az.py'
+      - 'BTC_LONDON_NY_SHORT_POST_H2_RETRACE_ZONE_B27AZ_Preregistration.md'
+      - '.github/workflows/b27az.yml'
+      - '.b27az-trigger'
+  pull_request:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_london_ny_short_post_h2_retrace_zone_b27az.py
+      - name: Run B27AZ
+        run: python research/btc_london_ny_short_post_h2_retrace_zone_b27az.py
+      - name: Persist results on main push only
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add BTC_LONDON_NY_SHORT_POST_H2_RETRACE_ZONE_B27AZ_Result.md BTC_LONDON_NY_SHORT_POST_H2_RETRACE_ZONE_B27AZ_Atlas.csv BTC_LONDON_NY_SHORT_POST_H2_RETRACE_ZONE_B27AZ_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist B27AZ post-H2 entry-zone atlas'
+          git push
