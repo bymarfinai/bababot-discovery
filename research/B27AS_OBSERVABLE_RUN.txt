@@ -1,1 +1,2 @@
 B27AS observable pull-request CI trigger only. No market logic change.
+Retry after exact baseline assertion correction.
