@@ -1,0 +1,27 @@
+name: B27AD
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/b27ad.yml'
+      - 'research/btc_london_ny_short_mirror_b27ad.py'
+jobs:
+  run:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: python -m py_compile research/btc_london_ny_short_mirror_b27ad.py
+      - run: cd research && python btc_london_ny_short_mirror_b27ad.py
+      - name: Persist result
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 4189822+github-actions[bot]@users.noreply.github.com
+          git add BTC_LONDON_NY_SHORT_MIRROR_B27AD_Result.md BTC_LONDON_NY_SHORT_MIRROR_B27AD_Windows.csv BTC_LONDON_NY_SHORT_MIRROR_B27AD_Trades.csv BTC_LONDON_NY_SHORT_MIRROR_B27AD_Summary.csv BTC_LONDON_NY_SHORT_MIRROR_B27AD_Status.txt
+          git commit -m 'research: persist B27AD BTC short mirror result' || true
+          git push
