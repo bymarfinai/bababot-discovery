@@ -1,0 +1,43 @@
+name: B27AG 4H regime alignment audit
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_london_ny_4h_regime_alignment_b27ag.py'
+      - 'BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_Preregistration.md'
+      - '.github/workflows/b27ag.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Compile
+        run: python -m py_compile research/btc_london_ny_4h_regime_alignment_b27ag.py
+      - name: Run B27AG
+        run: cd research && python btc_london_ny_4h_regime_alignment_b27ag.py
+      - name: Persist results
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_Result.md \
+                  BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_Detail.csv \
+                  BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_StructuralSummary.csv \
+                  BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_EconomicSummary.csv \
+                  BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_RegimeBars.csv \
+                  BTC_LONDON_NY_4H_REGIME_ALIGNMENT_B27AG_Status.txt
+          if git diff --cached --quiet; then
+            echo 'No result changes'
+          else
+            git commit -m 'research: persist B27AG regime alignment result'
+            git push
+          fi
