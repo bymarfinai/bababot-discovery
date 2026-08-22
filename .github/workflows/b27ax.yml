@@ -1,0 +1,44 @@
+name: B27AX short early damage-control map
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'research/btc_london_ny_short_f15_early_damage_control_b27ax.py'
+      - 'BTC_LONDON_NY_SHORT_F15_EARLY_DAMAGE_CONTROL_B27AX_Preregistration.md'
+      - '.github/workflows/b27ax.yml'
+      - '.b27ax-trigger'
+  pull_request:
+    paths:
+      - 'research/btc_london_ny_short_f15_early_damage_control_b27ax.py'
+      - 'BTC_LONDON_NY_SHORT_F15_EARLY_DAMAGE_CONTROL_B27AX_Preregistration.md'
+      - '.github/workflows/b27ax.yml'
+      - '.b27ax-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_london_ny_short_f15_early_damage_control_b27ax.py
+      - name: Run B27AX
+        run: python research/btc_london_ny_short_f15_early_damage_control_b27ax.py
+      - name: Persist results on main push only
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_LONDON_NY_SHORT_F15_EARLY_DAMAGE_CONTROL_B27AX_Result.md \
+                  BTC_LONDON_NY_SHORT_F15_EARLY_DAMAGE_CONTROL_B27AX_Summary.csv \
+                  BTC_LONDON_NY_SHORT_F15_EARLY_DAMAGE_CONTROL_B27AX_Trades.csv \
+                  BTC_LONDON_NY_SHORT_F15_EARLY_DAMAGE_CONTROL_B27AX_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist B27AX early damage-control map'
+          git push
