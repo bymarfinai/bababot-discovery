@@ -1,5 +1,7 @@
 name: B27AS short wrong-side persistence audit
 on:
+  workflow_dispatch:
+  pull_request:
   push:
     paths:
       - 'research/btc_london_ny_short_f15_wrong_side_persistence_b27as.py'
@@ -18,12 +20,21 @@ jobs:
           python-version: '3.11'
       - run: pip install pandas numpy requests
       - run: python -m py_compile research/btc_london_ny_short_f15_wrong_side_persistence_b27as.py
-      - run: cd research && python btc_london_ny_short_f15_wrong_side_persistence_b27as.py
-      - if: always()
+      - name: Run B27AS
+        shell: bash
+        run: |
+          set +e
+          cd research
+          python btc_london_ny_short_f15_wrong_side_persistence_b27as.py 2>&1 | tee ../BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_CI_LOG.txt
+          code=${PIPESTATUS[0]}
+          cd ..
+          echo "EXIT_CODE=$code" >> BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_CI_LOG.txt
+          exit $code
+      - if: ${{ always() && github.event_name == 'push' }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Result.md BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Trades.csv BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Summary.csv BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Status.txt || true
+          git add BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Result.md BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Trades.csv BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Summary.csv BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Status.txt BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_CI_LOG.txt 2>/dev/null || true
           if ! git diff --cached --quiet; then
             git commit -m 'research: persist B27AS short wrong-side persistence result'
             git push
