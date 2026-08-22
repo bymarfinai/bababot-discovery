@@ -1,0 +1,36 @@
+name: B27U
+on:
+  push:
+    paths:
+      - '.github/workflows/b27u.yml'
+      - 'research/btc_london_ny_local_risk_entry_b27u.py'
+      - 'BTC_LONDON_NY_LOCAL_RISK_ENTRY_B27U_Preregistration.md'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Runner heartbeat
+        run: |
+          echo "RUNNING run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_LONDON_NY_LOCAL_RISK_ENTRY_B27U_Status.txt
+          git config user.name github-actions[bot]
+          git config user.email 4189822+github-actions[bot]@users.noreply.github.com
+          git add BTC_LONDON_NY_LOCAL_RISK_ENTRY_B27U_Status.txt
+          git commit -m 'ci: mark B27U runner started' || true
+          git push || true
+      - run: pip install numpy pandas requests
+      - run: python -m py_compile research/btc_london_ny_local_risk_entry_b27u.py
+      - run: cd research && python btc_london_ny_local_risk_entry_b27u.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 4189822+github-actions[bot]@users.noreply.github.com
+          git pull --rebase
+          git add BTC_LONDON_NY_LOCAL_RISK_ENTRY_B27U_Result.md BTC_LONDON_NY_LOCAL_RISK_ENTRY_B27U_Trades.csv BTC_LONDON_NY_LOCAL_RISK_ENTRY_B27U_Summary.csv BTC_LONDON_NY_LOCAL_RISK_ENTRY_B27U_StatusCounts.csv
+          git commit -m 'research: persist B27U shallow local-risk result' || true
+          git push
