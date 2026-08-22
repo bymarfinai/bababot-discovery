@@ -1,0 +1,36 @@
+name: B27Z
+on:
+  push:
+    paths:
+      - '.github/workflows/b27z.yml'
+      - 'research/btc_london_ny_f85_extension_econ_b27z.py'
+      - 'BTC_LONDON_NY_F85_EXTENSION_ECON_B27Z_Preregistration.md'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Runner heartbeat
+        run: |
+          echo "RUNNING run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_LONDON_NY_F85_EXTENSION_ECON_B27Z_Status.txt
+          git config user.name github-actions[bot]
+          git config user.email 4189822+github-actions[bot]@users.noreply.github.com
+          git add BTC_LONDON_NY_F85_EXTENSION_ECON_B27Z_Status.txt
+          git commit -m 'ci: mark B27Z runner started' || true
+          git push || true
+      - run: pip install numpy pandas requests
+      - run: python -m py_compile research/btc_london_ny_f85_extension_econ_b27z.py
+      - run: cd research && python btc_london_ny_f85_extension_econ_b27z.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 4189822+github-actions[bot]@users.noreply.github.com
+          git pull --rebase
+          git add BTC_LONDON_NY_F85_EXTENSION_ECON_B27Z_Result.md BTC_LONDON_NY_F85_EXTENSION_ECON_B27Z_Trades.csv BTC_LONDON_NY_F85_EXTENSION_ECON_B27Z_Summary.csv BTC_LONDON_NY_F85_EXTENSION_ECON_B27Z_Selection.csv BTC_LONDON_NY_F85_EXTENSION_ECON_B27Z_StatusCounts.csv
+          git commit -m 'research: persist B27Z F85 extension economics result' || true
+          git push
