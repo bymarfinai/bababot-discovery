@@ -1,0 +1,27 @@
+name: B27AF
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/b27af.yml'
+      - 'research/btc_london_ny_f85_f15_post_fill_path_b27af.py'
+jobs:
+  run:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: python -m py_compile research/btc_london_ny_f85_f15_post_fill_path_b27af.py
+      - run: cd research && python btc_london_ny_f85_f15_post_fill_path_b27af.py
+      - name: Persist result
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 4189822+github-actions[bot]@users.noreply.github.com
+          git add BTC_LONDON_NY_F85_F15_POST_FILL_PATH_B27AF_Result.md BTC_LONDON_NY_F85_F15_POST_FILL_PATH_B27AF_Trades.csv BTC_LONDON_NY_F85_F15_POST_FILL_PATH_B27AF_Summary.csv BTC_LONDON_NY_F85_F15_POST_FILL_PATH_B27AF_Status.txt
+          git commit -m 'research: persist B27AF post-fill path result' || true
+          git push
