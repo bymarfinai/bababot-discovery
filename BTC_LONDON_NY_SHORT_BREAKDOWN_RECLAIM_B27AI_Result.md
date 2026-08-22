@@ -49,4 +49,3 @@
 B27AI does not tune F15/F65, add a regime gate, or use E20 as an exit. Reference-validation primary N remains only 22 trades and is a limitation.
 
 Research only; live BBC unchanged.
-EXIT_CODE=0
