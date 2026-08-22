@@ -13,22 +13,35 @@ permissions:
 jobs:
   run-b27ar:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install pandas numpy
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_london_ny_short_f15_partial_hybrid_b27ar.py
       - name: Run B27AR
+        shell: bash
         run: |
-          python research/btc_london_ny_short_f15_partial_hybrid_b27ar.py
-      - name: Persist results
+          set +e
+          cd research
+          python btc_london_ny_short_f15_partial_hybrid_b27ar.py 2>&1 | tee ../BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_CI_LOG.txt
+          code=${PIPESTATUS[0]}
+          cd ..
+          echo "EXIT_CODE=$code" >> BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_CI_LOG.txt
+          exit $code
+      - name: Persist results and log
+        if: always()
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Result.md \
                   BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Trades.csv \
                   BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Summary.csv \
-                  BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Status.txt
-          git commit -m 'research: persist B27AR short partial TP hybrid' || exit 0
-          git push
+                  BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Status.txt \
+                  BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_CI_LOG.txt 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'research: persist B27AR short partial TP hybrid'
+            git push
+          fi
