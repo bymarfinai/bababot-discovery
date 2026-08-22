@@ -1,0 +1,36 @@
+name: B27J
+on:
+  push:
+    paths:
+      - '.github/workflows/b27j.yml'
+      - 'research/btc_4h_second_opposite_retest_entry_b27j.py'
+      - 'BTC_4H_SECOND_OPPOSITE_RETEST_ENTRY_B27J_Preregistration.md'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Runner heartbeat
+        run: |
+          echo "RUNNING run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_4H_SECOND_OPPOSITE_RETEST_ENTRY_B27J_Status.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add BTC_4H_SECOND_OPPOSITE_RETEST_ENTRY_B27J_Status.txt
+          git commit -m 'ci: mark B27J runner started' || true
+          git push || true
+      - run: pip install numpy pandas requests
+      - run: python -m py_compile research/btc_4h_second_opposite_retest_entry_b27j.py
+      - run: cd research && python btc_4h_second_opposite_retest_entry_b27j.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase
+          git add BTC_4H_SECOND_OPPOSITE_RETEST_ENTRY_B27J_Result.md BTC_4H_SECOND_OPPOSITE_RETEST_ENTRY_B27J_Summary.csv BTC_4H_SECOND_OPPOSITE_RETEST_ENTRY_B27J_Trades.csv
+          git commit -m 'research: persist B27J second opposite-side retest result' || true
+          git push
