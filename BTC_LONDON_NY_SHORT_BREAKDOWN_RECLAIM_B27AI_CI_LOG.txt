@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_london_ny_short_breakdown_reclaim_b27ai.py", line 280, in <module>
+    main()
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_london_ny_short_breakdown_reclaim_b27ai.py", line 230, in main
+    rows.append({'rule':rule,'partition':part,**summarize_new(g),
+                                                ^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_london_ny_short_breakdown_reclaim_b27ai.py", line 209, in summarize_new
+    'med_trough_ext':float(acc.trough_extension_r.median()) if len(acc) else np.nan,
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: float() argument must be a string or a real number, not 'Series'
+EXIT_CODE=1
