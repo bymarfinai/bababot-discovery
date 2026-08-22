@@ -1,0 +1,38 @@
+name: B27AW short early path-shape atlas
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/btc_london_ny_short_f15_early_path_shape_b27aw.py'
+      - 'BTC_LONDON_NY_SHORT_F15_EARLY_PATH_SHAPE_B27AW_Preregistration.md'
+      - '.github/workflows/b27aw.yml'
+      - '.b27aw-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_london_ny_short_f15_early_path_shape_b27aw.py
+      - name: Run B27AW
+        run: python research/btc_london_ny_short_f15_early_path_shape_b27aw.py
+      - name: Persist results on main push only
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_LONDON_NY_SHORT_F15_EARLY_PATH_SHAPE_B27AW_Result.md \
+                  BTC_LONDON_NY_SHORT_F15_EARLY_PATH_SHAPE_B27AW_Atlas.csv \
+                  BTC_LONDON_NY_SHORT_F15_EARLY_PATH_SHAPE_B27AW_Counts.csv \
+                  BTC_LONDON_NY_SHORT_F15_EARLY_PATH_SHAPE_B27AW_Features.csv \
+                  BTC_LONDON_NY_SHORT_F15_EARLY_PATH_SHAPE_B27AW_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist B27AW short early path-shape atlas'
+          git push
