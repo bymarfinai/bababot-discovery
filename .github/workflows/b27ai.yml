@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'research/btc_london_ny_short_breakdown_reclaim_b27ai.py'
+      - 'research/btc_london_ny_short_breakdown_reclaim_b27ai_fix.py'
       - 'BTC_LONDON_NY_SHORT_BREAKDOWN_RECLAIM_B27AI_Preregistration.md'
       - '.github/workflows/b27ai.yml'
 
@@ -22,13 +23,15 @@ jobs:
           python-version: '3.11'
       - run: pip install pandas numpy requests
       - name: Compile
-        run: python -m py_compile research/btc_london_ny_short_breakdown_reclaim_b27ai.py
+        run: |
+          python -m py_compile research/btc_london_ny_short_breakdown_reclaim_b27ai.py
+          python -m py_compile research/btc_london_ny_short_breakdown_reclaim_b27ai_fix.py
       - name: Run and persist diagnostics
         shell: bash
         run: |
           set +e
           cd research
-          python btc_london_ny_short_breakdown_reclaim_b27ai.py > ../BTC_LONDON_NY_SHORT_BREAKDOWN_RECLAIM_B27AI_CI_LOG.txt 2>&1
+          python btc_london_ny_short_breakdown_reclaim_b27ai_fix.py > ../BTC_LONDON_NY_SHORT_BREAKDOWN_RECLAIM_B27AI_CI_LOG.txt 2>&1
           code=$?
           cd ..
           echo "EXIT_CODE=$code" >> BTC_LONDON_NY_SHORT_BREAKDOWN_RECLAIM_B27AI_CI_LOG.txt
