@@ -33,6 +33,43 @@ For every material research experiment:
 
 # CURRENT SHORT LINEAGE
 
+## B27BD — NY -> Post-NY Off-Session SHORT Audit
+
+**Source:** `BTC_NY_POSTNY_OFFSESSION_SHORT_B27BD_Result.md`
+
+**Audit:** PASS. **Frozen verdict: B27BD_NOT_ROBUST.**
+
+**Question tested:** whether the current leading SHORT architecture improves when moved out of the three active session blocks into the previously unassigned post-New-York block.
+
+**Frozen time/source geometry:** New York 13:30-20:00 UTC H/L frozen after 20:00; observation/trading 20:00-24:00 UTC on complete weekdays. BTC is 24/7, so `market closed` here means post-NY/off-session, not exchange closure.
+
+**Frozen setup:** `NY Low Touch #1 -> Low Touch #2 -> causal leave -> F15 SHORT -> D30 hard stop -> E20_DOWN -> 100% full-position hybrid`.
+
+### Raw post-NY direction census — pooled major
+
+- Complete weekdays: **1,716**.
+- Down days: **46.3%**.
+- Mean 20:00->23:55 return: **+7.89 bp**.
+- Median return: **+6.41 bp**.
+- Completed-close break above frozen NY High: **24.9%**.
+- Completed-close break below frozen NY Low: **20.3%**.
+- High breaks first: **24.7%**; Low breaks first: **19.8%**; no strict boundary close-break: **55.5%**.
+
+**Interpretation:** the post-NY weekday block is not intrinsically more bearish in this sample; pooled raw direction is mildly positive/bullish.
+
+### Current candidate shifted to off-session
+
+| Partition | N | E20 act | Act rate | WR | PF | Exp/trade | Total |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| external | 4 | 2 | 50.0% | 50.0% | 0.592 | -$1.253 | -$5.012 |
+| development | 7 | 1 | 14.3% | 28.6% | 0.884 | -$0.131 | -$0.919 |
+| reference_validation | 5 | 1 | 20.0% | 40.0% | 1.431 | +$0.477 | +$2.386 |
+| **POOLED_MAJOR** | **16** | **4** | **25.0%** | **37.5%** | **0.862** | **-$0.222** | **-$3.546** |
+
+**Key lesson:** simply moving the current Retest#2/F15/D30 SHORT architecture into the weekday 20:00-24:00 post-NY block does **not** rescue it; opportunity count collapses and pooled economics remain negative. This does not test weekends, which require a separate preregistered experiment.
+
+---
+
 ## B27BC — Post-Retest#2 Equal-Distance Hard-Stop Economics
 
 **Source:** `BTC_LONDON_NY_SHORT_POST_H2_EQUAL_DISTANCE_STOP_B27BC_Result.md`
@@ -211,10 +248,12 @@ This remains historical/diagnostic context, not automatic live authorization.
 1. **SHORT entry timing improved materially by waiting for Low retest #2 before the F15 pullback entry.**
 2. Independent full-range discovery did **not** support entries near the London High after retest #2.
 3. F05 has higher raw downside-resolution rate but its economics remain negative even after fairer equal-distance stops.
-4. Current pooled-best SHORT diagnostic is **F15/D30 after retest #2**, total +$6.492, but it fails robustness because external remains slightly negative.
+4. Current pooled-best SHORT diagnostic remains **F15/D30 after retest #2 in London->NY**, total +$6.492, but it fails robustness because external remains slightly negative.
 5. Historical 4H regime work showed **SHORT+SIDEWAYS**, not SHORT+BEAR, as the strongest side-specific SHORT pocket.
 6. The current F15/D30 lineage has not yet been crossed with 4H BULL/BEAR/SIDEWAYS; that must be a separate preregistered audit.
-7. No result in this registry changes live BBC automatically.
+7. Moving that exact candidate to the weekday **NY->20:00-24:00 post-NY off-session** did not improve it: N16, PF 0.862, total -$3.546. Raw off-session direction was mildly bullish rather than bearish.
+8. Weekends remain untested under this off-session hypothesis and require their own frozen source-level definition.
+9. No result in this registry changes live BBC automatically.
 
 ---
 
