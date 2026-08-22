@@ -1,92 +1,90 @@
-# B27Y — London -> New York F85 Close-Based Invalidation — Preregistration
+# B27Y — London -> New York F85 Post-H2 Breakout Extension Atlas — Preregistration
 
-## Purpose
-Convert the B27W structural F85 -> second-High-arrival edge into an actual trade outcome without changing the entry.
+## Correction
+H2 is **not** the final take-profit. It is the second arrival at the frozen previous London High and therefore the end of the entry window / start of the breakout phase.
 
-The entry is frozen exactly from B27W:
+The intended sequence is:
+
+**Touch High #1 -> causal leave -> F85 entry before H2 -> H2 arrival -> potential breakout/extension above High.**
+
+B27Y is descriptive target research only. It does not select or promote a TP or stop.
+
+## Frozen entry cohort
+Reuse B27W exactly:
+- BTCUSDT
 - LONDON_TO_NEWYORK LONG
 - B27Q K1 OPP0
-- first High-touch episode must causally end
-- F85 limit may fill only after the causal leave and strictly before H2 arrival
-- B27W F85 fill identity and timestamp must reproduce exactly
+- first High-touch episode causally ends
+- F85 = 0.85 of frozen previous London Low-to-High range
+- fill is allowed only after causal leave and strictly before H2
+- B27W F85 fill identity/timestamp must reproduce exactly
 
-B27Y changes **only the loss/invalidation rule**.
+H = previous London High, L = previous London Low, R = H-L.
 
-## Frozen target
-TP = previous London High H, i.e. H2 arrival after the F85 fill.
+## H2 milestone
+H2 is the first later raw-5m bar, after the causal leave, whose high reaches H.
+H2 is a milestone, not an exit.
 
-## Frozen close-invalidation boundaries
-Previous London Low=0 and High=1. Entry is F85 = 0.85.
+For every F85 fill:
+- if H2 never occurs before the opposite structural terminal/session end, the path is `NO_H2`;
+- if H2 occurs, B27Y studies the path from the H2 bar through New York session end.
 
-Test exactly four boundaries, selected before reading B27Y results from the B27X diagnostic bracket:
-- D30 -> invalidation boundary F55
-- D40 -> invalidation boundary F45
-- D50 -> invalidation boundary F35
-- D60 -> invalidation boundary F25
+## Breakout and extension definitions
+After H2, measure both wick-based tradable extension and close-based acceptance.
 
-No other boundary is searched in B27Y.
+### Strict breakout acceptance
+`FIRST_CLOSE_BREAK` = first completed raw 5m bar at/after H2 with `close > H`.
 
-A stop is **not** triggered by a wick through the boundary. It triggers only when a completed raw 5m candle closes strictly below the frozen boundary.
+Report the probability of a strict close-break:
+- conditional on H2;
+- unconditional across all frozen F85 fills.
 
-Execution of close invalidation is at that 5m close price, not at the boundary price. This makes gap/overshoot loss explicit rather than assuming a favorable boundary fill.
+### Maximum extension
+For each H2 path through session end:
+- `max_high_extension = (max(high) - H) / R`;
+- `max_close_extension = (max(close) - H) / R`.
 
-## Chronology
-For each frozen B27W F85 fill:
-1. Start from the actual B27W F85 fill bar.
-2. Scan raw 5m bars chronologically.
-3. If a later bar reaches H before any prior close invalidation, TP at H.
-4. If a completed bar closes below the boundary before H2, exit at that close.
-5. If a bar both reaches H and closes below the boundary, score conservatively as `SAME_5M_H2_CLOSE_INVALIDATION_CONSERVATIVE`, exit at the close, and do not award the TP.
-6. If neither occurs by New York session end, exit at the first available 5m open at/after session end.
+Negative close extension is allowed if no close accepts above H.
 
-The B27W rule that the original F85 fill cannot occur on the H2 bar remains frozen.
+### Frozen extension atlas
+Without selecting a winner, report reach rates at exactly:
+- E05 = H + 0.05R
+- E10 = H + 0.10R
+- E15 = H + 0.15R
+- E20 = H + 0.20R
+- E25 = H + 0.25R
+- E30 = H + 0.30R
+- E40 = H + 0.40R
+- E50 = H + 0.50R
 
-## Economics
-Illustrative notional = $500.
-Round-trip fee = $0.40.
-Net PnL uses actual entry and exit prices.
+For each level report:
+- wick/high reach rate among H2 paths;
+- wick/high reach rate among all frozen F85 fills;
+- close reach/acceptance rate among H2 paths;
+- close reach/acceptance rate among all frozen F85 fills;
+- median minutes from H2 bar start to first wick reach when reached.
 
-Nominal geometry before close overshoot:
-- D30: reward 0.15 range / risk 0.30 range = 0.50R
-- D40: 0.375R
-- D50: 0.30R
-- D60: 0.25R
+This atlas is descriptive. No extension is called the final TP inside B27Y.
 
-Because actual close invalidation may occur below the boundary, realized loss can be larger than the nominal risk.
+## Distribution outputs
+By partition report:
+- F85 fills;
+- H2 count/rate;
+- strict close-break count/rate conditional on H2 and unconditional;
+- max-high extension P25/P50/P75/P90;
+- max-close extension P25/P50/P75/P90;
+- extension-level atlas E05-E50.
 
-## Outputs
-For each partition / boundary report:
-- frozen F85 trade count
-- TP / close-invalidation / time-exit counts
-- real trading WR (net PnL > 0)
-- TP rate
-- PF
-- mean net expectancy per trade
-- total net PnL
-- median nominal RR
-- median realized loss for invalidated trades
-- number of same-5m conservative conflicts
-
-Persist one row per F85 trade/boundary with entry, boundary, target, exit timestamp, exit price, reason, and net PnL.
-
-## Screen
-A boundary is only tagged `SCREEN_PASS` if the exact same boundary has, in external, development, and reference_validation:
-- >= 30 resolved trades per partition
-- trading WR >= 70%
-- positive net expectancy
-- PF >= 1.20
-
-This is still historical discovery evidence, not pristine forward/OOS promotion.
+Persist one row per F85 fill with H2 timestamp, first strict close-break timestamp, max high/close extension, and first-reach timestamps for each E level.
 
 ## Mandatory assertions
-1. B27W F85 filled-trade identity and entry timestamps reproduce exactly.
-2. Entry price is exactly F85 of frozen previous London range.
-3. Invalidation boundary is exact frozen fraction F55/F45/F35/F25.
-4. No wick-only stop.
-5. Every close-invalidation bar has close < boundary.
-6. H2 target and close invalidation are evaluated only on raw 5m chronology.
-7. Same-5m H2 + close-invalidation is conservative, never an automatic win.
-8. No target/stop event before entry.
-9. Synthetic paths for wick-through-but-close-above, close invalidation, H2 first, same-bar conflict, and time exit pass before persistence.
+1. B27W F85 fill identity and entry timestamps reproduce exactly.
+2. Every H2 timestamp used by B27Y equals the frozen B27W H2 bar start for that F85 path.
+3. Every H2 path starts strictly after the F85 entry bar.
+4. No post-H2 statistic uses bars after New York session end.
+5. `FIRST_CLOSE_BREAK` requires raw 5m close > H, never wick-only.
+6. Extension price equals H + E*R exactly.
+7. First-reach timestamps are chronological and at/after H2.
+8. Synthetic cases for H2-without-close-break, close-break-on-H2, later close-break, wick extension without close acceptance, and large extension must pass before persistence.
 
 Research only. Live BBC unchanged.
