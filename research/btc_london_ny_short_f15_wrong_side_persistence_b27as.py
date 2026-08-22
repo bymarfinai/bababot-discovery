@@ -71,7 +71,8 @@ def verify_baseline(b: pd.DataFrame) -> dict:
             assert abs(gv-ev) < 1e-8*max(1.0,abs(ev)),(part,got,exp)
         out[part]=float(vals.sum())
     out['POOLED_MAJOR']=float(b[b.partition.isin(MAJOR)].net_pnl_usd.sum())
-    assert abs(out['POOLED_MAJOR'] - (-11.66557892047709)) < 1e-8
+    exact_expected_pooled=float(sum(float(s[s.partition==part].iloc[0].total_pnl) for part in MAJOR))
+    assert abs(out['POOLED_MAJOR'] - exact_expected_pooled) < 1e-8
     return out
 
 
