@@ -1,0 +1,39 @@
+name: B27AH same-bar bull hybrid attribution
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_london_ny_same_bar_bull_hybrid_b27ah.py'
+      - 'BTC_LONDON_NY_SAME_BAR_BULL_HYBRID_B27AH_Preregistration.md'
+      - '.github/workflows/b27ah.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - name: Run B27AH
+        run: python research/btc_london_ny_same_bar_bull_hybrid_b27ah.py
+      - name: Persist results
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_LONDON_NY_SAME_BAR_BULL_HYBRID_B27AH_Result.md \
+                  BTC_LONDON_NY_SAME_BAR_BULL_HYBRID_B27AH_Summary.csv \
+                  BTC_LONDON_NY_SAME_BAR_BULL_HYBRID_B27AH_Trades.csv \
+                  BTC_LONDON_NY_SAME_BAR_BULL_HYBRID_B27AH_Status.txt
+          if git diff --cached --quiet; then
+            echo 'No result changes'
+          else
+            git commit -m 'research: persist B27AH same-bar bull hybrid result'
+            git push
+          fi
