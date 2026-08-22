@@ -1,0 +1,132 @@
+{
+  "source_rows_5m": 698112,
+  "coverage": 1.0,
+  "features": [
+    "m15_fast_gap",
+    "m15_slow_gap",
+    "m15_price_pos",
+    "m15_bull",
+    "h1_fast_gap",
+    "h1_slow_gap",
+    "h1_price_pos",
+    "h1_bull",
+    "h4_fast_gap",
+    "h4_slow_gap",
+    "h4_price_pos",
+    "h4_bull",
+    "d1_fast_gap",
+    "d1_slow_gap",
+    "d1_price_pos",
+    "d1_bull"
+  ],
+  "train_n": 3148,
+  "train_good": 457,
+  "validation_n": 1140,
+  "validation_good": 143,
+  "validation_baseline": 0.12543859649122807,
+  "validation_auc": 0.8714675495016518,
+  "validation_average_precision": 0.4118680273014782,
+  "buckets": [
+    {
+      "fraction": 0.05,
+      "n": 57,
+      "good": 6,
+      "precision": 0.10526315789473684,
+      "recall": 0.04195804195804196
+    },
+    {
+      "fraction": 0.1,
+      "n": 114,
+      "good": 35,
+      "precision": 0.30701754385964913,
+      "recall": 0.24475524475524477
+    },
+    {
+      "fraction": 0.2,
+      "n": 228,
+      "good": 123,
+      "precision": 0.5394736842105263,
+      "recall": 0.8601398601398601
+    },
+    {
+      "fraction": 0.3,
+      "n": 342,
+      "good": 123,
+      "precision": 0.35964912280701755,
+      "recall": 0.8601398601398601
+    }
+  ],
+  "validation_d1_cohort_n": 161,
+  "validation_d1_positive": 143,
+  "validation_d1_negative": 18,
+  "validation_d1_positive_rate": 0.8881987577639752,
+  "validation_d1_forensic_auc": 0.8723776223776225,
+  "coefficients_standardized": [
+    {
+      "feature": "h4_price_pos",
+      "coef": -2.1029071687831413
+    },
+    {
+      "feature": "m15_slow_gap",
+      "coef": 1.930801546253889
+    },
+    {
+      "feature": "d1_slow_gap",
+      "coef": 1.8650075793781853
+    },
+    {
+      "feature": "h4_fast_gap",
+      "coef": 1.7958810565494143
+    },
+    {
+      "feature": "h1_bull",
+      "coef": 1.1036239681126203
+    },
+    {
+      "feature": "h1_fast_gap",
+      "coef": -0.9710542262349071
+    },
+    {
+      "feature": "h1_slow_gap",
+      "coef": 0.8207044622081167
+    },
+    {
+      "feature": "d1_fast_gap",
+      "coef": 0.7821566086596201
+    },
+    {
+      "feature": "m15_fast_gap",
+      "coef": -0.6829384071035455
+    },
+    {
+      "feature": "m15_price_pos",
+      "coef": 0.5348032694186498
+    },
+    {
+      "feature": "d1_price_pos",
+      "coef": -0.3773576709738101
+    },
+    {
+      "feature": "h4_slow_gap",
+      "coef": 0.34812370273368204
+    },
+    {
+      "feature": "m15_bull",
+      "coef": 0.2779449329846713
+    },
+    {
+      "feature": "h1_price_pos",
+      "coef": -0.24613013913577558
+    },
+    {
+      "feature": "h4_bull",
+      "coef": 0.0
+    },
+    {
+      "feature": "d1_bull",
+      "coef": 0.0
+    }
+  ],
+  "B24A_USEFUL_PRE_D1_DETECTOR": true,
+  "B24A_HIGH_PRECISION_CLUE": true
+}
