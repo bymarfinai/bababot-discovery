@@ -34,3 +34,4 @@ jobs:
           git add BTC_15M_1H_SECOND_OPPOSITE_RETEST_ENTRY_B27K_Result.md BTC_15M_1H_SECOND_OPPOSITE_RETEST_ENTRY_B27K_Summary.csv BTC_15M_1H_SECOND_OPPOSITE_RETEST_ENTRY_B27K_Trades.csv
           git commit -m 'research: persist B27K 15m/1h second opposite-side retest result' || true
           git push
+# trigger after workflow registration
