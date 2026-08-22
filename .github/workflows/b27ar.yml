@@ -1,0 +1,34 @@
+name: B27AR short partial TP hybrid
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_london_ny_short_f15_partial_hybrid_b27ar.py'
+      - 'BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Preregistration.md'
+      - '.github/workflows/b27ar.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  run-b27ar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - name: Run B27AR
+        run: |
+          python research/btc_london_ny_short_f15_partial_hybrid_b27ar.py
+      - name: Persist results
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Result.md \
+                  BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Trades.csv \
+                  BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Summary.csv \
+                  BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Status.txt
+          git commit -m 'research: persist B27AR short partial TP hybrid' || exit 0
+          git push
