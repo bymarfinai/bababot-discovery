@@ -7,6 +7,19 @@ import pandas as pd
 import btc_london_ny_4h_regime_alignment_b27ag as m
 
 
+def fixed_state_at(reg: pd.DataFrame, ts: pd.Timestamp):
+    ts = pd.Timestamp(ts)
+    # Compare timezone-aware timestamps directly so datetime storage units cannot
+    # move the lookup into a future 4H availability timestamp.
+    j = int(reg['available_ts'].searchsorted(ts, side='right')) - 1
+    if j < 0:
+        return 'SIDEWAYS', pd.NaT, pd.NaT
+    r = reg.iloc[j]
+    av = pd.Timestamp(r.available_ts)
+    assert av <= ts
+    return str(r.regime), reg.index[j], av
+
+
 def fixed_load_struct_side(side: str):
     sig=pd.read_csv(m.SIGNALS)
     sig=sig[(sig.transition=='LONDON_TO_NEWYORK') & (sig.side==side) &
@@ -33,12 +46,12 @@ def fixed_load_struct_side(side: str):
         d.sort_values(keys,inplace=True); d.reset_index(drop=True,inplace=True)
     assert len(sig)==len(w)==len(e), (side,len(sig),len(w),len(e))
     assert sig[keys].equals(w[keys]) and sig[keys].equals(e[keys]), f'{side} identity mismatch'
-    # Recompute expected geometry AFTER sort/reset so the audit uses the same row identity.
     expected=pd.to_numeric(e.L)+frac*(pd.to_numeric(e.H)-pd.to_numeric(e.L))
     f=e[e.filled_b]
     assert np.allclose(f.entry_px_norm.to_numpy(float),expected.loc[f.index].to_numpy(float),rtol=1e-12,atol=1e-9)
     return sig,w,e
 
 
+m.state_at=fixed_state_at
 m.load_struct_side=fixed_load_struct_side
 m.main()
