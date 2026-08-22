@@ -1,0 +1,44 @@
+name: B27AY short F15 between retest 2 and 3
+
+on:
+  push:
+    paths:
+      - 'research/btc_london_ny_short_f15_between_h2_h3_b27ay.py'
+      - 'BTC_LONDON_NY_SHORT_F15_BETWEEN_H2_H3_B27AY_Preregistration.md'
+      - '.github/workflows/b27ay.yml'
+      - '.b27ay-trigger'
+  pull_request:
+    paths:
+      - 'research/btc_london_ny_short_f15_between_h2_h3_b27ay.py'
+      - 'BTC_LONDON_NY_SHORT_F15_BETWEEN_H2_H3_B27AY_Preregistration.md'
+      - '.github/workflows/b27ay.yml'
+      - '.b27ay-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_london_ny_short_f15_between_h2_h3_b27ay.py
+      - name: Run B27AY
+        run: python research/btc_london_ny_short_f15_between_h2_h3_b27ay.py
+      - name: Persist results on main push only
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_LONDON_NY_SHORT_F15_BETWEEN_H2_H3_B27AY_Result.md \
+                  BTC_LONDON_NY_SHORT_F15_BETWEEN_H2_H3_B27AY_Windows.csv \
+                  BTC_LONDON_NY_SHORT_F15_BETWEEN_H2_H3_B27AY_Trades.csv \
+                  BTC_LONDON_NY_SHORT_F15_BETWEEN_H2_H3_B27AY_Summary.csv \
+                  BTC_LONDON_NY_SHORT_F15_BETWEEN_H2_H3_B27AY_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist B27AY F15 between retest 2 and 3'
+          git push
