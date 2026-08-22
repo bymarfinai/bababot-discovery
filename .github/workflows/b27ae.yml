@@ -1,0 +1,25 @@
+name: B27AE
+on:
+  push:
+    paths:
+      - '.github/workflows/b27ae.yml'
+      - 'research/btc_london_ny_long_short_stage_divergence_b27ae.py'
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: python -m py_compile research/btc_london_ny_long_short_stage_divergence_b27ae.py
+      - run: cd research && python btc_london_ny_long_short_stage_divergence_b27ae.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 4189822+github-actions[bot]@users.noreply.github.com
+          git add BTC_LONDON_NY_LONG_SHORT_STAGE_DIVERGENCE_B27AE_Result.md BTC_LONDON_NY_LONG_SHORT_STAGE_DIVERGENCE_B27AE_Summary.csv BTC_LONDON_NY_LONG_SHORT_STAGE_DIVERGENCE_B27AE_Status.txt
+          git commit -m 'research: persist B27AE stage audit result' || true
+          git push
