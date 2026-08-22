@@ -1,0 +1,36 @@
+name: B27L
+on:
+  push:
+    paths:
+      - '.github/workflows/b27l.yml'
+      - 'research/btc_prev_session_level_retest_atlas_b27l.py'
+      - 'BTC_PREV_SESSION_LEVEL_RETEST_ATLAS_B27L_Preregistration.md'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Runner heartbeat
+        run: |
+          echo "RUNNING run_id=${GITHUB_RUN_ID} sha=${GITHUB_SHA} started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > BTC_PREV_SESSION_LEVEL_RETEST_ATLAS_B27L_Status.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add BTC_PREV_SESSION_LEVEL_RETEST_ATLAS_B27L_Status.txt
+          git commit -m 'ci: mark B27L runner started' || true
+          git push || true
+      - run: pip install numpy pandas requests
+      - run: python -m py_compile research/btc_prev_session_level_retest_atlas_b27l.py
+      - run: cd research && python btc_prev_session_level_retest_atlas_b27l.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase
+          git add BTC_PREV_SESSION_LEVEL_RETEST_ATLAS_B27L_Result.md BTC_PREV_SESSION_LEVEL_RETEST_ATLAS_B27L_Summary.csv BTC_PREV_SESSION_LEVEL_RETEST_ATLAS_B27L_Combos.csv BTC_PREV_SESSION_LEVEL_RETEST_ATLAS_B27L_Events.csv
+          git commit -m 'research: persist B27L previous-session retest atlas' || true
+          git push
