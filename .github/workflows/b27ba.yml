@@ -1,0 +1,42 @@
+name: B27BA post-H2 F05 F10 F15 economics
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_london_ny_short_post_h2_f05_f10_f15_econ_b27ba.py'
+      - 'BTC_LONDON_NY_SHORT_POST_H2_F05_F10_F15_ECON_B27BA_Preregistration.md'
+      - '.github/workflows/b27ba.yml'
+      - '.b27ba-trigger'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/btc_london_ny_short_post_h2_f05_f10_f15_econ_b27ba.py'
+      - '.b27ba-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_london_ny_short_post_h2_f05_f10_f15_econ_b27ba.py
+      - name: Run B27BA
+        run: python research/btc_london_ny_short_post_h2_f05_f10_f15_econ_b27ba.py
+      - name: Persist results on main push only
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_LONDON_NY_SHORT_POST_H2_F05_F10_F15_ECON_B27BA_Result.md \
+                  BTC_LONDON_NY_SHORT_POST_H2_F05_F10_F15_ECON_B27BA_Trades.csv \
+                  BTC_LONDON_NY_SHORT_POST_H2_F05_F10_F15_ECON_B27BA_Summary.csv \
+                  BTC_LONDON_NY_SHORT_POST_H2_F05_F10_F15_ECON_B27BA_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist B27BA post-H2 entry economics'
+          git push
