@@ -1,0 +1,46 @@
+name: B27BB post-H2 F05 F10 F15 MAE audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BTC_LONDON_NY_SHORT_POST_H2_F05_F10_F15_MAE_B27BB_Preregistration.md'
+      - 'research/btc_london_ny_short_post_h2_f05_f10_f15_mae_b27bb.py'
+      - '.github/workflows/b27bb.yml'
+      - '.b27bb-trigger'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/btc_london_ny_short_post_h2_f05_f10_f15_mae_b27bb.py'
+      - '.github/workflows/b27bb.yml'
+      - '.b27bb-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_london_ny_short_post_h2_f05_f10_f15_mae_b27bb.py
+      - name: Run B27BB
+        run: python research/btc_london_ny_short_post_h2_f05_f10_f15_mae_b27bb.py
+      - name: Persist results on main push only
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && always()
+        run: |
+          if [ -f BTC_LONDON_NY_SHORT_POST_H2_F05_F10_F15_MAE_B27BB_Result.md ]; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add BTC_LONDON_NY_SHORT_POST_H2_F05_F10_F15_MAE_B27BB_Result.md \
+                    BTC_LONDON_NY_SHORT_POST_H2_F05_F10_F15_MAE_B27BB_Paths.csv \
+                    BTC_LONDON_NY_SHORT_POST_H2_F05_F10_F15_MAE_B27BB_Summary.csv \
+                    BTC_LONDON_NY_SHORT_POST_H2_F05_F10_F15_MAE_B27BB_Survival.csv \
+                    BTC_LONDON_NY_SHORT_POST_H2_F05_F10_F15_MAE_B27BB_Status.txt
+            git diff --cached --quiet || git commit -m 'Persist B27BB MAE audit results'
+            git push
+          fi
