@@ -6,6 +6,8 @@ on:
       - 'BTC_LONDON_NY_SHORT_BLIND_F15_E20_PROFIT_LOCK_B27AQ_Preregistration.md'
       - 'research/btc_london_ny_short_f15_partial_hybrid_b27ar.py'
       - 'BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Preregistration.md'
+      - 'research/btc_london_ny_short_f15_wrong_side_persistence_b27as.py'
+      - 'BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Preregistration.md'
       - '.github/workflows/b27aq.yml'
 permissions:
   contents: write
@@ -19,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas numpy requests
-      - run: python -m py_compile research/btc_london_ny_short_blind_f15_e20_profit_lock_b27aq.py research/btc_london_ny_short_f15_partial_hybrid_b27ar.py
+      - run: python -m py_compile research/btc_london_ny_short_blind_f15_e20_profit_lock_b27aq.py research/btc_london_ny_short_f15_partial_hybrid_b27ar.py research/btc_london_ny_short_f15_wrong_side_persistence_b27as.py
       - run: cd research && python btc_london_ny_short_blind_f15_e20_profit_lock_b27aq.py
       - name: Run B27AR
         shell: bash
@@ -31,13 +33,24 @@ jobs:
           cd ..
           echo "EXIT_CODE=$code" >> BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_CI_LOG.txt
           exit $code
+      - name: Run B27AS
+        shell: bash
+        run: |
+          set +e
+          cd research
+          python btc_london_ny_short_f15_wrong_side_persistence_b27as.py 2>&1 | tee ../BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_CI_LOG.txt
+          code=${PIPESTATUS[0]}
+          cd ..
+          echo "EXIT_CODE=$code" >> BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_CI_LOG.txt
+          exit $code
       - if: always()
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add BTC_LONDON_NY_SHORT_BLIND_F15_E20_PROFIT_LOCK_B27AQ_Result.md BTC_LONDON_NY_SHORT_BLIND_F15_E20_PROFIT_LOCK_B27AQ_Trades.csv BTC_LONDON_NY_SHORT_BLIND_F15_E20_PROFIT_LOCK_B27AQ_Summary.csv BTC_LONDON_NY_SHORT_BLIND_F15_E20_PROFIT_LOCK_B27AQ_Status.txt || true
           git add BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Result.md BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Trades.csv BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Summary.csv BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_Status.txt BTC_LONDON_NY_SHORT_F15_PARTIAL_HYBRID_B27AR_CI_LOG.txt 2>/dev/null || true
+          git add BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Result.md BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Trades.csv BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Summary.csv BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_Status.txt BTC_LONDON_NY_SHORT_F15_WRONG_SIDE_PERSISTENCE_B27AS_CI_LOG.txt 2>/dev/null || true
           if ! git diff --cached --quiet; then
-            git commit -m 'research: persist B27AQ and B27AR results'
+            git commit -m 'research: persist B27AQ B27AR B27AS results'
             git push
           fi
