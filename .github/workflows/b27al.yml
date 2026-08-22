@@ -1,0 +1,45 @@
+name: B27AL short F15 winner MAE audit
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_london_ny_short_f15_winner_mae_b27al.py'
+      - 'BTC_LONDON_NY_SHORT_F15_WINNER_MAE_B27AL_Preregistration.md'
+      - '.github/workflows/b27al.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Compile
+        run: python -m py_compile research/btc_london_ny_short_f15_winner_mae_b27al.py
+      - name: Run B27AL
+        run: cd research && python btc_london_ny_short_f15_winner_mae_b27al.py
+      - name: Persist results
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase || true
+          git add BTC_LONDON_NY_SHORT_F15_WINNER_MAE_B27AL_Result.md \
+                  BTC_LONDON_NY_SHORT_F15_WINNER_MAE_B27AL_Paths.csv \
+                  BTC_LONDON_NY_SHORT_F15_WINNER_MAE_B27AL_WinnerSummary.csv \
+                  BTC_LONDON_NY_SHORT_F15_WINNER_MAE_B27AL_StopSurvival.csv \
+                  BTC_LONDON_NY_SHORT_F15_WINNER_MAE_B27AL_FailureSummary.csv \
+                  BTC_LONDON_NY_SHORT_F15_WINNER_MAE_B27AL_Status.txt || true
+          if git diff --cached --quiet; then
+            echo 'No result changes'
+          else
+            git commit -m 'research: persist B27AL short F15 winner MAE audit'
+            git push
+          fi
