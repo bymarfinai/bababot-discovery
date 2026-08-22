@@ -46,7 +46,6 @@ def load_baseline() -> pd.DataFrame:
         g=b[b.partition==part]
         assert len(g)==n,(part,len(g),n)
     assert not b.duplicated(['partition','date_utc','signal_ts']).any()
-    # Exact frozen geometry.
     f15 = b.L + 0.15*b['range']
     f65 = b.L + 0.65*b['range']
     e20 = b.L - 0.20*b['range']
@@ -98,7 +97,6 @@ def simulate(x5: pd.DataFrame, r: pd.Series, rule: str, need: int) -> dict:
     persistence_bar=pd.NaT; persistence_run=0
     for k,(ts,bar) in enumerate(q.iterrows()):
         lo=float(bar.low); cl=float(bar.close)
-        # Frozen B27AN resting target precedence; entry/fill bar cannot TP.
         if k>0 and lo <= target + EPS:
             reason='TP_E20_DOWN'; exit_bar=ts; exit_ts=ts; exit_px=target
             break
@@ -106,7 +104,6 @@ def simulate(x5: pd.DataFrame, r: pd.Series, rule: str, need: int) -> dict:
         hit_h2 = lo <= L + EPS
         if hit_h2:
             h2_seen=True
-            # H2 is intrabar and therefore disables the pre-H2 detector before close.
             run=0
         elif not h2_seen:
             if cl > f15:
@@ -120,7 +117,6 @@ def simulate(x5: pd.DataFrame, r: pd.Series, rule: str, need: int) -> dict:
                 persistence_bar=ts; persistence_run=run
                 break
 
-        # Frozen completed-close F65 invalidation remains active everywhere.
         if cl > f65:
             reason='CLOSE_INVALIDATION_F65'; exit_bar=ts; exit_ts=ts+BAR5; exit_px=cl
             break
@@ -137,7 +133,6 @@ def simulate(x5: pd.DataFrame, r: pd.Series, rule: str, need: int) -> dict:
         assert float(x5.loc[persistence_bar].close) > f15
         if pd.notna(frozen_h2):
             assert persistence_bar < frozen_h2, (rule,persistence_bar,frozen_h2)
-    # If frozen H2 occurred before exit-bar, detector must not have fired later.
     if pd.notna(frozen_h2) and is_persist:
         assert persistence_bar < frozen_h2
 
@@ -163,21 +158,19 @@ def synthetic_tests() -> None:
           'entry_bar_start':idx[0],'entry_px':91.5,'H':100.0,'L':90.0,'range':10.0,
           'h2_bar_start':idx[5],'target_px':88.0,'boundary_px':96.5,
           'session_end':idx[7],'exit_reason':'TP','net_pnl_usd':1.0}
-    # closes above F15, reset, then 2-run: P1 exits bar0, P2 exits bar4; P3 reaches H2 first and never persistence-exits.
     x=pd.DataFrame([
         {'open':91.5,'high':92.2,'low':91.0,'close':92.0},
         {'open':92.0,'high':92.4,'low':91.1,'close':91.4},
         {'open':91.4,'high':92.1,'low':91.0,'close':91.8},
         {'open':91.8,'high':92.5,'low':91.2,'close':92.0},
-        {'open':92.0,'high':92.6,'low':91.3,'close':92.1},
-        {'open':92.1,'high':92.3,'low':89.8,'close':92.0},
+        {'open':92.0,'high':92.6,'low':91.3,'close':91.4},
+        {'open':91.4,'high':92.3,'low':89.8,'close':92.0},
         {'open':92.0,'high':92.1,'low':87.8,'close':88.1},
         {'open':88.1,'high':88.3,'low':87.9,'close':88.0},
     ],index=idx)
     p1=simulate(x,pd.Series(base),'P1',1); assert p1['persistence_exit'] and p1['persistence_bar_start']==idx[0]
     p2=simulate(x,pd.Series(base),'P2',2); assert p2['persistence_exit'] and p2['persistence_bar_start']==idx[3]
     p3=simulate(x,pd.Series(base),'P3',3); assert not p3['persistence_exit'] and p3['exit_reason']=='TP_E20_DOWN'
-    # H2 bar close above F15 may not trigger P1.
     b2=dict(base); b2['h2_bar_start']=idx[1]
     x2=x.copy(); x2.loc[idx[0],'close']=91.4; x2.loc[idx[1],['low','close']]=[89.9,92.0]; x2.loc[idx[2],['low','close']]=[87.9,88.2]
     z=simulate(x2,pd.Series(b2),'P1',1); assert not z['persistence_exit'] and z['exit_reason']=='TP_E20_DOWN'
@@ -187,7 +180,8 @@ def summarize(tr: pd.DataFrame, baseline_totals: dict) -> pd.DataFrame:
     rows=[]
     for rule in RULES:
         for part in list(PARTS)+['POOLED_MAJOR']:
-            g=tr[(tr.rule==rule) & (tr.partition.isin(MAJOR) if part=='POOLED_MAJOR' else (tr.partition==part))].copy()
+            mask = tr.partition.isin(MAJOR) if part=='POOLED_MAJOR' else (tr.partition==part)
+            g=tr[(tr.rule==rule) & mask].copy()
             p=g[g.persistence_exit.astype(bool)]
             vals=g.net_pnl_usd.astype(float)
             btot=baseline_totals[part]
