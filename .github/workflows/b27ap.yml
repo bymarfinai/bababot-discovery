@@ -1,0 +1,42 @@
+name: B27AP London-NY session direction audit
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'research/btc_london_ny_session_direction_b27ap.py'
+      - 'BTC_LONDON_NY_SESSION_DIRECTION_B27AP_Preregistration.md'
+      - '.github/workflows/b27ap.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Compile
+        run: python -m py_compile research/btc_london_ny_session_direction_b27ap.py
+      - name: Run B27AP
+        run: cd research && python btc_london_ny_session_direction_b27ap.py
+      - name: Persist results
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase
+          git add BTC_LONDON_NY_SESSION_DIRECTION_B27AP_Result.md \
+                  BTC_LONDON_NY_SESSION_DIRECTION_B27AP_Daily.csv \
+                  BTC_LONDON_NY_SESSION_DIRECTION_B27AP_Summary.csv || true
+          if git diff --cached --quiet; then
+            echo 'No result changes'
+          else
+            git commit -m 'research: persist B27AP London-NY session direction audit'
+            git push
+          fi
