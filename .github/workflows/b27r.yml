@@ -4,6 +4,7 @@ on:
     paths:
       - '.github/workflows/b27r.yml'
       - 'research/btc_london_ny_long_entry_opt_b27r.py'
+      - 'research/btc_london_ny_long_entry_opt_b27r_runner.py'
       - 'BTC_LONDON_NY_LONG_ENTRY_OPT_B27R_Preregistration.md'
   workflow_dispatch:
 permissions:
@@ -25,8 +26,8 @@ jobs:
           git commit -m 'ci: mark B27R runner started' || true
           git push || true
       - run: pip install numpy pandas requests
-      - run: python -m py_compile research/btc_london_ny_long_entry_opt_b27r.py
-      - run: cd research && python btc_london_ny_long_entry_opt_b27r.py
+      - run: python -m py_compile research/btc_london_ny_long_entry_opt_b27r.py research/btc_london_ny_long_entry_opt_b27r_runner.py
+      - run: cd research && python btc_london_ny_long_entry_opt_b27r_runner.py
       - run: |
           git config user.name github-actions[bot]
           git config user.email 4189822+github-actions[bot]@users.noreply.github.com
