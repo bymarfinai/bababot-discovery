@@ -1,0 +1,32 @@
+name: B27AU short loss decomposition
+on:
+  push:
+    paths:
+      - 'research/btc_london_ny_short_f15_loss_decomposition_b27au.py'
+      - 'BTC_LONDON_NY_SHORT_F15_LOSS_DECOMPOSITION_B27AU_Preregistration.md'
+      - '.github/workflows/b27au.yml'
+  pull_request:
+    paths:
+      - 'research/**'
+      - '.github/workflows/b27au.yml'
+permissions:
+  contents: write
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - run: python -m py_compile research/btc_london_ny_short_f15_loss_decomposition_b27au.py
+      - name: Run B27AU
+        run: python research/btc_london_ny_short_f15_loss_decomposition_b27au.py
+      - if: github.event_name == 'push'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_LONDON_NY_SHORT_F15_LOSS_DECOMPOSITION_B27AU_Result.md BTC_LONDON_NY_SHORT_F15_LOSS_DECOMPOSITION_B27AU_Summary.csv BTC_LONDON_NY_SHORT_F15_LOSS_DECOMPOSITION_B27AU_Worst.csv BTC_LONDON_NY_SHORT_F15_LOSS_DECOMPOSITION_B27AU_Status.txt
+          git commit -m 'research: persist B27AU short loss decomposition' || exit 0
+          git push
