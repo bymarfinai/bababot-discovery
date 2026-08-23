@@ -38,6 +38,8 @@ For every effective 4H state interval:
 - weekday/weekend;
 - state age in consecutive 4H intervals.
 
+Episode IDs are formed once on the full chronological complete-4H sequence and are **not reset at partition boundaries**. Partition labels are reporting labels only. An episode is attributed to the partition containing its first effective state timestamp.
+
 Report, per major partition and pooled-major:
 1. state occupancy count and percentage for BULL / BEAR / SIDEWAYS;
 2. regime episode count;
@@ -49,6 +51,8 @@ Report, per major partition and pooled-major:
 8. regime changes per week;
 9. weekday versus weekend occupancy as a descriptive diagnostic only;
 10. maximum absolute state-occupancy percentage-point difference across the three major partitions.
+
+For the frozen flip-back gate, a **state-change-centered triple** is any consecutive complete triple `(A,B,C)` where `A != B`. A flip-back is the subset with `C == A` and `B != A`. Therefore `flip_back_rate = count(A->B->A) / count(A->B->*)`.
 
 No future return, High/Low break, liquidity touch, LONG/SHORT label, entry fraction, stop, target, fee, WR, PF, or PnL may be used in B27BG.
 
