@@ -1,0 +1,61 @@
+# B27CU — BTC 24H SHORT Clock × Regime EMA Filter Anatomy — Result
+
+5m rows: **698,112**; coverage **100.0000%**.
+
+**Audit status: PASS.** Exact B27CR selected-target source reproduced: 729 events; F05 fills external 183 / development 297 / validation 173 / pooled major 653.
+
+**Anatomy only:** trading WR/PF/expectancy/PnL are **N/A**. EMA uses only completed 1H candles available at reclaim completion.
+
+Frozen gates: BASE / EMA50_DOWN / EMA20_50_DOWN. Frozen clock TP map remains B27CR.
+
+## 18 clock × regime cells — development selection
+
+| WIB | Regime | BASE fills | BASE target/fill | EMA50 fills / target | EMA20<50 fills / target | Selected | Selected target/fill | High fail BASE→selected |
+|---|---|---:|---:|---:|---:|---|---:|---:|
+| 07-11 | BULL | 19 | 57.9% | 1 / 0.0% | 1 / 0.0% | **BASE** | 57.9% | 21.1% → 21.1% |
+| 07-11 | BEAR | 19 | 84.2% | 17 / 82.4% | 17 / 82.4% | **BASE** | 84.2% | 10.5% → 10.5% |
+| 07-11 | SIDEWAYS | 4 | 75.0% | 1 / 100.0% | 1 / 100.0% | **BASE** | 75.0% | 25.0% → 25.0% |
+| 11-15 | BULL | 11 | 72.7% | 0 / - | 0 / - | **BASE** | 72.7% | 9.1% → 9.1% |
+| 11-15 | BEAR | 21 | 81.0% | 19 / 84.2% | 18 / 88.9% | **BASE** | 81.0% | 4.8% → 4.8% |
+| 11-15 | SIDEWAYS | 6 | 66.7% | 3 / 66.7% | 1 / 100.0% | **BASE** | 66.7% | 0.0% → 0.0% |
+| 15-19 | BULL | 19 | 78.9% | 3 / 66.7% | 0 / - | **BASE** | 78.9% | 10.5% → 10.5% |
+| 15-19 | BEAR | 27 | 77.8% | 24 / 75.0% | 23 / 73.9% | **BASE** | 77.8% | 18.5% → 18.5% |
+| 15-19 | SIDEWAYS | 4 | 75.0% | 1 / 100.0% | 0 / - | **BASE** | 75.0% | 25.0% → 25.0% |
+| 19-23 | BULL | 26 | 61.5% | 1 / 100.0% | 0 / - | **BASE** | 61.5% | 38.5% → 38.5% |
+| 19-23 | BEAR | 41 | 80.5% | 39 / 79.5% | 37 / 81.1% | **BASE** | 80.5% | 12.2% → 12.2% |
+| 19-23 | SIDEWAYS | 9 | 66.7% | 7 / 57.1% | 3 / 33.3% | **BASE** | 66.7% | 33.3% → 33.3% |
+| 23-03 | BULL | 18 | 72.2% | 5 / 100.0% | 1 / 100.0% | **BASE** | 72.2% | 5.6% → 5.6% |
+| 23-03 | BEAR | 28 | 78.6% | 28 / 78.6% | 27 / 77.8% | **BASE** | 78.6% | 3.6% → 3.6% |
+| 23-03 | SIDEWAYS | 8 | 87.5% | 8 / 87.5% | 3 / 100.0% | **BASE** | 87.5% | 0.0% → 0.0% |
+| 03-07 | BULL | 8 | 75.0% | 2 / 50.0% | 0 / - | **BASE** | 75.0% | 12.5% → 12.5% |
+| 03-07 | BEAR | 26 | 73.1% | 24 / 70.8% | 24 / 70.8% | **BASE** | 73.1% | 7.7% → 7.7% |
+| 03-07 | SIDEWAYS | 3 | 33.3% | 1 / 100.0% | 1 / 100.0% | **BASE** | 33.3% | 0.0% → 0.0% |
+
+## Selected non-BASE cells — reused confirmation
+
+| WIB | Regime | Gate | Dev target/fill | External BASE→gate | Validation BASE→gate | Reused confirmed |
+|---|---|---|---:|---:|---:|---|
+| - | - | none | - | - | - | - |
+
+## Selected-map aggregate anatomy
+
+| Scope | BASE fills | Map fills | Retain | BASE target/fill | Map target/fill | BASE High fail | Map High fail |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| external | 183 | 183 | 100.0% | 75.4% | **75.4%** | 14.2% | 14.2% |
+| development | 297 | 297 | 100.0% | 74.4% | **74.4%** | 13.5% | 13.5% |
+| reference_validation | 173 | 173 | 100.0% | 72.8% | **72.8%** | 11.6% | 11.6% |
+| POOLED_MAJOR | 653 | 653 | 100.0% | 74.3% | **74.3%** | 13.2% | 13.2% |
+
+## Secondary regime aggregates
+
+| Regime | BASE fills | Map fills | BASE target/fill | Map target/fill | BASE High fail | Map High fail |
+|---|---:|---:|---:|---:|---:|---:|
+| BULL | 272 | 272 | 71.7% | **71.7%** | 14.7% | 14.7% |
+| BEAR | 284 | 284 | 77.5% | **77.5%** | 11.3% | 11.3% |
+| SIDEWAYS | 97 | 97 | 72.2% | **72.2%** | 14.4% | 14.4% |
+
+Non-BASE EMA selected in **0/18** cells; reused-confirmed **0/0**.
+
+**Frozen verdict: `B27CU_CLOCK_REGIME_EMA_NOT_SUPPORTED`.**
+
+This is not trading WR. No SL/runner economics were optimized; live BBC unchanged.
