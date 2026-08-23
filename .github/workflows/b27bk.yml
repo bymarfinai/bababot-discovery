@@ -1,0 +1,29 @@
+name: B27BK BEAR false-pause anatomy audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_24h_bear_false_pause_anatomy_b27bk.py
+      - name: Run B27BK
+        run: python research/btc_24h_bear_false_pause_anatomy_b27bk.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27bk-results
+          path: |
+            BTC_24H_BEAR_FALSE_PAUSE_ANATOMY_B27BK_Result.md
+            BTC_24H_BEAR_FALSE_PAUSE_ANATOMY_B27BK_Cohort.csv
+            BTC_24H_BEAR_FALSE_PAUSE_ANATOMY_B27BK_FeatureSummary.csv
+            BTC_24H_BEAR_FALSE_PAUSE_ANATOMY_B27BK_Status.txt
