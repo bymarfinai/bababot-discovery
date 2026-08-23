@@ -1,0 +1,7 @@
+audit=PASS
+rows=698112
+coverage=1.000000000000
+source=729
+fills=652
+verdict=B27CL_STATE_MACHINE_ECON_NOT_SUPPORTED
+high_quality_70=False
