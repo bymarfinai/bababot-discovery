@@ -33,6 +33,51 @@ For every material research experiment:
 
 # CURRENT SHORT LINEAGE
 
+## B27BE — 24H Causal 4H Regime SHORT Compatibility Atlas
+
+**Source:** `BTC_24H_4H_REGIME_SHORT_ATLAS_B27BE_Result.md`
+
+**Audit:** PASS. **Frozen status: `B27BE_SHORT_STRUCTURALLY_FAVORED_NONE__CLOCK_NONE`.**
+
+**Question tested:** whether the existing causal 4H BULL/BEAR/SIDEWAYS detector identifies recurring SHORT-compatible states across the entire BTC day without Asia/London/New-York session filters.
+
+**Frozen geometry:** all seven calendar days; six sequential 4H observation blocks cover 00:00-24:00 UTC. Each block uses the immediately previous completed 4H H/L as its frozen liquidity reference. The 4H regime is available only after its bar completes. A pandas datetime-unit compatibility bug in the original lookup was fixed without changing detector parameters or regime semantics.
+
+### Pooled-major structural atlas
+
+| Regime | Blocks | K1 OPP0 | Low break | High break | No break | 2nd Low | Low break after 2nd |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| BULL | 6,690 | 1,146 | 70.3% | 7.5% | 22.2% | 23.9% | 71.9% |
+| BEAR | 5,312 | 1,122 | **72.3%** | 6.7% | 21.0% | 24.4% | 71.5% |
+| SIDEWAYS | 2,407 | 499 | 69.5% | 6.4% | 24.0% | **26.1%** | **77.7%** |
+
+### Major-partition regime stability
+
+| Regime | External low break / 2nd Low | Development | Validation |
+|---|---|---|---|
+| BULL | 64.8% / 21.0% | 70.0% / 29.4% | 80.1% / 17.5% |
+| BEAR | 66.0% / 26.1% | 71.1% / 24.6% | 79.2% / 22.8% |
+| SIDEWAYS | 67.6% / 24.7% | 70.9% / 28.4% | 72.6% / 26.4% |
+
+**Frozen gate:** NONE passes because the preregistered regime gate required second-Low-visit probability >=50% in every major partition. Actual second-Low probability is only ~17.5%-29.4% depending state/partition.
+
+**Important interpretation:** the first Low K1/OPP0 event is directionally strong across **all** 4H regimes (~69.5%-72.3% pooled Low break), so BEAR is only modestly better on first-break probability. However, repeated-Low pressure does not occur often enough inside a single 4H observation block for any regime to satisfy the frozen `2nd Low >=50%` gate. SIDEWAYS has the strongest pooled Low-break-after-second-visit probability (77.7%), which echoes earlier regime findings, but B27BE is structural only and does not establish profitable entry economics.
+
+### Pooled clock diagnostics
+
+- 00-04: Low break 72.1%, 2nd Low 22.3%, break-after-2nd 80.8%.
+- 04-08: 72.3%, 25.3%, 75.7%.
+- 08-12: 68.1%, 22.9%, 67.9%.
+- 12-16: 72.4%, 27.5%, 72.5%.
+- 16-20: 72.5%, 24.1%, 74.8%.
+- 20-00: 67.9%, 24.3%, 64.8%.
+
+No clock block passes the same frozen three-partition gate. No session/time block is promoted.
+
+**Next evidence needed:** economic attribution of a genuinely continuous 24H SHORT execution rule by causal regime. Do not infer that the current London->NY Retest#2/F15/D30 economics automatically transfer to the 4H rolling-range cohort.
+
+---
+
 ## B27BD — NY -> Post-NY Off-Session SHORT Audit
 
 **Source:** `BTC_NY_POSTNY_OFFSESSION_SHORT_B27BD_Result.md`
@@ -249,10 +294,10 @@ This remains historical/diagnostic context, not automatic live authorization.
 2. Independent full-range discovery did **not** support entries near the London High after retest #2.
 3. F05 has higher raw downside-resolution rate but its economics remain negative even after fairer equal-distance stops.
 4. Current pooled-best SHORT diagnostic remains **F15/D30 after retest #2 in London->NY**, total +$6.492, but it fails robustness because external remains slightly negative.
-5. Historical 4H regime work showed **SHORT+SIDEWAYS**, not SHORT+BEAR, as the strongest side-specific SHORT pocket.
-6. The current F15/D30 lineage has not yet been crossed with 4H BULL/BEAR/SIDEWAYS; that must be a separate preregistered audit.
-7. Moving that exact candidate to the weekday **NY->20:00-24:00 post-NY off-session** did not improve it: N16, PF 0.862, total -$3.546. Raw off-session direction was mildly bullish rather than bearish.
-8. Weekends remain untested under this off-session hypothesis and require their own frozen source-level definition.
+5. Historical 4H regime work showed **SHORT+SIDEWAYS**, not SHORT+BEAR, as the strongest side-specific SHORT economic pocket.
+6. B27BE now confirms that across a 24H rolling 4H-range structural atlas, K1/OPP0 Low pressure is strong in all regimes (~69.5%-72.3% Low-break probability); BEAR is only modestly highest, while SIDEWAYS has the strongest pooled Low-break-after-second-visit probability at 77.7%.
+7. B27BE did **not** promote any regime because second distinct Low visits occur only ~17.5%-29.4% per major partition, far below the frozen >=50% structural gate. The current London->NY F15/D30 economics must not be assumed to transfer to this rolling 4H cohort.
+8. Moving the exact current candidate to the weekday **NY->20:00-24:00 post-NY off-session** did not improve it: N16, PF 0.862, total -$3.546. Raw off-session direction was mildly bullish rather than bearish.
 9. No result in this registry changes live BBC automatically.
 
 ---
