@@ -45,13 +45,12 @@ Counterfactual observation starts at the first raw 5m bar that is causally avail
 The breath horizon is exactly **4 hours from actual exit timestamp**. No 1h/2h/8h sweep is permitted.
 
 ## Causal continuation chronology
-Before a fresh post-exit Low rebreak is confirmed:
-- first completed 5m close strictly `> H` terminates the counterfactual as `FUTURE_HIGH_BREAK`;
-- first completed 5m close strictly `< L` confirms `FUTURE_REBREAK`.
+The B27CL rebreak state is preserved causally:
+- if `rebreak_confirmed == True` at the actual exit, the counterfactual begins already in the post-rebreak state and T5/T10 may be scanned from the first causally available post-exit bar;
+- otherwise, first completed 5m close strictly `> H` terminates the counterfactual as `FUTURE_HIGH_BREAK`, while first completed 5m close strictly `< L` confirms `FUTURE_REBREAK`;
+- for trades needing a fresh FUTURE_REBREAK, T5/T10 scanning starts only on the **next** raw 5m bar after that confirmation, matching B27CI chronology.
 
-T5/T10 scanning starts only on the **next** raw 5m bar after FUTURE_REBREAK confirmation, matching B27CI chronology.
-
-After FUTURE_REBREAK:
+After the trade is in post-rebreak state:
 - `low <= T5` marks future T5 reached;
 - `low <= T10` marks future T10 reached;
 - if a bar touches T5/T10 and later completes with `close > H`, the favorable touch counts because the High invalidation is only knowable at bar close;
