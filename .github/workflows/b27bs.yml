@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   audit:
@@ -32,3 +32,16 @@ jobs:
             BTC_24H_AGE2_CLOSE_BREAK_5M_ACCEPTANCE_B27BS_Episodes.csv
             BTC_24H_AGE2_CLOSE_BREAK_5M_ACCEPTANCE_B27BS_Summary.csv
             BTC_24H_AGE2_CLOSE_BREAK_5M_ACCEPTANCE_B27BS_Status.txt
+      - name: Persist B27BS outputs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_24H_AGE2_CLOSE_BREAK_5M_ACCEPTANCE_B27BS_Result.md \
+                  BTC_24H_AGE2_CLOSE_BREAK_5M_ACCEPTANCE_B27BS_Episodes.csv \
+                  BTC_24H_AGE2_CLOSE_BREAK_5M_ACCEPTANCE_B27BS_Summary.csv \
+                  BTC_24H_AGE2_CLOSE_BREAK_5M_ACCEPTANCE_B27BS_Status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27BS age2 close-break acceptance results'
+            git push
+          fi
