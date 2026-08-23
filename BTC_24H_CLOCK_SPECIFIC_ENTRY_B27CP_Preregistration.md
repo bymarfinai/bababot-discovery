@@ -98,3 +98,5 @@ Failure cannot change the frozen selected entry and cannot delete the clock.
 Otherwise verdict: `B27CP_CLOCK_ENTRY_NOT_SUPPORTED`.
 
 Even if candidate passes, this is structural anatomy only and does not authorize trading/live changes. The next step would be a separately preregistered clock-entry + causal SL economics test with RR >=1:1.
+
+<!-- Execution trigger only; no semantic change. -->
