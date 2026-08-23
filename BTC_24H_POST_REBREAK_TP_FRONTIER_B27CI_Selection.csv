@@ -1,0 +1,10 @@
+target_fraction,development_eligible_n,development_hit_rate,development_eligible,selected,oos_supported
+0.025,233,0.9570815450643777,True,False,False
+0.05,233,0.8927038626609443,True,False,False
+0.075,233,0.7939914163090128,True,False,False
+0.1,233,0.7381974248927039,True,True,True
+0.15,233,0.5622317596566524,False,False,False
+0.2,233,0.48068669527896996,False,False,False
+0.25,233,0.41630901287553645,False,False,False
+0.35,233,0.3133047210300429,False,False,False
+0.5,233,0.22746781115879827,False,False,False
