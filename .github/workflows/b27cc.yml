@@ -1,0 +1,47 @@
+name: B27CC clock-adaptive MAE MFE anatomy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_24h_clock_adaptive_mae_mfe_b27cc.py'
+      - 'BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Preregistration.md'
+      - '.github/workflows/b27cc.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_24h_clock_adaptive_mae_mfe_b27cc.py
+      - name: Run B27CC
+        run: python research/btc_24h_clock_adaptive_mae_mfe_b27cc.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27cc-results
+          path: |
+            BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Result.md
+            BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Detail.csv
+            BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Summary.csv
+            BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Status.txt
+      - name: Persist B27CC outputs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Result.md \
+                  BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Detail.csv \
+                  BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Summary.csv \
+                  BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27CC clock-adaptive MAE MFE results'
+            git push
+          fi
