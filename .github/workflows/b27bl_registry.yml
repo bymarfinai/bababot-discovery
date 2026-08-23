@@ -1,0 +1,32 @@
+name: B27BL registry maintenance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/record_b27bl_registry.py'
+      - 'research/registry_entries/B27BL.md'
+      - '.github/workflows/b27bl_registry.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python research/record_b27bl_registry.py
+      - name: Persist registry if changed
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BABA_BOT_RESEARCH_RESULTS_REGISTRY.md
+          if ! git diff --cached --quiet; then
+            git commit -m 'record B27BL temporal transition resolution in registry'
+            git push
+          fi
