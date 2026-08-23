@@ -1,0 +1,4 @@
+regime,bad_total,bad_flagged,bad_capture,good_total,good_flagged,good_sacrifice,flagged_n,flag_precision_bad,late_bad_total,late_bad_flagged,late_bad_capture,late_good_total,late_good_flagged,late_good_sacrifice,late_flagged_n,late_precision_bad
+BULL,35,21,0.6,146,13,0.08904109589041095,34,0.6176470588235294,4,3,0.75,6,0,0.0,3,1.0
+BEAR,31,8,0.25806451612903225,154,6,0.03896103896103896,14,0.5714285714285714,5,0,0.0,6,0,0.0,0,
+SIDEWAYS,12,8,0.6666666666666666,48,4,0.08333333333333333,12,0.6666666666666666,3,1,0.3333333333333333,3,0,0.0,1,1.0
