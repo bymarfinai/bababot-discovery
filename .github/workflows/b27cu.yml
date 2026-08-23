@@ -1,0 +1,69 @@
+name: B27CU clock-regime EMA filter anatomy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_24h_clock_regime_ema_filter_b27cu.py'
+      - 'BTC_24H_CLOCK_REGIME_EMA_FILTER_B27CU_Preregistration.md'
+      - '.github/workflows/b27cu.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27CU
+        id: run
+        shell: bash
+        run: |
+          set +e
+          LOG=BTC_24H_CLOCK_REGIME_EMA_FILTER_B27CU_Run.log
+          echo 'B27CU run start' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/btc_24h_clock_regime_ema_filter_b27cu.py >> "$LOG" 2>&1
+          c=$?
+          echo "compile_exit_code=$c" >> "$LOG"
+          if [ "$c" -eq 0 ]; then
+            python research/btc_24h_clock_regime_ema_filter_b27cu.py >> "$LOG" 2>&1
+            r=$?
+          else
+            r=$c
+          fi
+          echo "run_exit_code=$r" >> "$LOG"
+          echo "rc=$r" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b27cu-results
+          path: |
+            BTC_24H_CLOCK_REGIME_EMA_FILTER_B27CU_Result.md
+            BTC_24H_CLOCK_REGIME_EMA_FILTER_B27CU_Detail.csv
+            BTC_24H_CLOCK_REGIME_EMA_FILTER_B27CU_Cells.csv
+            BTC_24H_CLOCK_REGIME_EMA_FILTER_B27CU_Map.csv
+            BTC_24H_CLOCK_REGIME_EMA_FILTER_B27CU_Summary.csv
+            BTC_24H_CLOCK_REGIME_EMA_FILTER_B27CU_Status.txt
+            BTC_24H_CLOCK_REGIME_EMA_FILTER_B27CU_Audit.txt
+            BTC_24H_CLOCK_REGIME_EMA_FILTER_B27CU_Run.log
+      - name: Persist outputs
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A BTC_24H_CLOCK_REGIME_EMA_FILTER_B27CU_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27CU clock-regime EMA outputs'
+            git push
+          fi
+      - name: Fail if script failed
+        if: steps.run.outputs.rc != '0'
+        run: exit 1
