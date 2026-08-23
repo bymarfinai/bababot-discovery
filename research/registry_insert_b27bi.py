@@ -1,0 +1,52 @@
+from pathlib import Path
+
+p=Path('BABA_BOT_RESEARCH_RESULTS_REGISTRY.md')
+s=p.read_text()
+heading='## B27BI — 24H SIDEWAYS Continuation-vs-Transition Feature Audit'
+if heading not in s:
+    marker='## B27BH — 24H SIDEWAYS Transition Anatomy Audit'
+    assert marker in s
+    section='''## B27BI — 24H SIDEWAYS Continuation-vs-Transition Feature Audit
+
+**Source:** `BTC_24H_SIDEWAYS_CONTINUATION_TRANSITION_FEATURES_B27BI_Result.md`
+
+**Audit:** PASS. **Frozen verdict: `B27BI_FIRST_SIDEWAYS_FEATURES_INSUFFICIENT_OR_UNSTABLE`.**
+
+**Purpose:** test whether information already available on the **first completed 4H bar labeled SIDEWAYS** can distinguish a continuation-like pause (`BULL->SIDEWAYS->BULL` / `BEAR->SIDEWAYS->BEAR`) from a genuine transition to the opposite directional state. No trading economics were used.
+
+**B27BH identity reproduced exactly:** 1,023 bracketed SIDEWAYS episodes = 527 same-state resumes + 496 opposite-state transitions; BULL-origin 532, BEAR-origin 491.
+
+### Frozen four-clause evidence score
+
+The first SIDEWAYS bar almost always retained **3 of 4** origin-direction regime clauses, regardless of eventual outcome:
+
+| Origin | RESUME mean / median | TRANSITION mean / median |
+|---|---:|---:|
+| BULL | 2.986 / 3 | 2.988 / 3 |
+| BEAR | 2.996 / 3 | 2.996 / 3 |
+
+Thus the preregistered clause-count hypothesis failed: the simple count of surviving BULL/BEAR conditions does not distinguish continuation from transition.
+
+### Pooled-major causal first-bar clues — descriptive only
+
+Higher origin-normalized values favor RESUME in the AUC convention used below:
+
+| Feature | BULL AUC | BEAR AUC | Interpretation |
+|---|---:|---:|---|
+| close vs EMA20, origin-normalized / ATR | **0.697** | **0.685** | shallower move through EMA20 is more continuation-like |
+| EMA20 slope, origin-normalized / ATR | **0.697** | **0.685** | less deterioration of slow trend is more continuation-like |
+| EMA7 slope, origin-normalized / ATR | 0.644 | 0.606 | less fast-trend deterioration favors resume |
+| directional candle body / ATR | 0.632 | 0.610 | less violent counter-direction body favors resume |
+| bar range / ATR | 0.394 | 0.405 | larger transition bar tends to favor genuine regime change |
+| EMA7-EMA20 directional spread / ATR | 0.564 | 0.613 | wider surviving trend spread mildly favors resume |
+
+**Critical interpretation:** the detector's discrete first-SIDEWAYS label loses useful magnitude information. In almost every case the state flips to SIDEWAYS because a binary clause fails, but **how far** price/EMA momentum deteriorated carries substantially more information than the clause count itself. These pooled AUCs are descriptive clues only; B27BI's preregistered primary gate still fails and no new SIDEWAYS rule is promoted.
+
+**Research boundary:** do not call these paths accumulation/distribution from price alone. A separate preregistered detector-redesign audit is required before adding pause/transition states, hysteresis, inherited directional state, or confirmation logic.
+
+---
+
+'''
+    s=s.replace(marker,section+marker,1)
+    p.write_text(s)
+print('B27BI registry section present:', heading in p.read_text())
