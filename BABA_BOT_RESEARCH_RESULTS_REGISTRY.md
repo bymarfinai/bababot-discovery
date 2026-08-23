@@ -31,6 +31,47 @@ For every material research experiment:
 
 ---
 
+# REGIME DETECTOR FOUNDATION
+
+## B27BG — 24H Causal Regime Detector Audit
+
+**Source:** `BTC_24H_REGIME_DETECTOR_AUDIT_B27BG_Result.md`
+
+**Audit:** PASS. **Frozen verdict: `B27BG_REGIME_DETECTOR_NEEDS_REDESIGN`.**
+
+**Purpose:** audit the regime detector itself before any directional, entry, stop, target, runner, or PnL research. Exact B27AG/B27BE `SwingRegime(5, 0.5)` semantics were reused on completed 4H bars only; the state becomes effective only after the source 4H bar closes. All seven calendar days were included. B27BE/B27BF remain frozen historical diagnostics.
+
+### Pooled-major detector identity
+
+| State | Intervals | Occupancy | Episodes | Median episode | Next-state persistence |
+|---|---:|---:|---:|---:|---:|
+| BULL | 6,690 | 46.4% | 607 | 6 bars / 24h | 90.9% |
+| BEAR | 5,314 | 36.9% | 572 | 5 bars / 20h | 89.3% |
+| SIDEWAYS | 2,407 | 16.7% | 1,024 | 2 bars / 8h | 57.5% |
+
+### Pooled-major transition matrix
+
+| From -> To | BULL | BEAR | SIDEWAYS |
+|---|---:|---:|---:|
+| BULL | 90.9% | 1.1% | 8.0% |
+| BEAR | 1.5% | 89.3% | 9.2% |
+| SIDEWAYS | 21.9% | 20.6% | 57.5% |
+
+### Detector-quality gate
+
+- Every state >=100 intervals in every major partition: **PASS**.
+- BULL and BEAR next-state persistence >=60% in every major partition: **PASS**.
+- Pooled median BULL episode >=2 completed 4H bars: **PASS** (6 bars).
+- Pooled median BEAR episode >=2 completed 4H bars: **PASS** (5 bars).
+- Pooled one-interval flip-back `A->B->A` <=20%: **FAIL**, actual **20.8%** (459/2,202 state-change-centered triples).
+- Maximum state-occupancy drift across major partitions <=20 percentage points: **FAIL**, actual **20.5pp**.
+
+**Important interpretation:** the existing detector is highly persistent for BULL and BEAR and direct BULL<->BEAR flips are rare (155 changes, 7.0% of pooled state changes), but under the frozen quality gate it narrowly fails noise/stability requirements. Therefore the next research step is **detector redesign/stabilization only**. Do not proceed to regime directional behavior, LONG/SHORT mapping, or entry-location discovery until a new detector audit passes or the user explicitly accepts this detector despite the frozen failure.
+
+B27BG used no future return, liquidity direction, LONG/SHORT label, entry fraction, stop, target, fee, WR, PF, or PnL. Live BBC unchanged.
+
+---
+
 # CURRENT SHORT LINEAGE
 
 ## B27BF — 24H Adaptive Regime Router Audit
@@ -340,16 +381,17 @@ This remains historical/diagnostic context, not automatic live authorization.
 
 # CURRENT INTERPRETATION SNAPSHOT
 
-1. **SHORT entry timing improved materially by waiting for Low retest #2 before the F15 pullback entry.**
-2. Independent full-range discovery did **not** support entries near the London High after retest #2.
-3. F05 has higher raw downside-resolution rate but its economics remain negative even after fairer equal-distance stops.
-4. Current pooled-best SHORT diagnostic remains **F15/D30 after retest #2 in London->NY**, total +$6.492, but it fails robustness because external remains slightly negative.
-5. Historical 4H regime work showed **SHORT+SIDEWAYS**, not SHORT+BEAR, as the strongest side-specific SHORT economic pocket.
-6. B27BE confirms that across a 24H rolling 4H-range structural atlas, K1/OPP0 Low pressure is strong in all regimes (~69.5%-72.3% Low-break probability); BEAR is only modestly highest, while SIDEWAYS has the strongest pooled Low-break-after-second-visit probability at 77.7%.
-7. B27BF tested the first true adaptive router mapping `BULL->LONG / BEAR->SHORT / SIDEWAYS->FLAT` across the rolling 24H geometry and it failed: N580, PF0.926, expectancy -$0.097/trade, total -$56.249.
-8. B27BF counterfactual attribution found **SHORT/SIDEWAYS N57, PF1.349, expectancy +$0.421, total +$24.010**, while SHORT/BEAR remained negative. This is a diagnostic clue only; SIDEWAYS SHORT was not part of the frozen router and needs a new preregistered audit before use.
-9. Moving the exact current candidate to the weekday **NY->20:00-24:00 post-NY off-session** did not improve it: N16, PF0.862, total -$3.546. Raw off-session direction was mildly bullish rather than bearish.
-10. No result in this registry changes live BBC automatically.
+1. **Regime research is now explicitly stepwise.** B27BG audits the detector before any directional or entry research, and its frozen verdict is `NEEDS_REDESIGN` because flip-back noise (20.8%) and occupancy drift (20.5pp) narrowly exceeded preregistered limits.
+2. SHORT entry timing improved materially by waiting for Low retest #2 before the F15 pullback entry.
+3. Independent full-range discovery did **not** support entries near the London High after retest #2.
+4. F05 has higher raw downside-resolution rate but its economics remain negative even after fairer equal-distance stops.
+5. Current pooled-best SHORT diagnostic remains **F15/D30 after retest #2 in London->NY**, total +$6.492, but it fails robustness because external remains slightly negative.
+6. Historical 4H regime work showed **SHORT+SIDEWAYS**, not SHORT+BEAR, as the strongest side-specific SHORT economic pocket.
+7. B27BE confirms that across a 24H rolling 4H-range structural atlas, K1/OPP0 Low pressure is strong in all regimes (~69.5%-72.3% Low-break probability); BEAR is only modestly highest, while SIDEWAYS has the strongest pooled Low-break-after-second-visit probability at 77.7%.
+8. B27BF tested the first adaptive router mapping `BULL->LONG / BEAR->SHORT / SIDEWAYS->FLAT` across the rolling 24H geometry and it failed: N580, PF0.926, expectancy -$0.097/trade, total -$56.249. This remains historical diagnostic context and should not bypass the new stepwise detector-first workflow.
+9. B27BF counterfactual attribution found **SHORT/SIDEWAYS N57, PF1.349, expectancy +$0.421, total +$24.010**, while SHORT/BEAR remained negative. This is a diagnostic clue only; SIDEWAYS SHORT was not part of the frozen router and needs a new preregistered audit before use.
+10. Moving the exact current candidate to the weekday **NY->20:00-24:00 post-NY off-session** did not improve it: N16, PF0.862, total -$3.546. Raw off-session direction was mildly bullish rather than bearish.
+11. No result in this registry changes live BBC automatically.
 
 ---
 
