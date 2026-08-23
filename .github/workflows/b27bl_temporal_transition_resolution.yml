@@ -1,0 +1,36 @@
+name: B27BL temporal transition resolution audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BTC_24H_TEMPORAL_TRANSITION_RESOLUTION_B27BL_Preregistration.md'
+      - 'research/btc_24h_temporal_transition_resolution_b27bl.py'
+      - '.github/workflows/b27bl_temporal_transition_resolution.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_24h_temporal_transition_resolution_b27bl.py
+      - name: Run B27BL
+        run: python research/btc_24h_temporal_transition_resolution_b27bl.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27bl-results
+          path: |
+            BTC_24H_TEMPORAL_TRANSITION_RESOLUTION_B27BL_Result.md
+            BTC_24H_TEMPORAL_TRANSITION_RESOLUTION_B27BL_TemporalSummary.csv
+            BTC_24H_TEMPORAL_TRANSITION_RESOLUTION_B27BL_Cohort.csv
+            BTC_24H_TEMPORAL_TRANSITION_RESOLUTION_B27BL_Status.txt
