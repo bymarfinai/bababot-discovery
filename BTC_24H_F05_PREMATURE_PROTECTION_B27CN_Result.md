@@ -1,0 +1,59 @@
+# B27CN — BTC 24H F05 Delayed-Protection + 4H Rescue Economics — Result
+
+5m rows: **698,112**; coverage **100.0000%**.
+
+**Audit status: PASS.** Exact B27CE source and B27CL executable fill identity reproduced: external 183 / development 297 / validation 172 / major 652.
+
+**Validation caveat:** external/reference_validation were already inspected in B27CM and are reused-data confirmation, **not untouched OOS**.
+
+Configuration: F05 entry; **no BE at L or rebreak**; first protection only after T5 (lock L); T7.5 -> lock T5; T10 -> lock T10 + strict 3-bar pivot-high runner; pre-T10 unresolved at block end gets exactly +4h. $500 notional, $0.40 fee.
+
+## Six-clock reused external+validation economics — first
+
+| UTC / WIB | N | WR | PF | Exp/trade | Net | Full SL | L/T5 locks | T10 family | Extension used | Extended unresolved |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 00-04 / 07-11 | 59 | 64.4% | 0.56 | $-0.83 | $-48.99 | 6 | 3 | 43 | 15 | 11.9/100 |
+| 04-08 / 11-15 | 58 | 70.7% | 1.88 | $+0.97 | $+56.11 | 4 | 15 | 34 | 13 | 5.2/100 |
+| 08-12 / 15-19 | 64 | 62.5% | 0.85 | $-0.20 | $-12.92 | 9 | 10 | 39 | 23 | 6.2/100 |
+| 12-16 / 19-23 | 71 | 62.0% | 0.72 | $-0.30 | $-21.37 | 7 | 12 | 45 | 13 | 8.5/100 |
+| 16-20 / 23-03 | 52 | 57.7% | 0.43 | $-1.28 | $-66.76 | 6 | 14 | 20 | 22 | 21.2/100 |
+| 20-00 / 03-07 | 51 | 51.0% | 0.70 | $-0.36 | $-18.18 | 8 | 12 | 26 | 22 | 9.8/100 |
+
+## Major partitions / pools
+
+| Scope | Source | Trades | Fill | WR | PF | Exp | Net | Avg win | Avg loss | Max DD | Streak | Full SL | L-lock | T5-lock | T10-lock | Runner | Time orig | Time ext | Ext used | Rebreak | T5 | T7.5 | T10 | Median hold |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| external | 202 | 183 | 90.6% | 67.2% | 0.88 | $-0.22 | $-39.57 | $+2.46 | $-5.71 | $+126.50 | 4 | 23 | 19 | 18 | 85 | 18 | 1 | 19 | 52 | 146 | 143 | 124 | 106 | 45.00m |
+| development | 333 | 297 | 89.2% | 56.2% | 0.51 | $-0.56 | $-165.06 | $+1.04 | $-2.61 | $+167.21 | 6 | 38 | 33 | 24 | 147 | 22 | 7 | 26 | 83 | 238 | 233 | 200 | 176 | 50.00m |
+| reference_validation | 194 | 172 | 88.7% | 55.8% | 0.58 | $-0.42 | $-72.55 | $+1.06 | $-2.30 | $+83.39 | 6 | 17 | 14 | 15 | 92 | 12 | 3 | 19 | 56 | 137 | 136 | 122 | 107 | 50.00m |
+| POOLED_REUSED_EXTVAL | 396 | 355 | 89.6% | 61.7% | 0.78 | $-0.32 | $-112.12 | $+1.85 | $-3.80 | $+126.50 | 6 | 40 | 33 | 33 | 177 | 30 | 4 | 38 | 108 | 283 | 279 | 246 | 213 | 50.00m |
+| POOLED_MAJOR | 729 | 652 | 89.4% | 59.2% | 0.68 | $-0.43 | $-277.18 | $+1.50 | $-3.22 | $+286.78 | 6 | 78 | 66 | 57 | 324 | 52 | 11 | 64 | 191 | 521 | 512 | 446 | 389 | 50.00m |
+
+## Per 100 filled entries
+
+| Scope | Economic wins | Full SL | L/T5 intermediate | T10-or-runner family | Extended unresolved |
+|---|---:|---:|---:|---:|---:|
+| external | 67.2 | 12.6 | 20.2 | 57.9 | 9.3 |
+| development | 56.2 | 12.8 | 19.2 | 59.3 | 8.8 |
+| reference_validation | 55.8 | 9.9 | 16.9 | 62.2 | 11.0 |
+| POOLED_REUSED_EXTVAL | 61.7 | 11.3 | 18.6 | 60.0 | 10.1 |
+| POOLED_MAJOR | 59.2 | 12.0 | 18.9 | 59.7 | 9.5 |
+
+## Direct comparison vs B27CL on identical reused cohorts
+
+| Scope | WR B27CL -> B27CN | PF B27CL -> B27CN | Exp B27CL -> B27CN | Net B27CL -> B27CN | Full SL B27CL -> B27CN | T10 reached B27CL -> B27CN |
+|---|---|---|---|---|---|---|
+| external | 39.9% -> 67.2% | 0.69 -> 0.88 | $-0.44 -> $-0.22 | $-80.74 -> $-39.57 | 6 -> 23 | 55 -> 106 |
+| development | 32.7% -> 56.2% | 0.36 -> 0.51 | $-0.59 -> $-0.56 | $-175.74 -> $-165.06 | 19 -> 38 | 91 -> 176 |
+| reference_validation | 30.8% -> 55.8% | 0.42 -> 0.58 | $-0.51 -> $-0.42 | $-87.99 -> $-72.55 | 8 -> 17 | 50 -> 107 |
+| POOLED_MAJOR | 34.2% -> 59.2% | 0.50 -> 0.68 | $-0.53 -> $-0.43 | $-344.48 -> $-277.18 | 33 -> 78 | 196 -> 389 |
+
+## Frozen gate
+
+- reused-data economics gate: **FAIL**
+- full structural SL <=10% in every major partition: **FAIL**
+- HIGH_QUALITY_70: **FAIL**
+
+**Frozen verdict: `B27CN_REUSED_DATA_ECON_NOT_SUPPORTED`.**
+
+Even a PASS is only a reused-data candidate; no fresh holdout remains in this lineage. Research only; live BBC unchanged.
