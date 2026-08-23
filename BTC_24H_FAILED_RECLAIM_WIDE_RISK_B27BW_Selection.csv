@@ -1,0 +1,7 @@
+variant,stop_mult_local_r,gate_n,gate_positive_expectancy,gate_pf_1p20,gate_wr_50,robust_pass,high_quality_70,minimum_partition_pf,pooled_major_expectancy_usd,pooled_major_total_net_pnl_usd,selected
+S2_T1_0,2.0,True,False,False,False,False,False,0.5483700526593441,-0.35592022935839807,-12.101287798185535,False
+S2_T1_5,2.0,True,False,False,False,False,False,0.6244691478204187,-0.3841172969903268,-13.059988097671113,False
+S2_T2_0,2.0,True,False,False,False,False,False,0.5593825210099705,-0.5334997171104356,-18.138990381754812,False
+S3_T1_0,3.0,True,False,False,True,False,False,0.48738010395452325,0.22886453954506733,7.7813943445322895,False
+S3_T1_5,3.0,True,False,False,False,False,False,0.5777094423546013,-0.3532221690237046,-12.009553746805958,False
+S3_T2_0,3.0,True,False,False,False,False,False,0.6680387807546854,-0.13033161449983824,-4.4312748929945,False
