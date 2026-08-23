@@ -26,7 +26,7 @@ GLOBAL={'SAFE':0.6079191233470493,'AGGRESSIVE':0.4101988544354365}
 
 def flagmask(df,th):
     if math.isinf(th) and th>0:return pd.Series(False,index=df.index)
-    return df.model_eligible.astype(bool)&pd.to_numeric(df.bad_prob,errors='coerce').ge(th)
+    return df.model_eligible.astype(bool)&pd.to_numeric(df.bad_prob,errors='coerce').ge(th-EPS)
 
 
 def metrics(df,th):
@@ -90,6 +90,8 @@ def main():
     assert abs(float(agg.threshold)-GLOBAL['AGGRESSIVE'])<1e-12
     assert int(safe.dev_bad_flagged)==28 and int(safe.dev_good_flagged)==9
     assert len(p15)==652 and int(p15.label.eq('BAD').sum())==78 and int(p15.label.eq('GOOD').sum())==348
+    parent_dev=metrics(p15[p15.partition.eq('development')],GLOBAL['SAFE'])
+    assert int(parent_dev['bad_flagged'])==28 and int(parent_dev['good_flagged'])==9
 
     rows=[]
     dev=p15[p15.partition.eq('development')]
@@ -129,11 +131,11 @@ def main():
               float(ru.map_good_sacrifice_all)<=.15+EPS)
     verdict='B27CW_CLOCK_THRESHOLD_REUSED_CANDIDATE' if gate else 'B27CW_CLOCK_THRESHOLD_NOT_SUPPORTED'
     OUT_STATUS.write_text(verdict+'\n')
-    OUT_AUDIT.write_text(f'audit=PASS\nraw_rows={len(x5)}\ncoverage={float(cov)}\ntrades_major={len(trades)}\nbad_major=78\ngood_major=348\nother_major=226\ncheckpoint=PLUS15\nb27cv_auc_reproduced={float(safe.development_auc)}\nb27cv_safe_threshold_reproduced={float(safe.threshold)}\nclocks=6\nuntouched_holdout=NONE\n')
+    OUT_AUDIT.write_text(f'audit=PASS\nraw_rows={len(x5)}\ncoverage={float(cov)}\ntrades_major={len(trades)}\nbad_major=78\ngood_major=348\nother_major=226\ncheckpoint=PLUS15\nb27cv_auc_reproduced={float(safe.development_auc)}\nb27cv_safe_threshold_reproduced={float(safe.threshold)}\nb27cv_safe_dev_bad_flagged_reproduced={int(parent_dev["bad_flagged"])}\nb27cv_safe_dev_good_flagged_reproduced={int(parent_dev["good_flagged"])}\nclocks=6\nuntouched_holdout=NONE\n')
 
     lines=['# B27CW — BTC 24H F05 SHORT Clock-Specific Full-Loser Threshold — Result','',
            f'5m rows: **{len(x5):,}**; coverage **{100*float(cov):.4f}%**.','',
-           '**Audit status: PASS.** B27CV PLUS15 model reproduced exactly: AUC 0.8860088365; global SAFE threshold 0.6079191233; 652 trades / 78 BAD / 348 GOOD / 226 OTHER.','',
+           '**Audit status: PASS.** B27CV PLUS15 model reproduced exactly: AUC 0.8860088365; global SAFE threshold 0.6079191233; global development SAFE flags 28 BAD / 9 GOOD; 652 trades / 78 BAD / 348 GOOD / 226 OTHER.','',
            '**Anatomy calibration only:** trading WR/PF/expectancy/PnL are N/A. Model/features are unchanged; only development-selected cutoff differs by clock.','',
            '## Six clocks — SAFE threshold map','',
            '| WIB | Threshold | Dev BAD caught | Dev GOOD cut | External BAD / GOOD | Validation BAD / GOOD |',
