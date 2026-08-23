@@ -31,8 +31,8 @@ This is the existing B27W/B27AA/B27AC LONG lineage translated to the rolling pre
 5. Frozen pullback level `F85=L+0.85R`.
 6. F85 touch bar must occur before H2 and before strict opposite break. SAME_BAR confirmation requires the F85-touch bar to close strictly above F85; entry is the next 5m open and must remain below H.
 7. Frozen pre-E20 invalidation is completed 5m close below `F35=L+0.35R`, exited at actual close.
-8. Frozen activation `E20_UP=H+0.20R`. Intrabar E20 touch precedes same-bar later close invalidation.
-9. After E20, 100% position remains open. From the next bar E20 is the resting profit floor; strict causal 3-bar pivot lows above the floor may ratchet it upward, never downward.
+8. Frozen activation `E20_UP=H+0.20R`. Exact B27AC precedence is preserved: if a 5m bar reaches E20 intrabar but later closes below F35, the F35 completed-close invalidation exits at that close and no E20 floor is activated from that bar.
+9. After a surviving E20-reach bar, 100% position remains open. From the next bar E20 is the resting profit floor; strict causal 3-bar pivot lows above the floor may ratchet it upward, never downward.
 10. If open <= floor exit at actual open; otherwise if low <= floor exit at floor. No upper fixed TP.
 11. If still open at observation-interval end, exit at the exact next 4H boundary open.
 
