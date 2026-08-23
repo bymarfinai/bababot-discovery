@@ -1,0 +1,14 @@
+audit=PASS
+raw_rows=698112
+coverage=1.0
+trades_major=652
+bad_major=78
+good_major=348
+other_major=226
+b27cv_plus10_auc=0.8452298452298452
+b27cv_plus15_auc=0.8860088365243004
+b27cv_plus10_safe_threshold=0.5898635948838399
+b27cv_plus15_safe_threshold=0.6079191233470493
+b27cv_plus15_dev_bad_flags=28
+b27cv_plus15_dev_good_flags=9
+untouched_holdout=NONE

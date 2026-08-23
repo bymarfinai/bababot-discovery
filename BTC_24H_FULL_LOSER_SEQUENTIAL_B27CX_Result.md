@@ -1,0 +1,59 @@
+# B27CX — BTC 24H F05 SHORT Sequential Full-Loser Persistence — Result
+
+5m rows: **698,112**; coverage **100.0000%**.
+
+**Audit status: PASS.** B27CV +10m/+15m models and frozen thresholds reproduced; 652 executable F05 trades / 78 BAD / 348 GOOD / 226 OTHER.
+
+**Anatomy only:** trading WR/PF/expectancy/PnL are **N/A**. Primary rule is global SAFE at +10m AND global SAFE at +15m; no model/feature/threshold retuning.
+
+## Six clocks independently — SAFE persistence (+10 AND +15)
+
+| WIB | Development BAD / GOOD | External BAD / GOOD | Validation BAD / GOOD | Pooled major BAD / GOOD |
+|---|---:|---:|---:|---:|
+| 07-11 | 5/7 (71.4%) / 1/30 (3.3%) | 0/2 (0.0%) / 2/23 (8.7%) | 0/4 (0.0%) / 3/23 (13.0%) | 5/13 (38.5%) / 6/76 (7.9%) |
+| 11-15 | 1/1 (100.0%) / 0/10 (0.0%) | 0/2 (0.0%) / 0/18 (0.0%) | 0/2 (0.0%) / 0/8 (0.0%) | 1/5 (20.0%) / 0/36 (0.0%) |
+| 15-19 | 4/8 (50.0%) / 1/26 (3.8%) | 3/7 (42.9%) / 5/19 (26.3%) | 1/2 (50.0%) / 2/10 (20.0%) | 8/17 (47.1%) / 8/55 (14.5%) |
+| 19-23 | 12/18 (66.7%) / 1/49 (2.0%) | 0/2 (0.0%) / 3/18 (16.7%) | 2/5 (40.0%) / 4/28 (14.3%) | 14/25 (56.0%) / 8/95 (8.4%) |
+| 23-03 | 0/2 (0.0%) / 0/29 (0.0%) | 1/6 (16.7%) / 0/10 (0.0%) | 0/0 (-) / 0/11 (0.0%) | 1/8 (12.5%) / 0/50 (0.0%) |
+| 03-07 | 0/2 (0.0%) / 0/15 (0.0%) | 3/4 (75.0%) / 1/10 (10.0%) | 1/4 (25.0%) / 0/11 (0.0%) | 4/10 (40.0%) / 1/36 (2.8%) |
+
+## Primary pooled comparison
+
+| Scope | +15 SAFE BAD / GOOD | Sequential BAD / GOOD | Precision +15→sequential |
+|---|---:|---:|---:|
+| development | 28/38 (73.7%) / 9/159 (5.7%) | **22/38 (57.9%) / 3/159 (1.9%)** | 75.7% → **88.0%** |
+| external | 9/23 (39.1%) / 14/98 (14.3%) | **7/23 (30.4%) / 11/98 (11.2%)** | 39.1% → **38.9%** |
+| reference_validation | 8/17 (47.1%) / 15/91 (16.5%) | **4/17 (23.5%) / 9/91 (9.9%)** | 34.8% → **30.8%** |
+| POOLED_REUSED_EXTVAL | 17/40 (42.5%) / 29/189 (15.3%) | **11/40 (27.5%) / 20/189 (10.6%)** | 37.0% → **35.5%** |
+| POOLED_MAJOR | 45/78 (57.7%) / 38/348 (10.9%) | **33/78 (42.3%) / 23/348 (6.6%)** | 54.2% → **58.9%** |
+
+## SAFE transition states among trades alive at +15m
+
+| Scope | Label | BOTH | +10 only | +15 only | Neither |
+|---|---|---:|---:|---:|---:|
+| development | BAD | 22 | 2 | 6 | 5 |
+| development | GOOD | 3 | 12 | 6 | 76 |
+| external | BAD | 7 | 1 | 2 | 12 |
+| external | GOOD | 11 | 4 | 3 | 38 |
+| reference_validation | BAD | 4 | 1 | 4 | 7 |
+| reference_validation | GOOD | 9 | 6 | 6 | 40 |
+| POOLED_REUSED_EXTVAL | BAD | 11 | 2 | 6 | 19 |
+| POOLED_REUSED_EXTVAL | GOOD | 20 | 10 | 9 | 78 |
+| POOLED_MAJOR | BAD | 33 | 4 | 12 | 24 |
+| POOLED_MAJOR | GOOD | 23 | 22 | 15 | 154 |
+
+## Regime splits — pooled major SAFE persistence
+
+| Regime | BAD caught | GOOD cut | Precision |
+|---|---:|---:|---:|
+| BULL | 18/35 (51.4%) | 13/146 (8.9%) | 58.1% |
+| BEAR | 8/31 (25.8%) | 6/154 (3.9%) | 57.1% |
+| SIDEWAYS | 7/12 (58.3%) | 4/48 (8.3%) | 63.6% |
+
+## Secondary descriptive rule
+
+AGGRESSIVE +10 AND AGGRESSIVE +15 is reported in the CSV metrics but **cannot determine PASS**.
+
+**Frozen verdict: `B27CX_SEQUENTIAL_PERSISTENCE_NOT_SUPPORTED`.**
+
+External/reference_validation remain reused-data confirmation, not untouched OOS. No economic abort simulation or live BBC change is authorized.
