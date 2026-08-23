@@ -1,1 +1,1 @@
-B27BP isolated push trigger retry after PR close
+B27BP isolated push trigger ubuntu-latest retry
