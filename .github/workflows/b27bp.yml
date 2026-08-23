@@ -5,10 +5,12 @@ on:
     branches: [main]
   push:
     branches: [research/b27bp-observable-run]
+    paths:
+      - B27BP_PUSH_TRIGGER.txt
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   audit:
@@ -30,3 +32,16 @@ jobs:
             BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Episodes.csv
             BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Summary.csv
             BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Status.txt
+      - name: Persist B27BP outputs on observable branch
+        if: github.event_name == 'push'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Result.md \
+                  BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Episodes.csv \
+                  BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Summary.csv \
+                  BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27BP observable results'
+            git push origin HEAD:research/b27bp-observable-run
+          fi
