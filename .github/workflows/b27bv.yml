@@ -1,0 +1,47 @@
+name: B27BV failed-reclaim MAE MFE anatomy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_24h_failed_reclaim_mae_mfe_b27bv.py'
+      - 'BTC_24H_FAILED_RECLAIM_MAE_MFE_B27BV_Preregistration.md'
+      - '.github/workflows/b27bv.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_24h_failed_reclaim_mae_mfe_b27bv.py
+      - name: Run B27BV
+        run: python research/btc_24h_failed_reclaim_mae_mfe_b27bv.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27bv-results
+          path: |
+            BTC_24H_FAILED_RECLAIM_MAE_MFE_B27BV_Result.md
+            BTC_24H_FAILED_RECLAIM_MAE_MFE_B27BV_Episodes.csv
+            BTC_24H_FAILED_RECLAIM_MAE_MFE_B27BV_Summary.csv
+            BTC_24H_FAILED_RECLAIM_MAE_MFE_B27BV_Status.txt
+      - name: Persist B27BV outputs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_24H_FAILED_RECLAIM_MAE_MFE_B27BV_Result.md \
+                  BTC_24H_FAILED_RECLAIM_MAE_MFE_B27BV_Episodes.csv \
+                  BTC_24H_FAILED_RECLAIM_MAE_MFE_B27BV_Summary.csv \
+                  BTC_24H_FAILED_RECLAIM_MAE_MFE_B27BV_Status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27BV failed-reclaim excursion anatomy'
+            git push
+          fi
