@@ -1,1 +1,1 @@
-observable B27BE trigger
+observable B27BE trigger after causal lookup fix
