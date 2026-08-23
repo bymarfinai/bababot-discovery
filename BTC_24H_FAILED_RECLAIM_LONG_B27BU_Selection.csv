@@ -1,0 +1,4 @@
+target_name,target_multiple,gate_n,gate_positive_expectancy,gate_pf_1p20,gate_wr_50,robust_pass,high_quality_70,minimum_partition_pf,pooled_major_expectancy_usd,pooled_major_total_net_pnl_usd,selected
+R1_0,1.0,True,False,False,False,False,False,0.5108701290501642,-0.266960258498057,-9.076648788933937,False
+R1_5,1.5,True,False,False,False,False,False,0.4913759716229072,-0.4811888553601568,-16.36042108224533,False
+R2_0,2.0,True,False,False,False,False,False,0.6133730650778186,-0.18885971344692107,-6.421230257195316,False
