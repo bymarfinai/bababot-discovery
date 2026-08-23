@@ -1,0 +1,7 @@
+audit=PASS
+raw_rows=698112
+coverage=1.0
+source_major=729
+levels=5
+rows=3645
+untouched_holdout=NONE
