@@ -3,6 +3,8 @@ name: B27BP BULL 5m pre-second-retest anatomy
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [research/b27bp-observable-run]
   workflow_dispatch:
 
 permissions:
