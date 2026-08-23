@@ -149,3 +149,5 @@ Otherwise verdict: `B27CN_REUSED_DATA_ECON_NOT_SUPPORTED`.
 Even if candidate passes, no production/live BBC change is authorized without a genuinely fresh holdout.
 
 Research only. Live BBC unchanged.
+
+<!-- Execution trigger only; no semantic change. -->
