@@ -111,3 +111,5 @@ Otherwise verdict: `B27CQ_CLOCK_CONFIRM_NOT_SUPPORTED`.
 Even a candidate PASS remains anatomy-only reused-data evidence. The next step would be a separately preregistered economic test combining the frozen clock-confirmation map with causal SL management and RR >=1:1.
 
 Research only. Live BBC unchanged.
+
+<!-- Execution trigger only; no semantic change. -->
