@@ -1,0 +1,64 @@
+# B27CR — BTC 24H Clock-Specific TP Depth Anatomy — Result
+
+5m rows: **698,112**; coverage **100.0000%**.
+
+**Audit status: PASS.** Exact B27CP structural F05 fill identity reproduced: external 183 / development 297 / validation 173 / pooled major 653.
+
+**Anatomy only:** trading WR/PF/expectancy/PnL/SL are **N/A**. External/reference_validation are reused-data confirmation, not untouched OOS.
+
+Frozen targets: T5 / T7.5 / T10 / T15. Entry remains F05 for every clock; horizon remains original block + fixed 4h when unresolved.
+
+## Six clocks — development selection first
+
+| UTC / WIB | Target | Source | Fills | Rebreak/fill | Target/fill | Target yield/source | High fail/fill | Unresolved/fill | Fill→target | Selected |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 00-04 / 07-11 | T5 | 47 | 42 | 73.8% | **71.4%** | 63.8% | 16.7% | 11.9% | 20.0m | **YES** |
+| 00-04 / 07-11 | T7.5 | 47 | 42 | 73.8% | **66.7%** | 59.6% | 16.7% | 16.7% | 30.0m |  |
+| 00-04 / 07-11 | T10 | 47 | 42 | 73.8% | **64.3%** | 57.4% | 16.7% | 19.0% | 30.0m |  |
+| 00-04 / 07-11 | T15 | 47 | 42 | 73.8% | **59.5%** | 53.2% | 16.7% | 23.8% | 45.0m |  |
+| 04-08 / 11-15 | T5 | 43 | 38 | 84.2% | **84.2%** | 74.4% | 2.6% | 13.2% | 50.0m |  |
+| 04-08 / 11-15 | T7.5 | 43 | 38 | 84.2% | **84.2%** | 74.4% | 2.6% | 13.2% | 50.0m |  |
+| 04-08 / 11-15 | T10 | 43 | 38 | 84.2% | **84.2%** | 74.4% | 2.6% | 13.2% | 50.0m |  |
+| 04-08 / 11-15 | T15 | 43 | 38 | 84.2% | **76.3%** | 67.4% | 5.3% | 18.4% | 65.0m | **YES** |
+| 08-12 / 15-19 | T5 | 58 | 50 | 80.0% | **80.0%** | 69.0% | 16.0% | 4.0% | 20.0m |  |
+| 08-12 / 15-19 | T7.5 | 58 | 50 | 80.0% | **80.0%** | 69.0% | 16.0% | 4.0% | 20.0m |  |
+| 08-12 / 15-19 | T10 | 58 | 50 | 80.0% | **78.0%** | 67.2% | 16.0% | 6.0% | 25.0m |  |
+| 08-12 / 15-19 | T15 | 58 | 50 | 80.0% | **78.0%** | 67.2% | 16.0% | 6.0% | 30.0m | **YES** |
+| 12-16 / 19-23 | T5 | 82 | 76 | 76.3% | **75.0%** | 69.5% | 23.7% | 1.3% | 30.0m |  |
+| 12-16 / 19-23 | T7.5 | 82 | 76 | 76.3% | **75.0%** | 69.5% | 23.7% | 1.3% | 30.0m |  |
+| 12-16 / 19-23 | T10 | 82 | 76 | 76.3% | **72.4%** | 67.1% | 23.7% | 3.9% | 35.0m | **YES** |
+| 12-16 / 19-23 | T15 | 82 | 76 | 76.3% | **68.4%** | 63.4% | 25.0% | 6.6% | 35.0m |  |
+| 16-20 / 23-03 | T5 | 60 | 54 | 87.0% | **83.3%** | 75.0% | 3.7% | 13.0% | 45.0m |  |
+| 16-20 / 23-03 | T7.5 | 60 | 54 | 87.0% | **79.6%** | 71.7% | 3.7% | 16.7% | 45.0m |  |
+| 16-20 / 23-03 | T10 | 60 | 54 | 87.0% | **77.8%** | 70.0% | 3.7% | 18.5% | 47.5m | **YES** |
+| 16-20 / 23-03 | T15 | 60 | 54 | 87.0% | **66.7%** | 60.0% | 9.3% | 24.1% | 62.5m |  |
+| 20-00 / 03-07 | T5 | 43 | 37 | 81.1% | **78.4%** | 67.4% | 5.4% | 16.2% | 30.0m |  |
+| 20-00 / 03-07 | T7.5 | 43 | 37 | 81.1% | **75.7%** | 65.1% | 5.4% | 18.9% | 57.5m |  |
+| 20-00 / 03-07 | T10 | 43 | 37 | 81.1% | **73.0%** | 62.8% | 5.4% | 21.6% | 60.0m |  |
+| 20-00 / 03-07 | T15 | 43 | 37 | 81.1% | **70.3%** | 60.5% | 8.1% | 21.6% | 62.5m | **YES** |
+
+## Frozen clock TP map + reused confirmation
+
+| UTC / WIB | Selected TP | Dev N / hit | External N / hit | Validation N / hit | Reused confirmed |
+|---|---|---:|---:|---:|---|
+| 00-04 / 07-11 | **T5** | 42 / 71.4% | 27 / 85.2% | 32 / 71.9% | YES |
+| 04-08 / 11-15 | **T15** | 38 / 76.3% | 38 / 84.2% | 20 / 75.0% | YES |
+| 08-12 / 15-19 | **T15** | 50 / 78.0% | 40 / 72.5% | 24 / 83.3% | YES |
+| 12-16 / 19-23 | **T10** | 76 / 72.4% | 31 / 74.2% | 41 / 78.0% | YES |
+| 16-20 / 23-03 | **T10** | 54 / 77.8% | 25 / 64.0% | 27 / 59.3% | NO |
+| 20-00 / 03-07 | **T15** | 37 / 70.3% | 22 / 68.2% | 29 / 69.0% | YES |
+
+## Selected-map aggregate anatomy
+
+| Scope | Source | Fills | Target reached | Hit/fill | Yield/source | High fail/fill | Unresolved/fill |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| external | 202 | 183 | 138 | **75.4%** | 68.3% | 14.2% | 10.4% |
+| development | 333 | 297 | 221 | **74.4%** | 66.4% | 13.5% | 12.1% |
+| reference_validation | 194 | 173 | 126 | **72.8%** | 64.9% | 11.6% | 15.6% |
+| POOLED_MAJOR | 729 | 653 | 485 | **74.3%** | 66.5% | 13.2% | 12.6% |
+
+Reused-confirmed selected targets: **5/6**.
+
+**Frozen verdict: `B27CR_CLOCK_TP_REUSED_CANDIDATE`.**
+
+This is not trading WR. No SL economics were optimized. Any economic follow-up must freeze this clock-TP map and preserve nominal RR >=1:1; live BBC unchanged.
