@@ -17,44 +17,85 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install pandas numpy requests
-      - run: python -m py_compile research/btc_24h_clock_adaptive_mae_mfe_b27cc.py
-      - name: Run B27CC with persisted diagnostics
+
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+
+      - name: Compile and run B27CC with persisted diagnostics
         id: run_b27cc
         shell: bash
         run: |
+          LOG=BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Run.log
+          : > "$LOG"
+          echo "B27CC diagnostic run start" >> "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo "python=$(python --version 2>&1)" >> "$LOG"
+
           set +e
-          python research/btc_24h_clock_adaptive_mae_mfe_b27cc.py > BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Run.log 2>&1
-          rc=$?
-          echo "exit_code=$rc" >> BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Run.log
-          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          python -m py_compile research/btc_24h_clock_adaptive_mae_mfe_b27cc.py >> "$LOG" 2>&1
+          compile_rc=$?
+          echo "compile_exit_code=$compile_rc" >> "$LOG"
+
+          if [ "$compile_rc" -eq 0 ]; then
+            python research/btc_24h_clock_adaptive_mae_mfe_b27cc.py >> "$LOG" 2>&1
+            run_rc=$?
+          else
+            run_rc=$compile_rc
+          fi
+
+          echo "run_exit_code=$run_rc" >> "$LOG"
+          echo "rc=$run_rc" >> "$GITHUB_OUTPUT"
           exit 0
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload B27CC outputs or diagnostics
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: b27cc-results
+          if-no-files-found: warn
           path: |
             BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Result.md
             BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Detail.csv
             BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Summary.csv
             BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Status.txt
             BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Run.log
+
       - name: Persist B27CC outputs or diagnostics
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_*.md \
-                     BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_*.csv \
-                     BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_*.txt \
-                     BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Run.log || true
+
+          LOG=BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Run.log
+          if [ ! -f "$LOG" ]; then
+            echo "B27CC workflow reached persistence without diagnostic log." > "$LOG"
+            echo "commit=$GITHUB_SHA" >> "$LOG"
+          fi
+
+          git add "$LOG"
+          for f in \
+            BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Result.md \
+            BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Detail.csv \
+            BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Summary.csv \
+            BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Status.txt
+          do
+            if [ -f "$f" ]; then
+              git add "$f"
+            fi
+          done
+
           if ! git diff --cached --quiet; then
             git commit -m 'persist B27CC clock-adaptive MAE MFE outputs'
             git push
           fi
+
       - name: Fail if B27CC script failed
-        if: steps.run_b27cc.outputs.rc != '0'
+        if: always() && steps.run_b27cc.outputs.rc != '' && steps.run_b27cc.outputs.rc != '0'
         run: exit 1
