@@ -85,3 +85,5 @@ separately for BAD and GOOD.
 Otherwise verdict: `B27CX_SEQUENTIAL_PERSISTENCE_NOT_SUPPORTED`.
 
 Even a candidate PASS is reused-data anatomy evidence only. A separate preregistered causal economic abort simulation is required before interpreting WR/PF/expectancy/PnL or changing live BBC.
+
+<!-- no-semantic workflow trigger -->
