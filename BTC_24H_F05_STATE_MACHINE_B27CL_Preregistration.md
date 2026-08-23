@@ -149,3 +149,5 @@ Also report outcomes **per 100 filled entries**, especially full SL, scratch/BE,
 Otherwise verdict: `B27CL_STATE_MACHINE_ECON_NOT_SUPPORTED`.
 
 Research only. Live BBC unchanged.
+
+<!-- Execution trigger only; no semantic change. -->
