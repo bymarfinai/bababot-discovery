@@ -1,0 +1,30 @@
+name: B27BP BULL 5m pre-second-retest anatomy
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_24h_bull_sideways_5m_pre_second_retest_b27bp.py
+      - name: Run B27BP
+        run: python research/btc_24h_bull_sideways_5m_pre_second_retest_b27bp.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27bp-results
+          path: |
+            BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Result.md
+            BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Episodes.csv
+            BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Summary.csv
+            BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Status.txt
