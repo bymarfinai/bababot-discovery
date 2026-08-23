@@ -17,7 +17,6 @@ OUT_SUM = ROOT / 'BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Summary.csv'
 OUT_STATUS = ROOT / 'BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Status.txt'
 
 BAR5 = pd.Timedelta(minutes=5)
-H4 = pd.Timedelta(hours=4)
 MAJOR = ('external','development','reference_validation')
 OOS = ('external','reference_validation')
 CLOCKS = ('00-04','04-08','08-12','12-16','16-20','20-00')
@@ -50,7 +49,8 @@ def load_entries() -> pd.DataFrame:
     q = q[q.partition.isin(MAJOR)&q.filled].copy()
     exp={'external':250,'development':380,'reference_validation':177}
     assert len(q)==807
-    for p,n in exp.items(): assert len(q[q.partition==p])==n
+    for p,n in exp.items():
+        assert len(q[q.partition==p])==n
 
     e = pd.read_csv(EV)
     for col in ('obs_start','obs_end','break_ts'):
@@ -88,10 +88,18 @@ def eval_one(x5: pd.DataFrame, r) -> dict:
 
     causal_start=fill+BAR5
     z=fast_slice(x5,causal_start,terminal_complete)
-    # terminal_complete is candle completion, so slice includes its bar start.
-    assert len(z)>=1
-    max_hi=float(z.high.max()); min_lo=float(z.low.min())
-    mae=max(0.0,max_hi-entry); mfe=max(0.0,entry-min_lo)
+    # If the fill is on the final 5m bar of the 4H block, there is no completed
+    # post-fill bar. Primary causal MAE/MFE is undefined for that row; do not
+    # fabricate a zero excursion. Fill-bar adverse span remains available.
+    if len(z):
+        max_hi=float(z.high.max()); min_lo=float(z.low.min())
+        mae=max(0.0,max_hi-entry); mfe=max(0.0,entry-min_lo)
+        mae_r4=mae/R4; mae_localr=mae/local_r
+        mfe_r4=mfe/R4; mfe_localr=mfe/local_r
+    else:
+        mae=mfe=np.nan
+        mae_r4=mae_localr=mfe_r4=mfe_localr=np.nan
+
     fb_adv=max(0.0,float(fb.high)-entry)
     return {
         'partition':str(r.partition),'regime':str(r.regime),'clock_block':str(r.clock_block),
@@ -100,26 +108,32 @@ def eval_one(x5: pd.DataFrame, r) -> dict:
         'terminal_type':terminal_type,'terminal_complete_ts':terminal_complete,
         'causal_bars':len(z),'terminal_minutes':float((terminal_complete-fill)/pd.Timedelta(minutes=1)),
         'fillbar_adv_px':fb_adv,'fillbar_adv_r4':fb_adv/R4,'fillbar_adv_localr':fb_adv/local_r,
-        'mae_px':mae,'mae_r4':mae/R4,'mae_localr':mae/local_r,
-        'mfe_px':mfe,'mfe_r4':mfe/R4,'mfe_localr':mfe/local_r,
+        'mae_px':mae,'mae_r4':mae_r4,'mae_localr':mae_localr,
+        'mfe_px':mfe,'mfe_r4':mfe_r4,'mfe_localr':mfe_localr,
     }
 
 
 def qv(s: pd.Series,p:float)->float:
+    s=pd.to_numeric(s,errors='coerce').dropna()
     return float(s.quantile(p)) if len(s) else np.nan
 
 
 def metrics(g: pd.DataFrame)->dict:
-    if len(g)==0: return {'n':0}
+    if len(g)==0:
+        return {'n':0,'causal_n':0}
+    valid=g[g.causal_bars.astype(int)>0].copy()
     return {
         'n':int(len(g)),
-        'mae_r4_p50':qv(g.mae_r4,.50),'mae_r4_p75':qv(g.mae_r4,.75),'mae_r4_p90':qv(g.mae_r4,.90),
-        'mae_lr_p50':qv(g.mae_localr,.50),'mae_lr_p75':qv(g.mae_localr,.75),'mae_lr_p90':qv(g.mae_localr,.90),
-        'mfe_r4_p50':qv(g.mfe_r4,.50),'mfe_r4_p75':qv(g.mfe_r4,.75),'mfe_r4_p90':qv(g.mfe_r4,.90),
-        'mfe_lr_p50':qv(g.mfe_localr,.50),'mfe_lr_p75':qv(g.mfe_localr,.75),'mfe_lr_p90':qv(g.mfe_localr,.90),
+        'causal_n':int(len(valid)),
+        'mae_r4_p50':qv(valid.mae_r4,.50),'mae_r4_p75':qv(valid.mae_r4,.75),'mae_r4_p90':qv(valid.mae_r4,.90),
+        'mae_lr_p50':qv(valid.mae_localr,.50),'mae_lr_p75':qv(valid.mae_localr,.75),'mae_lr_p90':qv(valid.mae_localr,.90),
+        'mfe_r4_p50':qv(valid.mfe_r4,.50),'mfe_r4_p75':qv(valid.mfe_r4,.75),'mfe_r4_p90':qv(valid.mfe_r4,.90),
+        'mfe_lr_p50':qv(valid.mfe_localr,.50),'mfe_lr_p75':qv(valid.mfe_localr,.75),'mfe_lr_p90':qv(valid.mfe_localr,.90),
         'filladv_lr_p50':qv(g.fillbar_adv_localr,.50),'filladv_lr_p75':qv(g.fillbar_adv_localr,.75),'filladv_lr_p90':qv(g.fillbar_adv_localr,.90),
-        'mae_gt1r':float((g.mae_localr>1).mean()),'mae_gt2r':float((g.mae_localr>2).mean()),
-        'mae_gt3r':float((g.mae_localr>3).mean()),'mae_gt4r':float((g.mae_localr>4).mean()),
+        'mae_gt1r':float((valid.mae_localr>1).mean()) if len(valid) else np.nan,
+        'mae_gt2r':float((valid.mae_localr>2).mean()) if len(valid) else np.nan,
+        'mae_gt3r':float((valid.mae_localr>3).mean()) if len(valid) else np.nan,
+        'mae_gt4r':float((valid.mae_localr>4).mean()) if len(valid) else np.nan,
         'median_terminal_min':float(g.terminal_minutes.median()),
     }
 
@@ -127,7 +141,8 @@ def metrics(g: pd.DataFrame)->dict:
 def summarize(d:pd.DataFrame)->pd.DataFrame:
     rows=[]
     scopes=[]
-    for p in MAJOR: scopes.append(('PARTITION',p,d[d.partition==p]))
+    for p in MAJOR:
+        scopes.append(('PARTITION',p,d[d.partition==p]))
     scopes += [('POOL','POOLED_OOS',d[d.partition.isin(OOS)]),('POOL','POOLED_MAJOR',d)]
     for cb in CLOCKS:
         scopes.append(('CLOCK_MAJOR',cb,d[d.clock_block==cb]))
@@ -158,41 +173,44 @@ def main():
     p75=[]; clocks_ok=True
     for cb in CLOCKS:
         r=get(s,'CLOCK_MAJOR',cb,'WINNER_STRUCTURAL')
-        clocks_ok=clocks_ok and int(r.n)>=20 and pd.notna(r.mae_lr_p75)
+        clocks_ok=clocks_ok and int(r.n)>=20 and int(r.causal_n)>0 and pd.notna(r.mae_lr_p75)
         p75.append(float(r.mae_lr_p75) if pd.notna(r.mae_lr_p75) else np.nan)
     informative=bool(clocks_ok and (max(p75)>2.0 or (max(p75)-min(p75))>=1.0))
     verdict='B27CC_CLOCK_EXCURSION_INFORMATIVE' if informative else 'B27CC_CLOCK_EXCURSION_NOT_INFORMATIVE'
     OUT_STATUS.write_text(verdict+'\n')
 
+    zero_causal=int((d.causal_bars==0).sum())
     lines=['# B27CC — BTC 24H Clock-Adaptive Pre-Break SHORT MAE/MFE Anatomy — Result','',
            f'5m rows: **{len(x5):,}**; coverage **{100*float(cov):.4f}%**.','',
            '**Audit status: PASS.** Exact B27CA adaptive filled-entry identity reproduced: external 250 / development 380 / validation 177. Anatomy only: trading WR/PF/PnL/expectancy are not applicable.','',
            'Primary excursions start on the **next 5m bar after the fill bar**. Fill-bar adverse span is reported separately because intrabar ordering is unknown.','',
+           f'Rows with no completed post-fill 5m bar before the structural terminal: **{zero_causal}**. Their causal MAE/MFE is undefined and excluded from causal quantiles/proportions; fill-bar adverse remains reported.','',
            '## Pooled anatomy','',
-           '| Scope | Outcome | N | MAE P50/P75/P90 (LOCAL_R) | MAE P75 (%R4) | MFE P50/P75/P90 (LOCAL_R) | >1R / >2R / >3R / >4R MAE | Fill-bar adverse P75 | Median terminal |',
+           '| Scope | Outcome | N / causal N | MAE P50/P75/P90 (LOCAL_R) | MAE P75 (%R4) | MFE P50/P75/P90 (LOCAL_R) | >1R / >2R / >3R / >4R MAE | Fill-bar adverse P75 | Median terminal |',
            '|---|---|---:|---|---:|---|---|---:|---:|']
     for scope,name in [('POOL','POOLED_OOS'),('POOL','POOLED_MAJOR')]:
         for out in ('WINNER_STRUCTURAL','FAILURE_STRUCTURAL'):
             r=get(s,scope,name,out)
-            lines.append(f'| {name} | {out} | {int(r.n)} | {x(r.mae_lr_p50)} / {x(r.mae_lr_p75)} / {x(r.mae_lr_p90)} | {pct(r.mae_r4_p75)} | {x(r.mfe_lr_p50)} / {x(r.mfe_lr_p75)} / {x(r.mfe_lr_p90)} | {pct(r.mae_gt1r)} / {pct(r.mae_gt2r)} / {pct(r.mae_gt3r)} / {pct(r.mae_gt4r)} | {x(r.filladv_lr_p75)}R | {x(r.median_terminal_min)}m |')
+            lines.append(f'| {name} | {out} | {int(r.n)} / {int(r.causal_n)} | {x(r.mae_lr_p50)} / {x(r.mae_lr_p75)} / {x(r.mae_lr_p90)} | {pct(r.mae_r4_p75)} | {x(r.mfe_lr_p50)} / {x(r.mfe_lr_p75)} / {x(r.mfe_lr_p90)} | {pct(r.mae_gt1r)} / {pct(r.mae_gt2r)} / {pct(r.mae_gt3r)} / {pct(r.mae_gt4r)} | {x(r.filladv_lr_p75)}R | {x(r.median_terminal_min)}m |')
 
     lines += ['', '## Structural winners by clock — pooled major','',
-              '| UTC block | Entry | N | MAE P50 | MAE P75 | MAE P90 | MAE P75 %R4 | MFE P75 | >2R MAE | >4R MAE |',
+              '| UTC block | Entry | N / causal N | MAE P50 | MAE P75 | MAE P90 | MAE P75 %R4 | MFE P75 | >2R MAE | >4R MAE |',
               '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|']
     for cb in CLOCKS:
         r=get(s,'CLOCK_MAJOR',cb,'WINNER_STRUCTURAL'); f=FROZEN[cb]
-        lines.append(f'| {cb} | F{int(round(f*100)):02d} | {int(r.n)} | {x(r.mae_lr_p50)}R | {x(r.mae_lr_p75)}R | {x(r.mae_lr_p90)}R | {pct(r.mae_r4_p75)} | {x(r.mfe_lr_p75)}R | {pct(r.mae_gt2r)} | {pct(r.mae_gt4r)} |')
+        lines.append(f'| {cb} | F{int(round(f*100)):02d} | {int(r.n)} / {int(r.causal_n)} | {x(r.mae_lr_p50)}R | {x(r.mae_lr_p75)}R | {x(r.mae_lr_p90)}R | {pct(r.mae_r4_p75)} | {x(r.mfe_lr_p75)}R | {pct(r.mae_gt2r)} | {pct(r.mae_gt4r)} |')
 
     lines += ['', '## Structural winners by clock — pooled OOS','',
-              '| UTC block | N | MAE P75 | MAE P90 | MAE P75 %R4 | MFE P75 |',
+              '| UTC block | N / causal N | MAE P75 | MAE P90 | MAE P75 %R4 | MFE P75 |',
               '|---|---:|---:|---:|---:|---:|']
     for cb in CLOCKS:
         r=get(s,'CLOCK_OOS',cb,'WINNER_STRUCTURAL')
-        lines.append(f'| {cb} | {int(r.n)} | {x(r.mae_lr_p75)}R | {x(r.mae_lr_p90)}R | {pct(r.mae_r4_p75)} | {x(r.mfe_lr_p75)}R |')
+        lines.append(f'| {cb} | {int(r.n)} / {int(r.causal_n)} | {x(r.mae_lr_p75)}R | {x(r.mae_lr_p90)}R | {pct(r.mae_r4_p75)} | {x(r.mfe_lr_p75)}R |')
 
     lines += ['', f'**Frozen verdict: `{verdict}`.**','',
               'B27CC does not choose a stop. An informative verdict only permits a new preregistered risk-geometry test. Live BBC unchanged.']
     OUT_MD.write_text('\n'.join(lines)+'\n')
     print('\n'.join(lines))
 
-if __name__=='__main__': main()
+if __name__=='__main__':
+    main()
