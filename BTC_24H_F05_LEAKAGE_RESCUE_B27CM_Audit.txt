@@ -1,0 +1,9 @@
+audit=PASS
+rows5=698112
+coverage=1.00000000
+leak_major=366
+leak_oos=204
+be_selected=NONE
+be_supported=False
+time_selected=NONE
+time_supported=False

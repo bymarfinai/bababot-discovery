@@ -1,0 +1,79 @@
+B27CM run start
+commit=5d947cd71ca5135e42b8884346b43aaee73015dc
+compile_exit_code=0
+# B27CM — BTC 24H F05 BE/TIME Leakage Rescue Anatomy — Result
+
+5m rows: **698,112**; coverage **100.0000%**.
+
+**Audit status: PASS.** Exact B27CL filled/leakage identities reproduced. Anatomy/counterfactual only; trading WR/PF/PnL/expectancy are **N/A**.
+
+Counterfactual breath is frozen at exactly **4 hours after actual B27CL exit**. Existing confirmed-rebreak state is carried forward; otherwise a fresh close <L is required before T5/T10 scanning.
+
+## Six-clock untouched OOS leakage rescue — first
+
+| UTC / WIB | BE N | BE -> T10 | TIME N | TIME -> T10 | Combined N | Rebreak available | ->T5 | ->T10 | High break | No resolution |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 00-04 / 07-11 | 21 | 76.2% | 10 | 30.0% | 31 | 64.5% | 64.5% | 61.3% | 6.5% | 32.3% |
+| 04-08 / 11-15 | 17 | 88.2% | 10 | 50.0% | 27 | 74.1% | 74.1% | 74.1% | 11.1% | 14.8% |
+| 08-12 / 15-19 | 24 | 79.2% | 17 | 52.9% | 41 | 75.6% | 68.3% | 68.3% | 19.5% | 12.2% |
+| 12-16 / 19-23 | 31 | 74.2% | 9 | 44.4% | 40 | 80.0% | 72.5% | 67.5% | 15.0% | 17.5% |
+| 16-20 / 23-03 | 20 | 55.0% | 15 | 33.3% | 35 | 60.0% | 51.4% | 45.7% | 11.4% | 42.9% |
+| 20-00 / 03-07 | 15 | 60.0% | 15 | 53.3% | 30 | 66.7% | 60.0% | 56.7% | 20.0% | 23.3% |
+
+## Major partitions / pools by leakage family
+
+| Scope | Leak | N | Carried rebreak | Fresh rebreak | Rebreak available | Future T5 | Future T10 | Future High break | No resolution | Med exit->T10 |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| external | BE | 67 | 24 | 34 | 58 (86.6%) | 53 (79.1%) | 50 (74.6%) | 10 (14.9%) | 7 (10.4%) | 20.0m |
+| external | TIME_OTHER | 37 | 2 | 12 | 14 (37.8%) | 14 (37.8%) | 14 (37.8%) | 7 (18.9%) | 16 (43.2%) | 30.0m |
+| external | COMBINED | 104 | 26 | 46 | 72 (69.2%) | 67 (64.4%) | 64 (61.5%) | 17 (16.3%) | 23 (22.1%) | 22.5m |
+| development | BE | 107 | 40 | 54 | 94 (87.9%) | 89 (83.2%) | 83 (77.6%) | 7 (6.5%) | 17 (15.9%) | 20.0m |
+| development | TIME_OTHER | 55 | 3 | 23 | 26 (47.3%) | 25 (45.5%) | 23 (41.8%) | 12 (21.8%) | 20 (36.4%) | 50.0m |
+| development | COMBINED | 162 | 43 | 77 | 120 (74.1%) | 114 (70.4%) | 106 (65.4%) | 19 (11.7%) | 37 (22.8%) | 25.0m |
+| reference_validation | BE | 61 | 24 | 28 | 52 (85.2%) | 46 (75.4%) | 43 (70.5%) | 5 (8.2%) | 13 (21.3%) | 15.0m |
+| reference_validation | TIME_OTHER | 39 | 1 | 19 | 20 (51.3%) | 20 (51.3%) | 20 (51.3%) | 7 (17.9%) | 12 (30.8%) | 57.5m |
+| reference_validation | COMBINED | 100 | 25 | 47 | 72 (72.0%) | 66 (66.0%) | 63 (63.0%) | 12 (12.0%) | 25 (25.0%) | 25.0m |
+| POOLED_OOS | BE | 128 | 48 | 62 | 110 (85.9%) | 99 (77.3%) | 93 (72.7%) | 15 (11.7%) | 20 (15.6%) | 20.0m |
+| POOLED_OOS | TIME_OTHER | 76 | 3 | 31 | 34 (44.7%) | 34 (44.7%) | 34 (44.7%) | 14 (18.4%) | 28 (36.8%) | 42.5m |
+| POOLED_OOS | COMBINED | 204 | 51 | 93 | 144 (70.6%) | 133 (65.2%) | 127 (62.3%) | 29 (14.2%) | 48 (23.5%) | 25.0m |
+| POOLED_MAJOR | BE | 235 | 88 | 116 | 204 (86.8%) | 188 (80.0%) | 176 (74.9%) | 22 (9.4%) | 37 (15.7%) | 20.0m |
+| POOLED_MAJOR | TIME_OTHER | 131 | 6 | 54 | 60 (45.8%) | 59 (45.0%) | 57 (43.5%) | 26 (19.8%) | 48 (36.6%) | 45.0m |
+| POOLED_MAJOR | COMBINED | 366 | 94 | 170 | 264 (72.1%) | 247 (67.5%) | 233 (63.7%) | 48 (13.1%) | 85 (23.2%) | 25.0m |
+
+## Development-only signal selection
+
+| Leak | Candidate | N | Baseline T10 | Candidate T10 | Uplift | Eligible | Selected |
+|---|---|---:|---:|---:|---:|---|---|
+| BE | REBREAK_AT_EXIT | 40 | 77.6% | 82.5% | 4.9% | NO | NO |
+| BE | T5_AT_EXIT | 0 | 77.6% | - | - | NO | NO |
+| BE | FAST_L_TOUCH_10M | 44 | 77.6% | 75.0% | -2.6% | NO | NO |
+| BE | NO_F25_CLOSE_BEFORE_EXIT | 77 | 77.6% | 75.3% | -2.2% | NO | NO |
+| BE | LAST_CLOSE_LE_F05 | 64 | 77.6% | 82.8% | 5.2% | NO | NO |
+| TIME_OTHER | REBREAK_AT_EXIT | 3 | 41.8% | 66.7% | 24.8% | NO | NO |
+| TIME_OTHER | T5_AT_EXIT | 0 | 41.8% | - | - | NO | NO |
+| TIME_OTHER | FAST_L_TOUCH_10M | 1 | 41.8% | 0.0% | -41.8% | NO | NO |
+| TIME_OTHER | NO_F25_CLOSE_BEFORE_EXIT | 11 | 41.8% | 54.5% | 12.7% | NO | NO |
+| TIME_OTHER | LAST_CLOSE_LE_F05 | 6 | 41.8% | 83.3% | 41.5% | NO | NO |
+
+## Untouched OOS confirmation of development selection
+
+| Leak | Selected signal | External N/rate vs base | Validation N/rate vs base | Pooled OOS rate vs base | Supported |
+|---|---|---|---|---|---|
+| BE | NONE | - | - | - | NO |
+| TIME_OTHER | NONE | - | - | - | NO |
+
+## Counterfactual opportunities per 100 original OOS F05 fills
+
+- actual B27CL BE leakage: **36.1 per 100 fills**; of those, **26.2 per 100 original fills** would reach T10 inside the frozen extra-4h counterfactual.
+
+- actual B27CL unresolved TIME leakage: **21.4 per 100 fills**; of those, **9.6 per 100 original fills** would reach T10 inside the extra-4h counterfactual.
+
+- combined BE+TIME leakage potentially reaching T10 with extra breath: **35.8 per 100 original fills**. This is a counterfactual opportunity count, **not realized trading WR**.
+
+**Frozen verdict: `B27CM_LEAKAGE_RESCUE_SIGNAL_NOT_SUPPORTED`.**
+
+- BE rescue signal: **NOT SUPPORTED** (NONE).
+- TIME rescue signal: **NOT SUPPORTED** (NONE).
+
+No economic or live-rule implication is authorized by B27CM. Research only; live BBC unchanged.
+run_exit_code=0
