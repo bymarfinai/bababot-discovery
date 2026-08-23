@@ -1,0 +1,44 @@
+name: B27BH sideways transition anatomy audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_24h_sideways_transition_anatomy_b27bh.py'
+      - 'BTC_24H_SIDEWAYS_TRANSITION_ANATOMY_B27BH_Preregistration.md'
+      - '.github/workflows/b27bh.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_24h_sideways_transition_anatomy_b27bh.py
+      - name: Run B27BH
+        run: python research/btc_24h_sideways_transition_anatomy_b27bh.py
+      - name: Persist results on main push only
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_24H_SIDEWAYS_TRANSITION_ANATOMY_B27BH_Result.md \
+                  BTC_24H_SIDEWAYS_TRANSITION_ANATOMY_B27BH_FlipbackPatterns.csv \
+                  BTC_24H_SIDEWAYS_TRANSITION_ANATOMY_B27BH_SidewaysEpisodes.csv \
+                  BTC_24H_SIDEWAYS_TRANSITION_ANATOMY_B27BH_Summary.csv \
+                  BTC_24H_SIDEWAYS_TRANSITION_ANATOMY_B27BH_Status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27BH sideways transition anatomy results'
+            git push
+          fi
