@@ -1,0 +1,29 @@
+name: B27BM SIDEWAYS age-hazard audit
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_24h_sideways_age_hazard_b27bm.py
+      - name: Run B27BM
+        run: python research/btc_24h_sideways_age_hazard_b27bm.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27bm-results
+          path: |
+            BTC_24H_SIDEWAYS_AGE_HAZARD_B27BM_Result.md
+            BTC_24H_SIDEWAYS_AGE_HAZARD_B27BM_Hazards.csv
+            BTC_24H_SIDEWAYS_AGE_HAZARD_B27BM_Status.txt
