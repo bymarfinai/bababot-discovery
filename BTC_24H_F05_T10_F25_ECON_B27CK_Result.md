@@ -1,0 +1,34 @@
+# B27CK — BTC 24H F05 Entry / T10 TP / F25 SL Economics — Result
+
+5m rows: **698,112**; coverage **100.0000%**.
+
+**Audit status: PASS.** Exact B27CE source reproduced (202/333/194) and B27CH executable F05 fill identity reproduced (178/280/163; OOS 341; major 621).
+
+Configuration: SHORT F05 = L+5%R4; fixed TP T10 = L-10%R4; fixed SL F25 = L+25%R4; no early exit, no BE, no runner. $500 notional, $0.40 RT fee, no extra slippage.
+
+**Important:** exact-F05 nominal RR is 0.75:1 (15%R4 reward / 20%R4 risk), below the previously required >=1:1. This is diagnostic, not promotable as-is.
+
+## Six-clock OOS economics — first
+
+| UTC / WIB | N | WR | PF | Exp/trade | Net | Max DD | Loss streak | TP | SL | TIME | Median actual RR |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 00-04 / 07-11 | 59 | 47.5% | 0.32 | $-0.70 | $-41.56 | $+45.85 | 7 | 29 | 29 | 1 | 0.84 |
+| 04-08 / 11-15 | 57 | 52.6% | 1.09 | $+0.08 | $+4.75 | $+15.97 | 8 | 31 | 26 | 0 | 0.84 |
+| 08-12 / 15-19 | 63 | 42.9% | 0.70 | $-0.26 | $-16.31 | $+16.91 | 5 | 29 | 32 | 2 | 0.81 |
+| 12-16 / 19-23 | 64 | 37.5% | 0.43 | $-0.58 | $-37.02 | $+38.69 | 6 | 24 | 36 | 4 | 0.89 |
+| 16-20 / 23-03 | 50 | 40.0% | 0.43 | $-0.79 | $-39.30 | $+42.32 | 4 | 19 | 26 | 5 | 0.99 |
+| 20-00 / 03-07 | 48 | 37.5% | 0.61 | $-0.34 | $-16.22 | $+17.82 | 6 | 19 | 24 | 5 | 0.86 |
+
+## Major partitions and pools
+
+| Scope | Source | Trades | Fill | WR | PF | Exp/trade | Net | Avg win | Avg loss | Max DD | Loss streak | TP | SL | TIME | Median RR | Median hold |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| external | 202 | 178 | 88.1% | 44.9% | 0.66 | $-0.42 | $-75.12 | $+1.81 | $-2.24 | $+98.67 | 9 | 78 | 92 | 8 | 0.86 | 15.00m |
+| development | 333 | 280 | 84.1% | 33.6% | 0.32 | $-0.62 | $-174.47 | $+0.87 | $-1.38 | $+176.31 | 18 | 105 | 157 | 18 | 0.85 | 15.00m |
+| reference_validation | 194 | 163 | 84.0% | 41.1% | 0.42 | $-0.43 | $-70.53 | $+0.77 | $-1.28 | $+72.96 | 6 | 73 | 81 | 9 | 0.86 | 15.00m |
+| POOLED_OOS | 396 | 341 | 86.1% | 43.1% | 0.57 | $-0.43 | $-145.65 | $+1.34 | $-1.76 | $+147.87 | 9 | 151 | 173 | 17 | 0.86 | 15.00m |
+| POOLED_MAJOR | 729 | 621 | 85.2% | 38.8% | 0.47 | $-0.52 | $-320.12 | $+1.16 | $-1.58 | $+322.34 | 18 | 256 | 330 | 35 | 0.86 | 15.00m |
+
+**Frozen diagnostic verdict: `B27CK_DIAGNOSTIC_MIXED_OR_NEGATIVE`.**
+
+A positive diagnostic would still not override the RR<1 constraint. Research only; live BBC unchanged.
