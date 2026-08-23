@@ -1,3 +1,4 @@
+# Re-run trigger after observable audit; no research semantics changed.
 name: B27BH sideways transition anatomy audit
 
 on:
