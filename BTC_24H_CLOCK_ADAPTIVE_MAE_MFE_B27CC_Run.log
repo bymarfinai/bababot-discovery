@@ -1,0 +1,49 @@
+B27CC diagnostic run start
+commit=436361f0aa3ab54c9870db36583e56407e4c55e6
+python=Python 3.11.16
+compile_exit_code=0
+# B27CC — BTC 24H Clock-Adaptive Pre-Break SHORT MAE/MFE Anatomy — Result
+
+5m rows: **698,112**; coverage **100.0000%**.
+
+**Audit status: PASS.** Exact B27CA adaptive filled-entry identity reproduced: external 250 / development 380 / validation 177. Anatomy only: trading WR/PF/PnL/expectancy are not applicable.
+
+Primary excursions start on the **next 5m bar after the fill bar**. Fill-bar adverse span is reported separately because intrabar ordering is unknown.
+
+Rows with no completed post-fill 5m bar before the structural terminal: **5**. Their causal MAE/MFE is undefined and excluded from causal quantiles/proportions; fill-bar adverse remains reported.
+
+## Pooled anatomy
+
+| Scope | Outcome | N / causal N | MAE P50/P75/P90 (LOCAL_R) | MAE P75 (%R4) | MFE P50/P75/P90 (LOCAL_R) | >1R / >2R / >3R / >4R MAE | Fill-bar adverse P75 | Median terminal |
+|---|---|---:|---|---:|---|---|---:|---:|
+| POOLED_OOS | WINNER_STRUCTURAL | 285 / 285 | 2.18 / 4.26 / 6.88 | 24.2% | 2.99 / 4.85 / 7.23 | 74.4% / 54.0% / 39.3% / 27.0% | 3.01R | 20.00m |
+| POOLED_OOS | FAILURE_STRUCTURAL | 142 / 139 | 8.80 / 13.31 / 20.37 | 80.1% | 0.52 / 1.30 / 2.15 | 99.3% / 98.6% / 90.6% / 84.2% | 2.81R | 147.50m |
+| POOLED_MAJOR | WINNER_STRUCTURAL | 538 / 538 | 2.08 / 4.06 / 6.12 | 23.3% | 3.01 / 4.67 / 7.39 | 74.0% / 52.0% / 36.8% / 25.5% | 3.03R | 25.00m |
+| POOLED_MAJOR | FAILURE_STRUCTURAL | 269 / 264 | 8.02 / 12.96 / 19.85 | 78.4% | 0.65 / 1.45 / 2.78 | 98.5% / 95.1% / 87.1% / 81.4% | 2.90R | 145.00m |
+
+## Structural winners by clock — pooled major
+
+| UTC block | Entry | N / causal N | MAE P50 | MAE P75 | MAE P90 | MAE P75 %R4 | MFE P75 | >2R MAE | >4R MAE |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 00-04 | F05 | 77 / 77 | 2.04R | 4.17R | 6.69R | 20.8% | 5.27R | 50.6% | 26.0% |
+| 04-08 | F05 | 90 / 90 | 2.42R | 4.26R | 5.49R | 21.3% | 4.14R | 56.7% | 27.8% |
+| 08-12 | F10 | 114 / 114 | 1.41R | 2.53R | 3.25R | 25.3% | 3.00R | 38.6% | 7.0% |
+| 12-16 | F05 | 94 / 94 | 2.37R | 5.95R | 10.98R | 29.7% | 6.08R | 57.4% | 38.3% |
+| 16-20 | F05 | 102 / 102 | 2.85R | 4.77R | 6.16R | 23.9% | 5.17R | 61.8% | 33.3% |
+| 20-00 | F05 | 61 / 61 | 1.94R | 3.52R | 5.67R | 17.6% | 5.20R | 47.5% | 23.0% |
+
+## Structural winners by clock — pooled OOS
+
+| UTC block | N / causal N | MAE P75 | MAE P90 | MAE P75 %R4 | MFE P75 |
+|---|---:|---:|---:|---:|---:|
+| 00-04 | 40 / 40 | 4.69R | 7.83R | 23.4% | 5.54R |
+| 04-08 | 55 / 55 | 4.29R | 5.42R | 21.5% | 4.08R |
+| 08-12 | 64 / 64 | 2.50R | 3.15R | 25.0% | 2.73R |
+| 12-16 | 51 / 51 | 5.85R | 13.10R | 29.2% | 6.05R |
+| 16-20 | 43 / 43 | 5.47R | 7.15R | 27.3% | 5.58R |
+| 20-00 | 32 / 32 | 4.40R | 6.74R | 22.0% | 5.47R |
+
+**Frozen verdict: `B27CC_CLOCK_EXCURSION_INFORMATIVE`.**
+
+B27CC does not choose a stop. An informative verdict only permits a new preregistered risk-geometry test. Live BBC unchanged.
+run_exit_code=0
