@@ -1,0 +1,14 @@
+audit=PASS
+raw_rows=698112
+coverage=1.0
+trades_major=652
+trades_external=183
+trades_development=297
+trades_validation=172
+bad_major=78
+good_major=348
+other_major=226
+feature_rows=3260
+h1_complete_rows=58176
+checkpoints=5
+untouched_holdout=NONE
