@@ -1,0 +1,10 @@
+audit=PASS
+raw_rows=698112
+coverage=1.0
+source_major=729
+fills_external=183
+fills_development=297
+fills_validation=172
+fills_major=652
+base_b27cn_reproduced=TRUE
+untouched_holdout=NONE
