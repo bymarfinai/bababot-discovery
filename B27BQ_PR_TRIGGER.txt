@@ -1,1 +1,2 @@
 trigger B27BQ PR research run
+retrigger synchronize event
