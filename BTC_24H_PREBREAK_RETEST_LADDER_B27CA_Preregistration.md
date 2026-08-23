@@ -3,13 +3,13 @@
 ## Purpose
 Return to the exact pre-break architecture that mirrors B27W/B27AK:
 
-**Low Touch #1 / K1 -> causal leave -> optional retrace SHORT entry between Low #1 and genuine Low #2 -> Low #2 -> later Low break.**
+**Low Touch #1 / K1 -> causal leave -> optional retrace SHORT entry before the next Low return -> then either direct Low break on that return OR genuine Low #2 -> later Low break.**
 
 B27CA explicitly does NOT use the B27BZ post-break retest architecture.
 
 This experiment answers two separate questions:
 1. Before the previous-4H Low finally close-breaks, how many distinct Low-touch episodes occurred?
-2. Does the best pre-L2 retrace fraction differ by 4H clock block, or is fixed F15 still the most stable choice?
+2. Does the best pre-return retrace fraction differ by 4H clock block, or is fixed F15 still the most stable choice?
 
 Structural anatomy only. No trading stop, TP, RR, fee, PF, PnL, leverage, or live BBC change.
 
@@ -37,7 +37,7 @@ Use exact B27BE raw-5m semantics:
 
 For every eventual Low-break row, report the number of distinct Low visits completed before the break: 1 / 2 / 3 / 4+.
 
-## Exact pre-L2 chronology
+## Exact pre-return chronology
 K1 is Low Touch #1.
 
 Consume the complete contiguous K1 episode. A clean causal leave requires a completed 5m bar after K1 that:
@@ -46,9 +46,13 @@ Consume the complete contiguous K1 episode. A clean causal leave requires a comp
 
 Entry eligibility begins on the NEXT raw 5m bar after that leave completes.
 
-`GENUINE_L2` is the first later distinct Low-touch episode under B27BE semantics (`low <= L` and `close >= L`). A bar with `close < L` is a Low break, not L2.
+After the leave, the first later interaction with L can be one of two different events:
+- `BREAK_BEFORE_GENUINE_L2`: completed raw-5m `close < L`; this is a favorable downside break and is NOT counted as a genuine second touch episode;
+- `GENUINE_L2`: first later distinct Low-touch episode with `low <= L` and `close >= L`.
 
-Before genuine L2, first strict `close < L`, first strict `close > H`, or block end terminates the pre-L2 window. The terminal bar itself is never fill-eligible.
+First strict `close > H` or block end can terminate the pre-return window as well. The terminal return/break/opposite-break bar itself is never fill-eligible.
+
+This distinction is mandatory because B27W-style second arrival may itself be a breakout arrival; B27CA must not discard a Low break merely because it occurs before a genuine Low #2 bounce/retest forms.
 
 ## Frozen retrace grid
 Normalize previous-4H range Low=0 / High=1. Freeze exactly:
@@ -58,25 +62,34 @@ Normalize previous-4H range Low=0 / High=1. Freeze exactly:
 - F20 = `L + 0.20*(H-L)`
 - F25 = `L + 0.25*(H-L)`
 
-A candidate SHORT limit fill occurs only on an eligible raw-5m bar strictly after causal leave and strictly before genuine L2 / boundary break / block-end terminal, when the bar spans the exact candidate price.
+A candidate SHORT limit fill occurs only on an eligible raw-5m bar strictly after causal leave and strictly before the first later L interaction / opposite break / block-end terminal, when the bar spans the exact candidate price.
 
 No additional fractions may be added after results are seen.
 
-## Post-L2 structural outcome
-For a candidate that filled before genuine L2:
-- if genuine L2 never occurs, full-chain success is false;
-- once genuine L2 occurs, continue exact B27BE chronology through the same 4H block;
-- success = first later strict `close < L` before strict `close > H` or block end;
-- a later third/fourth Low touch may occur before the break and is allowed;
-- `LOW_BREAK_AFTER_L2` is structural only, not a TP.
+## Structural outcomes after fill
+For each valid pre-return fill, classify the later block outcome using exact B27BE chronology:
+
+1. `BREAK_BEFORE_GENUINE_L2`: first later L interaction is a strict Low close-break. This counts as eventual Low-break success after fill.
+2. `GENUINE_L2_THEN_BREAK`: a genuine second Low-touch episode forms first, and a later strict `close < L` occurs before strict `close > H` / block end. This also counts as eventual Low-break success after fill.
+3. `GENUINE_L2_NO_BREAK`: genuine L2 forms but no later Low break before opposite break / block end.
+4. `NO_L_RETURN_OR_OPPOSITE`: no favorable Low break and no genuine L2 before opposite break / block end.
+
+Thus the primary candidate metric is:
+
+`EVENTUAL_LOW_BREAK_AFTER_FILL = BREAK_BEFORE_GENUINE_L2 + GENUINE_L2_THEN_BREAK`.
+
+Also report the genuine-L2 branch separately, including later Low-break probability after genuine L2.
 
 For each fraction report:
 - clean-leave N;
-- fills before L2;
-- genuine-L2 N after fill and L2/fill rate;
+- fills before first later L interaction;
+- break-before-genuine-L2 N/rate among fills;
+- genuine-L2 N/rate among fills;
 - later Low-break-after-L2 N;
-- Low-break-after-L2 / L2 rate;
-- full-chain success / fill rate = fill -> genuine L2 -> later Low break.
+- Low-break-after-L2 / genuine-L2 rate;
+- eventual Low-break-after-fill N/rate.
+
+None of these structural rates may be called trading WR.
 
 ## Required retest-ladder reporting
 For each major partition, each pooled-major regime, and each pooled-major clock block report:
@@ -90,16 +103,18 @@ This anatomy must be kept separate from candidate-entry metrics.
 ## Fixed-F15 primary readout
 F15 remains the primary transfer rule because it is the exact B27W F85 mirror and the B27AK structural winner.
 
-Report F15 separately for external / development / reference_validation and for every clock/regime. Do not call any F15 structural rate trading WR.
+F15 fill identities must reproduce B27BY for the major partitions: external 441 / development 589 / reference_validation 228. B27CA then decomposes B27BY's broad L-return milestone into direct-break-before-genuine-L2 versus genuine-L2 branches.
+
+Report F15 separately for external / development / reference_validation and for every clock/regime.
 
 ## Clock-adaptive fraction selection — development only
 To test whether entry geometry differs by clock without post-hoc OOS selection:
 
 For EACH of the six clock blocks independently:
 1. use development rows only;
-2. eligible candidate requires >=20 fills and >=10 genuine-L2 arrivals after fill;
-3. score candidate by highest `full_chain_success_rate = LOW_BREAK_AFTER_L2 / fills`;
-4. ties within 1e-12: higher L2/fill rate, then higher fill N, then nearest to F15, then lower fraction;
+2. eligible candidate requires >=20 fills;
+3. score candidate by highest `eventual_low_break_after_fill_rate`;
+4. ties within 1e-12: higher genuine-L2 rate, then higher fill N, then nearest to F15, then lower fraction;
 5. freeze exactly one selected fraction for that clock.
 
 Then evaluate those six frozen clock-specific selections on external and reference_validation separately. External/validation may NOT alter the selected fractions.
@@ -109,12 +124,13 @@ Also compute an OOS aggregate of the six selected clock rules and compare it wit
 ## Frozen adaptive support gate
 `B27CA_CLOCK_ADAPTIVE_CANDIDATE_SUPPORTED` only if ALL hold:
 1. exact B27BE identities reproduce;
-2. every selected clock has an eligible development candidate;
-3. external selected-clock aggregate has >=100 fills;
-4. reference_validation selected-clock aggregate has >=60 fills;
-5. adaptive full-chain success rate is >= fixed-F15 full-chain rate in BOTH external and reference_validation;
-6. adaptive pooled-OOS full-chain success exceeds fixed-F15 pooled-OOS by >=3.0 percentage points;
-7. no future regime state, stop/TP economics, session relabeling, or post-hoc fraction change is used.
+2. F15 major-partition fill identities reproduce B27BY;
+3. every selected clock has an eligible development candidate;
+4. external selected-clock aggregate has >=100 fills;
+5. reference_validation selected-clock aggregate has >=60 fills;
+6. adaptive eventual-Low-break-after-fill rate is >= fixed-F15 rate in BOTH external and reference_validation;
+7. adaptive pooled-OOS eventual-Low-break-after-fill rate exceeds fixed-F15 pooled-OOS by >=3.0 percentage points;
+8. no future regime state, stop/TP economics, session relabeling, or post-hoc fraction change is used.
 
 If the gate fails, verdict is `B27CA_CLOCK_ADAPTIVE_NOT_SUPPORTED`.
 If it passes, verdict is `B27CA_CLOCK_ADAPTIVE_CANDIDATE_SUPPORTED`, which only permits a separately preregistered economic backtest.
