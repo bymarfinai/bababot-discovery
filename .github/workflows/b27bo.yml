@@ -1,0 +1,30 @@
+name: B27BO BULL sideways swing retest census
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_24h_bull_sideways_swing_retest_census_b27bo.py
+      - name: Run B27BO
+        run: python research/btc_24h_bull_sideways_swing_retest_census_b27bo.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27bo-results
+          path: |
+            BTC_24H_BULL_SIDEWAYS_SWING_RETEST_CENSUS_B27BO_Result.md
+            BTC_24H_BULL_SIDEWAYS_SWING_RETEST_CENSUS_B27BO_Episodes.csv
+            BTC_24H_BULL_SIDEWAYS_SWING_RETEST_CENSUS_B27BO_Summary.csv
+            BTC_24H_BULL_SIDEWAYS_SWING_RETEST_CENSUS_B27BO_Status.txt
