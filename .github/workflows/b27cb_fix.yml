@@ -1,0 +1,48 @@
+name: B27CB economic rerun after summary bugfix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_24h_clock_adaptive_prebreak_short_econ_b27cb_fix.py'
+      - '.github/workflows/b27cb_fix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_24h_clock_adaptive_prebreak_short_econ_b27cb_fix.py
+      - name: Run B27CB fixed reporting path
+        run: python research/btc_24h_clock_adaptive_prebreak_short_econ_b27cb_fix.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27cb-results-fixed
+          path: |
+            BTC_24H_CLOCK_ADAPTIVE_PREBREAK_SHORT_ECON_B27CB_Result.md
+            BTC_24H_CLOCK_ADAPTIVE_PREBREAK_SHORT_ECON_B27CB_Trades.csv
+            BTC_24H_CLOCK_ADAPTIVE_PREBREAK_SHORT_ECON_B27CB_Summary.csv
+            BTC_24H_CLOCK_ADAPTIVE_PREBREAK_SHORT_ECON_B27CB_Selection.csv
+            BTC_24H_CLOCK_ADAPTIVE_PREBREAK_SHORT_ECON_B27CB_Status.txt
+      - name: Persist B27CB outputs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_24H_CLOCK_ADAPTIVE_PREBREAK_SHORT_ECON_B27CB_Result.md \
+                  BTC_24H_CLOCK_ADAPTIVE_PREBREAK_SHORT_ECON_B27CB_Trades.csv \
+                  BTC_24H_CLOCK_ADAPTIVE_PREBREAK_SHORT_ECON_B27CB_Summary.csv \
+                  BTC_24H_CLOCK_ADAPTIVE_PREBREAK_SHORT_ECON_B27CB_Selection.csv \
+                  BTC_24H_CLOCK_ADAPTIVE_PREBREAK_SHORT_ECON_B27CB_Status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27CB clock-adaptive SHORT economic results'
+            git push
+          fi
