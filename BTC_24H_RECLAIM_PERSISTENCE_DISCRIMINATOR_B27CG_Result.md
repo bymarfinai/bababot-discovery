@@ -1,0 +1,51 @@
+# B27CG — BTC 24H Reclaim Persistence Discriminator + No-Boundary Anatomy — Result
+
+5m rows: **698,112**; coverage **100.0000%**.
+
+**Audit status: PASS.** Exact B27CE reclaim cohort/outcomes reproduced: 734 total, 729 eligible, 519 Low rebreak, 41 High break, 169 no-boundary. Anatomy only; trading WR/PF/PnL/expectancy are N/A.
+
+## Persistence-sign readout — development and untouched OOS
+
+| Signal | Dev N | Dev persistent | Dev lift | OOS N | OOS persistent | OOS lift | OOS rebreak |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| RECLAIM_C05 | 181 | 33.1% | 4.3% | 223 | 33.2% | 4.4% | 66.8% |
+| RECLAIM_C10 | 94 | 37.2% | 8.4% | 101 | 35.6% | 6.9% | 64.4% |
+| RECLAIM_STRONG_BODY | 197 | 32.0% | 3.2% | 249 | 31.3% | 2.5% | 68.7% |
+| QUICK_RECLAIM | 279 | 29.0% | 0.2% | 328 | 27.1% | -1.7% | 72.9% |
+| SLOW_RECLAIM | 32 | 37.5% | 8.7% | 35 | 42.9% | 14.1% | 57.1% |
+| TIME_LEFT_120 | 218 | 24.8% | -4.1% | 259 | 22.8% | -6.0% | 77.2% |
+| HOLD_5M_ABOVE_L | 247 | 38.5% | 9.6% | 291 | 39.2% | 10.4% | 60.8% |
+| HIGHER_CLOSE_5M | 184 | 41.3% | 12.5% | 213 | 42.3% | 13.5% | 57.7% |
+| HOLD_10M_ABOVE_L | 214 | 43.9% | 15.1% | 242 | 46.3% | 17.5% | 53.7% |
+| EXT10_CLOSE_BEFORE_REBREAK | 202 | 46.5% | 17.7% | 225 | 48.9% | 20.1% | 51.1% |
+| EXT25_CLOSE_BEFORE_REBREAK | 135 | 61.5% | 32.7% | 146 | 66.4% | 37.7% | 33.6% |
+
+## Frozen discriminator selection
+
+Development selected **EXT25_CLOSE_BEFORE_REBREAK**. OOS support: **PASS**.
+External: N=75, persistent=64.0%, lift=37.8%. Validation: N=71, persistent=69.0%, lift=37.6%. Pooled OOS: N=146, persistent=66.4%, lift=37.7%.
+
+## NO_BOUNDARY anatomy
+
+| Scope | N | Final location P25/P50/P75 in R4 | Median net from reclaim | P75 abs net | Median close span | Median efficiency | Internal up | Internal down | |net|<10% | Flat/chop-like | Mixed |
+|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| external | 44 | 27.3% / 43.3% / 61.2% | 29.6% | 50.8% | 43.1% | 0.83 | 84.1% | 2.3% | 13.6% | 6.8% | 6.8% |
+| development | 73 | 18.8% / 29.6% / 45.5% | 23.4% | 35.2% | 35.5% | 0.75 | 72.6% | 0.0% | 27.4% | 20.5% | 6.8% |
+| reference_validation | 52 | 17.6% / 27.7% / 51.5% | 22.0% | 43.3% | 40.6% | 0.70 | 76.9% | 3.8% | 19.2% | 13.5% | 5.8% |
+| POOLED_OOS | 96 | 19.3% / 36.8% / 54.5% | 26.9% | 46.9% | 41.1% | 0.73 | 80.2% | 3.1% | 16.7% | 10.4% | 6.2% |
+| POOLED_MAJOR | 169 | 19.2% / 33.4% / 51.2% | 24.9% | 42.4% | 38.0% | 0.74 | 76.9% | 1.8% | 21.3% | 14.8% | 6.5% |
+
+## NO_BOUNDARY by 4H clock — pooled major
+
+| UTC block | N | Median net | Median close span | Flat/chop-like | Internal up | Internal down |
+|---|---:|---:|---:|---:|---:|---:|
+| 00-04 | 23 | 28.6% | 40.8% | 17.4% | 78.3% | 0.0% |
+| 04-08 | 25 | 27.4% | 37.9% | 8.0% | 76.0% | 4.0% |
+| 08-12 | 36 | 26.4% | 41.7% | 13.9% | 86.1% | 0.0% |
+| 12-16 | 21 | 18.0% | 38.0% | 19.0% | 66.7% | 4.8% |
+| 16-20 | 35 | 27.1% | 34.9% | 11.4% | 74.3% | 0.0% |
+| 20-00 | 29 | 20.8% | 33.7% | 20.7% | 75.9% | 3.4% |
+
+**Frozen verdict: `B27CG_PERSISTENCE_SIGN_SUPPORTED`.**
+
+“Persistent-like” and “no-boundary” are same-block structural labels, not trade outcomes. A supported sign is a causal discriminator, not proof of economic causation.
