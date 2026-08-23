@@ -22,9 +22,18 @@ jobs:
           python-version: '3.11'
       - run: pip install pandas numpy requests
       - run: python -m py_compile research/btc_24h_clock_adaptive_mae_mfe_b27cc.py
-      - name: Run B27CC
-        run: python research/btc_24h_clock_adaptive_mae_mfe_b27cc.py
+      - name: Run B27CC with persisted diagnostics
+        id: run_b27cc
+        shell: bash
+        run: |
+          set +e
+          python research/btc_24h_clock_adaptive_mae_mfe_b27cc.py > BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Run.log 2>&1
+          rc=$?
+          echo "exit_code=$rc" >> BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Run.log
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: b27cc-results
           path: |
@@ -32,16 +41,20 @@ jobs:
             BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Detail.csv
             BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Summary.csv
             BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Status.txt
-      - name: Persist B27CC outputs
+            BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Run.log
+      - name: Persist B27CC outputs or diagnostics
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Result.md \
-                  BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Detail.csv \
-                  BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Summary.csv \
-                  BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Status.txt
+          git add -A BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_*.md \
+                     BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_*.csv \
+                     BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_*.txt \
+                     BTC_24H_CLOCK_ADAPTIVE_MAE_MFE_B27CC_Run.log || true
           if ! git diff --cached --quiet; then
-            git commit -m 'persist B27CC clock-adaptive MAE MFE results'
+            git commit -m 'persist B27CC clock-adaptive MAE MFE outputs'
             git push
           fi
+      - name: Fail if B27CC script failed
+        if: steps.run_b27cc.outputs.rc != '0'
+        run: exit 1
