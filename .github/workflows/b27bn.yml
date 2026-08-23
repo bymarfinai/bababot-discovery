@@ -1,0 +1,30 @@
+name: B27BN swing-boundary invalidation audit
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_24h_swing_boundary_invalidation_b27bn.py
+      - name: Run B27BN
+        run: python research/btc_24h_swing_boundary_invalidation_b27bn.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27bn-results
+          path: |
+            BTC_24H_SWING_BOUNDARY_INVALIDATION_B27BN_Result.md
+            BTC_24H_SWING_BOUNDARY_INVALIDATION_B27BN_Episodes.csv
+            BTC_24H_SWING_BOUNDARY_INVALIDATION_B27BN_Summary.csv
+            BTC_24H_SWING_BOUNDARY_INVALIDATION_B27BN_Status.txt
