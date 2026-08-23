@@ -1,0 +1,4 @@
+scope,name,detector,blocks_n,reclaimed_sources_n,fills_n,bad_total,good_total,other_total,bad_flagged,bad_capture,good_flagged,good_sacrifice,flagged_bg_n,precision_bad
+FRESH_POOLED,ALL,GLOBAL_PLUS15_SAFE,11,0,0,0,0,0,0,,0,,0,
+FRESH_POOLED,ALL,PERSIST_10_15,11,0,0,0,0,0,0,,0,,0,
+FRESH_POOLED,ALL,REFINED_BULL_IMPULSE,11,0,0,0,0,0,0,,0,,0,

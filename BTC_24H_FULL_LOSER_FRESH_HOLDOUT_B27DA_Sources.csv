@@ -1,0 +1,1 @@
+partition,regime,clock_block,obs_start,obs_end,H,L,range,ext15_px,k1_ts,k1_start,direct_break,break_ts,break_complete_ts,retest_ts,retest_complete_ts,retest_class,accepted_retest,terminal_ts,terminal_type,ext15_success,minutes_break_to_retest,minutes_accept_to_ext15
