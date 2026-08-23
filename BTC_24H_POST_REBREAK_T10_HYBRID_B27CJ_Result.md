@@ -1,4 +1,3 @@
-B27CJ run start
 # B27CJ — BTC 24H Post-Rebreak T10 Profit-Lock Hybrid — Result
 
 5m rows: **698,112**; coverage **100.0000%**.
@@ -49,5 +48,3 @@ TP-management anatomy only. Trading WR/PF/PnL/expectancy/SL are **N/A**. T10 is 
 **Frozen verdict: `B27CJ_T10_HYBRID_NOT_SUPPORTED`.**
 
 This verdict concerns TP management only. No SL/economic inference is authorized by B27CJ. Research only; live BBC unchanged.
-compile_exit_code=0
-run_exit_code=0
