@@ -8,5 +8,7 @@ other_major=226
 checkpoint=PLUS15
 b27cv_auc_reproduced=0.8860088365243004
 b27cv_safe_threshold_reproduced=0.6079191233470334
+b27cv_safe_dev_bad_flagged_reproduced=28
+b27cv_safe_dev_good_flagged_reproduced=9
 clocks=6
 untouched_holdout=NONE
