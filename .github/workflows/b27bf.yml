@@ -1,0 +1,44 @@
+name: B27BF 24H adaptive regime router
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_24h_adaptive_regime_router_b27bf.py'
+      - 'BTC_24H_ADAPTIVE_REGIME_ROUTER_B27BF_Preregistration.md'
+      - '.github/workflows/b27bf.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_24h_adaptive_regime_router_b27bf.py
+      - name: Run B27BF
+        run: python research/btc_24h_adaptive_regime_router_b27bf.py
+      - name: Persist results on main push only
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_24H_ADAPTIVE_REGIME_ROUTER_B27BF_Result.md \
+                  BTC_24H_ADAPTIVE_REGIME_ROUTER_B27BF_Trades.csv \
+                  BTC_24H_ADAPTIVE_REGIME_ROUTER_B27BF_Blocks.csv \
+                  BTC_24H_ADAPTIVE_REGIME_ROUTER_B27BF_Summary.csv \
+                  BTC_24H_ADAPTIVE_REGIME_ROUTER_B27BF_Status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27BF adaptive regime router results'
+            git push
+          fi
