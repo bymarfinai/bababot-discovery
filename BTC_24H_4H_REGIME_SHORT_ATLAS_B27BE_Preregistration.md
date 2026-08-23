@@ -5,7 +5,8 @@ Does a causal regime detector applied across the full 24-hour BTC day identify r
 
 ## Frozen data
 - Existing BTCUSDT 5m source and existing partitions.
-- Weekdays only for primary comparability with B27Q/B27AG lineage.
+- **All seven calendar days are included** because BTC trades 24/7 and the user asked for every day, not weekday-only scanning.
+- Weekday/weekend is recorded only as a diagnostic label, never as a selection filter in B27BE.
 - No live BBC changes.
 
 ## Causal regime
@@ -45,7 +46,7 @@ Primary structural metrics by regime and 4H clock block:
 - no-break and opposite-break rates.
 
 ## Daily regime map
-Also record for every complete weekday which of the six observation blocks are BULL/BEAR/SIDEWAYS at block start. This provides a full-day causal regime map rather than a session-restricted attribution.
+Record for every complete calendar day which of the six observation blocks are BULL/BEAR/SIDEWAYS at block start. This provides a full-day causal regime map rather than a session-restricted attribution. Also store weekday/weekend labels for diagnosis only.
 
 ## No economics in B27BE
 B27BE is structural discovery only. It does not select F05/F10/F15, D30/D40/D50, E20, runner logic, confirmation, or a live gate.
@@ -64,6 +65,7 @@ Clock-block diagnostics may be shown but no individual clock block will be promo
 - No regime parameter changes.
 - No intraday clock subdivisions beyond the six preregistered 4H blocks.
 - No session labels used as filters.
+- No weekday/weekend selection in B27BE.
 - No post-hoc threshold changes.
 - No entry/stop/TP/runner search.
 - Research only; live BBC unchanged.
