@@ -26,7 +26,9 @@ The reclaim is confirmed only at completion of the B27BZ retest candle (`retest_
 
 Let `L` and `H` be the previous completed 4H Low/High and `R4 = H-L`.
 
-Scan completed 5m closes after reclaim confirmation. The first strict boundary close determines the terminal class:
+If `retest_complete_ts >= obs_end`, classify `NO_FOLLOWTHROUGH_WINDOW`. Such rows remain in the identity count but are excluded from all directional-rate denominators and excursion quantiles because no post-reclaim bar exists.
+
+Otherwise scan completed 5m closes after reclaim confirmation. The first strict boundary close determines the terminal class:
 - `REBREAK_LOW`: first `close < L` before any `close > H`;
 - `HIGH_BREAK`: first `close > H` before any `close < L`;
 - `NO_BOUNDARY_BY_BLOCK_END`: neither strict boundary close occurs before block end.
@@ -47,10 +49,11 @@ These ladders are descriptive only and cannot be selected as a trading threshold
 Report external, development, reference_validation, pooled OOS, pooled major, every UTC 4H clock block, and regime.
 
 Primary fields per scope:
-- cohort N;
-- REBREAK_LOW N/rate;
-- HIGH_BREAK N/rate;
-- NO_BOUNDARY N/rate;
+- cohort N and eligible post-reclaim N;
+- REBREAK_LOW N/rate among eligible;
+- HIGH_BREAK N/rate among eligible;
+- NO_BOUNDARY N/rate among eligible;
+- NO_FOLLOWTHROUGH_WINDOW N;
 - median reclaim->rebreak minutes among REBREAK_LOW;
 - P50/P75 max-close extension above L as %R4;
 - +5/+10/+15/+25/+50% R4 close-extension rates.
@@ -58,9 +61,9 @@ Primary fields per scope:
 ## Interpretation discipline
 This is not trading WR.
 
-A reclaim may be called `mostly temporary within the same 4H block` only if pooled-OOS REBREAK_LOW rate >=60% and both external and validation REBREAK_LOW rates >=55%.
+A reclaim may be called `mostly temporary within the same 4H block` only if pooled-OOS REBREAK_LOW rate >=60% and both external and validation REBREAK_LOW rates >=55%, using only eligible post-reclaim rows.
 
-A reclaim may be called `mostly persistent/reversal-like within the same 4H block` only if pooled-OOS (HIGH_BREAK + NO_BOUNDARY) rate >=60% and both external and validation >=55%.
+A reclaim may be called `mostly persistent/reversal-like within the same 4H block` only if pooled-OOS (HIGH_BREAK + NO_BOUNDARY) rate >=60% and both external and validation >=55%, using only eligible post-reclaim rows.
 
 Otherwise verdict is mixed.
 
