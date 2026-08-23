@@ -84,9 +84,8 @@ def simulate_reacher(x5,r):
     exit_ts=pd.NaT; exit_px=np.nan; reason=None; ceiling_kind=None
 
     for i,(ts,bar) in enumerate(q.iterrows()):
-        op=float(bar.open); hi=float(bar.high); lo=float(bar.low)
+        op=float(bar.open); hi=float(bar.high)
 
-        # Resting ceiling created by a prior completed bar applies from this bar onward.
         if floor_active:
             assert np.isfinite(active_ceiling) and active_ceiling<=t10+EPS
             if op>=active_ceiling:
@@ -99,7 +98,6 @@ def simulate_reacher(x5,r):
                 break
 
         pivot_now=np.nan
-        # All 3 bars must be at/after post-rebreak evaluation start by construction.
         if i>=2 and highs[i-1]>highs[i-2] and highs[i-1]>highs[i]:
             pivot_now=float(highs[i-1])
 
@@ -128,7 +126,6 @@ def simulate_reacher(x5,r):
         exit_ext=float((L-float(exit_px))/R4)
         hold=float((pd.Timestamp(exit_ts)-touch_ts)/pd.Timedelta(minutes=1))
 
-    # Ex-post peak after T10 touch through block end, mirroring B27AC diagnostics only.
     aq=fast_slice(x5,touch_ts,end)
     peak_ext=float((L-float(aq.low.min()))/R4) if len(aq) else np.nan
     giveback=float(peak_ext-exit_ext) if np.isfinite(exit_ext) and np.isfinite(peak_ext) else np.nan
@@ -152,17 +149,14 @@ def simulate_reacher(x5,r):
 def synthetic_tests():
     idx=pd.date_range('2026-01-01 00:00',periods=8,freq='5min',tz='UTC')
     def df(rows): return pd.DataFrame(rows,index=idx[:len(rows)])
-    # T10=89 when L=90,R4=10. Touch on bar0; bar1 retraces to T10 -> exact ceiling exit.
     x=df([
         {'open':89.8,'high':90.0,'low':88.8,'close':89.2},
         {'open':88.9,'high':89.2,'low':88.5,'close':88.8},
         {'open':88.8,'high':88.9,'low':88.0,'close':88.2},
     ])
-    # Direct helper semantics asserted manually through core conditions.
     assert float(x.iloc[0].low)<=89.0 and float(x.iloc[1].high)>=89.0
-    # Strict pivot-high mirror definition.
     h=np.array([88.8,88.5,88.7])
-    assert h[1]>h[0] is False
+    assert not bool(h[1]>h[0])
     h=np.array([88.0,88.7,88.2])
     assert bool(h[1]>h[0] and h[1]>h[2])
 
@@ -170,7 +164,7 @@ def synthetic_tests():
 def metrics(src,detail):
     n=len(src); reach=int(src.hit_0p1.sum()); g=detail.copy(); nr=len(g)
     valid=g[g.exit_reason!='CENSORED'].copy(); nv=len(valid)
-    out={'eligible_n':int(n),'t10_reach_n':reach,'t10_reach_rate':reach/n if n else np.nan,
+    return {'eligible_n':int(n),'t10_reach_n':reach,'t10_reach_rate':reach/n if n else np.nan,
          'hybrid_valid_n':nv,'censored_n':nr-nv,
          't10_ceiling_exits':int(((valid.exit_reason=='CEILING_STOP')&(valid.ceiling_kind=='T10')).sum()),
          'structural_ceiling_exits':int(((valid.exit_reason=='CEILING_STOP')&(valid.ceiling_kind=='STRUCTURAL')).sum()),
@@ -187,23 +181,19 @@ def metrics(src,detail):
          'median_ratchets':float(valid.ratchets.median()) if nv else np.nan,
          'median_hold_min':float(valid.minutes_t10_to_exit.median()) if nv else np.nan,
          'activation_close_above_rate':float(valid.activation_close_above_t10.mean()) if nv else np.nan}
-    return out
 
 
 def summarize(src,d):
     rows=[]
-    for p in MAJOR:
-        rows.append({'scope':'PARTITION','name':p,**metrics(src[src.partition==p],d[d.partition==p])})
+    for p in MAJOR: rows.append({'scope':'PARTITION','name':p,**metrics(src[src.partition==p],d[d.partition==p])})
     rows.append({'scope':'POOL','name':'POOLED_OOS',**metrics(src[src.partition.isin(OOS)],d[d.partition.isin(OOS)])})
     rows.append({'scope':'POOL','name':'POOLED_MAJOR',**metrics(src,d)})
-    for cb in CLOCKS:
-        rows.append({'scope':'CLOCK','name':cb,**metrics(src[src.clock_block==cb],d[d.clock_block==cb])})
+    for cb in CLOCKS: rows.append({'scope':'CLOCK','name':cb,**metrics(src[src.clock_block==cb],d[d.clock_block==cb])})
     return pd.DataFrame(rows)
 
 
 def getrow(s,scope,name):
     z=s[(s.scope==scope)&(s.name==name)]; assert len(z)==1; return z.iloc[0]
-
 def pct(x): return '-' if pd.isna(x) else f'{100*float(x):.1f}%'
 def num(x): return '-' if pd.isna(x) else f'{float(x):.2f}'
 
@@ -214,8 +204,7 @@ def main():
     reach=src[src.hit_0p1].copy()
     d=pd.DataFrame([simulate_reacher(x5,r) for r in reach.itertuples(index=False)])
     assert len(d)==366
-    for p,n in {'external':96,'development':172,'reference_validation':98}.items():
-        assert len(d[d.partition==p])==n
+    for p,n in {'external':96,'development':172,'reference_validation':98}.items(): assert len(d[d.partition==p])==n
     d.to_csv(OUT_DETAIL,index=False)
     s=summarize(src,d); s.to_csv(OUT_SUM,index=False)
 
@@ -225,8 +214,7 @@ def main():
     mean=all(float(r.mean_exit_ext)>.10 for r in (ext,dev,val))
     preserve=all(float(r.preservation_rate)>=.80 for r in (ext,dev,val))
     pooled=bool(float(major.mean_exit_ext)>.10)
-    supported=sample and med and mean and preserve and pooled
-    verdict='B27CJ_T10_HYBRID_SUPPORTED' if supported else 'B27CJ_T10_HYBRID_NOT_SUPPORTED'
+    verdict='B27CJ_T10_HYBRID_SUPPORTED' if sample and med and mean and preserve and pooled else 'B27CJ_T10_HYBRID_NOT_SUPPORTED'
     OUT_STATUS.write_text(verdict+'\n')
 
     lines=['# B27CJ — BTC 24H Post-Rebreak T10 Profit-Lock Hybrid — Result','',
@@ -239,21 +227,16 @@ def main():
     for scope,name in [('PARTITION','external'),('PARTITION','development'),('PARTITION','reference_validation'),('POOL','POOLED_OOS'),('POOL','POOLED_MAJOR')]:
         r=getrow(s,scope,name)
         lines.append(f'| {name} | {int(r.eligible_n)} | {int(r.t10_reach_n)} ({pct(r.t10_reach_rate)}) | {int(r.hybrid_valid_n)} | {pct(r.preservation_rate)} | {pct(r.mean_exit_ext)} | {pct(r.median_exit_ext)} | {pct(r.mean_delta_fixed)} | {pct(r.median_peak_ext)} | {pct(r.median_capture)} | {pct(r.median_giveback)} | {num(r.median_ratchets)} | {num(r.median_hold_min)}m |')
-
     lines += ['', '## Hybrid exit anatomy — major partitions','',
-              '| Scope | T10 ceiling | Structural ceiling | Open/gap | Time | Touch-bar close > T10 |',
-              '|---|---:|---:|---:|---:|---:|']
+              '| Scope | T10 ceiling | Structural ceiling | Open/gap | Time | Touch-bar close > T10 |','|---|---:|---:|---:|---:|---:|']
     for scope,name in [('PARTITION','external'),('PARTITION','development'),('PARTITION','reference_validation'),('POOL','POOLED_OOS'),('POOL','POOLED_MAJOR')]:
         r=getrow(s,scope,name)
         lines.append(f'| {name} | {int(r.t10_ceiling_exits)} | {int(r.structural_ceiling_exits)} | {int(r.open_gap_exits)} | {int(r.time_exits)} | {pct(r.activation_close_above_rate)} |')
-
     lines += ['', '## Six-clock diagnostics — pooled major','',
-              '| UTC block | Eligible | T10 reach | Preserve | Mean exit ext | Median exit ext | Mean delta | Median peak | Median hold |',
-              '|---|---:|---:|---:|---:|---:|---:|---:|---:|']
+              '| UTC block | Eligible | T10 reach | Preserve | Mean exit ext | Median exit ext | Mean delta | Median peak | Median hold |','|---|---:|---:|---:|---:|---:|---:|---:|---:|']
     for cb in CLOCKS:
         r=getrow(s,'CLOCK',cb)
         lines.append(f'| {cb} | {int(r.eligible_n)} | {int(r.t10_reach_n)} ({pct(r.t10_reach_rate)}) | {pct(r.preservation_rate)} | {pct(r.mean_exit_ext)} | {pct(r.median_exit_ext)} | {pct(r.mean_delta_fixed)} | {pct(r.median_peak_ext)} | {num(r.median_hold_min)}m |')
-
     lines += ['', '## Frozen gate','',
               f'- sample gate: **{"PASS" if sample else "FAIL"}**',
               f'- median hybrid exit >= T10 in every major partition: **{"PASS" if med else "FAIL"}**',
@@ -262,7 +245,6 @@ def main():
               f'- pooled-major mean extension > fixed T10: **{"PASS" if pooled else "FAIL"}**','',
               f'**Frozen verdict: `{verdict}`.**','',
               'This verdict concerns TP management only. No SL/economic inference is authorized by B27CJ. Research only; live BBC unchanged.']
-    OUT_MD.write_text('\n'.join(lines)+'\n')
-    print('\n'.join(lines))
+    OUT_MD.write_text('\n'.join(lines)+'\n'); print('\n'.join(lines))
 
 if __name__=='__main__': main()
