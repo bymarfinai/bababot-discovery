@@ -1,0 +1,47 @@
+name: B27BX four-hour BULL LOW_REJECT anatomy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_h1_four_hour_bull_low_reject_b27bx.py'
+      - 'BTC_H1_FOUR_HOUR_BULL_LOW_REJECT_B27BX_Preregistration.md'
+      - '.github/workflows/b27bx.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_h1_four_hour_bull_low_reject_b27bx.py
+      - name: Run B27BX
+        run: python research/btc_h1_four_hour_bull_low_reject_b27bx.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27bx-results
+          path: |
+            BTC_H1_FOUR_HOUR_BULL_LOW_REJECT_B27BX_Result.md
+            BTC_H1_FOUR_HOUR_BULL_LOW_REJECT_B27BX_Events.csv
+            BTC_H1_FOUR_HOUR_BULL_LOW_REJECT_B27BX_Summary.csv
+            BTC_H1_FOUR_HOUR_BULL_LOW_REJECT_B27BX_Status.txt
+      - name: Persist B27BX outputs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_H1_FOUR_HOUR_BULL_LOW_REJECT_B27BX_Result.md \
+                  BTC_H1_FOUR_HOUR_BULL_LOW_REJECT_B27BX_Events.csv \
+                  BTC_H1_FOUR_HOUR_BULL_LOW_REJECT_B27BX_Summary.csv \
+                  BTC_H1_FOUR_HOUR_BULL_LOW_REJECT_B27BX_Status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27BX four-hour BULL LOW_REJECT results'
+            git push
+          fi
