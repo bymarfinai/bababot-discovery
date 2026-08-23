@@ -1,0 +1,55 @@
+B27CF diagnostic run start
+commit=2af38a931d064e8fa69759c0e7560b8127132fa8
+compile_exit_code=0
+# B27CF — BTC 24H Post-Reclaim SHORT Entry Ladder — Result
+
+5m rows: **698,112**; coverage **100.0000%**.
+
+**Audit status: PASS.** Exact B27CE eligible reclaim cohort reproduced: external 202 / development 333 / validation 194 / pooled OOS 396 / pooled major 729. Structural entry anatomy only; trading WR/PF/PnL/expectancy are N/A.
+
+## Entry ladder — major partitions
+
+| Entry | Partition | Source N | Fills | Fill rate | Rebreak/fill | High break/fill | No boundary/fill | Reclaim→fill | Fill→rebreak |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| F05 | external | 202 | 183 | 90.6% | 71.0% | 4.9% | 24.0% | 0.0m | 15.0m |
+| F05 | development | 333 | 297 | 89.2% | 67.7% | 7.7% | 24.6% | 0.0m | 15.0m |
+| F05 | reference_validation | 194 | 173 | 89.2% | 64.7% | 5.2% | 30.1% | 0.0m | 15.0m |
+| F10 | external | 202 | 152 | 75.2% | 65.1% | 5.9% | 28.9% | 0.0m | 20.0m |
+| F10 | development | 333 | 260 | 78.1% | 63.1% | 8.8% | 28.1% | 0.0m | 20.0m |
+| F10 | reference_validation | 194 | 145 | 74.7% | 57.9% | 6.2% | 35.9% | 0.0m | 20.0m |
+| F15 | external | 202 | 124 | 61.4% | 58.9% | 7.3% | 33.9% | 0.0m | 25.0m |
+| F15 | development | 333 | 217 | 65.2% | 56.2% | 10.6% | 33.2% | 0.0m | 30.0m |
+| F15 | reference_validation | 194 | 122 | 62.9% | 50.0% | 7.4% | 42.6% | 0.0m | 20.0m |
+| F25 | external | 202 | 85 | 42.1% | 43.5% | 10.6% | 45.9% | 10.0m | 50.0m |
+| F25 | development | 333 | 162 | 48.6% | 46.3% | 14.2% | 39.5% | 5.0m | 35.0m |
+| F25 | reference_validation | 194 | 86 | 44.3% | 37.2% | 10.5% | 52.3% | 5.0m | 30.0m |
+| F50 | external | 202 | 47 | 23.3% | 19.1% | 19.1% | 61.7% | 35.0m | 50.0m |
+| F50 | development | 333 | 84 | 25.2% | 31.0% | 27.4% | 41.7% | 20.0m | 52.5m |
+| F50 | reference_validation | 194 | 51 | 26.3% | 27.5% | 17.6% | 54.9% | 20.0m | 55.0m |
+
+## Pooled OOS
+
+| Entry | Fills | Fill rate | Rebreak/fill | High break/fill | No boundary/fill | Reclaim→fill | Fill→rebreak |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| F05 | 356 | 89.9% | 68.0% | 5.1% | 27.0% | 0.0m | 15.0m |
+| F10 | 297 | 75.0% | 61.6% | 6.1% | 32.3% | 0.0m | 20.0m |
+| F15 | 246 | 62.1% | 54.5% | 7.3% | 38.2% | 0.0m | 25.0m |
+| F25 | 171 | 43.2% | 40.4% | 10.5% | 49.1% | 5.0m | 35.0m |
+| F50 | 98 | 24.7% | 23.5% | 18.4% | 58.2% | 25.0m | 55.0m |
+
+## Development selection
+
+| Entry | Dev fills | Dev rebreak/fill | Eligible | Selected |
+|---|---:|---:|---|---|
+| F05 | 297 | 67.7% | NO | NO |
+| F10 | 260 | 63.1% | NO | NO |
+| F15 | 217 | 56.2% | NO | NO |
+| F25 | 162 | 46.3% | NO | NO |
+| F50 | 84 | 31.0% | NO | NO |
+
+No development level met the frozen selection gate.
+
+**Frozen verdict: `B27CF_POST_RECLAIM_ENTRY_NONE`.**
+
+A structural pass does not define a trade. Any economic follow-up must preserve RR >= 1:1 and be separately preregistered.
+run_exit_code=0
