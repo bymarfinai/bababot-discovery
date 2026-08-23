@@ -1,0 +1,12 @@
+audit=PASS
+raw_rows=698112
+coverage=1.0
+source_major=729
+rows=2916
+fills_external=183
+fills_development=297
+fills_validation=172
+fills_major=652
+clock_tp_map_b27cr_reproduced=TRUE
+min_nominal_rr=1.0
+untouched_holdout=NONE
