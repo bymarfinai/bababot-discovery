@@ -33,6 +33,49 @@ For every material research experiment:
 
 # REGIME DETECTOR FOUNDATION
 
+## B27BH — 24H SIDEWAYS Transition Anatomy Audit
+
+**Source:** `BTC_24H_SIDEWAYS_TRANSITION_ANATOMY_B27BH_Result.md`
+
+**Audit:** PASS. **Frozen primary readout: `SIDEWAYS_MIDDLE_DOMINATES_ONE_BAR_FLIPBACKS`.**
+
+**Purpose:** isolate the source of B27BG's 20.8% one-interval `A->B->A` detector flip-back rate before changing any regime definition. No future return, trade direction, entry, stop, target, fee, WR, PF, or PnL was used.
+
+**Exact B27BG reproduction:** **459 / 2,202 = 20.8%** pooled-major one-interval flip-backs.
+
+### One-interval flip-back anatomy
+
+| Pattern | N | Share of all flip-backs |
+|---|---:|---:|
+| BULL -> SIDEWAYS -> BULL | 161 | 35.1% |
+| BEAR -> SIDEWAYS -> BEAR | 145 | 31.6% |
+| BULL -> BEAR -> BULL | 7 | 1.5% |
+| BEAR -> BULL -> BEAR | 9 | 2.0% |
+| SIDEWAYS -> BULL -> SIDEWAYS | 76 | 16.6% |
+| SIDEWAYS -> BEAR -> SIDEWAYS | 61 | 13.3% |
+
+**Key finding:** SIDEWAYS as the middle state accounts for **306/459 = 66.7%** of all one-bar flip-backs. Direct directional one-bar false flips (`BULL->BEAR->BULL` plus `BEAR->BULL->BEAR`) are only **16/459 = 3.5%**.
+
+### Complete directionally bracketed SIDEWAYS episodes
+
+There are **1,023** complete SIDEWAYS episodes with a directional state immediately before and after the SIDEWAYS episode:
+
+| SIDEWAYS path | N | Share | Median SIDEWAYS duration |
+|---|---:|---:|---:|
+| BULL -> SIDEWAYS -> BULL | 281 | 27.5% | 1 bar / 4h |
+| BEAR -> SIDEWAYS -> BEAR | 246 | 24.0% | 1 bar / 4h |
+| BULL -> SIDEWAYS -> BEAR | 251 | 24.5% | 2 bars / 8h |
+| BEAR -> SIDEWAYS -> BULL | 245 | 23.9% | 2 bars / 8h |
+
+- Resume original directional state: **527/1,023 = 51.5%**.
+- Transition to opposite directional state: **496/1,023 = 48.5%**.
+- From BULL: resume **52.8%**, transition to BEAR **47.2%**.
+- From BEAR: resume **50.1%**, transition to BULL **49.9%**.
+
+**Important interpretation:** the current SIDEWAYS label is doing two materially different jobs almost equally often: (1) a short pause inside the existing directional regime, and (2) a genuine bridge into the opposite directional regime. The duration split is a strong descriptive clue: same-direction resumes have a **4h median**, while genuine directional transitions have an **8h median**. B27BH does not change the detector; any persistence/hysteresis/confirmation redesign must be preregistered separately.
+
+---
+
 ## B27BG — 24H Causal Regime Detector Audit
 
 **Source:** `BTC_24H_REGIME_DETECTOR_AUDIT_B27BG_Result.md`
@@ -382,16 +425,17 @@ This remains historical/diagnostic context, not automatic live authorization.
 # CURRENT INTERPRETATION SNAPSHOT
 
 1. **Regime research is now explicitly stepwise.** B27BG audits the detector before any directional or entry research, and its frozen verdict is `NEEDS_REDESIGN` because flip-back noise (20.8%) and occupancy drift (20.5pp) narrowly exceeded preregistered limits.
-2. SHORT entry timing improved materially by waiting for Low retest #2 before the F15 pullback entry.
-3. Independent full-range discovery did **not** support entries near the London High after retest #2.
-4. F05 has higher raw downside-resolution rate but its economics remain negative even after fairer equal-distance stops.
-5. Current pooled-best SHORT diagnostic remains **F15/D30 after retest #2 in London->NY**, total +$6.492, but it fails robustness because external remains slightly negative.
-6. Historical 4H regime work showed **SHORT+SIDEWAYS**, not SHORT+BEAR, as the strongest side-specific SHORT economic pocket.
-7. B27BE confirms that across a 24H rolling 4H-range structural atlas, K1/OPP0 Low pressure is strong in all regimes (~69.5%-72.3% Low-break probability); BEAR is only modestly highest, while SIDEWAYS has the strongest pooled Low-break-after-second-visit probability at 77.7%.
-8. B27BF tested the first adaptive router mapping `BULL->LONG / BEAR->SHORT / SIDEWAYS->FLAT` across the rolling 24H geometry and it failed: N580, PF0.926, expectancy -$0.097/trade, total -$56.249. This remains historical diagnostic context and should not bypass the new stepwise detector-first workflow.
-9. B27BF counterfactual attribution found **SHORT/SIDEWAYS N57, PF1.349, expectancy +$0.421, total +$24.010**, while SHORT/BEAR remained negative. This is a diagnostic clue only; SIDEWAYS SHORT was not part of the frozen router and needs a new preregistered audit before use.
-10. Moving the exact current candidate to the weekday **NY->20:00-24:00 post-NY off-session** did not improve it: N16, PF0.862, total -$3.546. Raw off-session direction was mildly bullish rather than bearish.
-11. No result in this registry changes live BBC automatically.
+2. **B27BH localizes the main detector-noise problem to SIDEWAYS.** SIDEWAYS in the middle accounts for 66.7% of one-bar flip-backs, while direct BULL<->BEAR one-bar false flips are only 3.5%. Across full SIDEWAYS episodes, however, pause/resume (51.5%) and true directional transition (48.5%) are almost evenly split, so simply deleting or inheriting SIDEWAYS would be incorrect.
+3. SHORT entry timing improved materially by waiting for Low retest #2 before the F15 pullback entry.
+4. Independent full-range discovery did **not** support entries near the London High after retest #2.
+5. F05 has higher raw downside-resolution rate but its economics remain negative even after fairer equal-distance stops.
+6. Current pooled-best SHORT diagnostic remains **F15/D30 after retest #2 in London->NY**, total +$6.492, but it fails robustness because external remains slightly negative.
+7. Historical 4H regime work showed **SHORT+SIDEWAYS**, not SHORT+BEAR, as the strongest side-specific SHORT economic pocket.
+8. B27BE confirms that across a 24H rolling 4H-range structural atlas, K1/OPP0 Low pressure is strong in all regimes (~69.5%-72.3% Low-break probability); BEAR is only modestly highest, while SIDEWAYS has the strongest pooled Low-break-after-second-visit probability at 77.7%.
+9. B27BF tested the first adaptive router mapping `BULL->LONG / BEAR->SHORT / SIDEWAYS->FLAT` across the rolling 24H geometry and it failed: N580, PF0.926, expectancy -$0.097/trade, total -$56.249. This remains historical diagnostic context and should not bypass the new stepwise detector-first workflow.
+10. B27BF counterfactual attribution found **SHORT/SIDEWAYS N57, PF1.349, expectancy +$0.421, total +$24.010**, while SHORT/BEAR remained negative. This is a diagnostic clue only; SIDEWAYS SHORT was not part of the frozen router and needs a new preregistered audit before use.
+11. Moving the exact current candidate to the weekday **NY->20:00-24:00 post-NY off-session** did not improve it: N16, PF0.862, total -$3.546. Raw off-session direction was mildly bullish rather than bearish.
+12. No result in this registry changes live BBC automatically.
 
 ---
 
