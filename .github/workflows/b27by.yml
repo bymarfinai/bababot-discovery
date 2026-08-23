@@ -1,0 +1,47 @@
+name: B27BY adaptive F15 pre-second-low SHORT
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_24h_adaptive_f15_pre_second_low_short_b27by.py'
+      - 'BTC_24H_ADAPTIVE_F15_PRE_SECOND_LOW_SHORT_B27BY_Preregistration.md'
+      - '.github/workflows/b27by.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - run: python -m py_compile research/btc_24h_adaptive_f15_pre_second_low_short_b27by.py
+      - name: Run B27BY
+        run: python research/btc_24h_adaptive_f15_pre_second_low_short_b27by.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27by-results
+          path: |
+            BTC_24H_ADAPTIVE_F15_PRE_SECOND_LOW_SHORT_B27BY_Result.md
+            BTC_24H_ADAPTIVE_F15_PRE_SECOND_LOW_SHORT_B27BY_Events.csv
+            BTC_24H_ADAPTIVE_F15_PRE_SECOND_LOW_SHORT_B27BY_Summary.csv
+            BTC_24H_ADAPTIVE_F15_PRE_SECOND_LOW_SHORT_B27BY_Status.txt
+      - name: Persist B27BY outputs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_24H_ADAPTIVE_F15_PRE_SECOND_LOW_SHORT_B27BY_Result.md \
+                  BTC_24H_ADAPTIVE_F15_PRE_SECOND_LOW_SHORT_B27BY_Events.csv \
+                  BTC_24H_ADAPTIVE_F15_PRE_SECOND_LOW_SHORT_B27BY_Summary.csv \
+                  BTC_24H_ADAPTIVE_F15_PRE_SECOND_LOW_SHORT_B27BY_Status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27BY adaptive F15 pre-second-low results'
+            git push
+          fi
