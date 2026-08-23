@@ -113,3 +113,5 @@ Then selected-map economics: trades, fill rate, WR, PF, expectancy/trade, total 
 Also report direct selected-map vs B27CN pooled-major and by partition.
 
 Research only. Entry remains F05. Live BBC unchanged.
+
+<!-- Execution trigger only; no semantic change. -->
