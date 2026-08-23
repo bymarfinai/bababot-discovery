@@ -29,8 +29,8 @@ Raw 5m identity: exactly 698,112 rows and 100% coverage.
 
 ## Frozen causal checkpoints
 Exactly five decision checkpoints:
-1. `RECLAIM`: `reclaim_complete_ts`, before any later fill information except static setup geometry;
-2. `FILL`: `fill_ts`, using only information completed strictly before the fill bar plus known actual executable entry price;
+1. `RECLAIM`: `reclaim_complete_ts`; no later fill price, fill timestamp, or reclaim-to-fill delay may be used;
+2. `FILL`: `fill_ts`, using only information completed strictly before the fill bar plus the actual executable entry price that becomes known at fill;
 3. `PLUS5`: `fill_ts + 5m`;
 4. `PLUS10`: `fill_ts + 10m`;
 5. `PLUS15`: `fill_ts + 15m`.
@@ -42,16 +42,21 @@ No bar completing after the checkpoint may contribute features.
 ## Frozen feature family
 No indicator/feature may be added after results are seen.
 
-### Static / setup features
+### Static / setup features available at RECLAIM
 - `clock_block` one-hot;
 - `regime` one-hot;
 - reclaim completed 5m close position `(close-L)/R4`;
 - reclaim candle body / range and upper/lower wick fractions;
 - remaining minutes in original 4H block at reclaim;
+- known F05 setup position `(F05-L)/R4` and distance F05-to-H / R4.
+
+### Fill features available only from FILL onward
 - actual executable entry position `(entry-L)/R4`;
 - entry gap above F05 normalized by R4;
 - distance entry-to-H normalized by R4;
 - reclaim-to-fill minutes.
+
+At RECLAIM these fill-specific values are structurally missing and are never backfilled with future values.
 
 ### Completed 1H context
 At each decision timestamp, use the most recent fully completed UTC 1H candle only:
@@ -59,6 +64,8 @@ At each decision timestamp, use the most recent fully completed UTC 1H candle on
 - `(decision_price-EMA50)/R4`;
 - `(EMA20-EMA50)/R4`;
 - `(EMA50-EMA50_lag3)/R4`.
+
+For RECLAIM, `decision_price` is the completed reclaim-bar close. For FILL it is the executable entry price. For PLUS5/10/15 it is the latest completed 5m close at the checkpoint.
 
 EMA spans are fixed at 20 and 50, `adjust=False`; lag is exactly 3 completed 1H bars.
 
@@ -78,7 +85,7 @@ Using completed raw 5m bars from fill bar through the checkpoint:
 - count of completed closes at or above F10 (`L+0.10R4`);
 - count of completed closes at or above F15 (`L+0.15R4`).
 
-At RECLAIM/FILL, post-fill features are absent and must be imputed only inside the model pipeline; no future values are substituted.
+At RECLAIM/FILL, post-fill features are structurally absent and are imputed only inside the model pipeline; no future values are substituted.
 
 ## Frozen model
 For each checkpoint independently:
