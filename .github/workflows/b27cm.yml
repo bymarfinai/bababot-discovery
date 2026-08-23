@@ -65,3 +65,5 @@ jobs:
       - name: Fail if script failed
         if: steps.run.outputs.rc != '0'
         run: exit 1
+
+# execution trigger only; no semantic change
