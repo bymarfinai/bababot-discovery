@@ -33,6 +33,56 @@ For every material research experiment:
 
 # CURRENT SHORT LINEAGE
 
+## B27BF — 24H Adaptive Regime Router Audit
+
+**Source:** `BTC_24H_ADAPTIVE_REGIME_ROUTER_B27BF_Result.md`
+
+**Audit:** PASS. **Frozen verdict: `B27BF_ADAPTIVE_ROUTER_NOT_SUPPORTED`.**
+
+**Question tested:** whether the existing causal 4H state can operate as an adaptive 24/7 playbook router without Asia/London/New-York entry windows.
+
+**Frozen router v1:**
+- BULL -> rolling-range LONG playbook translated from B27W/B27AA/B27AC.
+- BEAR -> rolling-range SHORT playbook translated from B27AY/B27BC.
+- SIDEWAYS -> FLAT.
+- UTC 4H boundaries refresh the causal regime state and previous-4H frozen H/L; they are not preferred trading hours.
+- All seven calendar days included.
+
+### Router economics
+
+| Partition | N | WR | PF | Exp/trade | Total | E20 activation | Trades/week |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| external | 197 | 49.7% | 0.853 | -$0.247 | -$48.616 | 43.7% | 1.89 |
+| development | 269 | 50.2% | 0.969 | -$0.038 | -$10.169 | 47.6% | 1.72 |
+| reference_validation | 114 | 51.8% | 1.025 | +$0.022 | +$2.535 | 52.6% | 1.39 |
+| **POOLED_MAJOR** | **580** | **50.3%** | **0.926** | **-$0.097** | **-$56.249** | **47.2%** | **1.69** |
+
+### Frozen router components — pooled major
+
+| Component | Regime | N | WR | PF | Exp/trade | Total |
+|---|---|---:|---:|---:|---:|---:|
+| LONG | BULL | 488 | 52.3% | 0.960 | -$0.052 | -$25.359 |
+| SHORT | BEAR | 92 | 40.2% | 0.750 | -$0.336 | -$30.890 |
+
+### Counterfactual playbook attribution — pooled major
+
+These rows were simulated only for attribution. They did **not** change router eligibility.
+
+| Side / actual regime | N | WR | PF | Exp/trade | Total |
+|---|---:|---:|---:|---:|---:|
+| LONG / BULL | 488 | 52.3% | 0.960 | -$0.052 | -$25.359 |
+| LONG / BEAR | 350 | 48.6% | 0.719 | -$0.369 | -$129.094 |
+| LONG / SIDEWAYS | 169 | 48.5% | 0.813 | -$0.253 | -$42.693 |
+| SHORT / BULL | 105 | 37.1% | 0.391 | -$0.789 | -$82.864 |
+| SHORT / BEAR | 92 | 40.2% | 0.750 | -$0.336 | -$30.890 |
+| **SHORT / SIDEWAYS** | **57** | **47.4%** | **1.349** | **+$0.421** | **+$24.010** |
+
+**Critical guardrail:** `SHORT / SIDEWAYS +$24.010` is a **post-run counterfactual diagnostic**, not a promoted router rule. SIDEWAYS was preregistered FLAT in B27BF. Activating SHORT in SIDEWAYS requires a separate preregistered experiment; it cannot be adopted from B27BF after seeing the result.
+
+**Key lesson:** the naive trend-aligned mapping `BULL->LONG / BEAR->SHORT` failed across the rolling 24H geometry. The strongest new economic clue is again SHORT during SIDEWAYS, consistent in direction with older B27AG, but the exact B27BF SIDEWAYS row is not yet a validated adaptive rule.
+
+---
+
 ## B27BE — 24H Causal 4H Regime SHORT Compatibility Atlas
 
 **Source:** `BTC_24H_4H_REGIME_SHORT_ATLAS_B27BE_Result.md`
@@ -295,10 +345,11 @@ This remains historical/diagnostic context, not automatic live authorization.
 3. F05 has higher raw downside-resolution rate but its economics remain negative even after fairer equal-distance stops.
 4. Current pooled-best SHORT diagnostic remains **F15/D30 after retest #2 in London->NY**, total +$6.492, but it fails robustness because external remains slightly negative.
 5. Historical 4H regime work showed **SHORT+SIDEWAYS**, not SHORT+BEAR, as the strongest side-specific SHORT economic pocket.
-6. B27BE now confirms that across a 24H rolling 4H-range structural atlas, K1/OPP0 Low pressure is strong in all regimes (~69.5%-72.3% Low-break probability); BEAR is only modestly highest, while SIDEWAYS has the strongest pooled Low-break-after-second-visit probability at 77.7%.
-7. B27BE did **not** promote any regime because second distinct Low visits occur only ~17.5%-29.4% per major partition, far below the frozen >=50% structural gate. The current London->NY F15/D30 economics must not be assumed to transfer to this rolling 4H cohort.
-8. Moving the exact current candidate to the weekday **NY->20:00-24:00 post-NY off-session** did not improve it: N16, PF 0.862, total -$3.546. Raw off-session direction was mildly bullish rather than bearish.
-9. No result in this registry changes live BBC automatically.
+6. B27BE confirms that across a 24H rolling 4H-range structural atlas, K1/OPP0 Low pressure is strong in all regimes (~69.5%-72.3% Low-break probability); BEAR is only modestly highest, while SIDEWAYS has the strongest pooled Low-break-after-second-visit probability at 77.7%.
+7. B27BF tested the first true adaptive router mapping `BULL->LONG / BEAR->SHORT / SIDEWAYS->FLAT` across the rolling 24H geometry and it failed: N580, PF0.926, expectancy -$0.097/trade, total -$56.249.
+8. B27BF counterfactual attribution found **SHORT/SIDEWAYS N57, PF1.349, expectancy +$0.421, total +$24.010**, while SHORT/BEAR remained negative. This is a diagnostic clue only; SIDEWAYS SHORT was not part of the frozen router and needs a new preregistered audit before use.
+9. Moving the exact current candidate to the weekday **NY->20:00-24:00 post-NY off-session** did not improve it: N16, PF0.862, total -$3.546. Raw off-session direction was mildly bullish rather than bearish.
+10. No result in this registry changes live BBC automatically.
 
 ---
 
