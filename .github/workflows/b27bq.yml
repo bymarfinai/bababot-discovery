@@ -5,6 +5,7 @@ on:
       - '.github/workflows/b27bq.yml'
       - 'research/btc_london_ny_short_pre_second_touch_entry_b27bq.py'
       - 'BTC_LONDON_NY_SHORT_PRE_SECOND_TOUCH_ENTRY_B27BQ_Preregistration.md'
+      - 'B27BQ_TRIGGER.txt'
   workflow_dispatch:
 permissions:
   contents: write
