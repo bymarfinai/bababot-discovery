@@ -31,6 +31,26 @@ def fast_slice(x5: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd.D
     return x5.iloc[a:b]
 
 
+def causal_state_at(reg: pd.DataFrame, ts: pd.Timestamp):
+    """Latest completed 4H regime whose availability timestamp is <= ts.
+
+    Use pandas' datetime-aware searchsorted directly so datetime unit changes
+    (for example ns vs us in newer pandas) cannot mix integer time units.
+    """
+    t = pd.Timestamp(ts)
+    av = pd.DatetimeIndex(reg['available_ts'])
+    j = int(av.searchsorted(t, side='right')) - 1
+    if j < 0:
+        return 'SIDEWAYS', pd.NaT, pd.NaT
+    r = reg.iloc[j]
+    selected_av = pd.Timestamp(r.available_ts)
+    if selected_av > t:
+        raise AssertionError('future regime selected')
+    if j + 1 < len(reg) and pd.Timestamp(reg.iloc[j + 1].available_ts) <= t:
+        raise AssertionError('regime lookup did not select latest available state')
+    return str(r.regime), reg.index[j], selected_av
+
+
 def scan_block(q: pd.DataFrame, H: float, L: float) -> dict:
     assert H > L
     low_visits = 0
@@ -143,7 +163,7 @@ def main() -> None:
                 H=float(prev.high.max()); L=float(prev.low.min())
                 if not H>L:
                     continue
-                regime, regime_bar, regime_av = b27ag.state_at(reg,obs_start)
+                regime, regime_bar, regime_av = causal_state_at(reg,obs_start)
                 if pd.isna(regime_av) or pd.Timestamp(regime_av) > obs_start:
                     raise AssertionError('non-causal regime attribution')
                 s=scan_block(obs,H,L)
