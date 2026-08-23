@@ -88,3 +88,5 @@ Otherwise verdict is `B27CJ_T10_HYBRID_NOT_SUPPORTED`.
 This gate concerns TP management only. Even a PASS would not establish a profitable trade; SL and economics remain separate future work.
 
 Research only. Live BBC unchanged.
+
+<!-- Execution trigger only; no semantic change to the frozen preregistration. -->
