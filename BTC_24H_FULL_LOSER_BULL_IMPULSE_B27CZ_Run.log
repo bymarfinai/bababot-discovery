@@ -1,0 +1,54 @@
+B27CZ run start
+commit=c9c0cb641ac0f4c710c40de8022dec9c7707c97b
+compile_exit_code=0
+# B27CZ — BTC 24H F05 SHORT Late-Only Bullish-Impulse Refinement — Result
+
+5m rows: **698,112**; coverage **100.0000%**.
+
+**Audit status: PASS.** B27CV/B27CX identities reproduced: 652 trades / 78 BAD / 348 GOOD / 226 OTHER; PLUS15_ONLY development 6 BAD/6 GOOD, external 2/3, validation 4/6.
+
+Primary development-only bullish-impulse threshold: **0.2817 R4**. Anatomy only: trading WR/PF/expectancy/PnL are **N/A**.
+
+## Six clocks independently — refined +15m state machine
+
+| WIB | BAD caught | GOOD cut | Precision | Late-only BAD / GOOD flagged |
+|---|---:|---:|---:|---:|
+| 07-11 | 7/13 (53.8%) | 6/76 (7.9%) | 53.8% | 2/3 / 0/3 |
+| 11-15 | 1/5 (20.0%) | 0/36 (0.0%) | 100.0% | 0/0 / 0/3 |
+| 15-19 | 9/17 (52.9%) | 8/55 (14.5%) | 52.9% | 1/3 / 0/3 |
+| 19-23 | 15/25 (60.0%) | 8/95 (8.4%) | 65.2% | 1/4 / 0/3 |
+| 23-03 | 1/8 (12.5%) | 0/50 (0.0%) | 100.0% | 0/0 / 0/1 |
+| 03-07 | 4/10 (40.0%) | 1/36 (2.8%) | 80.0% | 0/2 / 0/2 |
+
+## Pooled comparison
+
+| Scope | +15 SAFE BAD / GOOD | Persistence BOTH BAD / GOOD | Refined state BAD / GOOD | Precision refined |
+|---|---:|---:|---:|---:|
+| development | 28/38 (73.7%) / 9/159 (5.7%) | 22/38 (57.9%) / 3/159 (1.9%) | **23/38 (60.5%) / 3/159 (1.9%)** | 88.5% |
+| external | 9/23 (39.1%) / 14/98 (14.3%) | 7/23 (30.4%) / 11/98 (11.2%) | **8/23 (34.8%) / 11/98 (11.2%)** | 42.1% |
+| reference_validation | 8/17 (47.1%) / 15/91 (16.5%) | 4/17 (23.5%) / 9/91 (9.9%) | **6/17 (35.3%) / 9/91 (9.9%)** | 40.0% |
+| POOLED_REUSED_EXTVAL | 17/40 (42.5%) / 29/189 (15.3%) | 11/40 (27.5%) / 20/189 (10.6%) | **14/40 (35.0%) / 20/189 (10.6%)** | 41.2% |
+| POOLED_MAJOR | 45/78 (57.7%) / 38/348 (10.9%) | 33/78 (42.3%) / 23/348 (6.6%) | **37/78 (47.4%) / 23/348 (6.6%)** | 61.7% |
+
+## PLUS15_ONLY bullish-impulse gate
+
+| Partition | BAD caught | GOOD cut | BAD median | GOOD median | Directional AUC |
+|---|---:|---:|---:|---:|---:|
+| development | 1/6 (16.7%) | 0/6 (0.0%) | 0.1473 | 0.1561 | 52.8% |
+| external | 1/2 (50.0%) | 0/3 (0.0%) | 0.2971 | 0.1125 | 100.0% |
+| reference_validation | 2/4 (50.0%) | 0/6 (0.0%) | 0.2749 | 0.1613 | 79.2% |
+| POOLED_REUSED_EXTVAL | 3/6 (50.0%) | 0/9 (0.0%) | 0.2805 | 0.1302 | 87.0% |
+| POOLED_MAJOR | 4/12 (33.3%) | 0/15 (0.0%) | 0.2107 | 0.1302 | 71.1% |
+
+## Regime splits — pooled major refined state
+
+| Regime | BAD caught | GOOD cut | Precision |
+|---|---:|---:|---:|
+| BULL | 21/35 (60.0%) | 13/146 (8.9%) | 61.8% |
+| BEAR | 8/31 (25.8%) | 6/154 (3.9%) | 57.1% |
+| SIDEWAYS | 8/12 (66.7%) | 4/48 (8.3%) | 66.7% |
+
+**Frozen verdict: `B27CZ_BULL_IMPULSE_NOT_SUPPORTED`.**
+
+External/reference_validation are reused-data confirmation, not untouched OOS. No economic abort simulation or live BBC change is authorized.
+run_exit_code=0
