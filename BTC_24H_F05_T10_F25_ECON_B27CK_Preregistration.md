@@ -84,3 +84,5 @@ Otherwise: `B27CK_DIAGNOSTIC_MIXED_OR_NEGATIVE`.
 This diagnostic label does not override the explicit RR<1 caveat and does not authorize live deployment.
 
 Research only. Live BBC unchanged.
+
+<!-- Execution trigger only; no semantic change. -->
