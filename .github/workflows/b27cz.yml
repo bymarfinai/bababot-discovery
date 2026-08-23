@@ -1,4 +1,5 @@
 name: B27CZ research
+# trigger: no semantic change
 
 on:
   push:
