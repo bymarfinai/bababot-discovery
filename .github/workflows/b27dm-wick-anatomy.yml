@@ -1,0 +1,34 @@
+name: B27DM wick reject anatomy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_f85_long_b27dm_wick_reject_anatomy.py'
+      - '.github/workflows/b27dm-wick-anatomy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - name: Run wick anatomy
+        run: python research/btc_f85_long_b27dm_wick_reject_anatomy.py
+      - name: Persist output
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BTC_F85_LONG_B27DM_WICK_REJECT_ANATOMY_Result.md || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27DM wick-reject anatomy'
+            git push
+          fi
