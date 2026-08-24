@@ -1,0 +1,54 @@
+# B27DE — Generic F85 LONG Clock-Rotation Scan — Result
+
+5m rows: **698,112**; coverage: **100.0000%**.
+
+**London parity: PASS.** The generic detector reproduced the persisted 08:00 UTC London -> New York SAME_BAR_REJECTION cohort before rotated clocks were interpreted.
+
+## Development clock leaderboard
+
+| Ref start | Exec start | Exec end | N | WR | PF | Exp | Net | K1 | F85 touches | Eligible |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| 01:30 | 07:00 | 13:30 | 44 | 70.5% | 1.76 | $0.51 | $22.46 | 179 | 83 | YES |
+| 11:00 | 16:30 | 23:00 | 26 | 69.2% | 2.16 | $1.19 | $30.94 | 127 | 56 | NO |
+| 10:30 | 16:00 | 22:30 | 31 | 67.7% | 1.50 | $0.61 | $19.05 | 145 | 71 | NO |
+| 03:30 | 09:00 | 15:30 | 37 | 67.6% | 1.49 | $0.51 | $18.74 | 214 | 109 | NO |
+| 09:30 | 15:00 | 21:30 | 37 | 64.9% | 1.41 | $0.63 | $23.43 | 156 | 75 | NO |
+| 23:30 | 05:00+1d | 11:30+1d | 31 | 64.5% | 1.39 | $0.27 | $8.42 | 159 | 68 | NO |
+| 11:30 | 17:00 | 23:30 | 22 | 54.5% | 1.30 | $0.44 | $9.65 | 112 | 48 | NO |
+| 05:30 | 11:00 | 17:30 | 46 | 65.2% | 1.30 | $0.35 | $15.95 | 221 | 115 | NO |
+| 08:00 | 13:30 | 20:00 | 30 | 66.7% | 1.17 | $0.31 | $9.16 | 164 | 72 | NO |
+| 08:30 | 14:00 | 20:30 | 26 | 65.4% | 1.14 | $0.29 | $7.53 | 166 | 74 | NO |
+| 05:00 | 10:30 | 17:00 | 41 | 63.4% | 1.14 | $0.19 | $7.82 | 208 | 101 | NO |
+| 13:00 | 18:30 | 01:00+1d | 22 | 59.1% | 1.12 | $0.18 | $3.96 | 113 | 44 | NO |
+| 04:00 | 09:30 | 16:00 | 34 | 61.8% | 1.06 | $0.08 | $2.88 | 206 | 96 | NO |
+| 12:00 | 17:30 | 00:00+1d | 26 | 46.2% | 1.05 | $0.07 | $1.90 | 113 | 43 | NO |
+| 10:00 | 15:30 | 22:00 | 37 | 59.5% | 1.04 | $0.06 | $2.26 | 154 | 82 | NO |
+| 13:30 | 19:00 | 01:30+1d | 25 | 68.0% | 1.03 | $0.05 | $1.24 | 119 | 52 | NO |
+
+## London baseline
+
+| Partition | N | WR | PF | Exp | Net | TP rate |
+|---|---:|---:|---:|---:|---:|---:|
+| external | 27 | 74.1% | 2.18 | $1.34 | $36.23 | 66.7% |
+| development | 30 | 66.7% | 1.17 | $0.31 | $9.16 | 66.7% |
+| reference_validation | 11 | 90.9% | 6.23 | $1.49 | $16.41 | 90.9% |
+| august | 1 | 100.0% | inf | $2.65 | $2.65 | 0.0% |
+
+## New clock selection
+
+Primary development-selected new clock: **reference 01:30 -> execution 07:00-13:30 UTC**.
+Development: N=44, WR=70.5%, PF=1.76, expectancy=$0.51, net=$22.46.
+Historical external + reference-validation replication label: **NOT SUPPORTED**.
+
+| Partition | N | WR | PF | Exp | Net |
+|---|---:|---:|---:|---:|---:|
+| external | 21 | 71.4% | 1.09 | $0.18 | $3.76 |
+| development | 44 | 70.5% | 1.76 | $0.51 | $22.46 |
+| reference_validation | 19 | 68.4% | 0.73 | $-0.25 | $-4.83 |
+| august | 0 | - | - | $- | $0.00 |
+
+**Status: B27DE_NEW_CLOCK_DEV_CANDIDATE_NOT_REPLICATED**
+
+Guardrail: this is a historical discovery scan across 48 preregistered clock placements. External/reference-validation are reused historical partitions, not pristine fresh OOS. No live BBC change is authorized.
+
+Research only; live BBC unchanged.
