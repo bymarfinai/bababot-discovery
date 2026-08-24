@@ -1,0 +1,24 @@
+B27DE run start
+commit=eabe45dcfd780491731d6b41a60d2f4f9106a4e5
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_generic_f85_long_clock_scan_b27de.py", line 520, in <module>
+    main()
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_generic_f85_long_clock_scan_b27de.py", line 435, in main
+    parity = london_parity(cases)
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_generic_f85_long_clock_scan_b27de.py", line 404, in london_parity
+    raise AssertionError('B27DE London parity gate failed:\n' + out.to_string(index=False))
+AssertionError: B27DE London parity gate failed:
+                         check    actual  expected  pass
+                count_external 27.000000 27.000000  True
+             count_development 30.000000 30.000000  True
+    count_reference_validation 11.000000 11.000000  True
+                  count_august  1.000000  1.000000  True
+                pooled_major_n 68.000000 68.000000  True
+             pooled_major_wins 50.000000 47.000000 False
+               pooled_major_wr  0.735294  0.691176 False
+               pooled_major_pf  1.702098  1.700000  True
+       pooled_major_expectancy  0.908860  0.910000  True
+            pooled_major_total 61.802481 61.800000  True
+exact_entry_timestamp_identity 69.000000 69.000000  True
+run_exit_code=1
