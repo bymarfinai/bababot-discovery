@@ -1,0 +1,36 @@
+name: B27DG F85 long single-position portfolio
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_f85_long_single_position_portfolio_b27dg.py'
+      - '.github/workflows/b27dg.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - name: Run B27DG
+        run: |
+          set +e
+          LOG=BTC_F85_LONG_SINGLE_POSITION_PORTFOLIO_B27DG_Run.log
+          echo 'B27DG run start' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python research/btc_f85_long_single_position_portfolio_b27dg.py >> "$LOG" 2>&1
+          RC=$?
+          echo "run_exit_code=$RC" >> "$LOG"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A BTC_F85_LONG_SINGLE_POSITION_PORTFOLIO_B27DG_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27DG single-position portfolio outputs'
+            git push
+          fi
+          exit $RC
