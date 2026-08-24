@@ -1,0 +1,36 @@
+name: B27DD research
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_24h_11_15_high_quality_b27dd.py'
+      - '.github/workflows/b27dd.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests scikit-learn
+      - name: Run B27DD
+        run: |
+          set +e
+          LOG=BTC_24H_11_15_HIGH_QUALITY_B27DD_Run.log
+          echo 'B27DD run start' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python research/btc_24h_11_15_high_quality_b27dd.py >> "$LOG" 2>&1
+          RC=$?
+          echo "run_exit_code=$RC" >> "$LOG"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A BTC_24H_11_15_HIGH_QUALITY_B27DD_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27DD high quality filter outputs'
+            git push
+          fi
+          exit $RC
