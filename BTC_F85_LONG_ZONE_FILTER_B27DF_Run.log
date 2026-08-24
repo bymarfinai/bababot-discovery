@@ -1,14 +1,16 @@
 B27DF run start
-commit=ce93ed3b8f9b5c5a0cb6968cdafe4395ce85da87
+commit=64d66dd3008227eed7e8ae97c6d9b32659c46cf5
 Traceback (most recent call last):
-  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_zone_filter_b27df.py", line 279, in <module>
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_zone_filter_b27df.py", line 284, in <module>
     main()
-  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_zone_filter_b27df.py", line 265, in main
-    par=parity(base)
-        ^^^^^^^^^^^^
-  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_zone_filter_b27df.py", line 125, in parity
-    raise AssertionError('B27DF B27DE parity failed:\n'+out[~out['pass']].to_string(index=False))
-AssertionError: B27DF B27DE parity failed:
-  zone partition metric  actual  expected  pass
-LONDON    august     pf     inf       inf False
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_zone_filter_b27df.py", line 272, in main
+    detail=enrich_features(base)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_zone_filter_b27df.py", line 142, in enrich_features
+    state, rb, av = ag.state_at(reg, pd.Timestamp(r.k1_signal_ts))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_london_ny_4h_regime_alignment_b27ag.py", line 130, in state_at
+    assert pd.Timestamp(r.available_ts) <= pd.Timestamp(ts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
 run_exit_code=1
