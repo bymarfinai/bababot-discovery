@@ -1,0 +1,85 @@
+# B27DH — F85 LONG 05:30 / 23:30 Zone-Specific Causal Filter Screen — Result
+
+**Audit status: PASS.** B27DG PRIMARY_2ZONE was reproduced before B27DH interpretation.
+
+All filter scores below are after combining the candidate with the frozen primary 03:30 + London stream and applying the global one-position lock. Development selection only; external/reference-validation are reused historical replication checks.
+
+## RAW_0530 — development
+
+| Filter | Raw N | Filtered | Accepted | Accept Retain | WR | PF | Exp | Net | 75% eligible |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| K1_SECOND_HALF | 46 | 4 | 2 | 4.3% | 100.0% | inf | $+1.52 | $+3.04 | NO |
+| K1_SECOND_HALF__TOUCH_SECOND_HALF | 46 | 4 | 2 | 4.3% | 100.0% | inf | $+1.52 | $+3.04 | NO |
+| TOUCH_FIRST_HALF__RR_GE_050 | 46 | 30 | 26 | 56.5% | 69.2% | 1.49 | $+0.51 | $+13.19 | NO |
+| TOUCH_FIRST_HALF | 46 | 41 | 37 | 80.4% | 67.6% | 1.41 | $+0.49 | $+18.01 | NO |
+| K1_FIRST_HALF__TOUCH_FIRST_HALF | 46 | 41 | 37 | 80.4% | 67.6% | 1.41 | $+0.49 | $+18.01 | NO |
+| BASE | 46 | 46 | 40 | 87.0% | 67.5% | 1.45 | $+0.50 | $+20.00 | NO |
+| TOUCH_SECOND_HALF | 46 | 5 | 3 | 6.5% | 66.7% | 2.90 | $+0.66 | $+1.99 | NO |
+| RR_GE_050 | 46 | 33 | 27 | 58.7% | 66.7% | 1.43 | $+0.45 | $+12.14 | NO |
+| K1_FIRST_HALF | 46 | 42 | 38 | 82.6% | 65.8% | 1.38 | $+0.45 | $+16.96 | NO |
+| TOUCH_SECOND_HALF__RR_GE_050 | 46 | 3 | 1 | 2.2% | 0.0% | 0.00 | $-1.05 | $-1.05 | NO |
+
+Selected: **TOUCH_FIRST_HALF** — **BEST_BELOW_75**.
+Development accepted N=37, retention=80.4%, WR=67.6%, PF=1.41, exp=$+0.49, net=$+18.01.
+
+| Partition | Raw N | Accepted | Retain | WR | PF | Exp | Net |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| external | 21 | 17 | 81.0% | 76.5% | 3.02 | $+1.55 | $+26.38 |
+| development | 46 | 37 | 80.4% | 67.6% | 1.41 | $+0.49 | $+18.01 |
+| reference_validation | 14 | 11 | 78.6% | 81.8% | 1.73 | $+0.75 | $+8.20 |
+| august | 1 | 0 | 0.0% | - | - | - | $+0.00 |
+
+Historical replication supported: **NO**.
+
+## RAW_2330 — development
+
+| Filter | Raw N | Filtered | Accepted | Accept Retain | WR | PF | Exp | Net | 75% eligible |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| TOUCH_FIRST_HALF | 31 | 25 | 25 | 80.6% | 68.0% | 1.67 | $+0.43 | $+10.82 | NO |
+| K1_FIRST_HALF | 31 | 25 | 25 | 80.6% | 68.0% | 1.67 | $+0.43 | $+10.82 | NO |
+| K1_FIRST_HALF__TOUCH_FIRST_HALF | 31 | 25 | 25 | 80.6% | 68.0% | 1.67 | $+0.43 | $+10.82 | NO |
+| BASE | 31 | 31 | 30 | 96.8% | 66.7% | 1.50 | $+0.33 | $+10.05 | NO |
+| TOUCH_FIRST_HALF__RR_GE_050 | 31 | 23 | 23 | 74.2% | 65.2% | 1.44 | $+0.31 | $+7.08 | NO |
+| RR_GE_050 | 31 | 28 | 28 | 90.3% | 64.3% | 1.32 | $+0.23 | $+6.31 | NO |
+| TOUCH_SECOND_HALF | 31 | 6 | 5 | 16.1% | 60.0% | 0.80 | $-0.15 | $-0.77 | NO |
+| K1_SECOND_HALF | 31 | 6 | 5 | 16.1% | 60.0% | 0.80 | $-0.15 | $-0.77 | NO |
+| TOUCH_SECOND_HALF__RR_GE_050 | 31 | 5 | 5 | 16.1% | 60.0% | 0.80 | $-0.15 | $-0.77 | NO |
+| K1_SECOND_HALF__TOUCH_SECOND_HALF | 31 | 6 | 5 | 16.1% | 60.0% | 0.80 | $-0.15 | $-0.77 | NO |
+
+Selected: **K1_FIRST_HALF** — **BEST_BELOW_75**.
+Development accepted N=25, retention=80.6%, WR=68.0%, PF=1.67, exp=$+0.43, net=$+10.82.
+
+| Partition | Raw N | Accepted | Retain | WR | PF | Exp | Net |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| external | 20 | 14 | 70.0% | 85.7% | 4.15 | $+2.05 | $+28.67 |
+| development | 31 | 25 | 80.6% | 68.0% | 1.67 | $+0.43 | $+10.82 |
+| reference_validation | 19 | 14 | 73.7% | 78.6% | 3.22 | $+1.03 | $+14.37 |
+| august | 0 | 0 | - | - | - | - | $+0.00 |
+
+Historical replication supported: **NO**.
+
+## PROMOTED_PORTFOLIO
+
+| Partition | Candidates | Accepted | Skipped open | WR | PF | Exp | Net |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| external | 47 | 47 | 0 | 76.6% | 2.75 | $+1.95 | $+91.46 |
+| development | 60 | 60 | 0 | 70.0% | 1.41 | $+0.55 | $+33.28 |
+| reference_validation | 23 | 23 | 0 | 87.0% | 2.98 | $+0.92 | $+21.25 |
+| august | 1 | 1 | 0 | 100.0% | inf | $+2.65 | $+2.65 |
+| POOLED_MAJOR | 130 | 130 | 0 | 75.4% | 2.00 | $+1.12 | $+145.99 |
+
+## EXPLORATORY_SELECTED_PORTFOLIO
+
+| Partition | Candidates | Accepted | Skipped open | WR | PF | Exp | Net |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| external | 79 | 77 | 2 | 79.2% | 3.02 | $+1.92 | $+147.76 |
+| development | 126 | 121 | 5 | 68.6% | 1.43 | $+0.50 | $+60.37 |
+| reference_validation | 48 | 48 | 0 | 83.3% | 2.54 | $+0.91 | $+43.82 |
+| august | 1 | 1 | 0 | 100.0% | inf | $+2.65 | $+2.65 |
+| POOLED_MAJOR | 253 | 246 | 7 | 74.8% | 2.03 | $+1.02 | $+251.95 |
+
+## Status
+
+**B27DH_IMPROVEMENT_BELOW_75**
+
+No live BBC change is authorized. Research only.
