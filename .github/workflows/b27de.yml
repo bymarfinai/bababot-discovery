@@ -1,0 +1,37 @@
+name: B27DE generic F85 long clock scan
+on:
+  push:
+    branches:
+      - 'research/b27de-generic-long-clock-scan'
+    paths:
+      - 'research/btc_generic_f85_long_clock_scan_b27de.py'
+      - '.github/workflows/b27de.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27DE
+        run: |
+          set +e
+          LOG=BTC_GENERIC_F85_LONG_CLOCK_SCAN_B27DE_Run.log
+          echo 'B27DE run start' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python research/btc_generic_f85_long_clock_scan_b27de.py >> "$LOG" 2>&1
+          RC=$?
+          echo "run_exit_code=$RC" >> "$LOG"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A BTC_GENERIC_F85_LONG_CLOCK_SCAN_B27DE_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27DE generic F85 long clock scan outputs'
+            git push origin HEAD:research/b27de-generic-long-clock-scan
+          fi
+          exit $RC
