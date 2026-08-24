@@ -1,6 +1,3 @@
-B27DC run start
-commit=d26f861ba4d6b6ec9d4b11a8502bb69c13b05169
-compile_exit_code=0
 # B27DC — BTC 24H F05 SHORT Causal Abort Economics — Result
 
 5m rows: **698,112**; coverage **100.0000%**. Audit **PASS**.
@@ -123,4 +120,3 @@ BASE_H is diagnostic/non-promotable because nominal RR>=1:1 is not guaranteed. R
 **Frozen status: `B27DC_CAUSAL_ABORT_ECON_RESEARCH_ONLY_NO_LIVE_PROMOTION`.**
 
 B27DC reports executable historical economics only. It does not upgrade reused anatomy evidence into untouched OOS evidence and does not change live BBC.
-run_exit_code=0

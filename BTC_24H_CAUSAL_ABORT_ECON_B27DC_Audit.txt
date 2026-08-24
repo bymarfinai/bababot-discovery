@@ -1,0 +1,12 @@
+audit=PASS
+raw_rows=698112
+coverage=1.0
+base_h_fills=652
+r100_fills=652
+b27cv_plus10_auc=0.8452298452298452
+b27cv_plus15_auc=0.8860088365243004
+base_h_baseline_total_net=-278.38591701832524
+base_h_rr_guaranteed=false
+r100_min_nominal_rr=1.0
+inference_scores_all_alive_labels=true
+untouched_holdout=NONE_B27DA_INSUFFICIENT
