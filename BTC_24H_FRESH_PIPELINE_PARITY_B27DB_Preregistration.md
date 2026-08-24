@@ -25,3 +25,5 @@ Any count or identity mismatch => `B27DB_PIPELINE_PARITY_FAIL`.
 Exact parity => `B27DB_PIPELINE_PARITY_PASS`.
 
 No result from B27DB changes strategy economics or authorizes live changes.
+
+<!-- workflow trigger only; no semantic change -->
