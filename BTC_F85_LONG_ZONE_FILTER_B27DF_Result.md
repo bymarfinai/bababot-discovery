@@ -1,5 +1,3 @@
-B27DF run start
-commit=5f88e30b960e08db9012de43874428f870d2b4c4
 # B27DF — F85 LONG Zone-Specific Causal Filter Screen — Result
 
 **Audit status: PASS.** B27DE BASE cohorts/economics reproduced exactly before filter interpretation.
@@ -63,5 +61,3 @@ Historical replication supported: **NO**.
 Guardrail: a development-only WR increase is not accepted if it fails external/reference-validation replication. No live BBC change is authorized.
 
 Research only; live BBC unchanged.
-
-run_exit_code=0
