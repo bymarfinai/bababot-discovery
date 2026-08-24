@@ -135,22 +135,28 @@ def enrich_features(base: pd.DataFrame) -> pd.DataFrame:
     x5, coverage = ag.b21.load5()
     if coverage < .995:
         raise AssertionError('coverage too low')
-    reg = ag.build_regime(x5)
-    z=base.copy()
-    regimes=[]; regime_bars=[]; regime_av=[]
-    for r in z.itertuples(index=False):
-        state, rb, av = ag.state_at(reg, pd.Timestamp(r.k1_signal_ts))
-        regimes.append(state); regime_bars.append(rb); regime_av.append(av)
-    z['regime_at_signal']=regimes
-    z['regime_bar_start']=regime_bars
-    z['regime_available_ts']=regime_av
-    assert (pd.to_datetime(z.regime_available_ts,utc=True) <= pd.to_datetime(z.k1_signal_ts,utc=True)).all()
-    z['touch_elapsed_min']=(z.touch_bar_start-z.execution_start)/pd.Timedelta(minutes=1)
-    assert (z.touch_elapsed_min >= 0).all()
-    z['no_bear']=z.regime_at_signal.ne('BEAR')
-    z['touch_first_half']=z.touch_elapsed_min <= EXEC_HALF_MIN
-    z['rr_ge_050']=z.nominal_rr >= RR_MIN
-    return z
+    reg = ag.build_regime(x5)[['available_ts','regime']].copy().sort_values('available_ts')
+    left = base.copy().reset_index(drop=True)
+    left['_row_order'] = np.arange(len(left))
+    left = left.sort_values('k1_signal_ts')
+    mapped = pd.merge_asof(
+        left,
+        reg,
+        left_on='k1_signal_ts',
+        right_on='available_ts',
+        direction='backward',
+        allow_exact_matches=True,
+    )
+    assert mapped.available_ts.notna().all()
+    assert (pd.to_datetime(mapped.available_ts,utc=True) <= pd.to_datetime(mapped.k1_signal_ts,utc=True)).all()
+    mapped = mapped.sort_values('_row_order').drop(columns=['_row_order']).reset_index(drop=True)
+    mapped = mapped.rename(columns={'regime':'regime_at_signal','available_ts':'regime_available_ts'})
+    mapped['touch_elapsed_min']=(mapped.touch_bar_start-mapped.execution_start)/pd.Timedelta(minutes=1)
+    assert (mapped.touch_elapsed_min >= 0).all()
+    mapped['no_bear']=mapped.regime_at_signal.ne('BEAR')
+    mapped['touch_first_half']=mapped.touch_elapsed_min <= EXEC_HALF_MIN
+    mapped['rr_ge_050']=mapped.nominal_rr >= RR_MIN
+    return mapped
 
 
 def mask_for(g: pd.DataFrame, name: str) -> pd.Series:
