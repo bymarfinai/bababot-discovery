@@ -1,0 +1,62 @@
+name: B27DM E20 close-confirmed step-10 runner
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_f85_long_e20_close_confirmed_runner_b27dm.py'
+      - 'BTC_F85_LONG_E20_CLOSE_CONFIRMED_RUNNER_B27DM_Preregistration.md'
+      - '.github/workflows/b27dm.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27DM
+        id: run
+        shell: bash
+        run: |
+          set +e
+          LOG=BTC_F85_LONG_E20_CLOSE_CONFIRMED_RUNNER_B27DM_Run.log
+          echo 'B27DM run start' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/btc_f85_long_e20_close_confirmed_runner_b27dm.py >> "$LOG" 2>&1
+          c=$?
+          echo "compile_exit_code=$c" >> "$LOG"
+          if [ "$c" -eq 0 ]; then
+            python research/btc_f85_long_e20_close_confirmed_runner_b27dm.py >> "$LOG" 2>&1
+            r=$?
+          else
+            r=$c
+          fi
+          echo "run_exit_code=$r" >> "$LOG"
+          echo "rc=$r" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b27dm-results
+          path: |
+            BTC_F85_LONG_E20_CLOSE_CONFIRMED_RUNNER_B27DM_*
+      - name: Persist outputs
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A BTC_F85_LONG_E20_CLOSE_CONFIRMED_RUNNER_B27DM_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27DM close-confirmed runner outputs'
+            git push
+          fi
+      - name: Fail if script failed
+        if: steps.run.outputs.rc != '0'
+        run: exit 1
