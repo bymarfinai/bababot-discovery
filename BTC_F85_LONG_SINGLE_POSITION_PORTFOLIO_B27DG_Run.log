@@ -1,5 +1,5 @@
 B27DG run start
-commit=c88743935a6834b86a8bf1d301e7346109f511cd
+commit=8bb491a8315a221159af0f64fc975bcbc36419d7
 # B27DG — F85 LONG Single-Position Portfolio — Result
 
 Operational rule: while one BTC trade is open, later eligible entries are skipped. Earliest causal entry wins; a new entry is allowed only at/after the prior `exit_ts`.
