@@ -116,9 +116,14 @@ def parity(base: pd.DataFrame) -> pd.DataFrame:
                 'total_net': (m['total_net'], float(r.total_net)),
             }
             for metric,(actual,expected) in checks.items():
-                if pd.isna(expected): ok=pd.isna(actual)
-                elif metric in ('n','wins'): ok=int(actual)==int(expected)
-                else: ok=abs(float(actual)-float(expected)) <= 1e-9*max(1.0,abs(float(expected)))
+                if pd.isna(expected):
+                    ok=pd.isna(actual)
+                elif metric in ('n','wins'):
+                    ok=int(actual)==int(expected)
+                elif math.isinf(float(expected)):
+                    ok=math.isinf(float(actual)) and ((float(actual)>0)==(float(expected)>0))
+                else:
+                    ok=abs(float(actual)-float(expected)) <= 1e-9*max(1.0,abs(float(expected)))
                 rows.append({'zone':zone,'partition':part,'metric':metric,'actual':actual,'expected':expected,'pass':ok})
     out=pd.DataFrame(rows)
     if not bool(out['pass'].all()):
