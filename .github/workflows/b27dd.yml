@@ -1,3 +1,4 @@
+# no-semantic trigger
 name: B27DD research
 on:
   push:
