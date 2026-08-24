@@ -63,9 +63,7 @@ def load_candidates():
 
 
 def frozen_scores(x5):
-    trades=cv.load_trades()
-    h1=cv.build_h1(x5)
-    feats=cv.make_features(trades,x5,h1)
+    trades=cv.load_trades(); h1=cv.build_h1(x5); feats=cv.make_features(trades,x5,h1)
     sc,thr,coef,models=cv.score_all(feats)
     s10=thr[(thr.checkpoint.eq('PLUS10'))&thr['mode'].eq('SAFE')].iloc[0]
     s15=thr[(thr.checkpoint.eq('PLUS15'))&thr['mode'].eq('SAFE')].iloc[0]
@@ -75,29 +73,23 @@ def frozen_scores(x5):
     assert abs(float(s15.threshold)-T15_SAFE)<1e-10
     pieces=[]
     for cp,short in [('PLUS10','p10'),('PLUS15','p15')]:
-        q=feats[feats.checkpoint.eq(cp)].copy()
-        nums=cv.num_cols(cp)
+        q=feats[feats.checkpoint.eq(cp)].copy(); nums=cv.num_cols(cp)
         q[short]=models[cp].predict_proba(q[nums+CAT])[:,1]
         keep=['event_id','partition','clock_block','regime','label','decision_ts',short]
         if cp=='PLUS15': keep+=['max_bull_body_r4']
         pieces.append(q[keep])
-    a,b=pieces
-    keys=['event_id','partition','clock_block','regime','label']
-    d=a.merge(b,on=keys,how='inner',validate='one_to_one',suffixes=('_10','_15'))
-    assert len(d)==652
+    a,b=pieces; keys=['event_id','partition','clock_block','regime','label']
+    d=a.merge(b,on=keys,how='inner',validate='one_to_one',suffixes=('_10','_15')); assert len(d)==652
     d['decision_ts']=pd.to_datetime(d['decision_ts_15'],utc=True)
     assert (pd.to_datetime(d.decision_ts_15,utc=True)==pd.to_datetime(d.decision_ts_10,utc=True)+BAR5).all()
-    d['f10']=pd.to_numeric(d.p10,errors='coerce').ge(T10_SAFE-EPS)
-    d['f15']=pd.to_numeric(d.p15,errors='coerce').ge(T15_SAFE-EPS)
+    d['f10']=pd.to_numeric(d.p10,errors='coerce').ge(T10_SAFE-EPS); d['f15']=pd.to_numeric(d.p15,errors='coerce').ge(T15_SAFE-EPS)
     imp=pd.to_numeric(d.max_bull_body_r4,errors='coerce')
-    d['GLOBAL_PLUS15_SAFE']=d.f15
-    d['PERSIST_10_15']=d.f10&d.f15
+    d['GLOBAL_PLUS15_SAFE']=d.f15; d['PERSIST_10_15']=d.f10&d.f15
     d['REFINED_BULL_IMPULSE']=(d.f10&d.f15)|((~d.f10)&d.f15&imp.ge(IMPULSE-EPS))
     return d[['event_id','partition','clock_block','regime','label','decision_ts','p10','p15','max_bull_body_r4','GLOBAL_PLUS15_SAFE','PERSIST_10_15','REFINED_BULL_IMPULSE']],float(s10.development_auc),float(s15.development_auc)
 
 
-def short_net(entry,exit_px):
-    return ((entry-exit_px)/entry)*NOTIONAL-FEE
+def short_net(entry,exit_px): return ((entry-exit_px)/entry)*NOTIONAL-FEE
 
 
 def apply_rule(x5,cands,scores,rule):
@@ -106,11 +98,12 @@ def apply_rule(x5,cands,scores,rule):
     raw=pd.Series(False,index=d.index) if rule=='NO_ABORT' else d[rule].astype(bool)
     alive=pd.to_datetime(d.exit_ts,utc=True)>pd.to_datetime(d.decision_ts,utc=True)
     d['abort']=raw&alive
-    d['abort_ts']=pd.NaT; d['abort_px']=np.nan
+    d['abort_ts']=pd.Series(pd.NaT,index=d.index,dtype='datetime64[ns, UTC]')
+    d['abort_px']=np.nan
     for i in d.index[d.abort]:
         t=pd.Timestamp(d.at[i,'decision_ts']); assert t in x5.index,t
         d.at[i,'abort_ts']=t; d.at[i,'abort_px']=float(x5.loc[t,'open'])
-    d['adj_exit_ts']=d.exit_ts; d['adj_exit_px']=pd.to_numeric(d.exit_px,errors='coerce'); d['adj_exit_reason']=d.exit_reason.astype(str)
+    d['adj_exit_ts']=d.exit_ts.copy(); d['adj_exit_px']=pd.to_numeric(d.exit_px,errors='coerce'); d['adj_exit_reason']=d.exit_reason.astype(str)
     idx=d.index[d.abort]
     if len(idx):
         d.loc[idx,'adj_exit_ts']=d.loc[idx,'abort_ts']; d.loc[idx,'adj_exit_px']=d.loc[idx,'abort_px']; d.loc[idx,'adj_exit_reason']='DETECTOR_ABORT_'+rule
@@ -138,8 +131,8 @@ def max_loss_streak(vals):
 def econ(g):
     t=g.sort_values(['fill_ts','event_id']).copy(); n=len(t)
     if n==0:return {'trades_n':0,'wr':np.nan,'pf':np.nan,'expectancy':np.nan,'total_net':0.,'avg_win':np.nan,'avg_loss':np.nan,'max_dd':np.nan,'max_loss_streak':0,'abort_n':0,'abort_rate':0.,'trades_per_week':np.nan}
-    net=pd.to_numeric(t.adj_net_pnl,errors='coerce').to_numpy(float)
-    pos=net[net>0]; neg=net[net<0]; gp=float(pos.sum()); gl=float(-neg.sum()); pf=gp/gl if gl>0 else (math.inf if gp>0 else np.nan)
+    net=pd.to_numeric(t.adj_net_pnl,errors='coerce').to_numpy(float); pos=net[net>0]; neg=net[net<0]
+    gp=float(pos.sum()); gl=float(-neg.sum()); pf=gp/gl if gl>0 else (math.inf if gp>0 else np.nan)
     span=(pd.Timestamp(t.fill_ts.max())-pd.Timestamp(t.fill_ts.min()))/pd.Timedelta(days=7); tpw=n/span if span>0 else np.nan
     return {'trades_n':n,'wr':float(np.mean(net>0)),'pf':pf,'expectancy':float(np.mean(net)),'total_net':float(np.sum(net)),'avg_win':float(np.mean(pos)) if len(pos) else np.nan,'avg_loss':float(np.mean(neg)) if len(neg) else np.nan,'max_dd':max_dd(net),'max_loss_streak':max_loss_streak(net),'abort_n':int(t.abort.sum()),'abort_rate':float(t.abort.mean()),'trades_per_week':float(tpw) if pd.notna(tpw) else np.nan}
 
@@ -177,7 +170,7 @@ def main():
     for cand in CANDS:
         for rule in RULES[1:]:
             z=allout[(allout.candidate.eq(cand))&(allout.rule.eq(rule))&allout.abort]
-            for lab in ('BAD','GOOD','OTHER'): attrs.append({'candidate':cand,'rule':rule,'base_label':lab,'abort_n':int((z.label_score.astype(str)==lab).sum())})
+            for lab in ('BAD','GOOD','OTHER'): attrs.append({'candidate':cand,'rule':rule,'base_label':lab,'abort_n':int((z.label.astype(str)==lab).sum())})
     attr=pd.DataFrame(attrs); attr.to_csv(OUT_ATTR,index=False)
     OUT_STATUS.write_text('B27DC_CAUSAL_ABORT_ECON_RESEARCH_ONLY_NO_LIVE_PROMOTION\n')
     OUT_AUDIT.write_text(f'audit=PASS\nraw_rows={len(x5)}\ncoverage={float(cov)}\nbase_h_fills=652\nr100_fills=652\nb27cv_plus10_auc={auc10}\nb27cv_plus15_auc={auc15}\nbase_h_baseline_total_net={bm["total_net"]}\nbase_h_rr_guaranteed=false\nr100_min_nominal_rr=1.0\ninference_scores_all_alive_labels=true\nuntouched_holdout=NONE_B27DA_INSUFFICIENT\n')
