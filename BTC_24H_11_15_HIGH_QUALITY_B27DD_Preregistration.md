@@ -81,7 +81,7 @@ A development-selected candidate is a B27DD high-quality candidate only if all a
 For both external and reference_validation independently:
 - trades >= 15;
 - PF > 0.90;
-- total net PnL must not be materially catastrophic relative to its retained sample (report exact values; no post-hoc deletion).
+- `total net PnL >= -$10.00` and `expectancy >= -$0.25/trade`; these numeric thresholds define “not materially catastrophic” before result-bearing execution.
 
 Additionally pooled reused external+validation must have:
 - WR >= 65%;
