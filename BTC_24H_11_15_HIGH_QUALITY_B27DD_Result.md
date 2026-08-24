@@ -1,0 +1,30 @@
+# B27DD — BTC 11–15 WIB R100 High-Quality Filter Frontier — Result
+
+5m rows: **698,112**; coverage **100.0000%**. Audit **PASS**.
+
+Frozen development-only FILL-risk thresholds: **Q75=0.311427**, **Q65=0.289845**. B27CV FILL development AUC: **0.7810**.
+
+Economic lane is **R100 nominal RR 1:1 only**. Clock is **11–15 WIB / 04-08 UTC**, TP **T15**. External/reference_validation are reused confirmation; fresh B27DA remains insufficient.
+
+## Development selection — all 10 frozen candidates
+
+| Entry filter | Management | N | Retain | WR | PF | Exp/trade | Total net | Avg win | Avg loss | MaxDD | Loss streak | Aborts | Eligible |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| BASE | NO_ABORT | 38 | 100.0% | **50.0%** | 0.36 | $-0.60 | $-22.79 | $+0.69 | $-1.89 | $+23.54 | 4 | 0 | NO |
+| BASE | REFINED_ABORT | 38 | 100.0% | **50.0%** | 0.37 | $-0.58 | $-22.11 | $+0.69 | $-1.85 | $+22.86 | 4 | 1 | NO |
+| NO_SIDEWAYS | NO_ABORT | 32 | 84.2% | **53.1%** | 0.51 | $-0.34 | $-10.80 | $+0.66 | $-1.47 | $+12.22 | 3 | 0 | NO |
+| NO_SIDEWAYS | REFINED_ABORT | 32 | 84.2% | **53.1%** | 0.53 | $-0.32 | $-10.13 | $+0.66 | $-1.42 | $+11.55 | 3 | 1 | NO |
+| LOW_BAD_Q75 | NO_ABORT | 28 | 73.7% | **50.0%** | 0.40 | $-0.53 | $-14.84 | $+0.70 | $-1.76 | $+16.98 | 4 | 0 | NO |
+| LOW_BAD_Q75 | REFINED_ABORT | 28 | 73.7% | **50.0%** | 0.40 | $-0.53 | $-14.84 | $+0.70 | $-1.76 | $+16.98 | 4 | 0 | NO |
+| LOW_BAD_Q65 | NO_ABORT | 25 | 65.8% | **48.0%** | 0.43 | $-0.49 | $-12.22 | $+0.76 | $-1.64 | $+14.29 | 5 | 0 | NO |
+| LOW_BAD_Q65 | REFINED_ABORT | 25 | 65.8% | **48.0%** | 0.43 | $-0.49 | $-12.22 | $+0.76 | $-1.64 | $+14.29 | 5 | 0 | NO |
+| NO_SIDEWAYS_LOW_BAD_Q75 | NO_ABORT | 25 | 65.8% | **52.0%** | 0.54 | $-0.31 | $-7.71 | $+0.70 | $-1.40 | $+9.49 | 4 | 0 | NO |
+| NO_SIDEWAYS_LOW_BAD_Q75 | REFINED_ABORT | 25 | 65.8% | **52.0%** | 0.54 | $-0.31 | $-7.71 | $+0.70 | $-1.40 | $+9.49 | 4 | 0 | NO |
+
+## Selection
+
+**No development candidate passed the frozen development eligibility gate.**
+
+**Frozen verdict: `B27DD_HIGH_QUALITY_NOT_SUPPORTED`.**
+
+Research only. No live BBC change.
