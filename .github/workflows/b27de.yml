@@ -1,3 +1,4 @@
+# no-semantic trigger
 name: B27DE generic F85 long clock scan
 on:
   push:
