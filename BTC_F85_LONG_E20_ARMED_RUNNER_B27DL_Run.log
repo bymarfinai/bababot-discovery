@@ -1,0 +1,58 @@
+B27DL run start
+commit=f7470f234e2515b8a8fee00dfcacc09515d0480b
+compile_exit_code=0
+# B27DL — E20 Armed Step-10 Range Runner — Result
+
+5m rows: **698,112**; coverage: **100.0000%**.
+
+**Audit status: PASS.** The fixed-E20 4-zone portfolio reproduced B27DK before runner results were interpreted.
+
+Frozen runner: E20 arms the trade; E20 becomes the next-bar hard floor; completed-close milestones ratchet the floor one 0.10R step behind (E40 close -> E30 floor, E50 close -> E40 floor, etc.).
+
+## Exact portfolio comparison after global one-position re-lock
+
+| Partition | Variant | Candidates | Accepted | Blocked | WR | PF | Exp | Net | Max loss streak |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| external | FIXED_E20 | 81 | 74 | 7 | 77.0% | 2.91 | $+1.89 | $+139.72 | 3 |
+| external | E20_ARMED_STEP10_RUNNER | 81 | 74 | 7 | 71.6% | 2.78 | $+1.84 | $+135.94 | 3 |
+| development | FIXED_E20 | 113 | 107 | 6 | 72.0% | 1.52 | $+0.60 | $+63.83 | 3 |
+| development | E20_ARMED_STEP10_RUNNER | 113 | 106 | 7 | 66.0% | 1.51 | $+0.61 | $+64.55 | 4 |
+| reference_validation | FIXED_E20 | 48 | 47 | 1 | 80.9% | 2.26 | $+0.84 | $+39.30 | 2 |
+| reference_validation | E20_ARMED_STEP10_RUNNER | 48 | 47 | 1 | 80.9% | 3.02 | $+1.34 | $+63.11 | 2 |
+| august | FIXED_E20 | 2 | 1 | 1 | 100.0% | inf | $+2.65 | $+2.65 | 0 |
+| august | E20_ARMED_STEP10_RUNNER | 2 | 1 | 1 | 100.0% | inf | $+2.65 | $+2.65 | 0 |
+| POOLED_MAJOR | FIXED_E20 | 242 | 228 | 14 | 75.4% | 2.07 | $+1.07 | $+242.84 | 3 |
+| POOLED_MAJOR | E20_ARMED_STEP10_RUNNER | 242 | 227 | 15 | 70.9% | 2.13 | $+1.16 | $+263.59 | 4 |
+
+## Pooled-major contribution by zone
+
+| Zone | Variant | N | WR | PF | Exp | Net | Armed | Floor exits | Armed time exits |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| ALT_0330 | FIXED_E20 | 61 | 77.0% | 2.44 | $+1.35 | $+82.44 | - | - | - |
+| ALT_0330 | E20_ARMED_STEP10_RUNNER | 61 | 70.5% | 2.16 | $+1.16 | $+71.01 | 47 | 46 | 1 |
+| RAW_0530 | FIXED_E20 | 55 | 76.4% | 1.90 | $+0.86 | $+47.28 | - | - | - |
+| RAW_0530 | E20_ARMED_STEP10_RUNNER | 54 | 72.2% | 1.77 | $+0.76 | $+40.92 | 40 | 40 | 0 |
+| LONDON | FIXED_E20 | 67 | 74.6% | 1.73 | $+0.94 | $+63.05 | - | - | - |
+| LONDON | E20_ARMED_STEP10_RUNNER | 67 | 70.1% | 1.83 | $+1.08 | $+72.63 | 48 | 48 | 0 |
+| RAW_2330 | FIXED_E20 | 45 | 73.3% | 2.66 | $+1.11 | $+50.07 | - | - | - |
+| RAW_2330 | E20_ARMED_STEP10_RUNNER | 45 | 71.1% | 3.52 | $+1.76 | $+79.04 | 26 | 25 | 1 |
+
+## What happened after old E20 was reached
+
+Runner-armed accepted pooled-major trades: **161**.
+Average candidate-level PnL change on those armed trades versus taking fixed E20: **$+0.16**; median **$-0.15**.
+
+- High reached E30 or farther after entry: **54.7%** of runner-armed accepted trades.
+- High reached E40 or farther after entry: **29.2%** of runner-armed accepted trades.
+- High reached E50 or farther after entry: **19.3%** of runner-armed accepted trades.
+- High reached E60 or farther after entry: **11.8%** of runner-armed accepted trades.
+- High reached E80 or farther after entry: **8.7%** of runner-armed accepted trades.
+- High reached E100 or farther after entry: **5.6%** of runner-armed accepted trades.
+
+## Decision
+
+Pooled-major net delta: **$+20.75**; accepted-trade delta: **-1**.
+**Status: B27DL_RUNNER_SUPPORTED**
+
+Research/operating exit experiment only; live BBC unchanged.
+run_exit_code=0
