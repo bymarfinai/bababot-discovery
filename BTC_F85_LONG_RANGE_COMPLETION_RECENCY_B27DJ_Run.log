@@ -1,0 +1,40 @@
+B27DJ run start
+commit=9501115b714ab71fca4a0c1f4a520711b6f53e8a
+compile_exit_code=0
+# B27DJ — F85 LONG 05:30 / 23:30 Range-Completion Recency — Result
+
+5m rows: **698,112**; coverage: **100.0000%**.
+
+**Audit status: PASS.** Every candidate H/L reproduced from the raw 5m reference window and every unfiltered zone reproduced the persisted B27DH BASE metrics before the new discriminator was interpreted.
+
+Frozen rule: **RANGE_COMPLETED_SECOND_HALF = final reference range completed at/after minute 165 of the 330-minute reference window.** No alternate cutoff was scored.
+
+## Development decision
+
+| Zone | Raw N | Filtered | Accepted | Retain | WR | PF | Exp | Net | DEV 75 supported |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| RAW_0530 | 46 | 36 | 31 | 67.4% | 74.2% | 1.60 | $+0.60 | $+18.57 | NO |
+| RAW_2330 | 31 | 17 | 17 | 54.8% | 76.5% | 2.52 | $+0.81 | $+13.72 | NO |
+
+## Reused historical replication
+
+Not opened: neither zone passed the frozen Development gate.
+
+## Supported-zone portfolio
+
+Historically replication-supported added zones: **NONE**.
+
+| Partition | Candidates | Accepted | Skipped open | WR | PF | Exp | Net |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| external | 47 | 47 | 0 | 76.6% | 2.75 | $+1.95 | $+91.46 |
+| development | 60 | 60 | 0 | 70.0% | 1.41 | $+0.55 | $+33.28 |
+| reference_validation | 23 | 23 | 0 | 87.0% | 2.98 | $+0.92 | $+21.25 |
+| august | 1 | 1 | 0 | 100.0% | inf | $+2.65 | $+2.65 |
+| POOLED_MAJOR | 130 | 130 | 0 | 75.4% | 2.00 | $+1.12 | $+145.99 |
+
+**Status: B27DJ_RANGE_COMPLETION_NOT_SUPPORTED**
+
+Guardrail: external/reference-validation are reused historical confirmation only, not pristine OOS. No live BBC change is authorized.
+
+Research only; live BBC unchanged.
+run_exit_code=0
