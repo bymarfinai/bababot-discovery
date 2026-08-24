@@ -1,0 +1,54 @@
+B27DG run start
+commit=c88743935a6834b86a8bf1d301e7346109f511cd
+# B27DG — F85 LONG Single-Position Portfolio — Result
+
+Operational rule: while one BTC trade is open, later eligible entries are skipped. Earliest causal entry wins; a new entry is allowed only at/after the prior `exit_ts`.
+
+## PRIMARY_2ZONE
+
+| Partition | Candidates | Accepted | Skipped open | WR | PF | Exp | Net |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| external | 47 | 47 | 0 | 76.6% | 2.75 | $+1.95 | $+91.46 |
+| development | 60 | 60 | 0 | 70.0% | 1.41 | $+0.55 | $+33.28 |
+| reference_validation | 23 | 23 | 0 | 87.0% | 2.98 | $+0.92 | $+21.25 |
+| august | 1 | 1 | 0 | 100.0% | inf | $+2.65 | $+2.65 |
+| POOLED_MAJOR | 130 | 130 | 0 | 75.4% | 2.00 | $+1.12 | $+145.99 |
+
+### Pooled-major contribution by zone
+
+| Zone | Candidates | Accepted | Blocked | Retention | WR | PF | Exp | Net |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| ALT_0330 | 62 | 62 | 0 | 100.0% | 77.4% | 2.47 | $+1.36 | $+84.19 |
+| LONDON | 68 | 68 | 0 | 100.0% | 73.5% | 1.70 | $+0.91 | $+61.80 |
+
+Exact same-timestamp candidate ties: **0**.
+
+## EXPANDED_5ZONE
+
+| Partition | Candidates | Accepted | Skipped open | WR | PF | Exp | Net |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| external | 109 | 95 | 14 | 71.6% | 2.21 | $+1.44 | $+136.85 |
+| development | 174 | 160 | 14 | 67.5% | 1.38 | $+0.46 | $+74.15 |
+| reference_validation | 76 | 73 | 3 | 78.1% | 2.02 | $+0.68 | $+49.70 |
+| august | 4 | 3 | 1 | 66.7% | 4.30 | $+1.03 | $+3.09 |
+| POOLED_MAJOR | 359 | 328 | 31 | 71.0% | 1.73 | $+0.79 | $+260.71 |
+
+### Pooled-major contribution by zone
+
+| Zone | Candidates | Accepted | Blocked | Retention | WR | PF | Exp | Net |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| ALT_0330 | 62 | 61 | 1 | 98.4% | 77.0% | 2.44 | $+1.35 | $+82.44 |
+| LONDON | 68 | 66 | 2 | 97.1% | 74.2% | 1.70 | $+0.93 | $+61.14 |
+| RAW_0530 | 81 | 70 | 11 | 86.4% | 72.9% | 1.83 | $+0.81 | $+56.93 |
+| RAW_0930 | 78 | 64 | 14 | 82.1% | 59.4% | 1.02 | $+0.03 | $+2.22 |
+| RAW_2330 | 70 | 67 | 3 | 95.7% | 71.6% | 2.30 | $+0.87 | $+57.97 |
+
+Exact same-timestamp candidate ties: **21**.
+
+## Status
+
+**B27DG_SINGLE_POSITION_RESCORED**
+
+Primary 2-zone portfolio is the decision-relevant result. Expanded 5-zone portfolio is exploratory only because the added raw zones were not independently promoted. Research only; live BBC unchanged.
+
+run_exit_code=0
