@@ -1,0 +1,19 @@
+# B27DB — Fresh Pipeline Historical Parity Audit
+
+**Audit: PASS.** Raw 5m: 698,112, coverage 100.0000%.
+
+## Source reconstruction
+
+- K1 OPP0 blocks: **2767**
+- Raw RETEST_RECLAIMED: **734**
+- Eligible reclaimed sources: **729** = external 202 / development 333 / validation 194
+- Exact source identity vs persisted B27CE: **True** (missing 0, extra 0)
+
+## F05 execution parity
+
+- F05 fills: **652** = external 183 / development 297 / validation 172
+- Exact fill identity vs persisted B27CV/B27CS: **True** (missing 0, extra 0)
+
+**Frozen status: `B27DB_PIPELINE_PARITY_PASS`.**
+
+This is an implementation parity audit only; no strategy or live rule changed.
