@@ -1,61 +1,26 @@
-B27DO fixed run start
-commit=c69b2b7db6d206ff8fd348df6431ed31c73aab4c
+B27DO minimal fixed run start
+commit=b410dbec03293afc59d4e2a58bfb23bace16d421
 compile_exit_code=0
 Traceback (most recent call last):
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/internals/blocks.py", line 1115, in setitem
-    casted = np_can_hold_element(values.dtype, value)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/dtypes/cast.py", line 1775, in np_can_hold_element
-    raise LossySetitemError
-pandas.errors.LossySetitemError
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_hybrid_exit_b27do_fix.py", line 40, in <module>
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_hybrid_exit_b27do_fix2.py", line 32, in <module>
     core.main()
-  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_hybrid_exit_b27do.py", line 80, in main
-    hybrid = build_hybrid(stream, breathing)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_hybrid_exit_b27do_fix.py", line 33, in build_hybrid_tzsafe
-    q.loc[mask, c] = vals.to_numpy() if c != 'runner_exit_reason' else vals.astype(object).to_numpy()
-    ~~~~~^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/indexing.py", line 938, in __setitem__
-    iloc._setitem_with_indexer(indexer, value, self.name)
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/indexing.py", line 1953, in _setitem_with_indexer
-    self._setitem_with_indexer_split_path(indexer, value, name)
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/indexing.py", line 1997, in _setitem_with_indexer_split_path
-    self._setitem_single_column(ilocs[0], value, pi)
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/indexing.py", line 2181, in _setitem_single_column
-    self.obj._mgr.column_setitem(loc, plane_indexer, value)
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/internals/managers.py", line 1541, in column_setitem
-    new_mgr = col_mgr.setitem((idx,), value)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/internals/managers.py", line 620, in setitem
-    return self.apply("setitem", indexer=indexer, value=value)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/internals/managers.py", line 445, in apply
-    applied = getattr(b, f)(**kwargs)
-              ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/internals/blocks.py", line 1118, in setitem
-    nb = self.coerce_to_target_dtype(value, raise_on_upcast=True)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/pandas/core/internals/blocks.py", line 468, in coerce_to_target_dtype
-    raise TypeError(f"Invalid value '{other}' for dtype '{self.values.dtype}'")
-TypeError: Invalid value '[ True  True  True  True  True  True  True  True False False  True  True
- False  True  True  True False False  True False False  True  True  True
- False False  True  True False  True  True  True  True False  True False
- False  True  True False  True  True  True  True  True False  True False
-  True False  True False  True  True  True  True False  True  True  True
-  True False  True  True  True  True  True  True False False False False
-  True  True  True  True False  True False  True  True  True  True  True
-  True  True  True  True False  True  True False False  True  True  True
- False False  True False False  True  True  True  True False  True False
-  True  True  True  True False  True False False False False  True  True
- False False  True  True False  True  True  True  True  True False False
-  True  True  True False False  True  True  True  True  True  True False
-  True False  True  True  True  True  True  True  True  True  True False
-  True False  True  True  True  True  True False  True  True  True  True
- False  True  True False  True False  True False  True False False  True
- False False]' for dtype 'float64'
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_hybrid_exit_b27do.py", line 75, in main
+    x5, coverage = dn.dl.dj.b21.load5()
+                   ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_mtf_bull_cascade_b21.py", line 83, in load5
+    z = fut.result()
+        ^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_mtf_bull_cascade_b21.py", line 67, in _fetch_one
+    r.raise_for_status()
+  File "/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/requests/models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 503 Server Error: Service Unavailable for url: https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/5m/BTCUSDT-5m-2020-02.zip
 run_exit_code=1
