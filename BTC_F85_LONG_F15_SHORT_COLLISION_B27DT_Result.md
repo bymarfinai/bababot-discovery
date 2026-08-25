@@ -1,7 +1,3 @@
-B27DT run start
-commit=43cd9dfdf4a025274f4f1a08e3a3b346481d872f
-compile_exit_code=0
-run_attempt=1
 # B27DT — F85 LONG + F15 SHORT Collision / Portfolio Interference Audit — Result
 
 5m rows: **698,112**; coverage: **100.0000%**.
@@ -40,4 +36,3 @@ Best FIRST_SIGNAL set: **SHORT6_BASKET**, delta $+189.10; displaced baseline LON
 Guardrail: six SHORT clocks were selected after B27DR inspection; B27DT is exploratory historical portfolio-interference evidence, not pristine OOS validation.
 
 Research only; live BBC unchanged.
-run_exit_code=0
