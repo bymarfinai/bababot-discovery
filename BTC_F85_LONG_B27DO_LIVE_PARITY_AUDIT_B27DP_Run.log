@@ -1,0 +1,8 @@
+B27DP run start
+commit=60041c9a2dbd7b286da321b01890155262a212e8
+  File "research/btc_f85_long_b27do_live_parity_audit_b27dp.py", line 352
+    ("PASS" if r.pass else "FAIL")
+     ^^^^^^^^^^^
+SyntaxError: f-string: expected 'else' after 'if' expression
+compile_exit_code=1
+run_exit_code=1
