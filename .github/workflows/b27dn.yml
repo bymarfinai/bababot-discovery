@@ -1,4 +1,5 @@
 name: B27DN E20 touch E10 breathing runner
+# no-semantic retrigger: 2026-08-25
 
 on:
   push:
