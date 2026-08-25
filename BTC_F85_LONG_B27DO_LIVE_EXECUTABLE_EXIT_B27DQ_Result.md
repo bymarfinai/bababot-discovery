@@ -1,7 +1,3 @@
-B27DQ fix2 run start
-commit=6f96a8ac346412ee710f9caf163609e7fda86c5c
-compile_exit_code=0
-run_attempt=1
 # B27DQ — B27DO Live-Executable TP/Runner Rescore — Result
 
 5m rows: **698,112**; coverage: **100.0000%**.
@@ -68,4 +64,3 @@ ALT_0330 remains fixed E20. RAW_0530, LONDON and RAW_2330 use the same E10/step-
 **Evidence status: exploratory/engineering validation, not pristine unseen OOS.**
 
 Research only; live BBC code/configuration unchanged.
-run_exit_code=0
