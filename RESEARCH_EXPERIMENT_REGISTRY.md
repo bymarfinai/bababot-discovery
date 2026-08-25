@@ -105,8 +105,39 @@ Canonical artifacts:
 - `MARKET_HUNTER_MH0_Result.md`
 - `MARKET_HUNTER_MH0_Result.json`
 
+## 12. F15 bearish continuation clock habitat — B27DR/B27DS COVERED / PROMISING HISTORICAL
+The exact causal SHORT homolog of the London -> New York F85 LONG structure is frozen as:
+
+`reference range -> first Low K1 OPP0 pressure visit -> causal leave -> pre-H2 F15 touch -> SAME_BAR close < F15 -> SHORT next 5m open -> return to Low/H2 -> E20_DOWN extension`, with F65 completed-close invalidation.
+
+### B27DR — 48-clock rotation
+B27DR moved only the clock across 48 half-hour reference starts while freezing the 5h30 reference duration, 6h30 execution duration, F15/F65/E20_DOWN geometry, SAME_BAR confirmation, fee and sizing. London 08:00 UTC parity against B27AD passed.
+
+The formal development winner, reference 03:00 UTC, achieved development N=37, WR 83.8%, PF 1.67, but failed reference-validation replication (N=11, WR 54.5%, PF 0.73). Verdict: **B27DR_NEW_SHORT_CLOCK_DEV_CANDIDATE_NOT_REPLICATED**.
+
+A separate preregistered follow-up was justified by the coarse 20:00 UTC row because all historical partitions were strong but development N=19 was below B27DR's minimum-N gate.
+
+### B27DS — 20:00 UTC local stability
+B27DS preregistered a narrow local grid 19:30/19:40/19:50/20:00/20:10/20:20/20:30 UTC without changing the SHORT structure or economics. Exact 20:00 B27DR parity passed.
+
+Selected clock: **20:00 UTC reference -> 01:30-08:00 UTC next-day execution**.
+- external: N=27, WR 74.1%, PF 2.22, net +$31.35;
+- development: N=19, WR 78.9%, PF 3.99, net +$39.46;
+- reference_validation: N=10, WR 80.0%, PF 2.70, net +$6.91;
+- pooled major: N=56, WR 76.8%, PF 2.81, expectancy +$1.39/trade, net +$77.73.
+
+Immediate-neighbor timing basin was supported: 20:10 remained development-eligible (N=25, WR 72.0%, PF 3.05), and 20:20 remained positive/supportive (N=25, WR 68.0%, PF 2.06). Verdict: **B27DS_LOCAL_BASIN_HISTORICAL_REPLICATION_SUPPORTED**.
+
+Evidence limitation: external/reference_validation are reused historical partitions, not pristine unseen OOS. Do not re-sweep F15/F65/E20_DOWN or add indicators to force higher WR on these same samples. The next confirmatory question should freeze the 20:00 clock and exact SHORT rules before genuinely unseen forward data or another independent validation source is observed.
+
+Canonical artifacts:
+- `BTC_GENERIC_F15_SHORT_CLOCK_SCAN_B27DR_Preregistration.md`
+- `BTC_GENERIC_F15_SHORT_CLOCK_SCAN_B27DR_Result.md`
+- `BTC_F15_SHORT_2000_LOCAL_CLOCK_STABILITY_B27DS_Preregistration.md`
+- `BTC_F15_SHORT_2000_LOCAL_CLOCK_STABILITY_B27DS_Result.md`
+
 # Current open research gap
-No new family is automatically authorized by the MH0 failure. The next study must first identify an information source or selection mechanism not already covered above and preregister it before observing results.
+For the F15 SHORT clock-habitat lineage, the main evidence gap is **pristine unseen OOS confirmation** of the frozen 20:00 UTC reference / 01:30-08:00 UTC execution rule. Historical local-clock discovery and reused-partition replication are now covered; further same-sample clock or geometry tuning should not be used as confirmation.
 
 # Rule for future research
 Before creating a new backtest:
