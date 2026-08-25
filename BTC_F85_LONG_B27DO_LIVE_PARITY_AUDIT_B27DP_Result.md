@@ -1,7 +1,3 @@
-B27DP fix2 run start
-commit=0deae28e360981bf8a640a7c75eb9b5345e33598
-compile_exit_code=0
-audit_attempt=1
 # B27DP — B27DO Live-Parity Audit — Result
 
 5m rows: **698,112**; coverage: **100.0000%**.
@@ -54,4 +50,3 @@ Current live source does have generic exchange-position reconciliation/orphan ha
 This result does **not** invalidate B27DO research performance. It means the current live system cannot yet be claimed to reproduce B27DO without ghost/execution divergence.
 
 Live BBC unchanged.
-run_exit_code=0

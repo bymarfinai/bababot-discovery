@@ -1,0 +1,8 @@
+check_id,capability,pass,evidence
+C1,B27DO/F85 4-zone strategy integrated in live,False,Search of bbc_live.py + bbc_live_endpoint.py for B27DO/E10/F85 hybrid tokens.
+C2,Closed 5m B27DO event processing,False,Current BBC timeframe map supports 15m/1h/4h; B27DO-specific 5m path must exist.
+C3,Durable B27DO armed/floor state,False,Required runner_armed/floor/execution_end durable state not found in current live path.
+C4,Startup restores B27DO runner/floor state,False,"Generic exchange orphan/reconciliation exists, but B27DO runner-floor restoration requires C1+C3."
+C5,Single authoritative BTC lock across instances,False,No B27DO distributed/global BTC lock primitive detected in current live path.
+C6,Exchange-native STOP_MARKET capability,True,baret_live.ExchangeClient implements conditional algoOrder STOP_MARKET.
+C7,Dynamic B27DO floor replacement + acknowledgement,False,No B27DO dynamic runner-floor order replacement path detected.
