@@ -1,2 +1,3 @@
 trigger B27BQ PR research run
 retrigger synchronize event
+retrigger 2026-08-25 after zero-step runner failure
