@@ -1,0 +1,11 @@
+check,actual,expected,pass
+count_external,25.0,25.0,True
+count_development,25.0,25.0,True
+count_reference_validation,12.0,12.0,True
+count_august,1.0,1.0,True
+pooled_major_n,62.0,62.0,True
+pooled_major_wins,36.0,36.0,True
+pooled_major_wr,0.5806451612903226,0.5806451612903226,True
+pooled_major_pf,0.7290589981666793,0.73,True
+pooled_major_expectancy,-0.44334471317942586,-0.44,True
+pooled_major_total,-27.487372217124403,-27.49,True
