@@ -1,0 +1,67 @@
+name: B27DS F15 short 20:00 local clock stability
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/btc_f15_short_2000_local_clock_stability_b27ds.py'
+      - 'BTC_F15_SHORT_2000_LOCAL_CLOCK_STABILITY_B27DS_Preregistration.md'
+      - '.github/workflows/b27ds.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stability:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27DS
+        id: run
+        shell: bash
+        run: |
+          set +e
+          LOG=BTC_F15_SHORT_2000_LOCAL_CLOCK_STABILITY_B27DS_Run.log
+          echo 'B27DS run start' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/btc_f15_short_2000_local_clock_stability_b27ds.py >> "$LOG" 2>&1
+          c=$?
+          echo "compile_exit_code=$c" >> "$LOG"
+          r=$c
+          if [ "$c" -eq 0 ]; then
+            for attempt in 1 2 3; do
+              echo "run_attempt=$attempt" >> "$LOG"
+              python research/btc_f15_short_2000_local_clock_stability_b27ds.py >> "$LOG" 2>&1
+              r=$?
+              if [ "$r" -eq 0 ]; then break; fi
+              sleep 10
+            done
+          fi
+          echo "run_exit_code=$r" >> "$LOG"
+          echo "rc=$r" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b27ds-f15-short-local-clock-stability
+          path: |
+            BTC_F15_SHORT_2000_LOCAL_CLOCK_STABILITY_B27DS_*
+      - name: Persist outputs
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main || true
+          git add -A BTC_F15_SHORT_2000_LOCAL_CLOCK_STABILITY_B27DS_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27DS local clock stability outputs'
+            git push || true
+          fi
+      - name: Fail if stability script failed
+        if: steps.run.outputs.rc != '0'
+        run: exit 1
