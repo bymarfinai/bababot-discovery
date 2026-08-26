@@ -7,6 +7,8 @@ on:
       - 'research/btc_f85_long_causal_ambiguous_terminal_fix_b27dx.py'
       - 'BTC_F85_LONG_CAUSAL_AMBIGUOUS_TERMINAL_FIX_B27DX_Preregistration.md'
       - '.github/workflows/b27dx.yml'
+  issues:
+    types: [opened]
   workflow_dispatch:
 
 permissions:
@@ -14,6 +16,7 @@ permissions:
 
 jobs:
   audit:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, '[B27DX] Run causal LONG correction')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -34,9 +37,10 @@ jobs:
               lines.append(f'- {r.gate}: **{"PASS" if bool(r._asdict()["pass"]) else "FAIL"}** — {r.actual}')'''
           new = '''    for _, r in summary.iterrows():
               lines.append(f'- {r["gate"]}: **{"PASS" if bool(r["pass"]) else "FAIL"}** — {r["actual"]}')'''
-          if old not in s:
+          if old in s:
+              p.write_text(s.replace(old, new, 1))
+          elif 'for _, r in summary.iterrows()' not in s:
               raise SystemExit('expected B27DX renderer fragment not found')
-          p.write_text(s.replace(old, new, 1))
           PY
       - name: Run B27DX causal LONG correction rescore
         id: audit
@@ -45,6 +49,7 @@ jobs:
           set +e
           LOG=BTC_F85_LONG_CAUSAL_AMBIGUOUS_TERMINAL_FIX_B27DX_Run.log
           echo 'B27DX causal LONG correction; renderer-only engineering patch; no exchange writes' > "$LOG"
+          echo "event=$GITHUB_EVENT_NAME" >> "$LOG"
           echo "commit=$(git rev-parse HEAD)" >> "$LOG"
           python -m py_compile research/btc_f85_long_causal_ambiguous_terminal_fix_b27dx.py >> "$LOG" 2>&1
           rc=$?
@@ -60,7 +65,7 @@ jobs:
           name: b27dx-causal-long-correction
           path: BTC_F85_LONG_CAUSAL_AMBIGUOUS_TERMINAL_FIX_B27DX_*
       - name: Persist B27DX renderer fix and outputs
-        if: always() && github.ref == 'refs/heads/main'
+        if: always() && (github.event_name == 'push' || github.event_name == 'issues')
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
