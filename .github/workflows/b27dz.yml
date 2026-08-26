@@ -1,0 +1,57 @@
+name: B27DZ post-rebreak short economic discovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BTC_24H_POST_REBREAK_SHORT_ECON_B27DZ_Preregistration.md'
+      - 'research/btc_24h_post_rebreak_short_econ_b27dz.py'
+      - '.github/workflows/b27dz.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27DZ discovery
+        id: run
+        shell: bash
+        run: |
+          set +e
+          LOG=BTC_24H_POST_REBREAK_SHORT_ECON_B27DZ_Run.log
+          echo "commit=$GITHUB_SHA" > "$LOG"
+          python -m py_compile research/btc_24h_post_rebreak_short_econ_b27dz.py >> "$LOG" 2>&1
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            python research/btc_24h_post_rebreak_short_econ_b27dz.py >> "$LOG" 2>&1
+            rc=$?
+          fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b27dz-post-rebreak
+          path: BTC_24H_POST_REBREAK_SHORT_ECON_B27DZ_*
+      - name: Persist outputs
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main || true
+          git add -A BTC_24H_POST_REBREAK_SHORT_ECON_B27DZ_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27DZ post-rebreak results'
+            git push || true
+          fi
+      - name: Fail on error
+        if: steps.run.outputs.rc != '0'
+        run: exit 1
