@@ -1,0 +1,58 @@
+name: ETH LONG B27W Adaptation
+
+on:
+  push:
+    branches:
+      - research/eth-long-b27w-adaptation
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-b27w-adapt:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/eth-long-b27w-adaptation
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install research dependencies
+        run: python -m pip install --upgrade pip pandas numpy requests
+      - name: Run ETH LONG B27W entry adaptation
+        shell: bash
+        run: |
+          set -o pipefail
+          python research/eth_long_pre_second_touch_entry_b27w_adapt.py 2>&1 | tee ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Run.log
+      - name: Persist outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Result.md \
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Windows.csv \
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Entries.csv \
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Summary.csv \
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_SelectedLevel.csv \
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Status.txt \
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Run.log
+          git commit -m "persist ETH LONG B27W adaptation outputs"
+          git push origin HEAD:research/eth-long-b27w-adaptation
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: eth-long-b27w-adaptation
+          path: |
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Result.md
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Windows.csv
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Entries.csv
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Summary.csv
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_SelectedLevel.csv
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Status.txt
+            ETH_LONG_PRE_SECOND_TOUCH_ENTRY_B27W_ADAPT_Run.log
