@@ -1,0 +1,2 @@
+mode,depth,neighbor_depth,robustness_pf,robustness_exp,center_pf,center_exp,center_wr,center_n,neighbor_pf,neighbor_exp,neighbor_wr,neighbor_n,validation_center_ok,validation_neighbor_ok,validation_pass,validation_neighbor_results
+EARLY_RECLAIM_NEXT_OPEN,0.675,0.65,1.4230190093797663,0.8426214809976051,1.5181951332733297,0.916634631941096,0.7291666666666666,48,1.4230190093797663,0.8426214809976051,0.7111111111111111,45,False,True,False,F65:FAIL;F70:PASS
