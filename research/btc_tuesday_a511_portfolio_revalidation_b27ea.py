@@ -104,9 +104,12 @@ def parity_table(hp,q):
 
 
 def blocks(q):
-    rows=[]; arr=np.array_split(q.sort_values('entry_ts').reset_index(drop=True),8)
-    for i,g in enumerate(arr,1): rows.append({'block':f'B{i}','start':g.entry_ts.min(),'end':g.entry_ts.max(),**metrics(g)})
-    d=q.iloc[:83].copy(); v=q.iloc[83:].copy(); return pd.DataFrame(rows),metrics(d),metrics(v)
+    z=q.sort_values('entry_ts').reset_index(drop=True); rows=[]
+    edges=np.linspace(0,len(z),9,dtype=int)
+    for i in range(8):
+        g=z.iloc[edges[i]:edges[i+1]].copy()
+        rows.append({'block':f'B{i+1}','start':g.entry_ts.min(),'end':g.entry_ts.max(),**metrics(g)})
+    d=z.iloc[:83].copy(); v=z.iloc[83:].copy(); return pd.DataFrame(rows),metrics(d),metrics(v)
 
 def slip(q):
     rows=[]
