@@ -7,6 +7,8 @@ on:
       - 'research/btc_f85_long_causal_ambiguous_terminal_fix_b27dx.py'
       - 'BTC_F85_LONG_CAUSAL_AMBIGUOUS_TERMINAL_FIX_B27DX_Preregistration.md'
       - '.github/workflows/b27dx.yml'
+  issues:
+    types: [opened]
   workflow_dispatch:
 
 permissions:
@@ -14,9 +16,12 @@ permissions:
 
 jobs:
   audit:
+    if: github.event_name != 'issues' || github.event.issue.title == '[B27DX] Run causal LONG correction'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -28,8 +33,8 @@ jobs:
           set +e
           LOG=BTC_F85_LONG_CAUSAL_AMBIGUOUS_TERMINAL_FIX_B27DX_Run.log
           echo 'B27DX causal LONG correction; no exchange writes' > "$LOG"
-          echo "commit=$GITHUB_SHA" >> "$LOG"
-          echo 'registered_trigger=1' >> "$LOG"
+          echo "event=$GITHUB_EVENT_NAME" >> "$LOG"
+          echo "commit=$(git rev-parse HEAD)" >> "$LOG"
           python -m py_compile research/btc_f85_long_causal_ambiguous_terminal_fix_b27dx.py >> "$LOG" 2>&1
           rc=$?
           if [ "$rc" -eq 0 ]; then
@@ -44,7 +49,7 @@ jobs:
           name: b27dx-causal-long-correction
           path: BTC_F85_LONG_CAUSAL_AMBIGUOUS_TERMINAL_FIX_B27DX_*
       - name: Persist B27DX outputs
-        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: always() && (github.event_name == 'push' || github.event_name == 'issues')
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -52,7 +57,7 @@ jobs:
           git add -A BTC_F85_LONG_CAUSAL_AMBIGUOUS_TERMINAL_FIX_B27DX_* || true
           if ! git diff --cached --quiet; then
             git commit -m 'persist B27DX causal LONG correction outputs'
-            git push || true
+            git push origin HEAD:main || true
           fi
       - name: Fail on audit error
         if: steps.audit.outputs.rc != '0'
