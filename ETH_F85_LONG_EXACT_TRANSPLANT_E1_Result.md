@@ -1,0 +1,39 @@
+# ETH F85 LONG Exact-Transplant E1 — Result
+
+ETHUSDT 5m rows: **698,112**; frozen-horizon coverage: **100.0000%**; causal sessions replayed: **6,918**.
+
+This is a zero-tuning cross-pair transplant of the frozen causal BTC F85 LONG architecture. Signal generation uses the same `LongF85Session` raw closed-5m semantics; zone clocks, F85/F35/E20 geometry, ALT/range-completion filters, B27DQ N+2 runner, one-position lock, USD 500 notional, and USD 0.40 fee are unchanged.
+
+## Exact-transplant portfolio
+
+| Partition | Candidates | Accepted | Blocked | WR | PF | Exp | Net | Max loss streak |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| external | 81 | 80 | 1 | 70.0% | 1.12 | $+0.26 | $+20.90 | 3 |
+| development | 112 | 106 | 6 | 59.4% | 0.78 | $-0.52 | $-55.00 | 4 |
+| reference_validation | 49 | 43 | 6 | 67.4% | 1.60 | $+0.75 | $+32.19 | 2 |
+| august | 0 | 0 | 0 | - | - | - | $+0.00 | 0 |
+| POOLED_MAJOR | 242 | 229 | 13 | 64.6% | 1.00 | $-0.01 | $-1.91 | 4 |
+
+## Pooled-major contribution by zone
+
+| Zone | N | WR | PF | Exp | Net | Max loss streak |
+|---|---:|---:|---:|---:|---:|---:|
+| LONDON | 55 | 60.0% | 0.64 | $-1.00 | $-55.24 | 5 |
+| ALT_0330 | 72 | 76.4% | 1.78 | $+1.06 | $+76.32 | 2 |
+| RAW_0530 | 58 | 51.7% | 0.77 | $-0.60 | $-34.62 | 4 |
+| RAW_2330 | 44 | 68.2% | 1.17 | $+0.26 | $+11.64 | 3 |
+
+## Runner-stop slippage sensitivity — pooled major
+
+| Stop slippage | N | WR | PF | Exp | Net | Max loss streak |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0 bps | 229 | 64.6% | 1.00 | $-0.01 | $-1.91 | 4 |
+| 2 bps | 229 | 63.8% | 0.98 | $-0.05 | $-11.07 | 4 |
+| 5 bps | 229 | 63.3% | 0.95 | $-0.11 | $-24.80 | 4 |
+| 10 bps | 229 | 60.7% | 0.90 | $-0.21 | $-47.70 | 4 |
+
+## Decision
+
+**ETH_E1_EXACT_TRANSPLANT_NOT_SUPPORTED**
+
+No ETH-specific clock, retracement level, filter, or exit parameter was searched or changed after observing the result.
