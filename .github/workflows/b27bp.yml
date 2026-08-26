@@ -1,15 +1,15 @@
-name: B27BP BULL 5m pre-second-retest anatomy
+name: ETH M2 causal correction stable executor
 
 on:
   pull_request:
-    branches: [main]
+    branches: [eth-m2-exec-base]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  audit:
+  correction:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -17,14 +17,17 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas numpy requests
-      - run: python -m py_compile research/btc_24h_bull_sideways_5m_pre_second_retest_b27bp.py
-      - name: Run B27BP
-        run: python research/btc_24h_bull_sideways_5m_pre_second_retest_b27bp.py
+      - run: python -m py_compile research/eth_f85_f15_transfer_m2_causal_correction.py
+      - name: Run corrected ETH M2
+        run: python research/eth_f85_f15_transfer_m2_causal_correction.py
       - uses: actions/upload-artifact@v4
         with:
-          name: b27bp-results
+          name: eth-m2-corrected-results
           path: |
-            BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Result.md
-            BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Episodes.csv
-            BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Summary.csv
-            BTC_24H_BULL_SIDEWAYS_5M_PRE_SECOND_RETEST_B27BP_Status.txt
+            ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Result.md
+            ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Summary.csv
+            ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Windows.csv
+            ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Candidates.csv
+            ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Status.txt
+
+# Stable branch-only executor. Never merges to main.
