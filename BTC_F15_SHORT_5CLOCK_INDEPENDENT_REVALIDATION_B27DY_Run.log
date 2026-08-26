@@ -1,0 +1,31 @@
+B27DY five additional SHORT clocks independent frozen validation
+commit=7dd37c5504ee92bdaeae427730bb1d237dbd1d87
+# B27DY — Five Additional F15 SHORT Clocks Independent Revalidation — Result
+
+5m rows: **698,112**; coverage: **100.0000%**; raw causal sessions replayed: **8,648**.
+
+Pre-B27DX current control reproduced: **N=283, WR=73.1%, PF=2.34, net=$+367.49** (B27DQ LONG + validated SHORT20).
+
+## Independent gates
+
+| Clock | N | WR | PF | Net | WF pass | Portfolio | 5bps WR/PF/Net | Raw parity | Survivor | +N vs current | +Net vs current |
+|---|---:|---:|---:|---:|---:|---|---|---|---|---:|---:|
+| SHORT_0000 | 65 | 66.2% | 1.60 | $+39.26 | 3/4 | PASS | 63.1% / 1.09 / $+6.81 | PASS | **NO** | +63 | $+37.85 |
+| SHORT_0300 | 67 | 76.1% | 1.33 | $+27.29 | 3/4 | PASS | 70.1% / 0.93 / $-6.18 | PASS | **NO** | +67 | $+27.29 |
+| SHORT_0330 | 89 | 73.0% | 1.09 | $+12.08 | 2/4 | FAIL | 68.5% / 0.77 / $-32.39 | PASS | **NO** | +88 | $+9.95 |
+| SHORT_0430 | 73 | 74.0% | 1.15 | $+13.34 | 2/4 | FAIL | 65.8% / 0.77 / $-23.13 | PASS | **NO** | +73 | $+13.34 |
+| SHORT_2100 | 69 | 65.2% | 1.54 | $+42.66 | 2/4 | FAIL | 56.5% / 1.09 / $+8.21 | PASS | **NO** | +47 | $+4.38 |
+
+## Survivor basket — added to existing LONG + SHORT20
+
+Independent survivors: **0/5** — none.
+
+| Portfolio | N | WR | PF | Net | LONG N | SHORT N | Displaced LONG | Delta N vs 283 | Delta Net |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Current LONG+SHORT20 | 283 | 73.1% | 2.34 | $+367.49 | 227 | 56 | 0 | - | - |
+| + B27DY survivors | 283 | 73.1% | 2.34 | $+367.49 | 227 | 56 | 0 | +0 | $+0.00 |
+
+**Status: B27DY_0_OF_5_ADDITIONAL_SHORT_CLOCKS_SURVIVE**
+
+Guardrail: B27DY uses the pre-B27DX LONG benchmark for portfolio compatibility. Surviving additional SHORT clocks are research candidates only until B27DX causal LONG correction and the final combined raw/control-plane parity are completed. No live exchange writes were changed.
+

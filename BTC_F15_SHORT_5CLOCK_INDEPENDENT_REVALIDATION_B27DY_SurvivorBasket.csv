@@ -1,0 +1,2 @@
+survivor_count,survivor_clocks,includes_short20,total_n,wins,wr,pf,net,long_n,long_wr,long_net,short_n,short_wr,short_net,displaced_baseline_long_n,incremental_n_vs_current_283,incremental_net_vs_current,current_control_n,current_control_wr,current_control_pf,current_control_net
+0,,True,283,207,0.7314487632508834,2.3410454459722616,367.48603546601095,227,0.7224669603524229,289.75971313529084,56,0.7678571428571429,77.72632233072011,0,0,0.0,283,0.7314487632508834,2.3410454459722616,367.48603546601095
