@@ -1,0 +1,54 @@
+name: ETH LONG B27AB Adaptation
+
+on:
+  push:
+    branches:
+      - research/eth-long-b27ab-adaptation
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-b27ab-adapt:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/eth-long-b27ab-adaptation
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install research dependencies
+        run: python -m pip install --upgrade pip pandas numpy requests
+      - name: Run ETH LONG B27AB dynamic runner
+        shell: bash
+        run: |
+          set -o pipefail
+          python research/eth_long_f75_dynamic_runner_b27ab_adapt.py 2>&1 | tee ETH_LONG_F75_DYNAMIC_RUNNER_B27AB_ADAPT_Run.log
+      - name: Persist outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            ETH_LONG_F75_DYNAMIC_RUNNER_B27AB_ADAPT_Result.md \
+            ETH_LONG_F75_DYNAMIC_RUNNER_B27AB_ADAPT_Trades.csv \
+            ETH_LONG_F75_DYNAMIC_RUNNER_B27AB_ADAPT_Summary.csv \
+            ETH_LONG_F75_DYNAMIC_RUNNER_B27AB_ADAPT_Status.txt \
+            ETH_LONG_F75_DYNAMIC_RUNNER_B27AB_ADAPT_Run.log
+          git commit -m "persist ETH LONG B27AB adaptation outputs"
+          git push origin HEAD:research/eth-long-b27ab-adaptation
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: eth-long-b27ab-adaptation
+          path: |
+            ETH_LONG_F75_DYNAMIC_RUNNER_B27AB_ADAPT_Result.md
+            ETH_LONG_F75_DYNAMIC_RUNNER_B27AB_ADAPT_Trades.csv
+            ETH_LONG_F75_DYNAMIC_RUNNER_B27AB_ADAPT_Summary.csv
+            ETH_LONG_F75_DYNAMIC_RUNNER_B27AB_ADAPT_Status.txt
+            ETH_LONG_F75_DYNAMIC_RUNNER_B27AB_ADAPT_Run.log
