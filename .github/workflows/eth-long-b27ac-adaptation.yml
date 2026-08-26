@@ -1,23 +1,23 @@
-name: ETH LONG B27AC Adaptation
+name: ETH LONG Entry Optimization Audit E2
 
 on:
   push:
     branches:
-      - research/eth-long-b27ac-adaptation
+      - research/eth-long-entry-optimization-audit-e2
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  run-b27ac-adapt:
+  run-entry-audit-e2:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: research/eth-long-b27ac-adaptation
+          ref: research/eth-long-entry-optimization-audit-e2
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
@@ -25,30 +25,32 @@ jobs:
           cache: pip
       - name: Install research dependencies
         run: python -m pip install --upgrade pip pandas numpy requests
-      - name: Run ETH LONG B27AC profit-lock hybrid
+      - name: Run ETH LONG entry optimization audit E2
         shell: bash
         run: |
           set -o pipefail
-          python research/eth_long_f75_e10_profit_lock_b27ac_adapt_run.py 2>&1 | tee ETH_LONG_F75_E10_PROFIT_LOCK_B27AC_ADAPT_Run.log
+          python research/eth_long_entry_optimization_audit_e2.py 2>&1 | tee ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Run.log
       - name: Persist outputs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
-            ETH_LONG_F75_E10_PROFIT_LOCK_B27AC_ADAPT_Result.md \
-            ETH_LONG_F75_E10_PROFIT_LOCK_B27AC_ADAPT_Trades.csv \
-            ETH_LONG_F75_E10_PROFIT_LOCK_B27AC_ADAPT_Summary.csv \
-            ETH_LONG_F75_E10_PROFIT_LOCK_B27AC_ADAPT_Status.txt \
-            ETH_LONG_F75_E10_PROFIT_LOCK_B27AC_ADAPT_Run.log
-          git commit -m "persist ETH LONG B27AC adaptation outputs"
-          git push origin HEAD:research/eth-long-b27ac-adaptation
+            ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Result.md \
+            ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Trades.csv \
+            ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Summary.csv \
+            ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Selection.csv \
+            ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Status.txt \
+            ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Run.log
+          git commit -m "persist ETH LONG entry optimization audit E2 outputs"
+          git push origin HEAD:research/eth-long-entry-optimization-audit-e2
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: eth-long-b27ac-adaptation
+          name: eth-long-entry-optimization-audit-e2
           path: |
-            ETH_LONG_F75_E10_PROFIT_LOCK_B27AC_ADAPT_Result.md
-            ETH_LONG_F75_E10_PROFIT_LOCK_B27AC_ADAPT_Trades.csv
-            ETH_LONG_F75_E10_PROFIT_LOCK_B27AC_ADAPT_Summary.csv
-            ETH_LONG_F75_E10_PROFIT_LOCK_B27AC_ADAPT_Status.txt
-            ETH_LONG_F75_E10_PROFIT_LOCK_B27AC_ADAPT_Run.log
+            ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Result.md
+            ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Trades.csv
+            ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Summary.csv
+            ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Selection.csv
+            ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Status.txt
+            ETH_LONG_ENTRY_OPTIMIZATION_AUDIT_E2_Run.log
