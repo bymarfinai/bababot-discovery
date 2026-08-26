@@ -1,0 +1,53 @@
+name: ETH LONG B27AH Adaptation
+
+on:
+  push:
+    branches:
+      - research/eth-long-b27ah-adaptation
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-b27ah-adapt:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/eth-long-b27ah-adaptation
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pandas numpy
+      - name: Run ETH LONG B27AH attribution
+        shell: bash
+        run: |
+          set -o pipefail
+          python research/eth_long_same_bar_bear_hybrid_b27ah_adapt.py 2>&1 | tee ETH_LONG_SAME_BAR_BEAR_HYBRID_B27AH_ADAPT_Run.log
+      - name: Persist outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            ETH_LONG_SAME_BAR_BEAR_HYBRID_B27AH_ADAPT_Result.md \
+            ETH_LONG_SAME_BAR_BEAR_HYBRID_B27AH_ADAPT_Detail.csv \
+            ETH_LONG_SAME_BAR_BEAR_HYBRID_B27AH_ADAPT_Summary.csv \
+            ETH_LONG_SAME_BAR_BEAR_HYBRID_B27AH_ADAPT_Status.txt \
+            ETH_LONG_SAME_BAR_BEAR_HYBRID_B27AH_ADAPT_Run.log
+          git commit -m "persist ETH LONG B27AH adaptation outputs"
+          git push origin HEAD:research/eth-long-b27ah-adaptation
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-long-b27ah-adaptation
+          path: |
+            ETH_LONG_SAME_BAR_BEAR_HYBRID_B27AH_ADAPT_Result.md
+            ETH_LONG_SAME_BAR_BEAR_HYBRID_B27AH_ADAPT_Detail.csv
+            ETH_LONG_SAME_BAR_BEAR_HYBRID_B27AH_ADAPT_Summary.csv
+            ETH_LONG_SAME_BAR_BEAR_HYBRID_B27AH_ADAPT_Status.txt
+            ETH_LONG_SAME_BAR_BEAR_HYBRID_B27AH_ADAPT_Run.log
