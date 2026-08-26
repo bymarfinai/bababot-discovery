@@ -1,7 +1,7 @@
 name: ETH transfer M2 causal correction
 
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
       - 'ETH_F85_F15_TRANSFER_M2_CAUSAL_CORRECTION_Preregistration.md'
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   correct_m2:
@@ -36,6 +36,7 @@ jobs:
             rc=$?
           fi
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          cat "$LOG"
           exit 0
       - uses: actions/upload-artifact@v4
         if: always()
@@ -44,20 +45,8 @@ jobs:
           path: |
             ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_*
             ETH_F85_F15_TRANSFER_M2_CAUSAL_CORRECTION_Run.log
-      - name: Persist corrected M2 outputs
-        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git pull --rebase origin main || true
-          git add -A ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_* ETH_F85_F15_TRANSFER_M2_CAUSAL_CORRECTION_Run.log || true
-          if ! git diff --cached --quiet; then
-            git commit -m 'persist corrected ETH transfer M2 results'
-            git push || true
-          fi
       - name: Fail on correction execution error
         if: steps.run.outputs.rc != '0'
         run: exit 1
 
-# Explicit post-registration trigger only; research rules unchanged.
-# Triggered again after M3 blocker audit; no research rule change.
+# Execution is isolated to PR/workflow-dispatch. No result is pushed to main.
