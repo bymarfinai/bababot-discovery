@@ -1,0 +1,25 @@
+# ETH London -> New York Liquidity Pressure — M1 Result
+
+Raw 5m coverage: BTC **100.0000%**, ETH **100.0000%**.
+
+Scope: London 08:00-13:30 UTC -> New York 13:30-20:00 UTC, LONG K1 OPP0 only. No F-levels, no entry, no economics.
+
+## ETH by partition
+
+| Partition | Sessions | K1 OPP0 | Target | Opposite | No break | Target rate | Resolved same-side | K2 rate | K3 rate |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| external | 523 | 120 | 103 | 3 | 14 | 85.8% | 97.2% | 24.2% | 6.7% |
+| development | 782 | 173 | 137 | 21 | 15 | 79.2% | 86.7% | 29.5% | 5.8% |
+| reference_validation | 411 | 85 | 69 | 12 | 4 | 81.2% | 85.2% | 20.0% | 8.2% |
+| august | 17 | 4 | 3 | 1 | 0 | 75.0% | 75.0% | 25.0% | 0.0% |
+| POOLED_MAJOR | 1716 | 378 | 309 | 36 | 33 | 81.7% | 89.6% | 25.7% | 6.6% |
+
+## Pooled-major BTC control
+
+- BTC K1 OPP0: **347**
+- BTC target-break rate: **80.4%**
+- BTC resolved same-side rate: **87.2%**
+
+**Status: ETH_LONDON_NY_M1_LIQUIDITY_PRESSURE_SUPPORTED**
+
+Per preregistration, stop here. Do not run the B27W-style pre-H2 F95/F90/F85/F80/F75 grid automatically.
