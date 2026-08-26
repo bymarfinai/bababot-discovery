@@ -1,6 +1,6 @@
-B27DX causal LONG correction; renderer-only engineering patch; no exchange writes
+B27DX causal LONG correction; no exchange writes
 event=push
-commit=cdbe559a519d23b2b8075bf8a7981cf4f804c918
+commit=2bb3c51217a0ad0c513ee0a79032ef5a83aecd0a
 # B27DX — F85 LONG Future-Ambiguous-Terminal Causality Correction — Result
 
 5m rows: **698,112**; coverage: **100.0000%**; raw causal sessions replayed: **8,646**.
