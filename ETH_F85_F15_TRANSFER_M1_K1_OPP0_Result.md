@@ -1,0 +1,19 @@
+# ETH F85/F15 Transfer — M1 K1 OPP0 Structural Replication — Result
+
+Raw 5m coverage: BTC **100.0000%**, ETH **100.0000%**.
+
+M1 only: no F85/F15, no entry, no stop, no target, no PnL.
+
+## Pooled-major structural comparison
+
+| Clock | Side | ETH K1 | ETH Leave | ETH H2 Rate | ETH Resolved H2 WR | BTC H2 Rate | ETH Gate |
+|---|---|---:|---:|---:|---:|---:|---|
+| ALT_0330 | LONG | 444 | 320 | 83.1% | 89.6% | 81.4% | PASS |
+| RAW_0530 | LONG | 425 | 294 | 81.3% | 87.2% | 75.9% | PASS |
+| LONDON | LONG | 378 | 250 | 81.2% | 87.9% | 75.7% | PASS |
+| RAW_2330 | LONG | 324 | 225 | 77.3% | 93.5% | 81.1% | PASS |
+| SHORT_2000 | SHORT | 308 | 205 | 73.2% | 90.9% | 74.5% | PASS |
+
+**Status: ETH_M1_K1_OPP0_STRUCTURAL_REPLICATION_SUPPORTED**
+
+Per preregistration, execution stops here. M2 is not run automatically.
