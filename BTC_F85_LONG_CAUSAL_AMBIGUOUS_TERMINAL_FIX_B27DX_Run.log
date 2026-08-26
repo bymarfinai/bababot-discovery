@@ -1,0 +1,10 @@
+B27DX causal LONG correction; no exchange writes
+commit=985caeb3fc4a9a2e139678c270e2e0be71f0389b
+registered_trigger=1
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_causal_ambiguous_terminal_fix_b27dx.py", line 395, in <module>
+    main()
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_causal_ambiguous_terminal_fix_b27dx.py", line 386, in main
+    lines.append(f'- {r.gate}: **{"PASS" if bool(r._asdict()["pass"]) else "FAIL"}** — {r.actual}')
+                                                 ~~~~~~~~~~~^^^^^^^^
+KeyError: 'pass'

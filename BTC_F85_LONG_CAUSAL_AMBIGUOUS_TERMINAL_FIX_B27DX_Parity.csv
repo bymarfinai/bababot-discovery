@@ -1,0 +1,4 @@
+check,actual,expected,pass,detail
+LONG_CORRECTED_count,245,245,True,
+LONG_CORRECTED_identity_order,245,245,True,
+LONG_CORRECTED_geometry_identity,0,0,True,common=245 missing=0 extra=0

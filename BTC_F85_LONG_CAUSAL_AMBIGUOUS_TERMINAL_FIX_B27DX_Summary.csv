@@ -1,0 +1,7 @@
+gate,pass,actual
+exact_one_future_dependent_omission,True,missing=0 extra=['reference_validation|LONG|RAW_0530|2025-09-11 12:30:00+00:00']
+corrected_candidate_universe_244_plus_1,True,245
+corrected_raw_signal_geometry_parity,True,generated=245 mismatches=0
+corrected_long_wr_pf_net_streak,True,N=228 WR=0.719298 PF=2.223193 net=286.584314 maxLS=3
+five_bps_stop_slippage,True,WR=0.688596 PF=2.093450 net=258.646517
+corrected_long_plus_short20_incremental_positive,True,long=286.584314 combined=364.310636 delta=77.726322
