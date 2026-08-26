@@ -60,3 +60,4 @@ jobs:
         run: exit 1
 
 # Explicit post-registration trigger only; research rules unchanged.
+# Triggered again after M3 blocker audit; no research rule change.
