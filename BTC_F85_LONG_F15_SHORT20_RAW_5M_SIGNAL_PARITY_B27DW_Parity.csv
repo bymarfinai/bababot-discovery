@@ -1,0 +1,13 @@
+check,actual,expected,pass,detail
+LONG_count,245,244,False,
+LONG_identity_order,222,244,False,
+LONG_geometry_identity,1,0,False,common=244 missing=0 extra=1
+SHORT20_count,57,57,True,
+SHORT20_identity_order,57,57,True,
+SHORT20_geometry_identity,0,0,True,common=57 missing=0 extra=0
+duplicate_raw_event_no_duplicate_signal,1,1,True,LONG|LONDON|2020-02-12T13:50:00+00:00
+confirmation_requires_next_open,on_bar_open only,on_bar_open only,True,on_bar_close cannot emit
+reference_range_immutable,frozen,frozen,True,H/L set only at adapter construction
+generated_exit_map_complete,1,0,False,
+generated_entry_control_plane_n,0,283,False,
+generated_entry_control_plane_order,0,283,False,

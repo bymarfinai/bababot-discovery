@@ -1,5 +1,3 @@
-B27DW raw 5m shadow signal audit; no exchange writes
-commit=9757b71381adce71f17fd061834e4ebab90b1e2d
 # B27DW — Raw Closed-5m F85 LONG + F15 SHORT20 Signal Parity — Result
 
 5m rows: **698,112**; coverage: **100.0000%**; causal sessions replayed: **8,646**.
@@ -28,12 +26,3 @@ Mismatch rows: **2**.
 **Status: B27DW_RAW_5M_SIGNAL_PARITY_NOT_READY**
 
 No exchange writes; legacy live BBC unchanged. Canonical exits are attached only after raw entry generation.
-
-Traceback (most recent call last):
-  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_f15_short20_raw_5m_signal_parity_b27dw.py", line 101, in <module>
-    if __name__=='__main__': main()
-                             ^^^^^^
-  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_f15_short20_raw_5m_signal_parity_b27dw.py", line 100, in main
-    if not ok: raise AssertionError(status)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AssertionError: B27DW_RAW_5M_SIGNAL_PARITY_NOT_READY
