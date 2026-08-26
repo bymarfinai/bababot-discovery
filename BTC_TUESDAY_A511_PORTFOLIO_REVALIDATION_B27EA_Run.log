@@ -1,0 +1,12 @@
+commit=e51a7417400eace1cf46eb4d994dcf58650a6ecd
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_tuesday_a511_portfolio_revalidation_b27ea.py", line 163, in <module>
+    if __name__=='__main__': main()
+                             ^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_tuesday_a511_portfolio_revalidation_b27ea.py", line 142, in main
+    _,hp,q=build_a511(); parity=parity_table(hp,q); bl,dseg,vseg=blocks(q); sl=slip(q)
+                                                                 ^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_tuesday_a511_portfolio_revalidation_b27ea.py", line 108, in blocks
+    for i,g in enumerate(arr,1): rows.append({'block':f'B{i}','start':g.entry_ts.min(),'end':g.entry_ts.max(),**metrics(g)})
+                                                                      ^^^^^^^^^^
+AttributeError: 'numpy.ndarray' object has no attribute 'entry_ts'
