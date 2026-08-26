@@ -29,6 +29,7 @@ jobs:
           LOG=BTC_F85_LONG_CAUSAL_AMBIGUOUS_TERMINAL_FIX_B27DX_Run.log
           echo 'B27DX causal LONG correction; no exchange writes' > "$LOG"
           echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo 'registered_trigger=1' >> "$LOG"
           python -m py_compile research/btc_f85_long_causal_ambiguous_terminal_fix_b27dx.py >> "$LOG" 2>&1
           rc=$?
           if [ "$rc" -eq 0 ]; then
