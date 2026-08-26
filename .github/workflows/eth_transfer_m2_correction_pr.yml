@@ -1,0 +1,31 @@
+name: ETH M2 causal correction PR runner
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.eth-m2-correction-pr-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  correct_m2:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run corrected ETH M2
+        shell: bash
+        run: |
+          python -m py_compile research/eth_f85_f15_transfer_m2_causal_correction.py
+          python research/eth_f85_f15_transfer_m2_causal_correction.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-transfer-m2-causal-correction-pr
+          path: |
+            ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_*
