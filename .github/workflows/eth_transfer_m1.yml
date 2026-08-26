@@ -56,3 +56,5 @@ jobs:
       - name: Fail on M1 execution error
         if: steps.run.outputs.rc != '0'
         run: exit 1
+
+# Explicit trigger after workflow registration; no research rule change.
