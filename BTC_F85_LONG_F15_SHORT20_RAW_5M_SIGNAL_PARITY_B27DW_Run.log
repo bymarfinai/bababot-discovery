@@ -1,5 +1,8 @@
 B27DW raw 5m shadow signal audit; no exchange writes
-commit=9757b71381adce71f17fd061834e4ebab90b1e2d
+commit=e8c3a01b7f69dea4d9c52ad0c42c77ef37f328dc
+DIAG_B27DE {'case_status': 'AMBIGUOUS_H2_VS_OPPOSITE_BREAK', 'entry_executed': False, 'entry_bar_start': NaT, 'touch_bar_start': NaT, 'H': 114419.9, 'L': 113722.2, 'F85': 114315.245, 'k1_signal_bar_start': Timestamp('2025-09-11 12:10:00+0000', tz='UTC'), 'leave_bar_start': Timestamp('2025-09-11 12:15:00+0000', tz='UTC')}
+DIAG_ADAPTER_RANGE {'H': 114419.9, 'L': 113722.2, 'completion_elapsed': 255.0, 'state': 'SEEK_K1'}
+DIAG_PERSISTED_CANDIDATE_N 0
 # B27DW — Raw Closed-5m F85 LONG + F15 SHORT20 Signal Parity — Result
 
 5m rows: **698,112**; coverage: **100.0000%**; causal sessions replayed: **8,646**.
