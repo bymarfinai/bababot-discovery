@@ -1,9 +1,6 @@
-name: ETH LONG Entry Optimization Audit E2
+name: ETH LONG Entry Optimization Audit E2 (manual fallback)
 
 on:
-  push:
-    branches:
-      - research/eth-long-entry-optimization-audit-e2
   workflow_dispatch:
 
 permissions:
