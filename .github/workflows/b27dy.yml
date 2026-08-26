@@ -1,0 +1,58 @@
+name: B27DY five SHORT clock independent revalidation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BTC_F15_SHORT_5CLOCK_INDEPENDENT_REVALIDATION_B27DY_Preregistration.md'
+      - 'research/btc_f15_short_5clock_independent_revalidation_b27dy.py'
+      - '.github/workflows/b27dy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27DY independent validation
+        id: validation
+        shell: bash
+        run: |
+          set +e
+          LOG=BTC_F15_SHORT_5CLOCK_INDEPENDENT_REVALIDATION_B27DY_Run.log
+          echo 'B27DY five additional SHORT clocks independent frozen validation' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/btc_f15_short_5clock_independent_revalidation_b27dy.py >> "$LOG" 2>&1
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            python research/btc_f15_short_5clock_independent_revalidation_b27dy.py >> "$LOG" 2>&1
+            rc=$?
+          fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b27dy-five-short-revalidation
+          path: BTC_F15_SHORT_5CLOCK_INDEPENDENT_REVALIDATION_B27DY_*
+      - name: Persist outputs
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main || true
+          git add -A BTC_F15_SHORT_5CLOCK_INDEPENDENT_REVALIDATION_B27DY_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27DY five-clock revalidation outputs'
+            git push || true
+          fi
+      - name: Fail on validation error
+        if: steps.validation.outputs.rc != '0'
+        run: exit 1
