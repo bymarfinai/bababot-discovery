@@ -1,0 +1,10 @@
+field,actual,expected,pass
+n,139,139,True
+wins,89,89,True
+wr,0.6402877697841727,0.6402877697841727,True
+net,130.3285205371619,130.33,True
+pf,1.69159815640554,1.692,True
+a52_actions,7,7,True
+fastmr_actions,12,12,True
+recoveries,4,4,True
+upstream_historical_parity,True,True,True

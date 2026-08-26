@@ -1,4 +1,3 @@
-commit=1006c8d89a35f66c36f86d06ad15c99d33c629fb
 # B27EA — Tuesday A5.11 Independent Portfolio Revalidation — Result
 
 Raw 5m control coverage: **100.0000%**. Frozen Tuesday historical parity: **PASS**.
