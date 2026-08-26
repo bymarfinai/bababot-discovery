@@ -1,0 +1,60 @@
+name: ETH transfer M2 causal correction
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ETH_F85_F15_TRANSFER_M2_CAUSAL_CORRECTION_Preregistration.md'
+      - 'research/eth_f85_f15_transfer_m2_causal_correction.py'
+      - '.github/workflows/eth_transfer_m2_causal_correction.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  correct_m2:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run corrected ETH M2 only
+        id: run
+        shell: bash
+        run: |
+          set +e
+          LOG=ETH_F85_F15_TRANSFER_M2_CAUSAL_CORRECTION_Run.log
+          echo 'ETH M2 causal eligibility correction' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_f85_f15_transfer_m2_causal_correction.py >> "$LOG" 2>&1
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            python research/eth_f85_f15_transfer_m2_causal_correction.py >> "$LOG" 2>&1
+            rc=$?
+          fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eth-transfer-m2-causal-correction
+          path: |
+            ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_*
+            ETH_F85_F15_TRANSFER_M2_CAUSAL_CORRECTION_Run.log
+      - name: Persist corrected M2 outputs
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main || true
+          git add -A ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_* ETH_F85_F15_TRANSFER_M2_CAUSAL_CORRECTION_Run.log || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist corrected ETH transfer M2 results'
+            git push || true
+          fi
+      - name: Fail on correction execution error
+        if: steps.run.outputs.rc != '0'
+        run: exit 1
