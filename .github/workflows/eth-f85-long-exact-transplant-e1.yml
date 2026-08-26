@@ -29,8 +29,10 @@ jobs:
         run: python -m pip install --upgrade pip pandas numpy requests
 
       - name: Run frozen ETH exact transplant
+        shell: bash
         run: |
-          python research/eth_f85_long_exact_transplant_e1.py 2>&1 | tee ETH_F85_LONG_EXACT_TRANSPLANT_E1_Run.log
+          set -o pipefail
+          python research/eth_f85_long_exact_transplant_e1_runner.py 2>&1 | tee ETH_F85_LONG_EXACT_TRANSPLANT_E1_Run.log
 
       - name: Persist result outputs to experiment branch
         run: |
