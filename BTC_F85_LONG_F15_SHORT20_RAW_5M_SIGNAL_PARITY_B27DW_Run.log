@@ -1,0 +1,13 @@
+B27DW raw 5m shadow signal audit; no exchange writes
+commit=7379dd3d55f4365046e3a9084f645c940ff45af9
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_f15_short20_raw_5m_signal_parity_b27dw.py", line 170, in <module>
+    if __name__=='__main__': main()
+                             ^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_f15_short20_raw_5m_signal_parity_b27dw.py", line 155, in main
+    accepted=control_replay(generated,exit_map)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/btc_f85_long_f15_short20_raw_5m_signal_parity_b27dw.py", line 109, in control_replay
+    if q.exit_ts_norm.isna().any(): raise AssertionError('generated candidate missing frozen exit map')
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: generated candidate missing frozen exit map
