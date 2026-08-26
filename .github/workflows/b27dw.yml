@@ -6,6 +6,7 @@ on:
     paths:
       - 'bbc_f85_f15_signals.py'
       - 'research/btc_f85_long_f15_short20_raw_5m_signal_parity_b27dw.py'
+      - 'research/b27dw_diag_extra.py'
       - 'BTC_F85_LONG_F15_SHORT20_RAW_5M_SIGNAL_PARITY_B27DW_Preregistration.md'
       - '.github/workflows/b27dw.yml'
   workflow_dispatch:
@@ -30,8 +31,12 @@ jobs:
           LOG=BTC_F85_LONG_F15_SHORT20_RAW_5M_SIGNAL_PARITY_B27DW_Run.log
           echo 'B27DW raw 5m shadow signal audit; no exchange writes' > "$LOG"
           echo "commit=$GITHUB_SHA" >> "$LOG"
-          python -m py_compile bbc_f85_f15_signals.py research/btc_f85_long_f15_short20_raw_5m_signal_parity_b27dw.py >> "$LOG" 2>&1
+          python -m py_compile bbc_f85_f15_signals.py research/btc_f85_long_f15_short20_raw_5m_signal_parity_b27dw.py research/b27dw_diag_extra.py >> "$LOG" 2>&1
           rc=$?
+          if [ "$rc" -eq 0 ]; then
+            python research/b27dw_diag_extra.py >> "$LOG" 2>&1
+            rc=$?
+          fi
           if [ "$rc" -eq 0 ]; then
             python research/btc_f85_long_f15_short20_raw_5m_signal_parity_b27dw.py >> "$LOG" 2>&1
             rc=$?
