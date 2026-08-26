@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# B27EC validation trigger; trading rules unchanged.
 from __future__ import annotations
 import math
 from pathlib import Path
@@ -108,7 +109,7 @@ def slippage(tr):
 def portfolio(x5,tr):
     raw,_,_=dt.build_long(x5); rawL=dt.normalize_long(raw); sc=dt.build_shorts(x5); sh=dt.normalize_short(sc); s20=sh[sh.clock_min_norm==1200].copy()
     ctrlraw=pd.concat([rawL,s20],ignore_index=True); ctrl=dt.lock_rows(ctrlraw,'B27EC_CTRL'); ca=dt.pooled(ctrl[ctrl.accepted_portfolio.astype(bool)]); cm=metrics(ca,'pnl')
-    a=tr.copy(); a['side']='SHORT'; a['source']='SHORT_0300_DEPTH'; a['clock_min_norm']=CLOCK_MIN; a['exit_ts_norm']=pd.to_datetime(a.fixed_exit_px.index if False else a.fixed_exit_reason,errors='coerce')
+    a=tr.copy(); a['side']='SHORT'; a['source']='SHORT_0300_DEPTH'; a['clock_min_norm']=CLOCK_MIN
     a['exit_ts_norm']=pd.to_datetime(a.apply(lambda r: pd.Timestamp(r.entry_start)+pd.Timedelta(minutes=float(r.fixed_hold_minutes)),axis=1),utc=True)
     a['pnl']=a.fixed_net_pnl_usd; a['candidate_id']=a.partition.astype(str)+'|0300D|'+a.entry_start.astype(str)
     cand=a[['partition','entry_start','exit_ts_norm','pnl','side','source','clock_min_norm','candidate_id']].rename(columns={'entry_start':'entry_ts'})
@@ -132,7 +133,7 @@ def main():
         f=float(sel.entry_depth); rep=replication(summary,f); tr=cases[(cases.entry_depth==f)&cases.partition.isin(MAJOR)&cases.entry_executed.astype(bool)&cases.fixed_net_pnl_usd.notna()].copy(); bl=block_stats(tr); stability=bool(((bl.net>0)&(bl.pf>1)).sum()>=3); sl=slippage(tr); s5=sl[sl.bps_per_fill==5].iloc[0]; stress=bool(s5.wr>=.65 and s5.pf>=1.20 and s5.net>0)
         pok=False
         if rep and stability and stress:
-            port,cm,am,tm,disp=portfolio(x5,tr); pok=bool(am.net>cm.net and am.wr>=.70 and am.pf>=1.80 and disp<=5 and tm.net>0)
+            port,cm,am,tm,disp=portfolio(x5,tr); pok=bool(am['net']>cm['net'] and am['wr']>=.70 and am['pf']>=1.80 and disp<=5 and tm['net']>0)
         supported=rep and stability and stress and pok; status='B27EC_SHORT_0300_ENTRY_HABITAT_SUPPORTED' if supported else 'B27EC_SHORT_0300_ENTRY_HABITAT_NOT_SUPPORTED'
         lines += ['',f'Selected on development only: **F{int(f*100):02d}**. Replication **{"PASS" if rep else "FAIL"}**; chronological **{"PASS" if stability else "FAIL"}**; 5bps **{"PASS" if stress else "FAIL"}**; portfolio **{"PASS" if pok else "FAIL"}**.']
         if len(sl):
