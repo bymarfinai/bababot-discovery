@@ -1,0 +1,39 @@
+name: B27EC SHORT 0300 entry depth habitat
+on:
+  push:
+    paths:
+      - 'research/btc_short_0300_entry_depth_habitat_b27ec.py'
+      - 'BTC_SHORT_0300_ENTRY_DEPTH_HABITAT_B27EC_Preregistration.md'
+      - '.github/workflows/b27ec.yml'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27EC
+        id: run
+        continue-on-error: true
+        run: |
+          python research/btc_short_0300_entry_depth_habitat_b27ec.py > BTC_SHORT_0300_ENTRY_DEPTH_HABITAT_B27EC_Run.log 2>&1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27ec-results
+          path: |
+            BTC_SHORT_0300_ENTRY_DEPTH_HABITAT_B27EC_*
+      - name: Persist outputs
+        if: always()
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add BTC_SHORT_0300_ENTRY_DEPTH_HABITAT_B27EC_* || true
+          if ! git diff --cached --quiet; then git commit -m 'persist B27EC results'; git push; fi
+      - name: Fail on error
+        if: steps.run.outcome != 'success'
+        run: exit 1
