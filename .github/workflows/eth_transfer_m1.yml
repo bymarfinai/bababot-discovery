@@ -62,3 +62,5 @@ jobs:
       - name: Fail on M1 execution error
         if: steps.run.outputs.rc != '0'
         run: exit 1
+
+# PR execution marker only; research rules unchanged.
