@@ -1,0 +1,57 @@
+name: ETH LONG B27DE Adaptation
+
+on:
+  push:
+    branches:
+      - research/eth-long-b27de-adaptation
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-b27de-adapt:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/eth-long-b27de-adaptation
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pandas numpy requests
+      - name: Run ETH LONG B27DE clock scan
+        shell: bash
+        run: |
+          set -o pipefail
+          python research/eth_generic_f75_long_clock_scan_b27de_adapt.py 2>&1 | tee ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_Run.log
+      - name: Persist outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_Result.md \
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_Rows.csv \
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_Summary.csv \
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_DevLeaderboard.csv \
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_LondonParity.csv \
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_Status.txt \
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_Run.log
+          git commit -m "persist ETH LONG B27DE adaptation outputs"
+          git push origin HEAD:research/eth-long-b27de-adaptation
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-long-b27de-adaptation
+          path: |
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_Result.md
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_Rows.csv
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_Summary.csv
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_DevLeaderboard.csv
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_LondonParity.csv
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_Status.txt
+            ETH_GENERIC_F75_LONG_CLOCK_SCAN_B27DE_ADAPT_Run.log
