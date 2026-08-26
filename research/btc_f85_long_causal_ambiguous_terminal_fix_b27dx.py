@@ -382,8 +382,8 @@ def main():
     for r in portfolio.itertuples(index=False):
         lines.append(f'| {r.scenario} | {int(r.n)} | {pct(r.wr)} | {num(r.pf)} | {usd(r.net)} | {int(r.long_n)} | {int(r.short_n)} | {usd(r.delta_vs_long)} | {int(r.displaced_long_n)} |')
     lines += ['', '## Preregistered gates', '']
-    for r in summary.itertuples(index=False):
-        lines.append(f'- {r.gate}: **{"PASS" if bool(r._asdict()["pass"]) else "FAIL"}** — {r.actual}')
+    for _, r in summary.iterrows():
+        lines.append(f'- {r["gate"]}: **{"PASS" if bool(r["pass"]) else "FAIL"}** — {r["actual"]}')
     lines += ['', f'**Status: {status}**', '', 'Research/shadow engineering only. No exchange writes; legacy `bbc_live.py` unchanged.']
     OUT_MD.write_text('\n'.join(lines) + '\n')
     print(OUT_MD.read_text())

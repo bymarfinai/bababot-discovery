@@ -1,6 +1,3 @@
-B27DX causal LONG correction; renderer-only engineering patch; no exchange writes
-event=issues
-commit=3e6c4dd3fd4507507ddef8a2fc4e036e2bae4be1
 # B27DX — F85 LONG Future-Ambiguous-Terminal Causality Correction — Result
 
 5m rows: **698,112**; coverage: **100.0000%**; raw causal sessions replayed: **8,646**.
@@ -56,4 +53,3 @@ No strategy parameter was changed. The only correction is removal of the future-
 **Status: B27DX_CAUSAL_LONG_CORRECTION_SUPPORTED**
 
 Research/shadow engineering only. No exchange writes; legacy `bbc_live.py` unchanged.
-
