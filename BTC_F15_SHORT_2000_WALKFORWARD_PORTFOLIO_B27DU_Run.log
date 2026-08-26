@@ -1,0 +1,61 @@
+B27DU run start
+commit=b4848e141e58db3d9bda337263a8bc4a9032e50b
+compile_exit_code=0
+run_attempt=1
+# B27DU — F15 SHORT 20:00 UTC Walk-Forward / Portfolio / Execution-Stress Validation — Result
+
+5m rows: **698,112**; coverage: **100.0000%**.
+
+**Parity: PASS** for B27DQ LONG, B27DS SHORT20, B27DT LONG+SHORT20 and B27DT six-SHORT basket.
+
+## Frozen SHORT20 chronological windows
+
+| Window | Period | N | WR | PF | Exp | Net | Gate |
+|---|---|---:|---:|---:|---:|---:|---|
+| W1 | 2020-01-01 to 2021-07-01 | 22 | 77.3% | 3.09 | $+1.38 | $+30.34 | PASS |
+| W2 | 2021-07-01 to 2023-01-01 | 7 | 71.4% | 1.51 | $+0.82 | $+5.75 | FAIL |
+| W3 | 2023-01-01 to 2024-07-01 | 12 | 83.3% | 4.55 | $+1.29 | $+15.53 | PASS |
+| W4 | 2024-07-01 to 2026-01-01 | 12 | 75.0% | 3.06 | $+2.02 | $+24.26 | PASS |
+| W5_YTD | 2026-01-01 to 2027-01-01 | 3 | 66.7% | 2.69 | $+0.62 | $+1.85 | YTD |
+
+Completed-window chronological stability: **SUPPORTED** (3/4 windows pass).
+
+## Portfolio chronology by window
+
+| Window | LONG-only Net | LONG+SHORT20 Net | Delta20 | SHORT20 N/WR | Displaced LONG | LONG+6SHORT Net | Delta6 | SHORT6 N/WR |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| W1 | $+133.44 | $+163.78 | $+30.34 | 22/77.3% | 0 | $+185.44 | $+52.00 | 77/68.8% |
+| W2 | $+5.99 | $+11.74 | $+5.75 | 7/71.4% | 0 | $+66.96 | $+60.96 | 73/74.0% |
+| W3 | $+68.76 | $+84.29 | $+15.53 | 12/83.3% | 0 | $+94.11 | $+25.35 | 82/70.7% |
+| W4 | $+72.98 | $+97.24 | $+24.26 | 12/75.0% | 0 | $+123.21 | $+50.22 | 63/76.2% |
+| W5_YTD | $+8.58 | $+10.43 | $+1.85 | 3/66.7% | 0 | $+9.14 | $+0.56 | 26/65.4% |
+
+LONG+SHORT20 portfolio stability: **SUPPORTED**; positive completed-window deltas=4/4; pooled-major displaced LONG=0.
+
+## Calendar-year SHORT20 anatomy
+
+| Year | N | WR | PF | Exp | Net |
+|---:|---:|---:|---:|---:|---:|
+| 2020 | 18 | 77.8% | 3.41 | $+1.35 | $+24.33 |
+| 2021 | 9 | 66.7% | 1.45 | $+0.78 | $+7.02 |
+| 2022 | 2 | 100.0% | inf | $+2.37 | $+4.74 |
+| 2023 | 8 | 87.5% | 12.28 | $+1.82 | $+14.56 |
+| 2024 | 9 | 66.7% | 2.70 | $+2.24 | $+20.16 |
+| 2025 | 7 | 85.7% | 2.70 | $+0.72 | $+5.07 |
+| 2026 | 3 | 66.7% | 2.69 | $+0.62 | $+1.85 |
+
+## Conservative execution stress — SHORT20 only
+
+| Slippage per fill | N | WR | PF | Exp | Net |
+|---:|---:|---:|---:|---:|---:|
+| 0 bps | 56 | 76.8% | 2.81 | $+1.39 | $+77.73 |
+| 2 bps | 56 | 73.2% | 2.46 | $+1.19 | $+66.56 |
+| 5 bps | 56 | 71.4% | 1.99 | $+0.89 | $+49.81 |
+| 10 bps | 56 | 62.5% | 1.37 | $+0.39 | $+21.87 |
+
+5 bps-per-fill execution robustness: **SUPPORTED**.
+
+## Final status: **B27DU_SHORT2000_HISTORICAL_ROBUSTNESS_SUPPORTED**
+
+Interpretation guardrail: B27DU is frozen-rule retrospective robustness evidence, not pristine unseen OOS and not live authorization. Live BBC unchanged.
+run_exit_code=0
