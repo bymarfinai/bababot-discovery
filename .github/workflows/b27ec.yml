@@ -1,6 +1,8 @@
 name: B27EC SHORT 0300 entry depth habitat
 on:
   push:
+    branches:
+      - main
     paths:
       - 'research/btc_short_0300_entry_depth_habitat_b27ec.py'
       - 'BTC_SHORT_0300_ENTRY_DEPTH_HABITAT_B27EC_Preregistration.md'
