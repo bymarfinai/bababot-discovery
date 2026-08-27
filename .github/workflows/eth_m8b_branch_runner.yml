@@ -18,13 +18,14 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas numpy requests
-      - name: Run ETH M8B crossgrid
+      - name: Run ETH M8B crossgrid v2
         shell: bash
         run: |
-          python -m py_compile research/eth_f85_f15_transfer_m8_economic_crossgrid.py
-          python research/eth_f85_f15_transfer_m8_economic_crossgrid.py
+          test -f research/eth_m8b_crossgrid_run.py
+          python -m py_compile research/eth_m8b_crossgrid_run.py
+          python research/eth_m8b_crossgrid_run.py
       - uses: actions/upload-artifact@v4
         with:
-          name: eth-m8b-economic-crossgrid
+          name: eth-m8b-economic-crossgrid-v2
           path: |
             ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_M8B_*
