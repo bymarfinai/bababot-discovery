@@ -1,5 +1,5 @@
 B27EG BNB path diagnostics
-commit=bc3e51affade57eb3c9c1bb01bbbd288cd113f3c
+commit=b38aa06aea1f23ee4e7cd40d334252f9cd26caa4
 # BNB F85/F15 Transfer — M4 Path Diagnostics — B27EG Result
 
 Raw BNB 5m coverage: **100.0000%**. B27EF reproduction: **PASS (176 candidates; 170 pooled-major accepted)**. B27EE structural join: **PASS one-to-one**.
