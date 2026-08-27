@@ -18,14 +18,14 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas numpy requests
-      - name: Run ETH M8 economic combination v2
+      - name: Run ETH M8 economic combination v3
         shell: bash
         run: |
           python -m py_compile research/eth_f85_f15_transfer_m8_economic_combination.py
-          python -m py_compile research/eth_f85_f15_transfer_m8_economic_combination_v2.py
-          python research/eth_f85_f15_transfer_m8_economic_combination_v2.py
+          python -m py_compile research/eth_f85_f15_transfer_m8_economic_combination_v3.py
+          python research/eth_f85_f15_transfer_m8_economic_combination_v3.py
       - uses: actions/upload-artifact@v4
         with:
-          name: eth-m8-economic-combination-v2
+          name: eth-m8-economic-combination-v3
           path: |
             ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_M8_*
