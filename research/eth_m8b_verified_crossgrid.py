@@ -9,9 +9,7 @@ ROOT=HERE.parent
 spec=importlib.util.spec_from_file_location('m8base',HERE/'eth_f85_f15_transfer_m8_economic_combination.py'); b=importlib.util.module_from_spec(spec); assert spec.loader is not None; spec.loader.exec_module(b)
 spec2=importlib.util.spec_from_file_location('m8v3',HERE/'eth_f85_f15_transfer_m8_economic_combination_v3.py'); v3=importlib.util.module_from_spec(spec2); assert spec2.loader is not None; spec2.loader.exec_module(v3)
 LOCKED={'ALT_0330':('F95',.95),'RAW_0530':('F90',.90),'LONDON':('F90',.90),'RAW_2330':('F95',.95)}
-# Frozen directly from the verified M6 artifact.
 STOPS={'ALT_0330':{'HARD_TOUCH':(.45,.50),'CLOSE_NEXT_OPEN':(.40,.55)},'RAW_0530':{'HARD_TOUCH':(.55,.35),'CLOSE_NEXT_OPEN':(.40,.50)},'LONDON':{'HARD_TOUCH':(.55,.35),'CLOSE_NEXT_OPEN':(.35,.55)},'RAW_2330':{'HARD_TOUCH':(.40,.55),'CLOSE_NEXT_OPEN':(.30,.65)}}
-# Frozen directly from the verified M7 Summary/Selection screen; no new target levels.
 TARGETS={'ALT_0330':['E05','E10','E15','E20','E25','E30'],'RAW_0530':['E05','E10','E15','E20','E25','E30'],'LONDON':['E05','E10','E15','E20','E25'],'RAW_2330':['E05','E10','E15']}
 PFX='ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_M8B_VERIFIED'; DETAIL=ROOT/f'{PFX}_Detail.csv'; SUM=ROOT/f'{PFX}_Summary.csv'; SEL=ROOT/f'{PFX}_Selection.csv'; MD=ROOT/f'{PFX}_Result.md'; STATUS=ROOT/f'{PFX}_Status.txt'
 
@@ -25,25 +23,25 @@ def main():
  synth(); x,cov=b.m.load5(); assert cov>=.995; E=b.build_entries(x); assert not E.empty
  rows=[]
  for r0 in E.to_dict('records'):
-  clock=r0['clock']; assert clock in TARGETS
+  clock=r0['clock']
   for target in TARGETS[clock]:
    ext=int(target[1:])/100.0; rr=dict(r0); rr['target_name']=target; rr['target_extension']=ext; rr['target_px']=float(rr['H'])+ext*float(rr['R'])
    for mode,(dist,sf) in STOPS[clock].items(): rows.append({**rr,**v3.simulate_pre_h2(x,pd.Series(rr),mode,dist,sf)})
- T=pd.DataFrame(rows); assert len(T)==len(E)*sum(len(v) for v in TARGETS.values())/4*2 if False else len(T)>0; T.to_csv(DETAIL,index=False)
+ T=pd.DataFrame(rows); assert len(T)>0; T.to_csv(DETAIL,index=False)
  out=[]
  for clock,(lvl,_) in LOCKED.items():
   for target in TARGETS[clock]:
    for mode,(dist,sf) in STOPS[clock].items():
-    for part in (*b.PARTS,'POOLED_MAJOR'):
+    for part in (*b.MAJOR,'POOLED_MAJOR'):
      g=T[(T.clock==clock)&(T.target_name==target)&(T.mode==mode)]; g=g[g.partition.isin(b.MAJOR)] if part=='POOLED_MAJOR' else g[g.partition==part]; z=metrics(g); z.update({'clock':clock,'level':lvl,'target':target,'mode':mode,'stop_distance':dist,'stop_fraction':sf,'partition':part}); out.append(z)
  S=pd.DataFrame(out); S.to_csv(SUM,index=False)
  sel=[]
  for clock,(lvl,_) in LOCKED.items():
   for target in TARGETS[clock]:
    for mode,(dist,sf) in STOPS[clock].items():
-    maj=S[(S.clock==clock)&(S.target==target)&(S.mode==mode)&S.partition.isin(b.MAJOR)]; pooled=S[(S.clock==clock)&(S.target==target)&(S.mode==mode)&(S.partition=='POOLED_MAJOR')]; ok=(len(maj)==3 and (maj.trades>=30).all() and (maj.wr>=.70).all() and (maj.net_exp>0).all() and (maj.pf>=1.20).all()); sel.append({'clock':clock,'level':lvl,'target':target,'mode':mode,'stop_distance':dist,'stop_fraction':sf,'screen_pass':bool(ok),'min_wr_major':float(maj.wr.min()),'min_pf_major':float(maj.pf.min()),'min_net_exp_major':float(maj.net_exp.min()),'pooled_wr':float(pooled.wr.iloc[0]),'pooled_pf':float(pooled.pf.iloc[0]),'pooled_net_exp':float(pooled.net_exp.iloc[0])})
+    maj=S[(S.clock==clock)&(S.target==target)&(S.mode==mode)&S.partition.isin(b.MAJOR)]; pooled=S[(S.clock==clock)&(S.target==target)&(S.mode==mode)&(S.partition=='POOLED_MAJOR')]; ok=(len(maj)==3 and (maj.trades>=30).all() and (maj.wr>=.70).all() and (maj.net_exp>0).all() and (maj.pf>=1.20).all()); pr=pooled.iloc[0] if len(pooled) else None; sel.append({'clock':clock,'level':lvl,'target':target,'mode':mode,'stop_distance':dist,'stop_fraction':sf,'screen_pass':bool(ok),'min_wr_major':float(maj.wr.min()) if len(maj) else np.nan,'min_pf_major':float(maj.pf.min()) if len(maj) else np.nan,'min_net_exp_major':float(maj.net_exp.min()) if len(maj) else np.nan,'pooled_wr':float(pr.wr) if pr is not None else np.nan,'pooled_pf':float(pr.pf) if pr is not None else np.nan,'pooled_net_exp':float(pr.net_exp) if pr is not None else np.nan})
  SELD=pd.DataFrame(sel); SELD.to_csv(SEL,index=False)
- lines=['# ETH Transfer — M8B Verified Economic Stop×Target Cross-Grid','','Raw ETH 5m coverage: **%.4f%%**.'%(cov*100),'','Frozen inputs: M5 entry lock (as encoded by verified M7), verified M6 stop candidates, verified M7-passing target candidates. No new entry/stop/target levels.','M6 invalidation applies only through H2; after H2 only the tested target or session-end time exit remains active.','','| Habitat | M7-passing targets | Economic pass count | Best pooled candidate |','|---|---|---:|---|']
+ lines=['# ETH Transfer — M8B Verified Economic Stop×Target Cross-Grid','','Raw ETH 5m coverage: **%.4f%%**.'%(cov*100),'','Frozen inputs: verified M6 stop candidates and verified M7-passing target candidates. No new entry/stop/target levels.','M6 invalidation applies only through H2; after H2 only the tested target or session-end time exit remains active.','','| Habitat | M7-passing targets | Economic pass count | Best pooled candidate |','|---|---|---:|---|']
  for clock in LOCKED:
   c=SELD[SELD.clock==clock]; p=c[c.screen_pass]; best=(p if len(p) else c).sort_values(['pooled_net_exp','pooled_pf','pooled_wr'],ascending=False).iloc[0]; lines.append(f"| {clock} | {', '.join(TARGETS[clock])} | {len(p)} | **{best.target} + {best.mode}** ({'PASS' if best.screen_pass else 'NO PASS'}, pooled WR {best.pooled_wr:.1%}, PF {best.pooled_pf:.2f}, exp ${best.pooled_net_exp:.3f}) |")
  lines += ['','Economic screen: each major partition >=30 resolved trades, WR >=70%, positive net expectancy, PF >=1.20.','', '**Status: ETH_M8B_VERIFIED_ECONOMIC_CROSSGRID_COMPLETED**']; MD.write_text('\n'.join(lines)+'\n'); STATUS.write_text('ETH_M8B_VERIFIED_ECONOMIC_CROSSGRID_COMPLETED\n'); print(MD.read_text())
