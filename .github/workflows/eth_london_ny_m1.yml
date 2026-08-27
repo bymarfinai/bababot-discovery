@@ -8,6 +8,7 @@ on:
       - 'ETH_NATIVE_LONDON_NY_CLOCK_Z1_CANONICAL.txt'
       - 'research/eth_native_london_ny_retest_breakout_z2.py'
       - 'research/eth_native_london_ny_entry_z4.py'
+      - 'research/eth_native_london_ny_entry_z4_corrected.py'
       - '.github/workflows/eth_london_ny_m1.yml'
       - '.eth-native-entry-z4-trigger'
   workflow_dispatch:
@@ -31,8 +32,8 @@ jobs:
           LOG=ETH_NATIVE_LONDON_NY_ENTRY_Z4_Run.log
           echo 'ETH native London->NY entry discovery Z4' > "$LOG"
           echo "commit=$GITHUB_SHA" >> "$LOG"
-          python -m py_compile research/eth_native_london_ny_retest_breakout_z2.py research/eth_native_london_ny_entry_z4.py 2>&1 | tee -a "$LOG"
-          python research/eth_native_london_ny_entry_z4.py 2>&1 | tee -a "$LOG"
+          python -m py_compile research/eth_native_london_ny_retest_breakout_z2.py research/eth_native_london_ny_entry_z4.py research/eth_native_london_ny_entry_z4_corrected.py 2>&1 | tee -a "$LOG"
+          python research/eth_native_london_ny_entry_z4_corrected.py 2>&1 | tee -a "$LOG"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
