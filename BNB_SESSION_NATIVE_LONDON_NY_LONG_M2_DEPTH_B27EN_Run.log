@@ -1,0 +1,65 @@
+B27EN BNB native retracement depth
+commit=10a87c0cdc200983b9b26121e630d04b799c0d18
+# BNB Session-Native London→New York LONG M2 Native Retracement Depth — B27EN Result
+
+Raw BNB 5m coverage: **100.0000%**.
+
+Discovery scope is **development only (2022-01-01 -> 2025-01-01)**. External, reference-validation, and August partitions are not used to select or rank a level.
+
+This is structural depth discovery only: **no entry execution, TP/SL, PnL, fees, SHORT, DST filter, or live integration**.
+
+## Integrity reproduction
+
+- Development causal leaves: **97 / 97**
+- H2 arrivals: **76**
+- Non-H2: **21**
+- Terminal candle is excluded from every depth window to avoid 5m intrabar ordering assumptions.
+
+## Native retracement depth from H
+
+| Scope | N | P10 | P25 | P50 | P75 | P85 | P90 | P95 | Mean |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| ALL | 97 | 0.000R | 0.000R | 0.250R | 0.646R | 0.906R | 0.950R | 1.029R | 0.375R |
+| H2 | 76 | 0.000R | 0.000R | 0.161R | 0.361R | 0.495R | 0.646R | 0.810R | 0.244R |
+| NON_H2 | 21 | 0.262R | 0.744R | 0.929R | 0.991R | 1.138R | 1.194R | 1.279R | 0.849R |
+| H2_NORMAL_6H30 | 70 | 0.000R | 0.000R | 0.145R | 0.356R | 0.489R | 0.611R | 0.768R | 0.232R |
+| H2_DST_MISMATCH_5H30 | 6 | 0.000R | 0.062R | 0.302R | 0.579R | 0.747R | 0.840R | 0.934R | 0.381R |
+
+Interpretation of depth: **0.15R from H = F85**, **0.20R = F80**, **0.30R = F70**, etc.
+
+- H2 winner median depth: **0.161R**
+- H2 winner P75 depth: **0.361R**
+- H2 winner P85 depth: **0.495R**
+- Non-H2 median depth: **0.929R**
+
+## Predeclared level reach table
+
+| Level | Depth from H | Reach N | Reach rate | H2 captured | Non-H2 reach | H2 share if reached | Median leave→touch |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| F95 | 0.050R | 72 | 74.2% | 52/76 (68.4%) | 20/21 (95.2%) | 72.2% | 5.0m |
+| F90 | 0.100R | 68 | 70.1% | 48/76 (63.2%) | 20/21 (95.2%) | 70.6% | 5.0m |
+| F85 | 0.150R | 58 | 59.8% | 38/76 (50.0%) | 20/21 (95.2%) | 65.5% | 5.0m |
+| F80 | 0.200R | 55 | 56.7% | 35/76 (46.1%) | 20/21 (95.2%) | 63.6% | 5.0m |
+| F75 | 0.250R | 48 | 49.5% | 28/76 (36.8%) | 20/21 (95.2%) | 58.3% | 5.0m |
+| F70 | 0.300R | 43 | 44.3% | 25/76 (32.9%) | 18/21 (85.7%) | 58.1% | 5.0m |
+| F65 | 0.350R | 39 | 40.2% | 21/76 (27.6%) | 18/21 (85.7%) | 53.8% | 5.0m |
+| F60 | 0.400R | 35 | 36.1% | 17/76 (22.4%) | 18/21 (85.7%) | 48.6% | 5.0m |
+| F55 | 0.450R | 33 | 34.0% | 15/76 (19.7%) | 18/21 (85.7%) | 45.5% | 10.0m |
+| F50 | 0.500R | 29 | 29.9% | 11/76 (14.5%) | 18/21 (85.7%) | 37.9% | 10.0m |
+| F45 | 0.550R | 29 | 29.9% | 11/76 (14.5%) | 18/21 (85.7%) | 37.9% | 10.0m |
+| F40 | 0.600R | 28 | 28.9% | 10/76 (13.2%) | 18/21 (85.7%) | 35.7% | 20.0m |
+| F35 | 0.650R | 24 | 24.7% | 7/76 (9.2%) | 17/21 (81.0%) | 29.2% | 17.5m |
+
+## F85 descriptive checkpoint
+
+- F85 causal pre-terminal reach: **58/97 (59.8%)**
+- H2 winners that first have enough depth to reach F85 before the H2 terminal candle: **38/76 (50.0%)**
+- Non-H2 events reaching F85 before terminal/end: **20/21 (95.2%)**
+- Structural H2 share among F85-reached events: **65.5%**
+
+B27EN does **not** promote F85 or any alternative. The table is the development-only geometry needed to decide which BNB-native level/band, if any, deserves a separately frozen confirmation/validation milestone.
+
+**Status: B27EN_BNB_NATIVE_RETRACEMENT_DEPTH_DEV_COMPLETE**
+
+STOP: B27EN ends here. No reclaim confirmation, next-bar entry, TP/SL, economics, validation-partition reveal, SHORT, or live integration is run automatically.
+
