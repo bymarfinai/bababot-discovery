@@ -1,0 +1,48 @@
+B27EK BNB ENTRY2 economics
+commit=1a86ef2ea523554ec62827d24e081e6722e955b0
+# BNB F85 LONG Transfer — M8 ENTRY2 Economics — B27EK Result
+
+Raw BNB 5m coverage: **100.0000%**. Frozen parent LONG identity: **PASS (106)**. B27EJ descriptive ENTRY2 reproduction: **PASS (45)**.
+
+Executable ENTRY2 trades under preregistered geometry: **45**. ENTRY1 comparison uses these exact same candidate IDs.
+
+## Same-signal economics
+
+| Strategy | N | WR | PF | Exp | Net | Max LS | H2 rate | Entry depth | Reward→H | Risk→F35 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| ENTRY1_SAME_SIGNAL | 45 | 86.7% | 1.17 | $+0.13 | $+5.84 | 2 | 86.7% | 0.865R | 0.135R | 0.515R |
+| ENTRY2 | 45 | 82.2% | 1.00 | $+0.00 | $+0.17 | 2 | 86.7% | 0.877R | 0.123R | 0.527R |
+
+- ENTRY2 minus same-signal ENTRY1: WR **-4.4pp**, PF **-0.16**, expectancy **$-0.13**, net **$-5.67**.
+
+## Source / partition stability
+
+| Scope | N | WR | PF | Net | Max LS |
+|---|---:|---:|---:|---:|---:|
+| ALT_0330 | 30 | 86.7% | 1.70 | $+9.03 | 1 |
+| RAW_0530 | 15 | 73.3% | 0.61 | $-8.86 | 1 |
+| external | 9 | 88.9% | 1.74 | $+6.04 | 1 |
+| development | 26 | 80.8% | 0.81 | $-4.47 | 2 |
+| reference_validation | 10 | 80.0% | 0.66 | $-1.39 | 1 |
+
+## Slippage — ENTRY2
+
+| bps/fill | N | WR | PF | Net | Max LS |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 45 | 82.2% | 1.00 | $+0.17 | 2 |
+| 2 | 45 | 71.1% | 0.77 | $-8.83 | 2 |
+| 5 | 45 | 48.9% | 0.48 | $-22.33 | 6 |
+| 10 | 45 | 28.9% | 0.21 | $-44.82 | 11 |
+
+## ENTRY2 sequence cohorts (descriptive only)
+
+| Cohort | N | ENTRY1 WR | ENTRY1 PF | ENTRY1 net | ENTRY2 WR | ENTRY2 PF | ENTRY2 net |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| FIRST_HOLD | 5 | 100.0% | inf | $+3.53 | 80.0% | 21.70 | $+3.85 |
+| ACCEPT_BELOW_RERECLAIM | 40 | 85.0% | 1.07 | $+2.31 | 82.5% | 0.90 | $-3.67 |
+
+**Support gate: FAIL**
+
+**Status: B27EK_BNB_ENTRY2_ECONOMICS_NOT_SUPPORTED**
+
+B27EK stops here. No source/cohort filter selection, re-arbitration, portfolio integration, forward shadow, or live integration is run automatically.
