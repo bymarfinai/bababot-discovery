@@ -83,8 +83,7 @@ def first_break(exe: pd.DataFrame, H: float, L: float):
 
 def post_structure(exe: pd.DataFrame, break_i: int, side: str, H: float, L: float, R: float):
     bts = pd.Timestamp(exe.index[break_i])
-    post = exe.iloc[break_i + 1:].copy()  # causal: breakout known only at its close
-    boundary = H if side == 'UP_BREAK' else L
+    post = exe.iloc[break_i + 1:].copy()
     if side == 'UP_BREAK':
         ret = post.low.astype(float) <= H
         accept = post.close.astype(float) < H
@@ -110,7 +109,7 @@ def post_structure(exe: pd.DataFrame, break_i: int, side: str, H: float, L: floa
 
     first_event = 'TIMEOUT'
     first_event_ts = pd.NaT
-    for j, (ts, bar) in enumerate(post.iterrows()):
+    for j, (ts, _) in enumerate(post.iterrows()):
         e10 = bool(hits[0.10].iloc[j])
         r = bool(ret.iloc[j])
         a = bool(accept.iloc[j])
@@ -176,14 +175,16 @@ def post_structure(exe: pd.DataFrame, break_i: int, side: str, H: float, L: floa
 
 def session_rows(x5: pd.DataFrame):
     rows = []
-    start_local = pd.Timestamp(data_base.START).tz_convert(LON).date()
-    end_local = pd.Timestamp(data_base.END - pd.Timedelta(days=1)).tz_convert(LON).date()
+    actual_start = pd.Timestamp(x5.index[0])
+    actual_end_exclusive = pd.Timestamp(x5.index[-1]) + BAR5
+    start_local = actual_start.tz_convert(LON).date()
+    end_local = (actual_end_exclusive - BAR5).tz_convert(LON).date()
     for d in pd.date_range(start_local, end_local, freq='D'):
         day = d.date()
         if day.weekday() >= 5:
             continue
         pre_start, lon_open, lon_end = local_bounds(day)
-        if pre_start < data_base.START or lon_end > data_base.END:
+        if pre_start < actual_start or lon_end > actual_end_exclusive:
             continue
         p = part_for(lon_open)
         if p is None:
@@ -191,7 +192,7 @@ def session_rows(x5: pd.DataFrame):
         pre = fs(x5, pre_start, lon_open)
         exe = fs(x5, lon_open, lon_end)
         if len(pre) != 96 or len(exe) != 60:
-            raise AssertionError(f'incomplete London-local bars {day}: pre={len(pre)} exe={len(exe)}')
+            raise AssertionError(f'interior London-local data gap {day}: pre={len(pre)} exe={len(exe)}')
         H = float(pre.high.max()); L = float(pre.low.min()); R = H - L
         if not R > 0:
             raise AssertionError(f'nonpositive pre-London R {day}')
@@ -299,7 +300,7 @@ def main():
     n = len(major); up = int(major.break_side.eq('UP_BREAK').sum()); dn = int(major.break_side.eq('DOWN_BREAK').sum()); no = int(major.break_side.eq('NO_BREAK').sum())
     lines = [
         '# BNB Session-Native Discovery — London M1 Structure — B27EL Result','',
-        f'Raw BNB 5m coverage: **{coverage:.4%}**. London clock audit: **Europe/London DST-aware**, pre-range 00:00–08:00 local (96 bars), observation 08:00–13:00 local (60 bars).','',
+        f'Raw BNB 5m coverage: **{coverage:.4%}**. Actual raw span: **{x5.index[0]} to {x5.index[-1] + BAR5}**. London clock audit: **Europe/London DST-aware**, pre-range 00:00–08:00 local (96 bars), observation 08:00–13:00 local (60 bars).','',
         'B27EL is structural only: no F85/F15, no entry, no stop, no target selection, no PnL, and no zone-time optimization.','',
         '## Pooled-major London sessions','',
         f'- Complete sessions: **{n}**; UP break **{up} ({pct(up/n)})**; DOWN break **{dn} ({pct(dn/n)})**; NO break **{no} ({pct(no/n)})**.','',
