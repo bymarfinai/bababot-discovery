@@ -24,10 +24,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          rm -rf _m2_corrected
+          mkdir -p _m2_corrected
           gh run download 32993684291 \
             --repo "$GITHUB_REPOSITORY" \
             --name eth-transfer-m2-causal-correction-pr \
-            --dir .
+            --dir _m2_corrected
+          cp -f _m2_corrected/ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Status.txt .
+          cp -f _m2_corrected/ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Summary.csv .
+          cp -f _m2_corrected/ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Candidates.csv .
+          cp -f _m2_corrected/ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Windows.csv .
           test "$(tr -d '\r\n' < ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Status.txt)" = "ETH_M2_PRE_H2_ENTRY_GRID_COMPLETED_CORRECTED_CHRONOLOGY"
       - name: Run ETH transfer M3 only
         id: m3
