@@ -1,0 +1,1 @@
+Scope frozen: exact 48 M3B BACK_IN_RANGE_BEFORE_E20 major-partition cases only.
