@@ -1,21 +1,22 @@
-name: ETH native London-NY retest breakout Z2
+name: ETH native London-NY breakout confirmation Z3
 
 on:
   push:
-    branches: [eth-native-london-ny-retest-breakout-z2]
+    branches: [eth-native-london-ny-breakout-z3]
     paths:
-      - 'ETH_NATIVE_LONDON_NY_RETEST_BREAKOUT_Z2_Preregistration.md'
+      - 'ETH_NATIVE_LONDON_NY_BREAKOUT_Z3_Preregistration.md'
       - 'ETH_NATIVE_LONDON_NY_CLOCK_Z1_CANONICAL.txt'
       - 'research/eth_native_london_ny_retest_breakout_z2.py'
+      - 'research/eth_native_london_ny_breakout_z3.py'
       - '.github/workflows/eth_london_ny_m1.yml'
-      - '.eth-native-retest-breakout-z2-trigger'
+      - '.eth-native-breakout-z3-trigger'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  z2:
+  z3:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -23,19 +24,19 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas numpy requests
-      - name: Run preregistered ETH native retest breakout Z2
+      - name: Run preregistered ETH native breakout confirmation Z3
         shell: bash
         run: |
           set -euo pipefail
-          LOG=ETH_NATIVE_LONDON_NY_RETEST_BREAKOUT_Z2_Run.log
-          echo 'ETH native London->NY retest-to-breakout Z2' > "$LOG"
+          LOG=ETH_NATIVE_LONDON_NY_BREAKOUT_Z3_Run.log
+          echo 'ETH native London->NY breakout confirmation Z3' > "$LOG"
           echo "commit=$GITHUB_SHA" >> "$LOG"
-          python -m py_compile research/eth_native_london_ny_retest_breakout_z2.py 2>&1 | tee -a "$LOG"
-          python research/eth_native_london_ny_retest_breakout_z2.py 2>&1 | tee -a "$LOG"
+          python -m py_compile research/eth_native_london_ny_retest_breakout_z2.py research/eth_native_london_ny_breakout_z3.py 2>&1 | tee -a "$LOG"
+          python research/eth_native_london_ny_breakout_z3.py 2>&1 | tee -a "$LOG"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: eth-native-london-ny-retest-breakout-z2
+          name: eth-native-london-ny-breakout-z3
           path: |
-            ETH_NATIVE_LONDON_NY_RETEST_BREAKOUT_Z2_*
+            ETH_NATIVE_LONDON_NY_BREAKOUT_Z3_*
             ETH_NATIVE_LONDON_NY_CLOCK_Z1_CANONICAL.txt
