@@ -1,0 +1,62 @@
+name: B27EH BNB two-stage economics
+
+on:
+  push:
+    branches:
+      - bnb-transfer-b27ed-b27ef
+    paths:
+      - 'BNB_F85_LONG_TRANSFER_M5_TWO_STAGE_ECONOMICS_B27EH_Preregistration.md'
+      - 'research/bnb_f85_long_transfer_m5_two_stage_economics_b27eh.py'
+      - '.github/workflows/b27eh-bnb-two-stage-economics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  economics:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-transfer-b27ed-b27ef
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27EH economics only
+        id: audit
+        shell: bash
+        run: |
+          set +e
+          LOG=BNB_F85_LONG_TRANSFER_M5_TWO_STAGE_ECONOMICS_B27EH_Run.log
+          echo 'B27EH BNB two-stage economics' > "$LOG"
+          echo "commit=$(git rev-parse HEAD)" >> "$LOG"
+          python -m py_compile research/bnb_f85_long_transfer_m5_two_stage_economics_b27eh.py >> "$LOG" 2>&1
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            python research/bnb_f85_long_transfer_m5_two_stage_economics_b27eh.py >> "$LOG" 2>&1
+            rc=$?
+          fi
+          cat "$LOG"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27eh-bnb-two-stage-economics
+          path: BNB_F85_LONG_TRANSFER_M5_TWO_STAGE_ECONOMICS_B27EH_*
+          if-no-files-found: warn
+      - name: Persist B27EH outputs to experiment branch
+        if: steps.audit.outputs.rc == '0'
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A BNB_F85_LONG_TRANSFER_M5_TWO_STAGE_ECONOMICS_B27EH_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27EH BNB two-stage economics'
+            git push origin HEAD:bnb-transfer-b27ed-b27ef
+          fi
+      - name: Fail on B27EH execution error
+        if: steps.audit.outputs.rc != '0'
+        run: exit 1
