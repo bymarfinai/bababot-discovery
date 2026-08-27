@@ -1,0 +1,63 @@
+name: B27EN BNB native retracement depth
+
+on:
+  push:
+    branches:
+      - bnb-session-native-depth-b27en
+
+permissions:
+  contents: write
+
+jobs:
+  depth:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-session-native-depth-b27en
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install pandas numpy requests
+
+      - name: Run B27EN development-only native depth
+        id: core
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        run: |
+          set +e
+          LOG=BNB_SESSION_NATIVE_LONDON_NY_LONG_M2_DEPTH_B27EN_Run.log
+          echo 'B27EN BNB native retracement depth' > "$LOG"
+          echo "commit=$(git rev-parse HEAD)" >> "$LOG"
+          python -m py_compile research/bnb_session_native_london_ny_long_m2_depth_b27en.py >> "$LOG" 2>&1
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            python research/bnb_session_native_london_ny_long_m2_depth_b27en.py >> "$LOG" 2>&1
+            rc=$?
+          fi
+          cat "$LOG"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b27en-bnb-native-depth
+          path: BNB_SESSION_NATIVE_LONDON_NY_LONG_M2_DEPTH_B27EN_*
+          if-no-files-found: warn
+
+      - name: Persist B27EN outputs
+        if: steps.core.outputs.rc == '0'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A BNB_SESSION_NATIVE_LONDON_NY_LONG_M2_DEPTH_B27EN_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27EN BNB native retracement depth'
+            git push origin HEAD:bnb-session-native-depth-b27en
+          fi
+
+      - name: Fail on B27EN execution error
+        if: steps.core.outputs.rc != '0'
+        run: exit 1
