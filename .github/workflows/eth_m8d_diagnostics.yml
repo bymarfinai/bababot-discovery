@@ -1,0 +1,26 @@
+name: M8D research diagnostics
+on:
+  push:
+    branches:
+      - eth-transfer-m8d-pre-h2-loss-diagnostics
+  workflow_dispatch:
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run M8D
+        run: |
+          set -o pipefail
+          python research/eth_m8d_pre_h2_loss_diagnostics.py 2>&1 | tee m8d-run.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: m8d-diagnostics
+          path: |
+            ETH_M8D_PRE_H2_LOSS_DIAGNOSTICS_*
+            m8d-run.log
