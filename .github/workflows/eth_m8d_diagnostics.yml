@@ -13,8 +13,14 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas numpy requests
-      - run: python research/eth_m8d_pre_h2_loss_diagnostics.py
+      - name: Run M8D
+        run: |
+          set -o pipefail
+          python research/eth_m8d_pre_h2_loss_diagnostics.py 2>&1 | tee m8d-run.log
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: m8d-diagnostics
-          path: ETH_M8D_PRE_H2_LOSS_DIAGNOSTICS_*
+          path: |
+            ETH_M8D_PRE_H2_LOSS_DIAGNOSTICS_*
+            m8d-run.log
