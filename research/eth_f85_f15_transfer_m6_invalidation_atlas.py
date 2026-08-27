@@ -64,18 +64,14 @@ def synthetic_tests():
         'open':[99,96,95,96,94], 'high':[100,99,101,97,95],
         'low':[94,93,90,92,89], 'close':[96,94,99,93,90]
     }, index=idx)
-    # same-fill hard stop is conservatively stopped
     a, ap = hard_event(q, 94.5, idx[0], idx[2])
     assert a == idx[0] and ap == idx[0]
-    # H2-bar-only hard touch: pre-H2 survives, conservative-through-H2 does not
     q2 = q.copy(); q2.loc[idx[0],'low']=96; q2.loc[idx[1],'low']=96; q2.loc[idx[2],'low']=90
     b, bp = hard_event(q2, 94.5, idx[0], idx[2])
     assert b == idx[2] and pd.isna(bp)
-    # completed close immediately before H2 exits at H2-bar open
     q3 = q.copy(); q3.loc[idx[0],'close']=96; q3.loc[idx[1],'close']=94
     inv, ex, _ = close_event(q3, 94.5, idx[0], idx[2], pd.Timedelta(minutes=5))
     assert inv == idx[1] and ex == idx[2]
-    # close after terminal is forbidden
     q4 = q.copy(); q4.loc[idx[:3],'close']=[96,96,96]; q4.loc[idx[3],'close']=90
     inv2, ex2, _ = close_event(q4, 94.5, idx[0], idx[2], pd.Timedelta(minutes=5))
     assert pd.isna(inv2) and pd.isna(ex2)
@@ -185,7 +181,6 @@ def main():
             inv_ts, exit_ts, exit_open = close_event(q, sp, fill, terminal, m.BAR5)
             hard_stopped = pd.notna(hard_ts)
             hard_pre = pd.notna(hard_pre_ts)
-            # Cross-check original M2 MAE identity against HARD_TOUCH geometry.
             if pd.notna(r.mae_ru):
                 expected_touch = float(r.mae_ru) + 1e-10 >= D
                 if hard_stopped != expected_touch:
@@ -221,7 +216,7 @@ def main():
         for mode in ('HARD_TOUCH','CLOSE_NEXT_OPEN'):
             passes=[]
             for D in DISTANCES:
-                rows_d=SUM[(SUM.clock==clock)&(SUM.level==lvl)&(SUM.mode==mode)&(SUM.distance==D)]
+                rows_d=SUM[(SUM.clock==clock)&(SUM.level==lvl)&(SUM['mode']==mode)&(SUM.distance==D)]
                 pooled=rows_d[rows_d.partition=='POOLED_MAJOR'].iloc[0]
                 majors=rows_d[rows_d.partition.isin(MAJOR)]
                 ok=(bool((majors.fills>=30).all()) and
@@ -230,7 +225,7 @@ def main():
                     float(pooled.failure_reject_rate)>=.30 and
                     float(pooled.resulting_structural_h2_rate)>=.75)
                 if ok:
-                    SUM.loc[(SUM.clock==clock)&(SUM.level==lvl)&(SUM.mode==mode)&(SUM.distance==D)&(SUM.partition=='POOLED_MAJOR'),'screen']='STRUCTURAL_PASS'
+                    SUM.loc[(SUM.clock==clock)&(SUM.level==lvl)&(SUM['mode']==mode)&(SUM.distance==D)&(SUM.partition=='POOLED_MAJOR'),'screen']='STRUCTURAL_PASS'
                     passes.append(pooled)
             if passes:
                 best=sorted(passes,key=lambda r:(-float(r.failure_reject_rate),-float(r.winner_survival_rate),float(r.distance)))[0]
