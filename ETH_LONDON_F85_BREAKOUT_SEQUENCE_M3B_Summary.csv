@@ -1,0 +1,6 @@
+partition,f85_fills,breakouts,breakout_rate,attack_2,attack_3,attack_4,attack_5,attack_6_plus,no_breakout,median_minutes_fill_to_breakout,e20_on_breakout_bar,direct_continuation,retest_then_continuation,back_in_range_before_e20,unresolved_by_end
+external,56,43,0.7678571428571429,31,6,6,0,0,13,40.0,9,14,4,16,0
+development,70,51,0.7285714285714285,39,11,0,1,0,19,30.0,15,11,4,20,1
+reference_validation,34,26,0.7647058823529411,20,5,1,0,0,8,30.0,6,6,2,12,0
+august,1,0,0.0,0,0,0,0,0,1,,0,0,0,0,0
+POOLED_MAJOR,160,120,0.75,90,22,7,1,0,40,35.0,30,31,10,48,1
