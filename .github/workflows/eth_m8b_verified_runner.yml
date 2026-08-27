@@ -1,0 +1,31 @@
+name: ETH M8B verified economic crossgrid
+
+on:
+  push:
+    branches:
+      - eth-transfer-m8b-verified-crossgrid
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  m8b:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run verified ETH M8B
+        shell: bash
+        run: |
+          test -f research/eth_m8b_verified_crossgrid.py
+          python -m py_compile research/eth_m8b_verified_crossgrid.py
+          python research/eth_m8b_verified_crossgrid.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-m8b-verified-crossgrid
+          path: |
+            ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_M8B_VERIFIED_*
