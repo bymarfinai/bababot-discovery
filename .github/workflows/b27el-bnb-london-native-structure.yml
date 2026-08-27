@@ -1,0 +1,62 @@
+name: B27EL BNB London native structure
+
+on:
+  push:
+    branches:
+      - bnb-session-native-london-ny
+    paths:
+      - 'BNB_SESSION_NATIVE_LONDON_M1_STRUCTURE_B27EL_Preregistration.md'
+      - 'research/bnb_session_native_london_m1_structure_b27el.py'
+      - '.github/workflows/b27el-bnb-london-native-structure.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  structure:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-session-native-london-ny
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27EL London structure only
+        id: audit
+        shell: bash
+        run: |
+          set +e
+          LOG=BNB_SESSION_NATIVE_LONDON_M1_STRUCTURE_B27EL_Run.log
+          echo 'B27EL BNB London native structure' > "$LOG"
+          echo "commit=$(git rev-parse HEAD)" >> "$LOG"
+          python -m py_compile research/bnb_session_native_london_m1_structure_b27el.py >> "$LOG" 2>&1
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            python research/bnb_session_native_london_m1_structure_b27el.py >> "$LOG" 2>&1
+            rc=$?
+          fi
+          cat "$LOG"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27el-bnb-london-native-structure
+          path: BNB_SESSION_NATIVE_LONDON_M1_STRUCTURE_B27EL_*
+          if-no-files-found: warn
+      - name: Persist B27EL outputs to session branch
+        if: steps.audit.outputs.rc == '0'
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A BNB_SESSION_NATIVE_LONDON_M1_STRUCTURE_B27EL_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27EL BNB London native structure'
+            git push origin HEAD:bnb-session-native-london-ny
+          fi
+      - name: Fail on B27EL execution error
+        if: steps.audit.outputs.rc != '0'
+        run: exit 1
