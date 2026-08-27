@@ -2,16 +2,14 @@ name: ETH transfer M3 winner MAE audit
 
 on:
   push:
-    branches: [main]
+    branches: [eth-transfer-m3-winner-mae-run]
     paths:
-      - 'ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Status.txt'
-      - 'ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Summary.csv'
-      - 'ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Candidates.csv'
-      - 'ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Windows.csv'
+      - '.eth-m3-run-trigger'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  actions: read
 
 jobs:
   m3:
@@ -22,6 +20,15 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas numpy requests
+      - name: Download frozen corrected M2 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 32993684291 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name eth-transfer-m2-causal-correction-pr \
+            --dir .
+          test "$(tr -d '\r\n' < ETH_F85_F15_TRANSFER_M2_PRE_H2_ENTRY_GRID_Status.txt)" = "ETH_M2_PRE_H2_ENTRY_GRID_COMPLETED_CORRECTED_CHRONOLOGY"
       - name: Run ETH transfer M3 only
         id: m3
         shell: bash
@@ -30,6 +37,7 @@ jobs:
           LOG=ETH_F85_F15_TRANSFER_M3_WINNER_MAE_Run.log
           echo 'ETH transfer M3 winner MAE/path audit' > "$LOG"
           echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo 'upstream_m2_run=32993684291' >> "$LOG"
           python -m py_compile research/eth_f85_f15_transfer_m3_winner_mae.py >> "$LOG" 2>&1
           rc=$?
           if [ "$rc" -eq 0 ]; then
@@ -37,23 +45,13 @@ jobs:
             rc=$?
           fi
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          cat "$LOG"
           exit 0
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: eth-transfer-m3-winner-mae
           path: ETH_F85_F15_TRANSFER_M3_WINNER_MAE_*
-      - name: Persist M3 outputs
-        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git pull --rebase origin main || true
-          git add -A ETH_F85_F15_TRANSFER_M3_WINNER_MAE_* || true
-          if ! git diff --cached --quiet; then
-            git commit -m 'persist ETH transfer M3 winner MAE results'
-            git push || true
-          fi
       - name: Fail on M3 execution error
         if: steps.m3.outputs.rc != '0'
         run: exit 1
