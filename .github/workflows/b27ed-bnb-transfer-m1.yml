@@ -1,0 +1,64 @@
+name: B27ED BNB transfer M1 K1 OPP0 structural replication
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BNB_F85_F15_TRANSFER_M1_K1_OPP0_B27ED_Preregistration.md'
+      - 'research/bnb_f85_f15_transfer_m1_k1_opp0_b27ed.py'
+      - '.github/workflows/b27ed-bnb-transfer-m1.yml'
+  issues:
+    types: [opened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  m1:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, '[B27ED]')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27ED BNB transfer M1 only
+        id: run
+        shell: bash
+        run: |
+          set +e
+          LOG=BNB_F85_F15_TRANSFER_M1_K1_OPP0_B27ED_Run.log
+          echo 'B27ED BNB transfer M1 K1 OPP0 structural replication' > "$LOG"
+          echo "commit=$(git rev-parse HEAD)" >> "$LOG"
+          python -m py_compile research/bnb_f85_f15_transfer_m1_k1_opp0_b27ed.py >> "$LOG" 2>&1
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            python research/bnb_f85_f15_transfer_m1_k1_opp0_b27ed.py >> "$LOG" 2>&1
+            rc=$?
+          fi
+          cat "$LOG"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b27ed-bnb-transfer-m1-k1-opp0
+          path: BNB_F85_F15_TRANSFER_M1_K1_OPP0_B27ED_*
+      - name: Persist B27ED outputs
+        if: always() && steps.run.outputs.rc == '0'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main || true
+          git add -A BNB_F85_F15_TRANSFER_M1_K1_OPP0_B27ED_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27ED BNB transfer M1 results'
+            git push
+          fi
+      - name: Fail on B27ED execution error
+        if: steps.run.outputs.rc != '0'
+        run: exit 1
