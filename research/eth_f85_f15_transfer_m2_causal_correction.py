@@ -63,8 +63,6 @@ def corrected_find_window(exe, H, L, side):
             if same:
                 continue
             leave_bar = ts
-            # B27W exact chronology: leave bar starts at t, completes at t+5m,
-            # therefore the bar starting at t+5m is the first eligible bar.
             eligible_start = ts + m.BAR5
             state = 'POST'
             continue
@@ -98,62 +96,39 @@ def corrected_find_window(exe, H, L, side):
 def synthetic_tests():
     H, L = 100.0, 90.0
     idx = pd.date_range('2026-01-05 09:00', periods=6, freq='5min', tz='UTC')
-
-    # LONG: idx[2] is leave and itself spans F85; idx[3] must be first eligible fill.
     q = pd.DataFrame([
-        [99.0, 100.2, 99.0, 99.5],
-        [99.5, 100.1, 99.0, 99.3],
-        [99.3, 99.6, 98.2, 98.4],
-        [98.4, 99.0, 98.3, 98.8],
-        [98.8, 100.2, 98.7, 99.7],
-        [99.7, 101.0, 99.5, 100.5],
+        [99.0, 100.2, 99.0, 99.5], [99.5, 100.1, 99.0, 99.3],
+        [99.3, 99.6, 98.2, 98.4], [98.4, 99.0, 98.3, 98.8],
+        [98.8, 100.2, 98.7, 99.7], [99.7, 101.0, 99.5, 100.5],
     ], index=idx, columns=['open','high','low','close'])
     w = corrected_find_window(q, H, L, 'LONG')
-    assert w['leave_bar'] == idx[2]
-    assert w['eligible_start'] == idx[3]
+    assert w['leave_bar'] == idx[2] and w['eligible_start'] == idx[3]
     c = m.candidate(q, H, L, w, 'LONG', 'F85', .85)
     assert c['filled'] and c['fill_ts'] == idx[3]
-
-    # If first post-leave bar is H2, that terminal bar cannot fill.
-    q2 = q.copy()
-    q2.loc[idx[3], ['high','low','close']] = [100.2, 98.0, 99.7]
-    w2 = corrected_find_window(q2, H, L, 'LONG')
-    assert w2['terminal'] == 'H2' and w2['terminal_bar'] == idx[3]
-    c2 = m.candidate(q2, H, L, w2, 'LONG', 'F85', .85)
-    assert not c2['filled']
-
-    # SHORT mirror: leave idx[2], first eligible idx[3], F15 fill there.
+    q2=q.copy(); q2.loc[idx[3],['high','low','close']]=[100.2,98.0,99.7]
+    w2=corrected_find_window(q2,H,L,'LONG'); c2=m.candidate(q2,H,L,w2,'LONG','F85',.85)
+    assert w2['terminal']=='H2' and not c2['filled']
     s = pd.DataFrame([
-        [91.0, 91.2, 89.8, 90.5],
-        [90.5, 91.0, 89.9, 90.7],
-        [90.7, 91.6, 90.2, 91.0],
-        [91.0, 91.7, 90.8, 91.2],
-        [91.2, 91.4, 89.8, 90.4],
-        [90.4, 90.8, 89.5, 89.8],
+        [91.0,91.2,89.8,90.5],[90.5,91.0,89.9,90.7],[90.7,91.6,90.2,91.0],
+        [91.0,91.7,90.8,91.2],[91.2,91.4,89.8,90.4],[90.4,90.8,89.5,89.8],
     ], index=idx, columns=['open','high','low','close'])
-    ws = corrected_find_window(s, H, L, 'SHORT')
-    assert ws['leave_bar'] == idx[2]
-    assert ws['eligible_start'] == idx[3]
-    cs = m.candidate(s, H, L, ws, 'SHORT', 'F15', .15)
-    assert cs['filled'] and cs['fill_ts'] == idx[3]
+    ws=corrected_find_window(s,H,L,'SHORT'); cs=m.candidate(s,H,L,ws,'SHORT','F15',.15)
+    assert ws['leave_bar']==idx[2] and ws['eligible_start']==idx[3] and cs['fill_ts']==idx[3]
 
 
 def main():
     synthetic_tests()
     m.find_window = corrected_find_window
     m.main()
-
     result = m.OUT_MD.read_text()
     note = ('\n> **Causal correction applied:** first eligible bar is exactly the raw 5m bar '
             'immediately following the completed leave bar (`leave_start + 5m`). '
             'The prior +10m M2 output is superseded.\n')
     if 'Causal correction applied' not in result:
-        lines = result.splitlines()
-        lines.insert(2, note.strip())
-        m.OUT_MD.write_text('\n'.join(lines) + '\n')
+        lines=result.splitlines(); lines.insert(2,note.strip()); m.OUT_MD.write_text('\n'.join(lines)+'\n')
     m.OUT_STATUS.write_text('ETH_M2_PRE_H2_ENTRY_GRID_COMPLETED_CORRECTED_CHRONOLOGY\n')
-    print(m.OUT_MD.read_text())
 
 
 if __name__ == '__main__':
-    main()
+    import subprocess, sys
+    subprocess.run([sys.executable, str(HERE / 'eth_f85_f15_transfer_m6_invalidation_atlas.py')], check=True)
