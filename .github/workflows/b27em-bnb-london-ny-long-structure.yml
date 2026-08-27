@@ -1,0 +1,63 @@
+name: B27EM BNB London-NY LONG structure
+
+on:
+  push:
+    branches:
+      - bnb-session-native-london-ny
+
+permissions:
+  contents: write
+
+jobs:
+  structure:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-session-native-london-ny
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install pandas numpy requests
+
+      - name: Run B27EM LONG structure only
+        id: core
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        run: |
+          set +e
+          LOG=BNB_SESSION_NATIVE_LONDON_NY_LONG_M1_STRUCTURE_B27EM_Run.log
+          echo 'B27EM BNB London-NY LONG structure' > "$LOG"
+          echo "commit=$(git rev-parse HEAD)" >> "$LOG"
+          python -m py_compile research/bnb_session_native_london_ny_long_m1_structure_b27em.py >> "$LOG" 2>&1
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            python research/bnb_session_native_london_ny_long_m1_structure_b27em.py >> "$LOG" 2>&1
+            rc=$?
+          fi
+          cat "$LOG"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b27em-bnb-london-ny-long-structure
+          path: BNB_SESSION_NATIVE_LONDON_NY_LONG_M1_STRUCTURE_B27EM_*
+          if-no-files-found: warn
+
+      - name: Persist B27EM outputs to session branch
+        if: steps.core.outputs.rc == '0'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A BNB_SESSION_NATIVE_LONDON_NY_LONG_M1_STRUCTURE_B27EM_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27EM BNB London-NY LONG structure'
+            git push origin HEAD:bnb-session-native-london-ny
+          fi
+
+      - name: Fail on B27EM execution error
+        if: steps.core.outputs.rc != '0'
+        run: exit 1
