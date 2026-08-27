@@ -1,0 +1,1 @@
+B27EF trigger note. Strategy rules and preregistration are frozen in BNB_F85_F15_TRANSFER_M3_FROZEN_ECONOMICS_B27EF_Preregistration.md. This file carries no strategy parameter or result-bearing logic.
