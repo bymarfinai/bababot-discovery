@@ -1,0 +1,64 @@
+name: B27EE BNB transfer M2 exact frozen BTC signal
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BNB_F85_F15_TRANSFER_M2_EXACT_SIGNAL_B27EE_Preregistration.md'
+      - 'research/bnb_f85_f15_transfer_m2_exact_signal_b27ee.py'
+      - '.github/workflows/b27ee-bnb-transfer-m2.yml'
+  issues:
+    types: [opened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  m2:
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, '[B27EE]')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27EE exact signal transfer only
+        id: run
+        shell: bash
+        run: |
+          set +e
+          LOG=BNB_F85_F15_TRANSFER_M2_EXACT_SIGNAL_B27EE_Run.log
+          echo 'B27EE BNB M2 exact frozen BTC signal transfer' > "$LOG"
+          echo "commit=$(git rev-parse HEAD)" >> "$LOG"
+          python -m py_compile research/bnb_f85_f15_transfer_m2_exact_signal_b27ee.py >> "$LOG" 2>&1
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            python research/bnb_f85_f15_transfer_m2_exact_signal_b27ee.py >> "$LOG" 2>&1
+            rc=$?
+          fi
+          cat "$LOG"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b27ee-bnb-transfer-m2-exact-signal
+          path: BNB_F85_F15_TRANSFER_M2_EXACT_SIGNAL_B27EE_*
+      - name: Persist B27EE outputs
+        if: always() && steps.run.outputs.rc == '0'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main || true
+          git add -A BNB_F85_F15_TRANSFER_M2_EXACT_SIGNAL_B27EE_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27EE BNB exact signal transfer results'
+            git push
+          fi
+      - name: Fail on B27EE execution error
+        if: steps.run.outputs.rc != '0'
+        run: exit 1
