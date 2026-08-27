@@ -1,0 +1,40 @@
+name: ETH London F85 post-breakout retest M3C issue runner
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+jobs:
+  run_m3c:
+    if: github.event.issue.title == 'RUN_ETH_LONDON_F85_POST_BREAKOUT_RETEST_M3C'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run ETH London F85 post-breakout retest M3C
+        run: |
+          python -m py_compile research/eth_london_f85_post_breakout_retest_m3c.py
+          python research/eth_london_f85_post_breakout_retest_m3c.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-london-f85-post-breakout-retest-m3c
+          path: |
+            ETH_LONDON_F85_POST_BREAKOUT_RETEST_M3C_*
+      - name: Persist M3C outputs
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main || true
+          git add -A ETH_LONDON_F85_POST_BREAKOUT_RETEST_M3C_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist ETH London F85 post-breakout retest M3C results'
+            git push
+          fi
