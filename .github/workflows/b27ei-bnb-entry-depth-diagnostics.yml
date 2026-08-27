@@ -1,0 +1,62 @@
+name: B27EI BNB entry depth diagnostics
+
+on:
+  push:
+    branches:
+      - bnb-transfer-b27ed-b27ef
+    paths:
+      - 'BNB_F85_LONG_TRANSFER_M6_ENTRY_DEPTH_DIAGNOSTICS_B27EI_Preregistration.md'
+      - 'research/bnb_f85_long_transfer_m6_entry_depth_diagnostics_b27ei.py'
+      - '.github/workflows/b27ei-bnb-entry-depth-diagnostics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-transfer-b27ed-b27ef
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27EI diagnostics only
+        id: audit
+        shell: bash
+        run: |
+          set +e
+          LOG=BNB_F85_LONG_TRANSFER_M6_ENTRY_DEPTH_DIAGNOSTICS_B27EI_Run.log
+          echo 'B27EI BNB entry depth diagnostics' > "$LOG"
+          echo "commit=$(git rev-parse HEAD)" >> "$LOG"
+          python -m py_compile research/bnb_f85_long_transfer_m6_entry_depth_diagnostics_b27ei.py >> "$LOG" 2>&1
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            python research/bnb_f85_long_transfer_m6_entry_depth_diagnostics_b27ei.py >> "$LOG" 2>&1
+            rc=$?
+          fi
+          cat "$LOG"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b27ei-bnb-entry-depth-diagnostics
+          path: BNB_F85_LONG_TRANSFER_M6_ENTRY_DEPTH_DIAGNOSTICS_B27EI_*
+          if-no-files-found: warn
+      - name: Persist B27EI outputs to experiment branch
+        if: steps.audit.outputs.rc == '0'
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A BNB_F85_LONG_TRANSFER_M6_ENTRY_DEPTH_DIAGNOSTICS_B27EI_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27EI BNB entry depth diagnostics'
+            git push origin HEAD:bnb-transfer-b27ed-b27ef
+          fi
+      - name: Fail on B27EI execution error
+        if: steps.audit.outputs.rc != '0'
+        run: exit 1
