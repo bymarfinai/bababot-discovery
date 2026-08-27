@@ -1,0 +1,5 @@
+partition,cases,eventual_e20,eventual_e20_rate,median_minutes_to_e20,rebreak_and_e20,e20_without_confirmed_rebreak,rebreak_no_e20,no_rebreak_no_e20,ambiguous_same_backin_bar
+external,16,9,0.5625,20.0,9,0,3,4,1
+development,20,12,0.6,92.5,12,0,3,5,0
+reference_validation,12,8,0.6666666666666666,40.0,8,0,3,1,2
+POOLED_MAJOR,48,29,0.6041666666666666,50.0,29,0,9,10,3
