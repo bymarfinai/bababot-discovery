@@ -1,0 +1,58 @@
+B27EJ BNB retest sequence diagnostics
+commit=a1bc33b837b3e2c8469c49532401df6b67087ff6
+# BNB F85 LONG Transfer — M7 Retest Sequence Diagnostics — B27EJ Result
+
+Raw BNB 5m coverage: **100.0000%**. Frozen accepted LONG identity: **PASS (106 = 55 ALT_0330 + 51 RAW_0530)**.
+
+B27EJ is sequence diagnosis only; no ENTRY2 PnL or strategy change is executed.
+
+## Where current entry sits
+
+- Frozen current entry is **ENTRY1**: the next-open immediately after the first F85 reclaim. It is not ENTRY2.
+- A causal descriptive ENTRY2 exists in **45/106 (42.5%)** signals after a retest/re-reclaim sequence.
+- ENTRY2 median delay from ENTRY1: **30.0 min**; median depth **0.877R**; median reward-to-H **0.123R**.
+
+## Before H2: how many F85 retests?
+
+| Retest episodes | H2 trades | Share of H2 trades |
+|---|---:|---:|
+| 0 | 32 | 34.0% |
+| 1 | 48 | 51.1% |
+| 2 | 9 | 9.6% |
+| 3+ | 5 | 5.3% |
+
+**Pre-H2 label: ONE_RETEST_DOMINANT**
+
+### Path counts
+
+- ACCEPT_BELOW_RERECLAIM_THEN_H2: **46**
+- DIRECT_H2_NO_RETEST: **32**
+- RETEST_THEN_H2: **16**
+- RETEST_NO_H2: **12**
+
+### First retest behavior
+
+- Signals with at least one pre-H2 F85 retest: **74/106 (69.8%)**.
+- First retest holds F85 on close: **27/74 (36.5%)**.
+- First retest closes below F85: **47/74 (63.5%)**.
+
+## After H2 / strict H breakout
+
+- H2 trades: **94**; strict completed-close breakout >H: **85 (90.4%)**.
+
+| First event after strict H breakout | N | Rate |
+|---|---:|---:|
+| E10_CONTINUATION | 31 | 36.5% |
+| H_HOLD_RETEST | 15 | 17.6% |
+| H_FAIL_ACCEPT_BELOW | 23 | 27.1% |
+| AMBIGUOUS_E10_H_INTERACTION | 15 | 17.6% |
+| TIMEOUT | 1 | 1.2% |
+
+**Post-breakout label: MIXED_POST_BREAKOUT_SEQUENCE**
+
+- When the first post-breakout event is an H hold-retest, later E10 is reached in **93.3%**, E20 in **73.3%**.
+
+**Status: B27EJ_BNB_RETEST_SEQUENCE_DIAGNOSTICS_COMPLETE**
+
+B27EJ stops here. No ENTRY2 economics, filtering, or live integration is run automatically.
+
