@@ -1,0 +1,10 @@
+status=ETH_NATIVE_LONDON_NY_CLOCK_Z1_SUPPORTED
+workflow_run_id=33092768835
+artifact_id=9655169836
+artifact_digest=sha256:1c1dbc9564bfa7b362005fe852e69b0de6fce1f430a2f8e8740dbebdc403b10b
+reference_start_utc=11:30
+reference_start_wib=18:30
+execution_start_utc=17:00
+execution_start_wib=00:00
+reference_bars_5m=66
+execution_bars_5m=78
