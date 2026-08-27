@@ -1,19 +1,17 @@
-name: ETH London NY M1 liquidity pressure
+name: ETH native London-NY clock Z1
 
 on:
   push:
-    branches: [main]
+    branches: [eth-native-london-ny-clock-z1]
     paths:
-      - 'ETH_LONDON_NY_LIQUIDITY_PRESSURE_M1_Preregistration.md'
-      - 'research/eth_london_ny_liquidity_pressure_m1.py'
-      - '.github/workflows/eth_london_ny_m1.yml'
+      - '.eth-native-clock-z1-trigger'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  m1:
+  z1:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -21,38 +19,28 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas numpy requests
-      - name: Run ETH London NY M1 only
-        id: m1
+      - name: Run ETH native London-NY clock discovery Z1
+        id: z1
         shell: bash
         run: |
           set +e
-          LOG=ETH_LONDON_NY_LIQUIDITY_PRESSURE_M1_Run.log
-          echo 'ETH London -> NY M1 B27Q-style liquidity pressure' > "$LOG"
+          LOG=ETH_NATIVE_LONDON_NY_CLOCK_Z1_Run.log
+          echo 'ETH native London-NY clock discovery Z1' > "$LOG"
           echo "commit=$GITHUB_SHA" >> "$LOG"
-          python -m py_compile research/eth_london_ny_liquidity_pressure_m1.py >> "$LOG" 2>&1
+          python -m py_compile research/eth_native_london_ny_clock_z1.py >> "$LOG" 2>&1
           rc=$?
           if [ "$rc" -eq 0 ]; then
-            python research/eth_london_ny_liquidity_pressure_m1.py >> "$LOG" 2>&1
+            python research/eth_native_london_ny_clock_z1.py >> "$LOG" 2>&1
             rc=$?
           fi
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          cat "$LOG"
           exit 0
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: eth-london-ny-m1
-          path: ETH_LONDON_NY_LIQUIDITY_PRESSURE_M1_*
-      - name: Persist M1 outputs
-        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git pull --rebase origin main || true
-          git add -A ETH_LONDON_NY_LIQUIDITY_PRESSURE_M1_* || true
-          if ! git diff --cached --quiet; then
-            git commit -m 'persist ETH London NY M1 results'
-            git push || true
-          fi
-      - name: Fail on M1 execution error
-        if: steps.m1.outputs.rc != '0'
+          name: eth-native-london-ny-clock-z1
+          path: ETH_NATIVE_LONDON_NY_CLOCK_Z1_*
+      - name: Fail on Z1 execution error
+        if: steps.z1.outputs.rc != '0'
         run: exit 1
