@@ -1,0 +1,59 @@
+name: B27EV BNB MICRO_HL loss conversion discovery
+
+on:
+  push:
+    branches: [bnb-session-native-loss-conversion-b27ev]
+    paths:
+      - 'research/bnb_session_native_london_ny_long_m10_loss_conversion_b27ev.py'
+      - 'BNB_SESSION_NATIVE_LONDON_NY_LONG_M10_LOSS_CONVERSION_B27EV_Preregistration.md'
+      - '.github/workflows/b27ev-bnb-loss-conversion.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  conversion:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-session-native-loss-conversion-b27ev
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Run B27EV development loss conversion discovery
+        id: run
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python research/bnb_session_native_london_ny_long_m10_loss_conversion_b27ev.py 2>&1 | tee BNB_SESSION_NATIVE_LONDON_NY_LONG_M10_LOSS_CONVERSION_B27EV_Run.log
+      - name: Upload B27EV outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b27ev-loss-conversion
+          path: |
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M10_LOSS_CONVERSION_B27EV_*.csv
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M10_LOSS_CONVERSION_B27EV_*.md
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M10_LOSS_CONVERSION_B27EV_*.txt
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M10_LOSS_CONVERSION_B27EV_Run.log
+      - name: Persist B27EV outputs
+        if: steps.run.outcome == 'success'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BNB_SESSION_NATIVE_LONDON_NY_LONG_M10_LOSS_CONVERSION_B27EV_Detail.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M10_LOSS_CONVERSION_B27EV_Summary.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M10_LOSS_CONVERSION_B27EV_Result.md \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M10_LOSS_CONVERSION_B27EV_Status.txt \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M10_LOSS_CONVERSION_B27EV_Run.log
+          git commit -m 'persist B27EV BNB loss conversion discovery' || exit 0
+          git push origin HEAD:bnb-session-native-loss-conversion-b27ev
+      - name: Fail on B27EV execution error
+        if: steps.run.outcome != 'success'
+        run: exit 1
