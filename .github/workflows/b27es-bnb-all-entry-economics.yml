@@ -1,0 +1,86 @@
+name: B27ES BNB all-entry economics anatomy
+
+on:
+  push:
+    branches:
+      - bnb-session-native-economics-b27es
+    paths:
+      - 'research/bnb_session_native_london_ny_long_m7_entry_economics_b27es.py'
+      - 'BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_Preregistration.md'
+      - '.github/workflows/b27es-bnb-all-entry-economics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  economics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-session-native-economics-b27es
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+
+      - name: Run B27ES development-only all-entry economics
+        shell: bash
+        run: |
+          set +e
+          python -m py_compile research/bnb_session_native_london_ny_long_m7_entry_economics_b27es.py
+          compile_rc=$?
+          if [ "$compile_rc" -ne 0 ]; then
+            echo "py_compile failed rc=$compile_rc" | tee BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_Run.log
+            echo "$compile_rc" > BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_ExitCode.txt
+            exit 0
+          fi
+          set -o pipefail
+          python research/bnb_session_native_london_ny_long_m7_entry_economics_b27es.py 2>&1 | tee BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_Run.log
+          rc=${PIPESTATUS[0]}
+          echo "$rc" > BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_ExitCode.txt
+          exit 0
+
+      - name: Upload B27ES outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b27es-bnb-all-entry-economics
+          path: |
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_*.csv
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_*.md
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_*.txt
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_*.log
+
+      - name: Persist B27ES outputs
+        if: always()
+        shell: bash
+        run: |
+          rc=$(cat BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_ExitCode.txt 2>/dev/null || echo 99)
+          if [ "$rc" != "0" ]; then
+            echo "Execution failed; artifact retained, no result commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_*.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_Result.md \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_Status.txt \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_Run.log
+          git commit -m "persist B27ES BNB all-entry economics anatomy" || exit 0
+          git push origin HEAD:bnb-session-native-economics-b27es
+
+      - name: Fail on B27ES execution error
+        if: always()
+        shell: bash
+        run: |
+          rc=$(cat BNB_SESSION_NATIVE_LONDON_NY_LONG_M7_ENTRY_ECONOMICS_B27ES_ExitCode.txt 2>/dev/null || echo 99)
+          if [ "$rc" != "0" ]; then
+            echo "B27ES execution failed rc=$rc"
+            exit "$rc"
+          fi
