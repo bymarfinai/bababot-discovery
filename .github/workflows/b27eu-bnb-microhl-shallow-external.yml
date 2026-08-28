@@ -1,0 +1,60 @@
+name: B27EU BNB MICRO_HL shallow external replication
+
+on:
+  push:
+    branches:
+      - bnb-session-native-microhl-shallow-b27eu
+    paths:
+      - 'BNB_SESSION_NATIVE_LONDON_NY_LONG_M9_MICROHL_SHALLOW_B27EU_Preregistration.md'
+      - 'research/bnb_session_native_london_ny_long_m9_microhl_shallow_b27eu.py'
+      - '.github/workflows/b27eu-bnb-microhl-shallow-external.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  replicate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-session-native-microhl-shallow-b27eu
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Run B27EU frozen shallow MICRO_HL external replication
+        id: run
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python research/bnb_session_native_london_ny_long_m9_microhl_shallow_b27eu.py 2>&1 | tee BNB_SESSION_NATIVE_LONDON_NY_LONG_M9_MICROHL_SHALLOW_B27EU_Run.log
+      - name: Upload B27EU outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b27eu-microhl-shallow-external
+          path: |
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M9_MICROHL_SHALLOW_B27EU_*.csv
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M9_MICROHL_SHALLOW_B27EU_*.md
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M9_MICROHL_SHALLOW_B27EU_*.txt
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M9_MICROHL_SHALLOW_B27EU_Run.log
+      - name: Persist B27EU outputs
+        if: steps.run.outcome == 'success'
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BNB_SESSION_NATIVE_LONDON_NY_LONG_M9_MICROHL_SHALLOW_B27EU_*.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M9_MICROHL_SHALLOW_B27EU_*.md \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M9_MICROHL_SHALLOW_B27EU_*.txt \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M9_MICROHL_SHALLOW_B27EU_Run.log
+          git diff --cached --quiet || git commit -m 'persist B27EU BNB MICRO_HL shallow external replication'
+          git push origin HEAD:bnb-session-native-microhl-shallow-b27eu
+      - name: Fail on B27EU execution error
+        if: steps.run.outcome != 'success'
+        run: exit 1
