@@ -9,8 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import data_base
-from research import bnb_session_native_london_ny_long_m1_structure_b27em as b27em
+# Same-directory import when executed as `python research/...py`, matching B27EN.
+import bnb_session_native_london_ny_long_m1_structure_b27em as b27em
 
 TARGET = 'BNBUSDT'
 BAR5 = pd.Timedelta(minutes=5)
@@ -182,7 +182,7 @@ def summarize(d):
 def main():
     prereg=ROOT/'BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_Preregistration.md'
     if not prereg.exists(): raise AssertionError('B27EO preregistration missing')
-    x5,coverage=data_base.load5(TARGET)
+    x5,coverage=b27em.data_base.load5(TARGET)
     if coverage<.995: raise AssertionError(f'coverage gate failed {coverage}')
     d=build_rows(x5)
     d.to_csv(OUT_DETAIL,index=False)
