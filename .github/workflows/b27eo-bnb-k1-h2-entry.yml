@@ -28,6 +28,7 @@ jobs:
         id: run
         continue-on-error: true
         run: |
+          set -o pipefail
           python research/bnb_session_native_london_ny_long_m3_entry_b27eo.py 2>&1 | tee BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_Run.log
       - uses: actions/upload-artifact@v4
         if: always()
