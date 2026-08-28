@@ -1,0 +1,2 @@
+B27EZ workflow trigger commit.
+No preregistration, scan logic, data partition, direction rule, horizon set, or ranking changed.
