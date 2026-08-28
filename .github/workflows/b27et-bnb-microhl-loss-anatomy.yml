@@ -1,0 +1,59 @@
+name: B27ET BNB MICRO_HL_BULL loss anatomy
+
+on:
+  push:
+    branches:
+      - bnb-session-native-microhl-loss-anatomy-b27et
+    paths:
+      - 'research/bnb_session_native_london_ny_long_m8_microhl_loss_anatomy_b27et.py'
+      - 'BNB_SESSION_NATIVE_LONDON_NY_LONG_M8_MICROHL_LOSS_ANATOMY_B27ET_Preregistration.md'
+      - '.github/workflows/b27et-bnb-microhl-loss-anatomy.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  anatomy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-session-native-microhl-loss-anatomy-b27et
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Run B27ET loss anatomy
+        id: run
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python research/bnb_session_native_london_ny_long_m8_microhl_loss_anatomy_b27et.py 2>&1 | tee BNB_SESSION_NATIVE_LONDON_NY_LONG_M8_MICROHL_LOSS_ANATOMY_B27ET_Run.log
+      - name: Upload B27ET outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b27et-bnb-microhl-loss-anatomy
+          path: |
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M8_MICROHL_LOSS_ANATOMY_B27ET_*.csv
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M8_MICROHL_LOSS_ANATOMY_B27ET_*.md
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M8_MICROHL_LOSS_ANATOMY_B27ET_*.txt
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M8_MICROHL_LOSS_ANATOMY_B27ET_Run.log
+      - name: Persist B27ET outputs
+        if: steps.run.outcome == 'success'
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BNB_SESSION_NATIVE_LONDON_NY_LONG_M8_MICROHL_LOSS_ANATOMY_B27ET_*.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M8_MICROHL_LOSS_ANATOMY_B27ET_Result.md \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M8_MICROHL_LOSS_ANATOMY_B27ET_Status.txt \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M8_MICROHL_LOSS_ANATOMY_B27ET_Run.log
+          git commit -m 'persist B27ET BNB MICRO_HL_BULL loss anatomy' || exit 0
+          git push origin HEAD:bnb-session-native-microhl-loss-anatomy-b27et
+      - name: Fail on B27ET execution error
+        if: steps.run.outcome != 'success'
+        run: exit 1
