@@ -1,0 +1,66 @@
+name: B27EW BNB failed-before-H entry repair discovery
+
+on:
+  push:
+    branches: [bnb-session-native-entry-repair-b27ew]
+    paths:
+      - 'research/bnb_session_native_london_ny_long_m11_entry_repair_b27ew.py'
+      - 'BNB_SESSION_NATIVE_LONDON_NY_LONG_M11_ENTRY_REPAIR_B27EW_Preregistration.md'
+      - '.github/workflows/b27ew-bnb-entry-repair.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  discovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-session-native-entry-repair-b27ew
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Run B27EW entry repair discovery
+        id: run
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m py_compile research/bnb_session_native_london_ny_long_m11_entry_repair_b27ew.py
+          set +e
+          python research/bnb_session_native_london_ny_long_m11_entry_repair_b27ew.py 2>&1 | tee BNB_SESSION_NATIVE_LONDON_NY_LONG_M11_ENTRY_REPAIR_B27EW_Run.log
+          code=${PIPESTATUS[0]}
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload B27EW outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b27ew-entry-repair
+          path: |
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M11_ENTRY_REPAIR_B27EW_*.csv
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M11_ENTRY_REPAIR_B27EW_*.md
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M11_ENTRY_REPAIR_B27EW_*.txt
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M11_ENTRY_REPAIR_B27EW_*.log
+          if-no-files-found: warn
+      - name: Persist B27EW outputs
+        if: steps.run.outputs.code == '0'
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BNB_SESSION_NATIVE_LONDON_NY_LONG_M11_ENTRY_REPAIR_B27EW_*.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M11_ENTRY_REPAIR_B27EW_*.md \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M11_ENTRY_REPAIR_B27EW_*.txt \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M11_ENTRY_REPAIR_B27EW_*.log || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27EW BNB failed-before-H entry repair discovery'
+            git push origin HEAD:bnb-session-native-entry-repair-b27ew
+          fi
+      - name: Fail on B27EW execution error
+        if: steps.run.outputs.code != '0'
+        run: exit 1
