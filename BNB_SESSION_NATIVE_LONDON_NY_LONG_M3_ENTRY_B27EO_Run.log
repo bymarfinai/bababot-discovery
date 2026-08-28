@@ -1,0 +1,29 @@
+# BNB Session-Native London→New York LONG M3 K1→H2 Entry Discovery — B27EO Result
+
+Raw BNB 5m coverage: **100.0000%**.
+
+Discovery uses **development only (2022-01-01 → 2025-01-01)**. Validation partitions remain hidden from candidate selection.
+
+Population integrity: **97 causal leaves**, including **76 upstream H2** and **21 upstream non-H2**.
+
+B27EO compares only entries occurring causally after K1 leave and before H2/opposite terminal. No TP/SL/PnL/fees.
+
+| Rank | Candidate | Eligible | H2 after entry | H2 rate | Winner capture | Med leave→entry | Med entry→H2 | Med entry depth | Med MAE | P75 MAE |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | E2_F95_RECLAIM | 21/97 (21.6%) | 20 | 95.2% | 26.3% | 15.0m | 5.0m | 0.036R | 0.000R | 0.099R |
+| 2 | E3_F90_RECLAIM | 36/97 (37.1%) | 33 | 91.7% | 43.4% | 12.5m | 10.0m | 0.078R | 0.114R | 0.205R |
+| 3 | E4_F85_RECLAIM | 38/97 (39.2%) | 31 | 81.6% | 40.8% | 15.0m | 15.0m | 0.114R | 0.210R | 0.353R |
+| 4 | E0_NEXT_OPEN | 97/97 (100.0%) | 76 | 78.4% | 100.0% | 0.0m | 15.0m | 0.130R | 0.250R | 0.646R |
+| 5 | E1_FIRST_BULL_CLOSE | 66/97 (68.0%) | 48 | 72.7% | 63.2% | 10.0m | 20.0m | 0.176R | 0.342R | 0.778R |
+| 6 | E5_MICRO_HL_BULL | 50/97 (51.5%) | 33 | 66.0% | 43.4% | 15.0m | 20.0m | 0.247R | 0.349R | 0.816R |
+
+## Development-only descriptive leader
+
+By the preregistered ranking contract, **E2_F95_RECLAIM** ranks first on development: H2-after-entry **95.2%**, winner capture **26.3%**, median leave→entry **15.0m**.
+
+This is **not a promoted trading setup**. It is only the candidate that may deserve a separately frozen validation milestone.
+
+**Status: B27EO_BNB_K1_H2_ENTRY_DISCOVERY_DEV_COMPLETE**
+
+STOP: no validation reveal, TP/SL, economics, H3, breakout-retest, SHORT, or live integration.
+
