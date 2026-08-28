@@ -1,0 +1,53 @@
+# BNB Native Time-Zone / Session Window Discovery — B27EY Result
+
+Raw BNB 5m coverage: **100.0000%**.
+
+Discovery partition only: **2022-01-01 → 2025-01-01 UTC**. External/reference-validation/August remain unopened for this hypothesis.
+
+Each zone uses a frozen **4h reference block → next 4h execution block**. Entry is causal **E5_MICRO_HL_BULL**; economics are TP **H+0.30R**, SL **0.30R**, total cost **0.15%**.
+
+## Coarse UTC zone results
+
+| WR rank* | Zone | Ref→Exec UTC | K1 | Leaves | Upstream H2 | Entries | H2-after-entry | Actual net WR | Avg net/trade | PF | PnL @ $500 | Max DD | Med RR | Label |
+|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | Z16 | 16–20 → 20–24 | 232 | 231 | 84.4% | 105 | 68.6% | **41.9%** | -0.1% | 0.63 | $-53.02 | $53.02 | 1.45 | NO_CANDIDATE |
+| 2 | Z08 | 08–12 → 12–16 | 250 | 248 | 81.5% | 143 | 72.0% | **40.6%** | -0.1% | 0.60 | $-82.00 | $85.83 | 1.64 | NO_CANDIDATE |
+| 3 | Z00 | 00–04 → 04–08 | 222 | 220 | 84.1% | 106 | 72.6% | **39.6%** | -0.1% | 0.67 | $-47.06 | $51.66 | 1.39 | NO_CANDIDATE |
+| 4 | Z12 | 12–16 → 16–20 | 205 | 205 | 79.5% | 94 | 59.6% | **38.3%** | -0.2% | 0.40 | $-104.73 | $107.68 | 1.50 | NO_CANDIDATE |
+| 5 | Z20 | 20–24 → 00–04 | 251 | 251 | 81.7% | 99 | 62.6% | **37.4%** | -0.1% | 0.56 | $-72.48 | $78.42 | 1.64 | NO_CANDIDATE |
+| 6 | Z04 | 04–08 → 08–12 | 253 | 251 | 84.5% | 106 | 65.1% | **35.8%** | -0.1% | 0.54 | $-71.57 | $81.59 | 1.56 | NO_CANDIDATE |
+
+*WR rank only among zones with N>=30, per preregistration.
+
+## Year-by-year stability
+
+| Zone | Year | N | Actual net WR | PF | Avg net/trade | PnL @ $500 |
+|---|---:|---:|---:|---:|---:|---:|
+| Z00 | 2022 | 27 | 37.0% | 0.60 | -0.1% | $-18.08 |
+| Z00 | 2023 | 43 | 41.9% | 0.74 | -0.1% | $-14.29 |
+| Z00 | 2024 | 36 | 38.9% | 0.66 | -0.1% | $-14.69 |
+| Z04 | 2022 | 39 | 41.0% | 0.59 | -0.1% | $-25.92 |
+| Z04 | 2023 | 34 | 29.4% | 0.28 | -0.2% | $-30.41 |
+| Z04 | 2024 | 33 | 36.4% | 0.68 | -0.1% | $-15.24 |
+| Z08 | 2022 | 44 | 43.2% | 0.59 | -0.1% | $-29.98 |
+| Z08 | 2023 | 54 | 44.4% | 0.62 | -0.1% | $-19.98 |
+| Z08 | 2024 | 45 | 33.3% | 0.58 | -0.1% | $-32.05 |
+| Z12 | 2022 | 25 | 44.0% | 0.50 | -0.2% | $-30.21 |
+| Z12 | 2023 | 37 | 40.5% | 0.49 | -0.1% | $-25.89 |
+| Z12 | 2024 | 32 | 31.2% | 0.23 | -0.3% | $-48.62 |
+| Z16 | 2022 | 38 | 39.5% | 0.58 | -0.1% | $-26.03 |
+| Z16 | 2023 | 34 | 44.1% | 0.51 | -0.1% | $-16.66 |
+| Z16 | 2024 | 33 | 42.4% | 0.78 | -0.1% | $-10.33 |
+| Z20 | 2022 | 40 | 32.5% | 0.59 | -0.2% | $-31.27 |
+| Z20 | 2023 | 39 | 46.2% | 0.91 | -0.0% | $-3.54 |
+| Z20 | 2024 | 20 | 30.0% | 0.20 | -0.4% | $-37.67 |
+
+## Discovery verdict
+
+WR-first development leader: **Z16 (16–20 → 20–24)**, N **105**, actual net WR **41.9%**, PF **0.63**, avg net/trade **-0.1%**.
+**No zone met the preregistered 65% near-candidate threshold with PF>1 and N>=30.**
+
+**Status: B27EY_BNB_NATIVE_TIMEZONE_DEV_COMPLETE**
+
+STOP: no sliding-hour retune, no combined zones, no external/reference-validation/August reveal, no SHORT/live integration.
+
