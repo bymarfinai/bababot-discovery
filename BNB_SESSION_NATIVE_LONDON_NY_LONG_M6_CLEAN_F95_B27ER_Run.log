@@ -1,0 +1,41 @@
+# BNB Session-Native LONG M6 Clean F95 External Holdout — B27ER Result
+
+Raw BNB 5m coverage: **100.0000%**.
+
+Thresholds were derived mechanically from **development H2 F95 entries only** before evaluating external.
+
+## Frozen thresholds
+
+- Development H2 F95 entries used for thresholds: **20**
+- `PATH_P75` (pre-entry max depth): **0.3558R**
+- `RECLAIM_LOW_P75` (reclaim-candle low depth): **0.1780R**
+- CLEAN_F95 requires **both** dimensions <= their development-winner P75 thresholds.
+
+## External upstream integrity
+
+- Causal leaves: **63 / 63**
+- Upstream H2: **45 / 45**
+- Upstream non-H2: **18 / 18**
+
+## External holdout comparison
+
+| Cohort | Eligible | H2 | H2 rate | Wilson 95% | Winner capture | Med leave→entry | Med entry→H2 | Med entry depth | Med MAE | P75 MAE |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| RAW_F95_EXTERNAL | 18 | 15 | 83.3% | 60.8% – 94.2% | 33.3% | 37.5m | 5.0m | 0.0391R | 0.0000R | 0.1491R |
+| CLEAN_F95_EXTERNAL | 10 | 8 | 80.0% | 49.0% – 94.3% | 17.8% | 15.0m | 5.0m | 0.0382R | 0.0000R | 0.2397R |
+
+## Preregistered support contract
+
+- Clean retention: **55.6%** (10/18)
+- Delta H2 rate: **-3.3 percentage points**
+- Required: clean N >= 8; delta >= +5pp; retention >= 50%.
+- Strong support additionally requires clean H2-after-entry >= 90%.
+
+**Verdict: NOT_SUPPORTED**
+
+H2-after-entry remains a **structural outcome rate, not trading win rate**.
+
+**Status: B27ER_BNB_CLEAN_F95_EXTERNAL_NOT_SUPPORTED**
+
+STOP: no alternate percentile, time/body/wick tuning, F90/F85, economics, August, SHORT, or live integration.
+
