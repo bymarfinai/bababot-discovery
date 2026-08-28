@@ -1,0 +1,58 @@
+name: B27EP BNB frozen F95 validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - bnb-session-native-f95-validation-b27ep
+    paths:
+      - 'research/bnb_session_native_london_ny_long_m4_f95_validation_b27ep.py'
+      - 'BNB_SESSION_NATIVE_LONDON_NY_LONG_M4_F95_VALIDATION_B27EP_Preregistration.md'
+      - '.github/workflows/b27ep-bnb-f95-validation.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-session-native-f95-validation-b27ep
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27EP frozen reference validation
+        id: run
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python research/bnb_session_native_london_ny_long_m4_f95_validation_b27ep.py 2>&1 | tee BNB_SESSION_NATIVE_LONDON_NY_LONG_M4_F95_VALIDATION_B27EP_Run.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b27ep-bnb-f95-validation
+          path: |
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M4_F95_VALIDATION_B27EP_*.csv
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M4_F95_VALIDATION_B27EP_*.md
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M4_F95_VALIDATION_B27EP_*.txt
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M4_F95_VALIDATION_B27EP_*.log
+          if-no-files-found: warn
+      - name: Persist B27EP outputs
+        if: steps.run.outcome == 'success'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BNB_SESSION_NATIVE_LONDON_NY_LONG_M4_F95_VALIDATION_B27EP_Detail.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M4_F95_VALIDATION_B27EP_Summary.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M4_F95_VALIDATION_B27EP_Result.md \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M4_F95_VALIDATION_B27EP_Status.txt \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M4_F95_VALIDATION_B27EP_Run.log
+          git commit -m 'persist B27EP frozen F95 validation' || exit 0
+          git push origin HEAD:bnb-session-native-f95-validation-b27ep
+      - name: Fail on B27EP execution error
+        if: steps.run.outcome != 'success'
+        run: exit 1
