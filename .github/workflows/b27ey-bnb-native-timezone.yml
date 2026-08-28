@@ -1,0 +1,68 @@
+name: B27EY BNB native timezone discovery
+
+on:
+  push:
+    branches:
+      - bnb-native-timezone-b27ey
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  discovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-native-timezone-b27ey
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+
+      - name: Run B27EY native timezone discovery
+        id: run
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m py_compile research/bnb_native_timezone_m13_b27ey.py
+          set +e
+          python research/bnb_native_timezone_m13_b27ey.py 2>&1 | tee BNB_NATIVE_TIMEZONE_M13_B27EY_Run.log
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload B27EY outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b27ey-bnb-native-timezone
+          path: |
+            BNB_NATIVE_TIMEZONE_M13_B27EY_*.csv
+            BNB_NATIVE_TIMEZONE_M13_B27EY_*.md
+            BNB_NATIVE_TIMEZONE_M13_B27EY_*.txt
+            BNB_NATIVE_TIMEZONE_M13_B27EY_Run.log
+          if-no-files-found: warn
+
+      - name: Persist B27EY outputs
+        if: steps.run.outputs.exit_code == '0'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BNB_NATIVE_TIMEZONE_M13_B27EY_*.csv BNB_NATIVE_TIMEZONE_M13_B27EY_*.md BNB_NATIVE_TIMEZONE_M13_B27EY_*.txt BNB_NATIVE_TIMEZONE_M13_B27EY_Run.log
+          if git diff --cached --quiet; then
+            echo "No output changes to persist"
+          else
+            git commit -m "persist B27EY BNB native timezone discovery"
+            git push origin HEAD:bnb-native-timezone-b27ey
+          fi
+
+      - name: Fail on B27EY execution error
+        if: steps.run.outputs.exit_code != '0'
+        run: exit 1
