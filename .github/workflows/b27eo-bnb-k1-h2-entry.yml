@@ -1,0 +1,56 @@
+name: B27EO BNB K1-H2 entry discovery
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - bnb-session-native-entry-b27eo
+    paths:
+      - 'research/bnb_session_native_london_ny_long_m3_entry_b27eo.py'
+      - 'BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_Preregistration.md'
+      - '.github/workflows/b27eo-bnb-k1-h2-entry.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  entry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-session-native-entry-b27eo
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27EO development-only entry discovery
+        id: run
+        continue-on-error: true
+        run: |
+          python research/bnb_session_native_london_ny_long_m3_entry_b27eo.py 2>&1 | tee BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_Run.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b27eo-bnb-k1-h2-entry
+          path: |
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_*.csv
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_*.md
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_*.txt
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_*.log
+          if-no-files-found: warn
+      - name: Persist B27EO outputs
+        if: steps.run.outcome == 'success'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_Detail.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_Summary.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_Result.md \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_Status.txt \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M3_ENTRY_B27EO_Run.log
+          git commit -m 'persist B27EO BNB K1-H2 entry discovery' || exit 0
+          git push origin HEAD:bnb-session-native-entry-b27eo
+      - name: Fail on B27EO execution error
+        if: steps.run.outcome != 'success'
+        run: exit 1
