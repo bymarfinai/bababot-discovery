@@ -1,0 +1,71 @@
+name: B27EX BNB conditional repair trigger discovery
+
+on:
+  push:
+    branches:
+      - bnb-session-native-conditional-repair-b27ex
+    paths:
+      - 'BNB_SESSION_NATIVE_LONDON_NY_LONG_M12_CONDITIONAL_REPAIR_B27EX_Preregistration.md'
+      - 'research/bnb_session_native_london_ny_long_m12_conditional_repair_b27ex.py'
+      - '.github/workflows/b27ex-bnb-conditional-repair.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  discovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-session-native-conditional-repair-b27ex
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Run B27EX conditional repair discovery
+        id: run
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          python -m py_compile research/bnb_session_native_london_ny_long_m12_conditional_repair_b27ex.py
+          C1=$?
+          if [ $C1 -eq 0 ]; then
+            python research/bnb_session_native_london_ny_long_m12_conditional_repair_b27ex.py 2>&1 | tee BNB_SESSION_NATIVE_LONDON_NY_LONG_M12_CONDITIONAL_REPAIR_B27EX_Run.log
+            C2=${PIPESTATUS[0]}
+          else
+            C2=$C1
+          fi
+          echo "exit_code=$C2" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload B27EX outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b27ex-conditional-repair
+          path: |
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M12_CONDITIONAL_REPAIR_B27EX_*.csv
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M12_CONDITIONAL_REPAIR_B27EX_*.md
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M12_CONDITIONAL_REPAIR_B27EX_*.txt
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M12_CONDITIONAL_REPAIR_B27EX_Run.log
+          if-no-files-found: warn
+      - name: Persist B27EX outputs
+        if: steps.run.outputs.exit_code == '0'
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BNB_SESSION_NATIVE_LONDON_NY_LONG_M12_CONDITIONAL_REPAIR_B27EX_*.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M12_CONDITIONAL_REPAIR_B27EX_Result.md \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M12_CONDITIONAL_REPAIR_B27EX_Status.txt || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'persist B27EX BNB conditional repair trigger discovery'
+            git push origin HEAD:bnb-session-native-conditional-repair-b27ex
+          fi
+      - name: Fail on B27EX execution error
+        if: steps.run.outputs.exit_code != '0'
+        run: exit 1
