@@ -1,0 +1,2 @@
+candidate,population_leaves,upstream_h2,eligible,eligible_rate,h2_after_entry,non_h2_after_entry,h2_rate,wilson95_low,wilson95_high,winner_capture_n,winner_capture_share,median_leave_entry_min,median_entry_h2_min,median_entry_depth_R,median_mae_R,p75_mae_R,headline_target_rate,headline_target_met
+E2_F95_RECLAIM,45,35,7,0.15555555555555556,6,1,0.8571428571428571,0.4868721707256811,0.9743203756552565,6,0.17142857142857143,25.0,5.0,0.04307116104869229,0.0,0.04388984509466372,0.9,False
