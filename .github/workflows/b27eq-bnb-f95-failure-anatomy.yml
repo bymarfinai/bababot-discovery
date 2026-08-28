@@ -1,0 +1,59 @@
+name: B27EQ BNB F95 failure anatomy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - bnb-session-native-f95-failure-anatomy-b27eq
+    paths:
+      - 'research/bnb_session_native_london_ny_long_m5_f95_failure_anatomy_b27eq.py'
+      - 'BNB_SESSION_NATIVE_LONDON_NY_LONG_M5_F95_FAILURE_ANATOMY_B27EQ_Preregistration.md'
+      - '.github/workflows/b27eq-bnb-f95-failure-anatomy.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  anatomy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-session-native-f95-failure-anatomy-b27eq
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run B27EQ causal failure anatomy
+        id: run
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python research/bnb_session_native_london_ny_long_m5_f95_failure_anatomy_b27eq.py 2>&1 | tee BNB_SESSION_NATIVE_LONDON_NY_LONG_M5_F95_FAILURE_ANATOMY_B27EQ_Run.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: b27eq-bnb-f95-failure-anatomy
+          path: |
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M5_F95_FAILURE_ANATOMY_B27EQ_*.csv
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M5_F95_FAILURE_ANATOMY_B27EQ_*.md
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M5_F95_FAILURE_ANATOMY_B27EQ_*.txt
+            BNB_SESSION_NATIVE_LONDON_NY_LONG_M5_F95_FAILURE_ANATOMY_B27EQ_*.log
+          if-no-files-found: warn
+      - name: Persist B27EQ outputs
+        if: steps.run.outcome == 'success'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add BNB_SESSION_NATIVE_LONDON_NY_LONG_M5_F95_FAILURE_ANATOMY_B27EQ_Detail.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M5_F95_FAILURE_ANATOMY_B27EQ_Winner_Distribution.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M5_F95_FAILURE_ANATOMY_B27EQ_Failure_Flags.csv \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M5_F95_FAILURE_ANATOMY_B27EQ_Result.md \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M5_F95_FAILURE_ANATOMY_B27EQ_Status.txt \
+                  BNB_SESSION_NATIVE_LONDON_NY_LONG_M5_F95_FAILURE_ANATOMY_B27EQ_Run.log
+          git commit -m 'persist B27EQ BNB F95 failure anatomy' || exit 0
+          git push origin HEAD:bnb-session-native-f95-failure-anatomy-b27eq
+      - name: Fail on B27EQ execution error
+        if: steps.run.outcome != 'success'
+        run: exit 1
