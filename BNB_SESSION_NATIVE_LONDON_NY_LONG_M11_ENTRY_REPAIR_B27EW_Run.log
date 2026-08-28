@@ -1,0 +1,33 @@
+# BNB Session-Native LONG M11 Failed-Before-H Entry Repair Discovery — B27EW Result
+
+Raw BNB 5m coverage: **100.0000%**.
+
+Development only. Frozen baseline: **E5_MICRO_HL_BULL**, TP **H+0.30R**, SL **0.30R**, total cost **0.15%**.
+
+Baseline integrity: **50 opportunities = 25 net wins + 25 net losses**; **19/25 losses failed before H**.
+
+Primary objective: **original loss -> actual net win**. No-trades do not count as conversions.
+
+| Rank | Entry repair | L→W | FBH L→W | L→NT | W→W | W→L | W→NT | Net wins/50 | Executed | Legs | WR executed | Avg net/opp | PnL @ $500 | PF |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | BASELINE | 0 | 0 | 0 | 25 | 0 | 0 | 25/50 | 50 | 50 | 50.0% | 0.111% | $27.84 | 1.34 |
+| 1 | D10_FRESH_MICROHL | 6 | 5 | 0 | 12 | 3 | 10 | 18/50 | 40 | 40 | 45.0% | -0.033% | $-8.32 | 0.88 |
+| 2 | S10_SPLIT_ADD_010R | 1 | 1 | 0 | 25 | 0 | 0 | 26/50 | 50 | 87 | 52.0% | 0.046% | $11.43 | 1.15 |
+| 3 | D10_RECLAIM_ORIGINAL | 1 | 1 | 9 | 12 | 1 | 12 | 13/50 | 29 | 29 | 44.8% | -0.024% | $-6.02 | 0.86 |
+| 4 | D20_RECLAIM_ORIGINAL | 1 | 1 | 13 | 6 | 0 | 19 | 7/50 | 18 | 18 | 38.9% | -0.049% | $-12.34 | 0.56 |
+| 5 | S15_SPLIT_ADD_015R | 1 | 0 | 0 | 25 | 0 | 0 | 26/50 | 50 | 82 | 52.0% | 0.045% | $11.33 | 1.16 |
+| 6 | S20_SPLIT_ADD_020R | 1 | 0 | 0 | 25 | 0 | 0 | 26/50 | 50 | 76 | 52.0% | 0.027% | $6.78 | 1.10 |
+| 7 | S05_SPLIT_ADD_005R | 0 | 0 | 0 | 25 | 0 | 0 | 25/50 | 50 | 90 | 50.0% | 0.078% | $19.46 | 1.25 |
+| 8 | S25_SPLIT_ADD_025R | 0 | 0 | 0 | 25 | 0 | 0 | 25/50 | 50 | 62 | 50.0% | 0.055% | $13.87 | 1.28 |
+
+## Development discovery leader
+
+By preregistered loss-conversion ranking: **D10_FRESH_MICROHL** converts **6/25** original losses, including **5/19** failed-before-H losses, while retaining **12/25** original winners.
+Resulting net-positive opportunities: **18/50 (36.0%)**.
+
+This is development discovery only. No entry repair is validated or promoted here.
+
+**Status: B27EW_BNB_FAILED_BEFORE_H_ENTRY_REPAIR_DEV_COMPLETE**
+
+STOP: no intervention combination, no partial-management combination, no external/reference-validation/August reveal, no threshold retuning, no SHORT/live integration.
+
