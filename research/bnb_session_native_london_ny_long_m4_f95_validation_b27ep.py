@@ -11,9 +11,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import data_base
-from research import bnb_session_native_london_ny_long_m1_structure_b27em as b27em
-from research import bnb_session_native_london_ny_long_m3_entry_b27eo as b27eo
+# Same-directory imports when executed as `python research/...py`, matching B27EN/B27EO.
+import bnb_session_native_london_ny_long_m1_structure_b27em as b27em
+import bnb_session_native_london_ny_long_m3_entry_b27eo as b27eo
 
 TARGET = 'BNBUSDT'
 PARTITION = 'reference_validation'
@@ -143,7 +143,7 @@ def main() -> None:
     if not prereg.exists():
         raise AssertionError('B27EP preregistration missing')
 
-    x5, coverage = data_base.load5(TARGET)
+    x5, coverage = b27em.data_base.load5(TARGET)
     if coverage < .995:
         raise AssertionError(f'coverage gate failed: {coverage:.6f}')
 
