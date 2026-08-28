@@ -1,0 +1,33 @@
+# BNB Session-Native LONG M10 Loss Conversion Discovery — B27EV Result
+
+Raw BNB 5m coverage: **100.0000%**.
+
+Development only. Frozen baseline: **E5_MICRO_HL_BULL**, TP **H+0.30R**, SL **0.30R**, total cost **0.15%**.
+
+Baseline integrity: **50 opportunities = 25 net wins + 25 net losses**, net WR **50.0%**.
+
+Primary objective is **actual original loss → actual net win**. No-trades are reported separately and never counted as conversions.
+
+| Rank | Intervention | L→W | L→NT | W→W | W→L | W→NT | Net wins /50 | Executed opps | Trade legs | Net WR executed | Avg net/opp | PnL @ $500 | PF |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | BASELINE | 0 | 0 | 25 | 0 | 0 | 25/50 | 50 | 50 | 50.0% | 0.111% | $27.84 | 1.34 |
+| 1 | M2_H10_TOUCH_LOCK_H | 3 | 0 | 22 | 3 | 0 | 25/50 | 50 | 50 | 50.0% | 0.030% | $7.60 | 1.10 |
+| 2 | M4_PARTIAL50_AT_H10 | 2 | 0 | 25 | 0 | 0 | 27/50 | 50 | 50 | 54.0% | 0.066% | $16.56 | 1.22 |
+| 3 | M3_PARTIAL50_AT_H | 1 | 0 | 25 | 0 | 0 | 26/50 | 50 | 50 | 52.0% | 0.032% | $8.01 | 1.11 |
+| 4 | R1_ONE_FRESH_MICROHL_AFTER_SL_BEFORE_H | 0 | 0 | 25 | 0 | 0 | 25/50 | 50 | 65 | 50.0% | 0.072% | $17.89 | 1.20 |
+| 5 | C3_CLOSE_ABOVE_PREV_HIGH | 0 | 8 | 24 | 1 | 0 | 24/50 | 42 | 42 | 57.1% | 0.029% | $7.19 | 1.11 |
+| 6 | C2_SECOND_BULL_PROGRESS | 0 | 4 | 24 | 1 | 0 | 24/50 | 46 | 46 | 52.2% | -0.012% | $-2.91 | 0.96 |
+| 7 | C1_CLOSE_ABOVE_SIGNAL_HIGH | 0 | 6 | 23 | 2 | 0 | 23/50 | 44 | 44 | 52.3% | -0.007% | $-1.69 | 0.98 |
+| 8 | M1_H_TOUCH_LOCK_005R | 0 | 0 | 15 | 10 | 0 | 15/50 | 50 | 50 | 30.0% | -0.084% | $-20.89 | 0.73 |
+
+## Development-only conversion leader
+
+By the preregistered ranking, **M2_H10_TOUCH_LOCK_H** ranks first: it converts **3/25** original losses into actual net wins while retaining **22/25** original winners.
+
+Resulting net-positive opportunities: **25/50 (50.0%)**. This is discovery, **not validation**.
+
+No interventions are combined in B27EV. A combination, threshold, or holdout test requires a new preregistered milestone.
+
+**Status: B27EV_BNB_MICROHL_LOSS_CONVERSION_DEV_COMPLETE**
+
+STOP: no holdout reveal, no intervention combination, no threshold retuning, no August, no SHORT/live integration.
