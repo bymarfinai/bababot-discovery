@@ -1,0 +1,5 @@
+side,hour_utc,positive_probes,median_pf,median_expectancy,total_n,development_pass,external_positive_probes,external_n_probes,reference_validation_positive_probes,reference_validation_n_probes,m1_supported
+LONG,16,2,1.3028584188748753,0.5776078565905937,175,True,2,3,3,3,True
+LONG,10,2,1.1775927944260696,0.26743003074902955,323,True,3,3,1,3,False
+LONG,9,2,1.1590608646871636,0.2552600154791873,299,True,0,3,3,3,False
+SHORT,7,2,1.2382907121949407,0.32362399320252355,220,True,1,3,2,3,False
