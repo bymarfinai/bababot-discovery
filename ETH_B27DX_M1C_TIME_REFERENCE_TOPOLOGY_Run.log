@@ -1,0 +1,50 @@
+# ETH B27DX V2 — M1C Time × Reference Duration Topology — Result
+
+ETH raw 5m coverage: **100.0000%**.
+
+M1C varies only execution clock and reference duration. B27DX causal grammar and M1 diagnostic economics remain frozen.
+
+## Supported-cell topology
+
+A checkmark means the cell independently passed Development, External, and Reference Validation using the frozen 2-of-3 probe gates.
+
+| Ref min | 14:00 | 14:30 | 15:00 | 15:30 | 16:00 | 16:30 | 17:00 | 17:30 | 18:00 |
+|---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| 240 | · | · | · | · | ✅ | · | · | · | · |
+| 270 | · | · | · | · | ✅ | · | · | · | · |
+| 300 | · | · | · | · | ✅ | · | · | · | · |
+| 330 | · | · | · | · | ✅ | · | · | · | · |
+| 360 | · | · | · | · | ✅ | · | · | · | · |
+| 390 | · | · | · | · | ✅ | · | · | · | · |
+| 420 | · | · | · | · | · | · | · | · | · |
+
+## Anchor component
+
+Anchor `16:00 × R330` supported: **YES**.
+Connected supported cells containing anchor: **6**.
+Distinct execution clocks in component: **1**.
+Distinct reference durations in component: **6**.
+
+| Execution | Reference | Reference start | Dev + | Dev median PF | External + | Validation + |
+|---:|---:|---:|---:|---:|---:|---:|
+| 16:00 | 240 | 12:00 | 2/3 | 1.29 | 3/3 | 3/3 |
+| 16:00 | 270 | 11:30 | 2/3 | 1.30 | 3/3 | 3/3 |
+| 16:00 | 300 | 11:00 | 2/3 | 1.28 | 3/3 | 2/3 |
+| 16:00 | 330 | 10:30 | 2/3 | 1.30 | 2/3 | 3/3 |
+| 16:00 | 360 | 10:00 | 2/3 | 1.17 | 2/3 | 3/3 |
+| 16:00 | 390 | 09:30 | 2/3 | 1.29 | 2/3 | 3/3 |
+
+### Reference-start diagnostic
+
+Circular mean reference-start clock: **10:45 UTC**.
+Circular concentration (0 diffuse → 1 identical): **0.975**.
+This diagnostic does not affect the preregistered support decision.
+
+**Status: ETH_M1C_ANCHOR_SUPPORTED_NO_TOPOLOGY**
+
+Interpretation: the original 16:00 × R330 anchor survives, but neighboring clock-duration combinations do not form a preregistered coherent 2D region. Do not sharpen entry/TP/SL around the isolated cell.
+
+August remains diagnostic only and did not affect support.
+H/H2 remains telemetry only and is not an optimization target.
+Research only. No exchange writes and no live BBC changes.
+
