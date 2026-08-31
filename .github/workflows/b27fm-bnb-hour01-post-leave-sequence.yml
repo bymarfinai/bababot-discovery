@@ -1,0 +1,42 @@
+name: B27FM BNB hour01 post-leave sequence diagnosis
+
+on:
+  push:
+    branches:
+      - bnb-hour01-post-leave-sequence-b27fm
+    paths:
+      - 'BNB_HOUR01_POST_LEAVE_SEQUENCE_B27FM_Preregistration.md'
+      - 'research/bnb_hour01_post_leave_sequence_b27fm.py'
+      - '.github/workflows/b27fm-bnb-hour01-post-leave-sequence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diagnosis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy requests
+      - name: Run B27FM post-leave sequence diagnosis
+        run: python research/bnb_hour01_post_leave_sequence_b27fm.py | tee BNB_HOUR01_POST_LEAVE_SEQUENCE_B27FM_Run.log
+      - name: Persist B27FM outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BNB_HOUR01_POST_LEAVE_SEQUENCE_B27FM_Detail.csv \
+                  BNB_HOUR01_POST_LEAVE_SEQUENCE_B27FM_Threshold_Summary.csv \
+                  BNB_HOUR01_POST_LEAVE_SEQUENCE_B27FM_Timing_Summary.csv \
+                  BNB_HOUR01_POST_LEAVE_SEQUENCE_B27FM_First_Close_Bins.csv \
+                  BNB_HOUR01_POST_LEAVE_SEQUENCE_B27FM_Result.md \
+                  BNB_HOUR01_POST_LEAVE_SEQUENCE_B27FM_Status.txt \
+                  BNB_HOUR01_POST_LEAVE_SEQUENCE_B27FM_Run.log
+          git diff --cached --quiet || git commit -m "persist B27FM BNB hour01 post-leave sequence result"
+          git push origin HEAD:bnb-hour01-post-leave-sequence-b27fm
