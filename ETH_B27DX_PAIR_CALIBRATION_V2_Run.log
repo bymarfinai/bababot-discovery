@@ -1,0 +1,36 @@
+# ETH B27DX Pair Calibration V2 — Result
+
+Raw ETH 5m coverage: **100.0000%**.
+
+Primary objective: profitable executable trades. H/H2 is not a ranking metric.
+
+Development configurations scored: **11,709**.
+Frozen candidates advanced to untouched validation: **12**.
+Final survivors after validation + 5 bps stress: **2**.
+
+## Advanced candidates
+
+| Config | Dev N | WR | PF | Exp | Net |
+|---|---:|---:|---:|---:|---:|
+| LONG|E1080|R420|X390|F0.95|T0.10|S0.35 | 44 | 79.5% | 3.15 | $+1.17 | $+51.30 |
+| LONG|E1080|R330|X390|F0.95|T0.20|S0.20 | 47 | 70.2% | 2.36 | $+1.18 | $+55.37 |
+| LONG|E0960|R330|X480|F0.90|T0.20|S0.20 | 64 | 75.0% | 2.34 | $+1.46 | $+93.44 |
+| LONG|E0960|R270|X390|F0.95|T0.30|S0.35 | 40 | 70.0% | 2.27 | $+1.39 | $+55.59 |
+| LONG|E1080|R180|X480|F0.95|T0.30|S0.20 | 46 | 71.7% | 2.19 | $+1.28 | $+58.91 |
+| LONG|E0120|R420|X480|F0.80|T0.10|S0.20 | 48 | 64.6% | 2.15 | $+1.25 | $+59.82 |
+| SHORT|E0120|R180|X240|F0.05|T0.20|S0.65 | 43 | 65.1% | 2.13 | $+0.81 | $+34.72 |
+| SHORT|E0120|R330|X390|F0.05|T0.10|S0.50 | 50 | 72.0% | 2.03 | $+0.81 | $+40.67 |
+| LONG|E1080|R270|X480|F0.95|T0.20|S0.20 | 49 | 71.4% | 2.01 | $+1.11 | $+54.48 |
+| LONG|E0600|R330|X480|F0.75|T0.10|S0.20 | 96 | 76.0% | 2.00 | $+0.95 | $+90.73 |
+| LONG|E0240|R420|X480|F0.95|T0.10|S0.50 | 67 | 80.6% | 1.98 | $+0.66 | $+44.18 |
+| SHORT|E0240|R180|X240|F0.25|T0.20|S0.80 | 64 | 62.5% | 1.91 | $+0.90 | $+57.49 |
+
+## Final survivors
+
+- **LONG|E0600|R330|X480|F0.75|T0.10|S0.20** — validation N 80, WR 71.2%, PF 1.42, net $+61.07; 5bps PF 1.22, net $+34.85.
+- **LONG|E0240|R420|X480|F0.95|T0.10|S0.50** — validation N 65, WR 73.8%, PF 1.53, net $+42.04; 5bps PF 1.24, net $+21.30.
+
+**Status: ETH_B27DX_PAIR_CALIBRATION_V2_SURVIVOR_FOUND**
+
+Research only. No live BBC changes.
+
