@@ -1,0 +1,40 @@
+name: B27FI BNB hour14-17 structural sweep
+
+on:
+  push:
+    branches:
+      - bnb-hour14-17-sweep-b27fi
+    paths:
+      - 'BNB_HOURLY_SWEEP_B27FI_Preregistration.md'
+      - 'research/bnb_hourly_sweep_b27fi.py'
+      - '.github/workflows/b27fi-bnb-hour14-17-sweep.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  discovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy requests
+      - name: Run B27FI structural sweep
+        run: python research/bnb_hourly_sweep_b27fi.py | tee BNB_HOURLY_SWEEP_B27FI_Run.log
+      - name: Persist B27FI outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BNB_HOURLY_SWEEP_B27FI_Detail.csv \
+                  BNB_HOURLY_SWEEP_B27FI_Summary.csv \
+                  BNB_HOURLY_SWEEP_B27FI_Result.md \
+                  BNB_HOURLY_SWEEP_B27FI_Status.txt \
+                  BNB_HOURLY_SWEEP_B27FI_Run.log
+          git diff --cached --quiet || git commit -m "persist B27FI BNB hour14-17 structural sweep result"
+          git push origin HEAD:bnb-hour14-17-sweep-b27fi
