@@ -1,0 +1,8 @@
+coverage=100.000000%
+sessions=1095 leaves=167 h2=142 structural_rate=85.029940%
+signals=28 trades=28 target_touches=25
+slip=0bps N=28 WR=42.857143% PF=0.9114 exp=$-0.0229 net=$-0.6410 maxLS=6
+slip=2bps N=28 WR=35.714286% PF=0.4089 exp=$-0.2230 net=$-6.2441 maxLS=8
+slip=5bps N=28 WR=21.428571% PF=0.1183 exp=$-0.5230 net=$-14.6445 maxLS=8
+slip=10bps N=28 WR=7.142857% PF=0.0159 exp=$-1.0226 net=$-28.6341 maxLS=13
+classification=ECONOMIC_EDGE_NOT_SUPPORTED
