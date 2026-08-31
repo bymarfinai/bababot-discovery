@@ -1,0 +1,40 @@
+name: B27FP BNB fixed 05:00 reference-end grid
+
+on:
+  push:
+    branches:
+      - bnb-reference-end-0500-grid-b27fp
+    paths:
+      - 'BNB_REFERENCE_END_0500_GRID_B27FP_Preregistration.md'
+      - 'research/bnb_reference_end_0500_grid_b27fp.py'
+      - '.github/workflows/b27fp-bnb-reference-end-0500-grid.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  discovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy requests
+      - name: Run B27FP fixed 05:00 reference-end grid
+        run: python research/bnb_reference_end_0500_grid_b27fp.py | tee BNB_REFERENCE_END_0500_GRID_B27FP_Run.log
+      - name: Persist B27FP outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BNB_REFERENCE_END_0500_GRID_B27FP_Detail.csv \
+                  BNB_REFERENCE_END_0500_GRID_B27FP_Summary.csv \
+                  BNB_REFERENCE_END_0500_GRID_B27FP_Result.md \
+                  BNB_REFERENCE_END_0500_GRID_B27FP_Status.txt \
+                  BNB_REFERENCE_END_0500_GRID_B27FP_Run.log
+          git diff --cached --quiet || git commit -m "persist B27FP BNB fixed 05:00 reference-end result"
+          git push origin HEAD:bnb-reference-end-0500-grid-b27fp
