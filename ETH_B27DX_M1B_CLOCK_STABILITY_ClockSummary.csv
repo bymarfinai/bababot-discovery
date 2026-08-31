@@ -1,0 +1,10 @@
+exec_min,clock_utc,development_positive_probes,development_pass,development_median_pf,development_median_expectancy,development_total_n,external_positive_probes,external_n_probes,external_pass,reference_validation_positive_probes,reference_validation_n_probes,reference_validation_pass,supported
+840,14:00,0,False,0.7961367801041157,-0.5240059613975718,236,0,3,False,0,3,False,False
+870,14:30,0,False,0.5687148071182948,-1.2163937408741021,195,1,3,False,3,3,True,False
+900,15:00,0,False,0.9244693422367081,-0.17868423066090408,171,2,3,True,1,3,False,False
+930,15:30,3,True,2.0059811330999917,1.04585353415752,147,2,3,True,1,3,False,False
+960,16:00,2,True,1.3028584188748753,0.5776078565905937,175,2,3,True,3,3,True,True
+990,16:30,3,True,1.2967964830242038,0.6249539899403036,156,2,3,True,0,3,False,False
+1020,17:00,1,False,0.9402874861448227,-0.13433581660355465,133,2,3,True,0,3,False,False
+1050,17:30,1,False,1.0868331650140215,0.1659647795127436,143,0,3,False,0,3,False,False
+1080,18:00,1,False,0.9471046798928208,-0.10343961655014086,150,1,3,False,0,3,False,False
