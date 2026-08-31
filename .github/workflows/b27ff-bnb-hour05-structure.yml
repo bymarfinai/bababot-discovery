@@ -1,0 +1,40 @@
+name: B27FF BNB hour05 structural discovery
+
+on:
+  push:
+    branches:
+      - bnb-hour05-structure-b27ff
+    paths:
+      - 'BNB_HOURLY_STRUCTURE_B27FF_Preregistration.md'
+      - 'research/bnb_hourly_structure_b27ff.py'
+      - '.github/workflows/b27ff-bnb-hour05-structure.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  discovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy requests
+      - name: Run B27FF structural discovery
+        run: python research/bnb_hourly_structure_b27ff.py | tee BNB_HOURLY_STRUCTURE_B27FF_Run.log
+      - name: Persist B27FF outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BNB_HOURLY_STRUCTURE_B27FF_Detail.csv \
+                  BNB_HOURLY_STRUCTURE_B27FF_Summary.csv \
+                  BNB_HOURLY_STRUCTURE_B27FF_Result.md \
+                  BNB_HOURLY_STRUCTURE_B27FF_Status.txt \
+                  BNB_HOURLY_STRUCTURE_B27FF_Run.log
+          git diff --cached --quiet || git commit -m "persist B27FF BNB hour05 structural result"
+          git push origin HEAD:bnb-hour05-structure-b27ff
