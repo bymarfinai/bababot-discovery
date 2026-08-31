@@ -1,0 +1,16 @@
+coverage=100.0000%
+sessions=1095 leaves=162 h2=132 h2_rate=81.4815%
+immediate_h2=30
+threshold  depth_R  reached_count  share_all_leaves  h2  opposite_break  ambiguous  no_h2_by_end  h2_recovery_rate  threshold_to_h2_p25_min  threshold_to_h2_median_min  threshold_to_h2_p75_min  threshold_to_h2_p90_min
+      P10     0.10            111          0.685185  82               9          0            20          0.738739                    20.00                        30.0                    68.75                    130.0
+      P20     0.20             93          0.574074  64               9          0            20          0.688172                    23.75                        35.0                    80.00                    130.0
+      P35     0.35             57          0.351852  31               9          0            17          0.543860                    32.50                        55.0                    85.00                    150.0
+      P50     0.50             42          0.259259  20               9          0            13          0.476190                    38.75                        57.5                    90.00                    107.0
+       first_close_depth_bin  count  share_all_leaves  h2  h2_outcome_rate  opposite_break  ambiguous  no_h2_by_end  first_bar_is_h2_terminal
+                    LE_0.10R     53          0.327160  51         0.962264               1          0             1                        28
+            GT_0.10_TO_0.20R     55          0.339506  44         0.800000               2          0             9                         1
+            GT_0.20_TO_0.35R     33          0.203704  22         0.666667               2          0             9                         1
+            GT_0.35_TO_0.50R     14          0.086420  11         0.785714               3          0             0                         0
+                    GT_0.50R      6          0.037037   4         0.666667               1          0             1                         0
+MISSING_FIRST_POST_LEAVE_BAR      1          0.006173   0         0.000000               0          0             1                         0
+B27FM complete; structural diagnosis only.
