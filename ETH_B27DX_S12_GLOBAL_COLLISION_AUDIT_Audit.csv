@@ -1,0 +1,5 @@
+check,value,pass
+s10_build_audit,1,True
+decision_count_parity,575,True
+accepted_decision_parity,575,True
+accepted_exit_after_entry,478,True
