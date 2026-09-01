@@ -1,0 +1,34 @@
+name: ETH B27DX S4A Runner Arm Geometry
+
+on:
+  push:
+    paths:
+      - '.github/workflows/eth-b27dx-s4a-runner-arm-geometry.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  s4a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run S4A runner arm geometry
+        run: python research/eth_b27dx_s4a_runner_arm_geometry.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_B27DX_S4A_RUNNER_ARM_GEOMETRY_*.md ETH_B27DX_S4A_RUNNER_ARM_GEOMETRY_*.csv ETH_B27DX_S4A_RUNNER_ARM_GEOMETRY_*.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "research: persist ETH B27DX S4A runner arm results"
+            git pull --rebase origin main
+            git push
+          fi
