@@ -1,0 +1,16 @@
+gap,gap_label,partition,early_floor_violations,same_entry_ties
+0.05,G05,external,0,12
+0.05,G05,development,0,42
+0.05,G05,reference_validation,0,14
+0.1,G10,external,0,12
+0.1,G10,development,0,42
+0.1,G10,reference_validation,0,14
+0.15,G15,external,0,12
+0.15,G15,development,0,42
+0.15,G15,reference_validation,0,14
+0.2,G20,external,0,12
+0.2,G20,development,0,42
+0.2,G20,reference_validation,0,14
+0.25,G25,external,0,12
+0.25,G25,development,0,42
+0.25,G25,reference_validation,0,14
