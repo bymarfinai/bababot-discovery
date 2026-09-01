@@ -38,7 +38,7 @@ def select(s):
   rows.append(row)
  return pd.DataFrame(rows)
 def lock(c,sel,col):
- clocks=set(int(v) for v in sel.loc[sel.replicated,'exec_min']);
+ clocks=set(int(v) for v in sel.loc[sel.replicated,'exec_min'])
  if not clocks:return pd.DataFrame(),pd.DataFrame()
  allc=c[c.exec_min.isin(clocks)&mask(c)].copy(); decs=[];rows=[];mw=sum(s7a.s4.weeks_for(p) for p in PARTS)
  for p in PARTS:
@@ -55,7 +55,7 @@ def main():
  elif ndev==0:status='ETH_S7E_NO_DEV_BEARISH_LEAVE_FILTER'
  elif nrep==0:status='ETH_S7E_DEV_FILTERS_NOT_REPLICATED'
  else:
-  z=p0[p0.partition=='POOLED_MAJOR'].iloc[0];zs=p5[p5.partition=='POOLED_MAJOR'].iloc[0];maj=p0[p0.partition.isin(PARTS)];btc=bool(z.wr>=s7a.BTC_WR and z.pf>=s7a.BTC_PF and z.expectancy>=s7a.BTC_EXP and ((maj.net>0)&(maj.pf>1)).all() and zs.net.iloc[0]>=0 and zs.pf.iloc[0]>=1);status='ETH_S7E_BEARISH_LEAVE_PORTFOLIO_BTC_QUALITY_SUPPORTED' if btc else 'ETH_S7E_BEARISH_LEAVE_FILTERS_REPLICATED_BELOW_BTC'
+  z=p0[p0.partition=='POOLED_MAJOR'].iloc[0];zs=p5[p5.partition=='POOLED_MAJOR'].iloc[0];maj=p0[p0.partition.isin(PARTS)];btc=bool(z.wr>=s7a.BTC_WR and z.pf>=s7a.BTC_PF and z.expectancy>=s7a.BTC_EXP and ((maj.net>0)&(maj.pf>1)).all() and zs.net>=0 and zs.pf>=1);status='ETH_S7E_BEARISH_LEAVE_PORTFOLIO_BTC_QUALITY_SUPPORTED' if btc else 'ETH_S7E_BEARISH_LEAVE_FILTERS_REPLICATED_BELOW_BTC'
  lines=['# ETH B27DX — S7E Bearish Leave-Bar Quality — Result','',f'ETH raw 5m coverage: **{cov:.4%}**.','',f'- Causal audit: **{"PASS" if causal else "FAIL"}**.','','| Clock | Variant | N | Retain | WR | PF | Exp | Net | Promote |','|---:|---|---:|---:|---:|---:|---:|---:|---|']
  for ex in CLOCKS:
   for name in ('BASE','BEARISH_LEAVE_BAR'):
