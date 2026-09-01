@@ -1,0 +1,5 @@
+exec_min,execution_utc,selected_state,dev_promoted,replicated
+300,05:00,,False,False
+540,09:00,,False,False
+600,10:00,,False,False
+960,16:00,,False,False
