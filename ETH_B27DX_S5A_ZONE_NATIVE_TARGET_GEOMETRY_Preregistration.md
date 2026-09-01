@@ -42,6 +42,8 @@ A clock has a `ZONE_NATIVE_TARGET_FAMILY` only if >=2 adjacent target values are
 
 For any qualifying family, the next-stage frozen target is its median; even-size tie uses the numeric upper median (larger extension). Isolated best targets are not eligible.
 
+If a clock has multiple qualifying contiguous target families of equal maximum length, select the family with the **smaller median target extension** as a deterministic conservative tie-break. PF, WR, expectancy and net are not used for this tie-break.
+
 ## Reporting
 Report per clock:
 - all robust targets;
