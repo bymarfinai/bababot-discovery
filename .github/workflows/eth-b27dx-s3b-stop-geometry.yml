@@ -29,5 +29,6 @@ jobs:
             echo "No result changes"
           else
             git commit -m "research: persist ETH B27DX S3B stop geometry results"
+            git pull --rebase origin main
             git push
           fi
