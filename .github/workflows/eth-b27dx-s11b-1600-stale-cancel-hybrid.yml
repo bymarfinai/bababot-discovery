@@ -29,3 +29,4 @@ jobs:
           git commit -m "research: persist ETH B27DX S11B 16:00 stale-cancel hybrid results"
           git pull --rebase origin main
           git push origin main
+# trigger after initial workflow registration
