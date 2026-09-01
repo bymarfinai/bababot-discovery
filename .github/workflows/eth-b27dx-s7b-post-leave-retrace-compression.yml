@@ -1,0 +1,39 @@
+name: ETH B27DX S7B Post-Leave Retrace Compression
+
+on:
+  push:
+    paths:
+      - '.github/workflows/eth-b27dx-s7b-post-leave-retrace-compression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  s7b:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run S7B post-leave retrace compression
+        run: python research/eth_b27dx_s7b_post_leave_retrace_compression.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_B27DX_S7B_POST_LEAVE_RETRACE_COMPRESSION_*.md ETH_B27DX_S7B_POST_LEAVE_RETRACE_COMPRESSION_*.csv ETH_B27DX_S7B_POST_LEAVE_RETRACE_COMPRESSION_*.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+            exit 0
+          fi
+          git commit -m "research: persist ETH B27DX S7B compression results"
+          ok=0
+          for i in 1 2 3 4; do
+            git pull --rebase origin main || { git rebase --abort || true; sleep 2; continue; }
+            if git push; then ok=1; break; fi
+            sleep 2
+          done
+          test "$ok" -eq 1
