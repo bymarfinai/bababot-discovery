@@ -1,0 +1,33 @@
+name: ETH B27DX S3A Target Geometry
+
+on:
+  push:
+    paths:
+      - '.github/workflows/eth-b27dx-s3a-target-geometry.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  s3a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run S3A target geometry
+        run: python research/eth_b27dx_s3a_target_geometry.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_B27DX_S3A_TARGET_GEOMETRY_*.md ETH_B27DX_S3A_TARGET_GEOMETRY_*.csv ETH_B27DX_S3A_TARGET_GEOMETRY_*.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "research: persist ETH B27DX S3A target geometry results"
+            git push
+          fi
