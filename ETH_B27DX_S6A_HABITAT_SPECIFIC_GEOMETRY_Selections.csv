@@ -1,0 +1,5 @@
+exec_min,execution_utc,dev_eligible_cells,component_cells,entry_f,target_ext,stop_f,selected,external_pass,reference_validation_pass,validated
+300,05:00,0,0,,,,False,False,False,False
+540,09:00,2,0,,,,False,False,False,False
+600,10:00,0,0,,,,False,False,False,False
+960,16:00,0,0,,,,False,False,False,False
