@@ -1,0 +1,5 @@
+check,value,pass
+S10_candidate_parity_causal,1,True
+freshness_causal_audit,1,True
+16_stale_candidates_removed,68,True
+non16_candidate_count_unchanged,452,True
