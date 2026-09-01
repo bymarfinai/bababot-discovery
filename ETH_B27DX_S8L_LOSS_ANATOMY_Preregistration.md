@@ -66,7 +66,7 @@ For each partition and pooled-major, compute a rank-based loss association effec
 - negative = feature tends to be lower on losses.
 
 A feature is called `DIRECTIONALLY_REPLICATED` only when:
-- both wins and losses have adequate observations in every major partition,
+- every major partition contains at least 5 losses and 5 wins with non-missing values for that feature,
 - effect sign is the same in External, Development, and Reference Validation,
 - |effect| >= 0.05 in each partition,
 - pooled-major |effect| >= 0.15.
@@ -74,7 +74,11 @@ A feature is called `DIRECTIONALLY_REPLICATED` only when:
 This criterion is frozen before results and does not create a trading cutoff.
 
 ### Binary/categorical features
-Report loss rate by category and risk ratio. A binary association is called directionally replicated only if both groups have adequate observations in every partition, risk-ratio direction agrees across all three partitions, each partition differs from 1.0 by at least 5%, and pooled risk ratio is at least 1.25 or at most 0.80.
+Report loss rate by category and risk ratio. A binary association is called directionally replicated only if:
+- both binary groups contain at least 5 observations in every major partition,
+- risk-ratio direction agrees across all three partitions,
+- each partition differs from 1.0 by at least 5%,
+- pooled risk ratio is at least 1.25 or at most 0.80.
 
 ## Required outputs
 - accepted-trade feature dataset,
