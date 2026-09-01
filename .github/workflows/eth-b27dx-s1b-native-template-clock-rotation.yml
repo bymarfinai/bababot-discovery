@@ -1,0 +1,33 @@
+name: ETH B27DX S1B Native Template Clock Rotation
+
+on:
+  push:
+    paths:
+      - '.github/workflows/eth-b27dx-s1b-native-template-clock-rotation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  s1b:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run S1B native template clock rotation
+        run: python research/eth_b27dx_s1b_native_template_clock_rotation.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_B27DX_S1B_NATIVE_TEMPLATE_CLOCK_ROTATION_*.md ETH_B27DX_S1B_NATIVE_TEMPLATE_CLOCK_ROTATION_*.csv ETH_B27DX_S1B_NATIVE_TEMPLATE_CLOCK_ROTATION_*.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "research: persist ETH B27DX S1B native template clock results"
+            git push
+          fi
