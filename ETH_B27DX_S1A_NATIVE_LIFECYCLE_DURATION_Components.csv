@@ -1,0 +1,4 @@
+anchor_min,anchor_utc,component_id,cells,distinct_refs,distinct_horizons,ref_values,horizon_values,median_raw_opportunities_per_week,qualifying_native_component
+570,09:30,1,2,1,2,120,"390,420",0.5492700729927007,False
+570,09:30,2,3,1,3,330,"360,390,420",0.6195255474452555,False
+960,16:00,1,18,4,5,"240,300,330,360","240,300,360,390,420",0.3800182481751825,True
