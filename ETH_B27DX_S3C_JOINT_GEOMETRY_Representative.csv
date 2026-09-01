@@ -1,0 +1,2 @@
+entry_f,entry,target_ext,target,stop_f,stop,robust_clock_count,robust_clocks,robust_major_median_wr,robust_major_median_pf,robust_major_median_exp,robust_major_median_max_ls,robust_major_median_n,btc_wr_gap_pp,btc_pf_gap,btc_exp_gap,btc_quality_diagnostic_pass,supported,component
+0.75,F75,0.25,E25,0.2,F20,3,"05:00,09:00,10:00",0.6346153846153846,1.4978460290886193,0.861201971435477,3.0,41.0,-8.46826153846154,-0.7253469709113809,-0.39879802856452296,False,True,1
