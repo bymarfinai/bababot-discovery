@@ -1,0 +1,33 @@
+name: ETH B27DX S1A Native Lifecycle Duration
+
+on:
+  push:
+    paths:
+      - '.github/workflows/eth-b27dx-s1a-native-lifecycle-duration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  s1a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run S1A native lifecycle duration discovery
+        run: python research/eth_b27dx_s1a_native_lifecycle_duration.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_B27DX_S1A_NATIVE_LIFECYCLE_DURATION_*.md ETH_B27DX_S1A_NATIVE_LIFECYCLE_DURATION_*.csv ETH_B27DX_S1A_NATIVE_LIFECYCLE_DURATION_*.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "research: persist ETH B27DX S1A native lifecycle results"
+            git push
+          fi
