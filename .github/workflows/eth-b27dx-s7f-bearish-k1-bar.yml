@@ -1,0 +1,39 @@
+name: ETH B27DX S7F Bearish K1 Bar
+
+on:
+  push:
+    paths:
+      - '.github/workflows/eth-b27dx-s7f-bearish-k1-bar.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  s7f:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run S7F bearish K1 bar
+        run: python research/eth_b27dx_s7f_bearish_k1_bar.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_B27DX_S7F_BEARISH_K1_BAR_*.md ETH_B27DX_S7F_BEARISH_K1_BAR_*.csv ETH_B27DX_S7F_BEARISH_K1_BAR_*.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+            exit 0
+          fi
+          git commit -m "research: persist ETH B27DX S7F bearish K1 results"
+          ok=0
+          for i in 1 2 3 4; do
+            git pull --rebase origin main || { git rebase --abort || true; sleep 2; continue; }
+            if git push; then ok=1; break; fi
+            sleep 2
+          done
+          test "$ok" -eq 1
