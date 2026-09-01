@@ -22,10 +22,16 @@ def build_regimes(x):
    H=float(ref.high.max());L=float(ref.low.min())
    if not H>L:continue
    mid=(H+L)/2.;rows.append({'exec_min':ex,'execution_start':es,'reference_start':rs,'H_regime':H,'L_regime':L,'range_pct':(H-L)/mid})
- d=pd.DataFrame(rows).sort_values(['exec_min','execution_start']).reset_index(drop=True); d['trailing20_median']=d.groupby('exec_min')['range_pct'].transform(lambda z:z.shift(1).rolling(LOOKBACK,min_periods=LOOKBACK).median()); d['classified']=d.trailing20_median.notna(); d['vol_regime']=np.where(~d.classified,'UNCLASSIFIED',np.where(d.range_pct>=d.trailing20_median,'HIGH_VOL','LOW_VOL')); return d
+ d=pd.DataFrame(rows).sort_values(['exec_min','execution_start']).reset_index(drop=True)
+ d['trailing20_median']=d.groupby('exec_min')['range_pct'].transform(lambda z:z.shift(1).rolling(LOOKBACK,min_periods=LOOKBACK).median())
+ d['classified']=d.trailing20_median.notna()
+ d['vol_regime']=np.where(~d.classified,'UNCLASSIFIED',np.where(d.range_pct>=d.trailing20_median,'HIGH_VOL','LOW_VOL'))
+ return d
 def attach(c,reg):
- q=c.merge(reg[['exec_min','execution_start','range_pct','trailing20_median','classified','vol_regime']],on=['exec_min','execution_start'],how='left',validate='many_to_one');
- if q.classified.isna().any():raise AssertionError('missing regime row');return q
+ q=c.merge(reg[['exec_min','execution_start','range_pct','trailing20_median','classified','vol_regime']],on=['exec_min','execution_start'],how='left',validate='many_to_one')
+ if q.classified.isna().any():
+  raise AssertionError('missing regime row')
+ return q
 def table(c):
  rows=[]
  for ex in CLOCKS:
