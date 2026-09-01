@@ -1,0 +1,5 @@
+check,value,pass
+m1_signal_identity_parity,382.0,True
+raw_5m_coverage_ge_99_5,1.0,True
+filled_entry_chronology_geometry,703.0,True
+one_window_per_m1_signal,382.0,True
