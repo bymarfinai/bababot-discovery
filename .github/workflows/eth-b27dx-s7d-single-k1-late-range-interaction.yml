@@ -1,0 +1,41 @@
+name: ETH B27DX S7D Single K1 Late Range Interaction
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ETH_B27DX_S7D_SINGLE_K1_LATE_RANGE_INTERACTION_Preregistration.md'
+      - 'research/eth_b27dx_s7d_single_k1_late_range_interaction.py'
+      - '.github/workflows/eth-b27dx-s7d-single-k1-late-range-interaction.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  s7d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run S7D causal interaction
+        run: python research/eth_b27dx_s7d_single_k1_late_range_interaction.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_B27DX_S7D_SINGLE_K1_LATE_RANGE_INTERACTION_*.md ETH_B27DX_S7D_SINGLE_K1_LATE_RANGE_INTERACTION_*.csv ETH_B27DX_S7D_SINGLE_K1_LATE_RANGE_INTERACTION_*.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+            exit 0
+          fi
+          git commit -m "research: persist ETH B27DX S7D interaction results"
+          ok=0
+          for i in 1 2 3 4; do
+            git pull --rebase origin main || { git rebase --abort || true; sleep 2; continue; }
+            if git push; then ok=1; break; fi
+            sleep 2
+          done
+          test "$ok" -eq 1
