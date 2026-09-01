@@ -1,0 +1,33 @@
+name: ETH London NY Pre-H2 Retrace M2
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ETH_LONDON_NY_PRE_H2_RETRACE_M2_Preregistration.md'
+      - 'research/eth_london_ny_pre_h2_retrace_m2.py'
+      - '.github/workflows/eth-london-ny-pre-h2-retrace-m2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  m2:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run ETH London-NY M2
+        run: python research/eth_london_ny_pre_h2_retrace_m2.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_LONDON_NY_PRE_H2_RETRACE_M2_*.md ETH_LONDON_NY_PRE_H2_RETRACE_M2_*.csv ETH_LONDON_NY_PRE_H2_RETRACE_M2_*.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: persist ETH London-NY M2 results"
+          git pull --rebase origin main
+          git push origin main
