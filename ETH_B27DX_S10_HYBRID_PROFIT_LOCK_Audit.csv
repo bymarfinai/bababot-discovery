@@ -1,0 +1,10 @@
+check,value,pass
+fixed_candidate_count,575,True
+fixed_10_candidate_count,176,True
+runner_10_E10_candidate_count,176,True
+10:00_exact_candidate_identity,176,True
+10:00_entry_px_parity,176,True
+10:00_H_parity,176,True
+10:00_L_parity,176,True
+runner_early_floor_violations,0,True
+hybrid_candidate_count_equals_fixed,575,True
