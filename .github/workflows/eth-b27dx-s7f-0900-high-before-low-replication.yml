@@ -1,0 +1,41 @@
+name: ETH B27DX S7F 0900 High Before Low Replication
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ETH_B27DX_S7F_0900_HIGH_BEFORE_LOW_REPLICATION_Preregistration.md'
+      - 'research/eth_b27dx_s7f_0900_high_before_low_replication.py'
+      - '.github/workflows/eth-b27dx-s7f-0900-high-before-low-replication.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  s7f:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run S7F historical replication
+        run: python research/eth_b27dx_s7f_0900_high_before_low_replication.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_B27DX_S7F_0900_HIGH_BEFORE_LOW_REPLICATION_*.md ETH_B27DX_S7F_0900_HIGH_BEFORE_LOW_REPLICATION_*.csv ETH_B27DX_S7F_0900_HIGH_BEFORE_LOW_REPLICATION_*.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+            exit 0
+          fi
+          git commit -m "research: persist ETH B27DX S7F replication results"
+          ok=0
+          for i in 1 2 3 4; do
+            git pull --rebase origin main || { git rebase --abort || true; sleep 2; continue; }
+            if git push; then ok=1; break; fi
+            sleep 2
+          done
+          test "$ok" -eq 1
