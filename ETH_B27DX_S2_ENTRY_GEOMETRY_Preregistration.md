@@ -31,7 +31,7 @@ S2 changes **entry fraction only**. It does not tune reference duration, executi
 These exits are diagnostic scaffolding in S2. They are intentionally not optimized until an entry family is frozen.
 
 ## Entry grid
-Test a preregistered 5-point fraction grid across the frozen reference range:
+Test a preregistered **5-percentage-point fraction grid** across the frozen reference range:
 
 `F95, F90, F85, F80, F75, F70, F65, F60`
 
@@ -60,7 +60,7 @@ An entry fraction is `SUPPORTED` if it has at least **2 ROBUST clocks** among th
 This prevents one excellent clock from defining ETH-wide entry geometry.
 
 ## Entry-family topology gate
-Supported fractions are ordered by the preregistered 5-point fraction grid. A qualifying ETH-native entry family requires:
+Supported fractions are ordered by the preregistered 5-percentage-point grid. A qualifying ETH-native entry family requires:
 1. at least **2 adjacent SUPPORTED entry fractions**; and
 2. at least **2 robust clocks** represented within that adjacent family.
 
