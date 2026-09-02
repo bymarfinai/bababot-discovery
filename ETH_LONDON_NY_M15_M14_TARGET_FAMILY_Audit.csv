@@ -1,0 +1,10 @@
+check,value,expected,pass,expected_min
+cohort_95_x_6,570.0,570.0,True,
+raw_coverage,1.0,,True,0.995
+m8_base_E05_f50_exact_parity,1.0,,True,
+m8_base_E10_f50_exact_parity,1.0,,True,
+m8_base_E15_f50_exact_parity,1.0,,True,
+m14_managed_e15_exact_parity,1.0,,True,
+conditional_exit_next_open,1.0,,True,
+conditional_exit_h2_seen_only,1.0,,True,
+one_row_per_setup_variant,1.0,,True,
