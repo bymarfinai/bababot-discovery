@@ -1,0 +1,7 @@
+check,value,expected,pass,expected_min
+cohort_95_x_3,285.0,285.0,True,
+m8_base_e15_f50_exact_parity,1.0,,True,
+raw_coverage,1.0,,True,0.995
+f75_state_matches_frozen_h2_timestamp,1.0,,True,
+conditional_exit_next_open,1.0,,True,
+max_one_row_per_setup_variant,1.0,,True,
