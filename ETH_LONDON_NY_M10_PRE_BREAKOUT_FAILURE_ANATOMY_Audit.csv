@@ -1,0 +1,6 @@
+check,value,expected,pass,expected_min
+m5_cohort_rows,95.0,95.0,True,
+m5_breakout_parity,77.0,77.0,True,
+coverage,1.0,,True,0.995
+winner_terminal_close_gt_H,1.0,,True,
+checkpoint_states_valid,1.0,,True,
