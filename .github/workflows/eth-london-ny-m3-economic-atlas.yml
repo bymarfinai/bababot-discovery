@@ -1,0 +1,30 @@
+name: ETH London NY M3 Economic Atlas
+on:
+  push:
+    paths:
+      - 'research/eth_london_ny_m3_economic_atlas.py'
+      - 'ETH_LONDON_NY_M3_ECONOMIC_ATLAS_Preregistration.md'
+      - '.github/workflows/eth-london-ny-m3-economic-atlas.yml'
+  workflow_dispatch:
+jobs:
+  m3:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run ETH London-NY M3
+        run: python research/eth_london_ny_m3_economic_atlas.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_LONDON_NY_M3_ECONOMIC_ATLAS_* || true
+          if ! git diff --cached --quiet; then
+            git commit -m "research: persist ETH London-NY M3 economic results"
+            git push
+          fi
