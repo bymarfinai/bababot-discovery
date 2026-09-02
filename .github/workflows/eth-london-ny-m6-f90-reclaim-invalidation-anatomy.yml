@@ -1,0 +1,30 @@
+name: ETH London NY M6 F90 Reclaim Invalidation Anatomy
+
+on:
+  push:
+    paths:
+      - 'ETH_LONDON_NY_M6_F90_RECLAIM_INVALIDATION_ANATOMY_Preregistration.md'
+      - 'research/eth_london_ny_m6_f90_reclaim_invalidation_anatomy.py'
+      - '.github/workflows/eth-london-ny-m6-f90-reclaim-invalidation-anatomy.yml'
+  workflow_dispatch:
+
+jobs:
+  m6:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run ETH London-NY M6
+        run: python research/eth_london_ny_m6_f90_reclaim_invalidation_anatomy.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "4189822+github-actions[bot]@users.noreply.github.com"
+          git add ETH_LONDON_NY_M6_F90_RECLAIM_INVALIDATION_ANATOMY_Result.md ETH_LONDON_NY_M6_F90_RECLAIM_INVALIDATION_ANATOMY_Trades.csv ETH_LONDON_NY_M6_F90_RECLAIM_INVALIDATION_ANATOMY_ClassSummary.csv ETH_LONDON_NY_M6_F90_RECLAIM_INVALIDATION_ANATOMY_BoundarySummary.csv ETH_LONDON_NY_M6_F90_RECLAIM_INVALIDATION_ANATOMY_Status.txt
+          git commit -m "research: persist ETH London-NY M6 invalidation anatomy" || true
+          git push
