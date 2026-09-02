@@ -1,0 +1,6 @@
+check,value,pass,expected_min,expected
+m5_cohort_95,95.0,True,,
+raw_coverage,1.0,True,0.995,
+m8_e15_f50_exact_parity,0.0,False,,
+four_variant_rows,380.0,True,,380.0
+floor_not_on_breakout_bar,1.0,True,,
