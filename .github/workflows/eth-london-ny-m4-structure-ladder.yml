@@ -1,0 +1,30 @@
+name: ETH London NY M4 Structure Ladder
+
+on:
+  push:
+    paths:
+      - 'ETH_LONDON_NY_M4_STRUCTURE_LADDER_Preregistration.md'
+      - 'research/eth_london_ny_m4_structure_ladder.py'
+      - '.github/workflows/eth-london-ny-m4-structure-ladder.yml'
+  workflow_dispatch:
+
+jobs:
+  m4:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run ETH London-NY M4
+        run: python research/eth_london_ny_m4_structure_ladder.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "4189822+github-actions[bot]@users.noreply.github.com"
+          git add ETH_LONDON_NY_M4_STRUCTURE_LADDER_Result.md ETH_LONDON_NY_M4_STRUCTURE_LADDER_Summary.csv ETH_LONDON_NY_M4_STRUCTURE_LADDER_Audit.csv ETH_LONDON_NY_M4_STRUCTURE_LADDER_Status.txt
+          git commit -m "research: persist ETH London-NY M4 structure ladder" || true
+          git push
