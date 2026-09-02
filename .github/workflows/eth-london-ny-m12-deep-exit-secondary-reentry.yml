@@ -1,0 +1,30 @@
+name: ETH London NY M12 Deep Exit Secondary Reentry
+
+on:
+  push:
+    paths:
+      - 'ETH_LONDON_NY_M12_DEEP_EXIT_SECONDARY_REENTRY_Preregistration.md'
+      - 'research/eth_london_ny_m12_deep_exit_secondary_reentry.py'
+      - '.github/workflows/eth-london-ny-m12-deep-exit-secondary-reentry.yml'
+  workflow_dispatch:
+
+jobs:
+  m12:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run ETH London-NY M12
+        run: python research/eth_london_ny_m12_deep_exit_secondary_reentry.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "4189822+github-actions[bot]@users.noreply.github.com"
+          git add ETH_LONDON_NY_M12_DEEP_EXIT_SECONDARY_REENTRY_Result.md ETH_LONDON_NY_M12_DEEP_EXIT_SECONDARY_REENTRY_Trades.csv ETH_LONDON_NY_M12_DEEP_EXIT_SECONDARY_REENTRY_Summary.csv ETH_LONDON_NY_M12_DEEP_EXIT_SECONDARY_REENTRY_Audit.csv ETH_LONDON_NY_M12_DEEP_EXIT_SECONDARY_REENTRY_Status.txt
+          git commit -m "research: persist ETH London-NY M12 deep exit secondary reentry" || true
+          git push
