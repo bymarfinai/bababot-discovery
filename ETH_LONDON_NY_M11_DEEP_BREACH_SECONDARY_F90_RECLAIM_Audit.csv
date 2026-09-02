@@ -1,0 +1,9 @@
+check,value,expected,pass
+m10_cohort_rows,95,95,True
+m10_breakout_count,77,77,True
+m10_source_raw5_coverage,1.0,>=0.995,True
+F80_deep_breach_count,41,41,True
+F75_deep_breach_count,32,32,True
+deep_breach_precedes_secondary_reclaim,1,1,True
+winner_reclaim_class_order,1,1,True
+checkpoint_chronology,1,1,True
