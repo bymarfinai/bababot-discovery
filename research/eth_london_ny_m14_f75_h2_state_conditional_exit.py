@@ -21,7 +21,6 @@ VARIANTS=('BASE_F50','F75_PRE_H2_EXIT','F75_POST_H2_EXIT')
 M5_AUDIT=ROOT/'ETH_LONDON_NY_M5_F90_ENTRY_TRIGGER_Audit.csv'
 M5_STATUS=ROOT/'ETH_LONDON_NY_M5_F90_ENTRY_TRIGGER_Status.txt'
 M8_TRADES=ROOT/'ETH_LONDON_NY_M8_F90_RECLAIM_ECONOMIC_MATRIX_Trades.csv'
-M10_TRADES=ROOT/'ETH_LONDON_NY_M10_PRE_BREAKOUT_FAILURE_ANATOMY_Trades.csv'
 M13_STATUS=ROOT/'ETH_LONDON_NY_M13_F75_PARTIAL_DERISK_Status.txt'
 PFX='ETH_LONDON_NY_M14_F75_H2_STATE_CONDITIONAL_EXIT'
 OUT_MD=ROOT/f'{PFX}_Result.md'
@@ -116,16 +115,12 @@ def synthetic_tests():
     x=pd.DataFrame({'open':99.0,'high':99.2,'low':98.8,'close':99.0},index=idx)
     R=type('R',(),{})
     r=R(); r.H=100.; r.L=90.; r.R=10.; r.entry_px=99.; r.entry_bar_start=idx[0]; r.session_end=idx[-1]; r.h2_bar_start=pd.NaT
-    # Target beats same-bar F75 close.
     x.loc[idx[0],['high','close']]=[102.,97.]
     z=simulate(x,r,'F75_PRE_H2_EXIT'); assert z['exit_reason']=='TARGET'
-    # F50 close beats F75 conditional event.
     x.loc[idx[0],['high','close']]=[99.5,94.]
     z=simulate(x,r,'F75_PRE_H2_EXIT'); assert z['exit_reason']=='CLOSE_INVALIDATION'
-    # PRE_H2 F75 event acts on next open.
     x.loc[idx[0],['high','close']]=[99.5,97.]; x.loc[idx[1],'open']=97.2
     z=simulate(x,r,'F75_PRE_H2_EXIT'); assert z['conditional_exit'] and z['exit_bar_start']==idx[1] and z['f75_state']=='PRE_H2'
-    # Same-bar H2 belongs to H2_SEEN.
     r.h2_bar_start=idx[0]
     z=simulate(x,r,'F75_POST_H2_EXIT'); assert z['conditional_exit'] and z['f75_state']=='H2_SEEN'
 
@@ -143,7 +138,6 @@ def main():
                          'h2_bar_start':r.h2_bar_start,**z,'pnl_0':p0,'pnl_5':p5})
     t=pd.DataFrame(rows)
 
-    # Exact M8 E15/F50 baseline parity.
     m8=pd.read_csv(M8_TRADES)
     m8=m8[(m8.target_name=='E15')&(m8.risk_name=='F50')].copy()
     m8['exit_ts']=pd.to_datetime(m8.exit_ts,utc=True,errors='coerce')
@@ -152,19 +146,19 @@ def main():
     parity=(len(j)==95 and (j.exit_reason_m14==j.exit_reason_m8).all() and (j.exit_ts_m14==j.exit_ts_m8).all() and
             np.allclose(j.exit_px_m14,j.exit_px_m8,rtol=0,atol=1e-9) and np.allclose(j.pnl_0_m14,j.pnl_0_m8,rtol=0,atol=1e-9) and np.allclose(j.pnl_5_m14,j.pnl_5_m8,rtol=0,atol=1e-9))
 
-    # Attach baseline PnL and state audit against M10 persisted F75 anatomy.
     bp=base[['cohort_id','pnl_0','pnl_5']].rename(columns={'pnl_0':'baseline_pnl_0','pnl_5':'baseline_pnl_5'})
     t=t.merge(bp,on='cohort_id',how='left',validate='many_to_one')
     t['delta_vs_base_0']=t.pnl_0-t.baseline_pnl_0
     t['delta_vs_base_5']=t.pnl_5-t.baseline_pnl_5
 
-    m10=pd.read_csv(M10_TRADES,usecols=['cohort_id','F75_breach','F75_breach_bar_start','F75_h2_before_breach','F75_h2_same_breach_bar'])
-    m10['F75_breach']=as_bool(m10.F75_breach); m10['F75_h2_before_breach']=as_bool(m10.F75_h2_before_breach); m10['F75_h2_same_breach_bar']=as_bool(m10.F75_h2_same_breach_bar)
-    m10['F75_breach_bar_start']=pd.to_datetime(m10.F75_breach_bar_start,utc=True,errors='coerce')
-    cand=t[(t.variant=='F75_PRE_H2_EXIT')&t.f75_breach].merge(m10,on='cohort_id',how='left',validate='one_to_one')
+    # H2-state audit uses the frozen M5/M10 H2 timestamp directly. It does not
+    # require M14's later economic F75 event to be terminal-identical to M10,
+    # because M10 stops at strict breakout while M14 remains live to E15/F50.
+    cand=t[(t.variant=='F75_PRE_H2_EXIT')&t.f75_breach].copy()
     cand['f75_signal_bar']=pd.to_datetime(cand.f75_signal_bar,utc=True,errors='coerce')
-    state_expected=np.where(cand.F75_h2_before_breach|cand.F75_h2_same_breach_bar,'H2_SEEN','PRE_H2')
-    state_audit=bool(len(cand)==0 or ((cand.F75_breach)&(cand.f75_signal_bar==cand.F75_breach_bar_start)&(cand.f75_state.to_numpy()==state_expected)).all())
+    cand['h2_bar_start']=pd.to_datetime(cand.h2_bar_start,utc=True,errors='coerce')
+    expected=np.where(cand.h2_bar_start.notna() & (cand.h2_bar_start<=cand.f75_signal_bar),'H2_SEEN','PRE_H2')
+    state_audit=bool(len(cand)==0 or (cand.f75_state.to_numpy()==expected).all())
 
     t.to_csv(OUT_TRADES,index=False)
     chronology=bool((pd.to_datetime(t.loc[t.conditional_exit,'exit_bar_start'],utc=True)==pd.to_datetime(t.loc[t.conditional_exit,'f75_signal_bar'],utc=True)+BAR5).all())
@@ -172,7 +166,7 @@ def main():
         {'check':'cohort_95_x_3','value':len(t),'expected':285,'pass':len(t)==285},
         {'check':'m8_base_e15_f50_exact_parity','value':int(parity),'pass':bool(parity)},
         {'check':'raw_coverage','value':cov,'expected_min':.995,'pass':cov>=.995},
-        {'check':'f75_state_matches_m10','value':int(state_audit),'pass':state_audit},
+        {'check':'f75_state_matches_frozen_h2_timestamp','value':int(state_audit),'pass':state_audit},
         {'check':'conditional_exit_next_open','value':int(chronology),'pass':chronology},
         {'check':'max_one_row_per_setup_variant','value':int(t.groupby(['cohort_id','variant']).size().max()==1),'pass':bool(t.groupby(['cohort_id','variant']).size().max()==1)},
     ])
@@ -205,7 +199,7 @@ def main():
                 pool.wr_0>=.72 and pool.pf_0>=1.30 and pool.expectancy_0>0 and pool.net_0>0 and pool.pf_5>1.00 and pool.net_5>0)
         passes[v]=ok
         s.loc[s.variant==v,'screen_pass']=ok
-    s['screen_pass']=s.get('screen_pass',False).fillna(False)
+    s['screen_pass']=s['screen_pass'].fillna(False)
     s.to_csv(OUT_SUM,index=False)
 
     pool=s[s.partition=='POOLED_MAJOR']
