@@ -1,0 +1,30 @@
+name: ETH London NY M9 Post-Breakout Protection
+
+on:
+  push:
+    paths:
+      - 'ETH_LONDON_NY_M9_POST_BREAKOUT_PROFIT_PROTECTION_Preregistration.md'
+      - 'research/eth_london_ny_m9_post_breakout_profit_protection.py'
+      - '.github/workflows/eth-london-ny-m9-post-breakout-profit-protection.yml'
+  workflow_dispatch:
+
+jobs:
+  m9:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run ETH London-NY M9
+        run: python research/eth_london_ny_m9_post_breakout_profit_protection.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "4189822+github-actions[bot]@users.noreply.github.com"
+          git add ETH_LONDON_NY_M9_POST_BREAKOUT_PROFIT_PROTECTION_Result.md ETH_LONDON_NY_M9_POST_BREAKOUT_PROFIT_PROTECTION_Trades.csv ETH_LONDON_NY_M9_POST_BREAKOUT_PROFIT_PROTECTION_Summary.csv ETH_LONDON_NY_M9_POST_BREAKOUT_PROFIT_PROTECTION_DevelopmentDiagnostic.csv ETH_LONDON_NY_M9_POST_BREAKOUT_PROFIT_PROTECTION_Audit.csv ETH_LONDON_NY_M9_POST_BREAKOUT_PROFIT_PROTECTION_Status.txt
+          git commit -m "research: persist ETH London-NY M9 post-breakout protection" || true
+          git push
