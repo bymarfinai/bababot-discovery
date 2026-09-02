@@ -1,0 +1,9 @@
+partition,boundary,deep_breach_n,winner_n,nonwinner_n,winner_reclaim_rate,winner_reclaim_before_bo_rate,winner_reclaim_on_bo_rate,nonwinner_reclaim_rate,separation_pp,median_breach_to_reclaim_min,p75_breach_to_reclaim_min,bo_rate_if_reclaim,bo_rate_if_no_reclaim,signature_supported
+external,F80,16,9,7,1.0,0.8888888888888888,0.1111111111111111,0.14285714285714285,85.71428571428572,15.0,18.75,0.9,0.0,True
+external,F75,10,5,5,1.0,0.8,0.2,0.0,100.0,20.0,30.0,1.0,0.0,True
+development,F80,21,13,8,1.0,0.5384615384615384,0.46153846153846156,0.125,87.5,32.5,93.75,0.9285714285714286,0.0,True
+development,F75,18,10,8,1.0,0.5,0.5,0.125,87.5,90.0,120.0,0.9090909090909091,0.0,True
+reference_validation,F80,4,2,2,1.0,1.0,0.0,0.0,100.0,92.5,121.25,1.0,0.0,True
+reference_validation,F75,4,2,2,1.0,1.0,0.0,0.0,100.0,85.0,117.5,1.0,0.0,True
+POOLED_MAJOR,F80,41,24,17,1.0,0.7083333333333334,0.2916666666666667,0.11764705882352941,88.23529411764706,22.5,43.75,0.9230769230769231,0.0,True
+POOLED_MAJOR,F75,32,17,15,1.0,0.6470588235294118,0.35294117647058826,0.06666666666666667,93.33333333333333,35.0,101.25,0.9444444444444444,0.0,True
