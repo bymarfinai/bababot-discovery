@@ -1,0 +1,5 @@
+check,value,pass,expected,expected_min
+m5_early_reclaim_executed,95.0,True,,
+full_6_cell_grid,570.0,True,570.0,
+coverage,1.0,True,,0.995
+chronology,1.0,True,,
