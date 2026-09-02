@@ -1,0 +1,30 @@
+name: ETH London NY M14 F75 H2-State Conditional Exit
+
+on:
+  push:
+    paths:
+      - 'ETH_LONDON_NY_M14_F75_H2_STATE_CONDITIONAL_EXIT_Preregistration.md'
+      - 'research/eth_london_ny_m14_f75_h2_state_conditional_exit.py'
+      - '.github/workflows/eth-london-ny-m14-f75-h2-state-conditional-exit.yml'
+  workflow_dispatch:
+
+jobs:
+  m14:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run ETH London-NY M14
+        run: python research/eth_london_ny_m14_f75_h2_state_conditional_exit.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "4189822+github-actions[bot]@users.noreply.github.com"
+          git add ETH_LONDON_NY_M14_F75_H2_STATE_CONDITIONAL_EXIT_Result.md ETH_LONDON_NY_M14_F75_H2_STATE_CONDITIONAL_EXIT_Trades.csv ETH_LONDON_NY_M14_F75_H2_STATE_CONDITIONAL_EXIT_Summary.csv ETH_LONDON_NY_M14_F75_H2_STATE_CONDITIONAL_EXIT_Audit.csv ETH_LONDON_NY_M14_F75_H2_STATE_CONDITIONAL_EXIT_Status.txt
+          git commit -m "research: persist ETH London-NY M14 H2-state conditional exit" || true
+          git push
