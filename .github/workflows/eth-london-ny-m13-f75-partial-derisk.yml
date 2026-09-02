@@ -1,0 +1,30 @@
+name: ETH London NY M13 F75 Partial De-risk
+
+on:
+  push:
+    paths:
+      - 'ETH_LONDON_NY_M13_F75_PARTIAL_DERISK_Preregistration.md'
+      - 'research/eth_london_ny_m13_f75_partial_derisk.py'
+      - '.github/workflows/eth-london-ny-m13-f75-partial-derisk.yml'
+  workflow_dispatch:
+
+jobs:
+  m13:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run ETH London-NY M13
+        run: python research/eth_london_ny_m13_f75_partial_derisk.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "4189822+github-actions[bot]@users.noreply.github.com"
+          git add ETH_LONDON_NY_M13_F75_PARTIAL_DERISK_Result.md ETH_LONDON_NY_M13_F75_PARTIAL_DERISK_Trades.csv ETH_LONDON_NY_M13_F75_PARTIAL_DERISK_Summary.csv ETH_LONDON_NY_M13_F75_PARTIAL_DERISK_Audit.csv ETH_LONDON_NY_M13_F75_PARTIAL_DERISK_Status.txt
+          git commit -m "research: persist ETH London-NY M13 F75 partial de-risk" || true
+          git push
