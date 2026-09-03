@@ -1,0 +1,59 @@
+name: SOL LONG H1 Entry Economics A2
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'SOL_LONG_H1_ENTRY_ECON_A2_Preregistration.md'
+      - 'research/sol_long_h1_entry_econ_a2.py'
+      - '.github/workflows/sol-long-h1-entry-econ-a2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install research dependencies
+        run: pip install pandas numpy requests
+
+      - name: Run A2 H1 entry economics
+        run: python research/sol_long_h1_entry_econ_a2.py
+
+      - name: Persist A2 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            SOL_LONG_H1_ENTRY_ECON_A2_Result.md \
+            SOL_LONG_H1_ENTRY_ECON_A2_CANDIDATES.csv \
+            SOL_LONG_H1_ENTRY_ECON_A2_SELECTED.csv \
+            SOL_LONG_H1_ENTRY_ECON_A2_TRADES.csv \
+            SOL_LONG_H1_ENTRY_ECON_A2_Status.txt
+          if git diff --cached --quiet; then
+            echo "No A2 result changes"
+            exit 0
+          fi
+          git commit -m "research: persist SOL LONG H1 entry economics A2 results"
+          for attempt in 1 2 3; do
+            git pull --rebase origin research/sol-long-structure-a1-run && \
+            git push origin HEAD:research/sol-long-structure-a1-run && exit 0
+            echo "push attempt ${attempt} failed; retrying"
+            sleep $((attempt * 3))
+          done
+          exit 1
