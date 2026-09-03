@@ -1,0 +1,60 @@
+name: SOL LONG Visit-Break Anatomy A1
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'SOL_LONG_VISIT_BREAK_A1_Preregistration.md'
+      - 'research/sol_long_visit_break_a1.py'
+      - '.github/workflows/sol-long-visit-break-a1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install research dependencies
+        run: pip install pandas numpy requests
+
+      - name: Run A1 visit-break anatomy
+        run: python research/sol_long_visit_break_a1.py
+
+      - name: Persist A1 outputs to research branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            SOL_LONG_VISIT_BREAK_A1_Result.md \
+            SOL_LONG_VISIT_BREAK_A1_ATLAS.csv \
+            SOL_LONG_VISIT_BREAK_A1_VISITS.csv \
+            SOL_LONG_VISIT_BREAK_A1_SELECTED.csv \
+            SOL_LONG_VISIT_BREAK_A1_EVENTS.csv \
+            SOL_LONG_VISIT_BREAK_A1_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes to persist"
+            exit 0
+          fi
+          git commit -m "research: persist SOL LONG visit-break A1 results"
+          for attempt in 1 2 3; do
+            git pull --rebase origin research/sol-long-structure-a1-run && \
+            git push origin HEAD:research/sol-long-structure-a1-run && exit 0
+            echo "push attempt ${attempt} failed; retrying"
+            sleep $((attempt * 3))
+          done
+          exit 1
