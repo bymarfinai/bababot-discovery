@@ -1,5 +1,6 @@
 name: SOL LONG H1 Loss Anatomy A3
 
+# Registered workflow; this comment only retriggers the preregistered A3 run.
 on:
   push:
     branches:
