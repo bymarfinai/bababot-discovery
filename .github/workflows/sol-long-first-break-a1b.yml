@@ -1,0 +1,53 @@
+name: SOL LONG First-Break Visit Audit A1B
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'SOL_LONG_FIRST_BREAK_A1B_Preregistration.md'
+      - 'research/sol_long_first_break_a1b.py'
+      - '.github/workflows/sol-long-first-break-a1b.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a1b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install audit dependencies
+        run: pip install pandas numpy
+
+      - name: Run A1B denominator audit
+        run: python research/sol_long_first_break_a1b.py
+
+      - name: Persist A1B outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_LONG_FIRST_BREAK_A1B_Result.md SOL_LONG_FIRST_BREAK_A1B_SUMMARY.csv SOL_LONG_FIRST_BREAK_A1B_Status.txt
+          if git diff --cached --quiet; then
+            echo "No A1B result changes"
+            exit 0
+          fi
+          git commit -m "research: persist SOL LONG first-break A1B results"
+          for attempt in 1 2 3; do
+            git pull --rebase origin research/sol-long-structure-a1-run && \
+            git push origin HEAD:research/sol-long-structure-a1-run && exit 0
+            sleep $((attempt * 3))
+          done
+          exit 1
