@@ -1,0 +1,35 @@
+name: SOL Long 15UTC RC30C2 Early Fail A33
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/sol-long-structure-a1-run]
+    paths:
+      - 'research/sol_long_15utc_rc30c2_early_fail_a33.py'
+      - 'SOL_LONG_15UTC_RC30C2_EARLY_FAIL_A33_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-rc30c2-early-fail-a33.yml'
+jobs:
+  a33:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy pyarrow requests
+      - name: Run A33 early-failure guard
+        run: python research/sol_long_15utc_rc30c2_early_fail_a33.py
+      - name: Persist A33 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_RC30C2_EARLY_FAIL_A33_*.md SOL_LONG_15UTC_RC30C2_EARLY_FAIL_A33_*.csv SOL_LONG_15UTC_RC30C2_EARLY_FAIL_A33_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A33 RC30_C2 early-failure guard'
+          git push origin HEAD:research/sol-long-structure-a1-run
