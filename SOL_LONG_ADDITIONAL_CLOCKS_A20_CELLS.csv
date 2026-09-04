@@ -1,0 +1,3 @@
+candidate,anatomy_rank,ref_min,hour,distance_to_supported,dominant_visit,same_dom_blocks,dominant_opportunity_n,dominant_break_conversion,dominant_median_extension_R,clock_support_ref_min,clock_support_hour,ref_support_ref_min,ref_support_hour
+A20_Z1_R360_H15,1,360,15,3,2,5,159,0.6918238993710691,0.2111674526234588,360,16,300,15
+A20_Z2_R120_H12,2,120,12,6,2,5,263,0.7186311787072244,0.3684210526315778,120,11,180,12
