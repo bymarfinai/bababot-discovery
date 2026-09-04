@@ -1,0 +1,53 @@
+name: SOL LONG E10-Fail Trigger Anatomy A15
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'SOL_LONG_E10_FAIL_TRIGGER_ANATOMY_A15_Preregistration.md'
+      - 'research/sol_long_e10_fail_trigger_anatomy_a15.py'
+      - '.github/workflows/sol-long-e10-fail-trigger-anatomy-a15.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a15:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install -r requirements.txt pandas
+      - name: Run A15 E10 fail trigger anatomy
+        run: python research/sol_long_e10_fail_trigger_anatomy_a15.py
+      - name: Persist A15 outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_LONG_E10_FAIL_TRIGGER_ANATOMY_A15_Result.md \
+                  SOL_LONG_E10_FAIL_TRIGGER_ANATOMY_A15_ANATOMY.csv \
+                  SOL_LONG_E10_FAIL_TRIGGER_ANATOMY_A15_SUMMARY.csv \
+                  SOL_LONG_E10_FAIL_TRIGGER_ANATOMY_A15_SEPARATION.csv \
+                  SOL_LONG_E10_FAIL_TRIGGER_ANATOMY_A15_Status.txt
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'research: persist SOL E10 fail trigger anatomy A15 results'
+          for i in 1 2 3 4; do
+            git pull --rebase origin research/sol-long-structure-a1-run && \
+            git push origin HEAD:research/sol-long-structure-a1-run && exit 0
+            sleep $((i * 2))
+          done
+          exit 1
