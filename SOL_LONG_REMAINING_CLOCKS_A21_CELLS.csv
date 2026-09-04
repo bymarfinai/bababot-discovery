@@ -1,0 +1,2 @@
+candidate,anatomy_rank,ref_min,hour,distance_to_supported,same_dom_blocks,dominant_break_conversion,dominant_median_extension_R,clock_support_ref_min,clock_support_hour,ref_support_ref_min,ref_support_hour
+A21_Z1_R420_H11,1,420,11,4,4,0.7619047619047619,0.2095144464471018,420,12,360,11
