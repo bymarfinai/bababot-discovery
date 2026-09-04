@@ -76,6 +76,8 @@ For each lane report:
 - 5bps net improvement vs frozen parent;
 - six Development half-year block net improvements.
 
+For the block gate, a Development half-year block is **adequate only when the candidate triggers at least 3 trades in that block**. A lane must have at least 4 adequate blocks.
+
 ## Development gate
 A lane is eligible only if:
 - N parity is exact;
@@ -85,8 +87,8 @@ A lane is eligible only if:
 - 5bps PF improves vs frozen parent;
 - gross-loss dollars decrease;
 - winner preservation >= 95%;
-- at least 4 of 6 Development blocks with adequate sample have non-negative net improvement;
-- no single Development block loses more than $25 versus baseline due to the intervention.
+- at least 4 adequate Development blocks and at least 4 adequate blocks with non-negative net improvement;
+- no single adequate Development block loses more than $25 versus baseline due to the intervention.
 
 Among eligible lanes choose in order:
 1. highest 5bps net improvement;
