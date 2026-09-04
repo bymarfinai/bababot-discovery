@@ -1,0 +1,55 @@
+name: SOL LONG H1 Residual Failure A5
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'SOL_LONG_H1_RESIDUAL_FAILURE_A5_Preregistration.md'
+      - 'research/sol_long_h1_residual_failure_a5.py'
+      - '.github/workflows/sol-long-h1-residual-failure-a5.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a5:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install -r requirements.txt pandas
+      - name: Run A5 residual failure anatomy
+        run: python research/sol_long_h1_residual_failure_a5.py
+      - name: Persist A5 outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_LONG_H1_RESIDUAL_FAILURE_A5_Result.md \
+                  SOL_LONG_H1_RESIDUAL_FAILURE_A5_EPISODES.csv \
+                  SOL_LONG_H1_RESIDUAL_FAILURE_A5_DAMAGE.csv \
+                  SOL_LONG_H1_RESIDUAL_FAILURE_A5_LOSS_CLASSES.csv \
+                  SOL_LONG_H1_RESIDUAL_FAILURE_A5_SNAPSHOTS.csv \
+                  SOL_LONG_H1_RESIDUAL_FAILURE_A5_SEPARATION.csv \
+                  SOL_LONG_H1_RESIDUAL_FAILURE_A5_Status.txt
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'research: persist SOL LONG residual failure A5 results'
+          for i in 1 2 3 4; do
+            git pull --rebase origin research/sol-long-structure-a1-run && \
+            git push origin HEAD:research/sol-long-structure-a1-run && exit 0
+            sleep $((i * 2))
+          done
+          exit 1
