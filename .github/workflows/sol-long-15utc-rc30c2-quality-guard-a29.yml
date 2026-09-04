@@ -1,0 +1,35 @@
+name: SOL Long 15UTC RC30C2 Quality Guard A29
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/sol-long-structure-a1-run]
+    paths:
+      - 'research/sol_long_15utc_rc30c2_quality_guard_a29.py'
+      - 'SOL_LONG_15UTC_RC30C2_QUALITY_GUARD_A29_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-rc30c2-quality-guard-a29.yml'
+jobs:
+  a29:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy pyarrow requests
+      - name: Run A29 quality guard
+        run: python research/sol_long_15utc_rc30c2_quality_guard_a29.py
+      - name: Persist A29 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_RC30C2_QUALITY_GUARD_A29_*.md SOL_LONG_15UTC_RC30C2_QUALITY_GUARD_A29_*.csv SOL_LONG_15UTC_RC30C2_QUALITY_GUARD_A29_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A29 RC30_C2 quality guard'
+          git push origin HEAD:research/sol-long-structure-a1-run
