@@ -1,0 +1,33 @@
+name: SOL Long 15UTC Loss Conversion A26
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/sol-long-structure-a1-run]
+    paths:
+      - 'research/sol_long_15utc_loss_conversion_a26.py'
+      - 'SOL_LONG_15UTC_LOSS_CONVERSION_A26_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-loss-conversion-a26.yml'
+jobs:
+  a26:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy pyarrow
+      - name: Run A26 15UTC loss conversion anatomy
+        run: python research/sol_long_15utc_loss_conversion_a26.py
+      - name: Persist A26 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_LOSS_CONVERSION_A26_*.md SOL_LONG_15UTC_LOSS_CONVERSION_A26_*.csv SOL_LONG_15UTC_LOSS_CONVERSION_A26_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A26 15UTC loss conversion anatomy'
+          git push origin HEAD:research/sol-long-structure-a1-run
