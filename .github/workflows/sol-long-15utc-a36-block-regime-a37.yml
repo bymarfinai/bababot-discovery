@@ -1,0 +1,35 @@
+name: SOL Long 15UTC A36 Block Regime A37
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/sol-long-structure-a1-run]
+    paths:
+      - 'research/sol_long_15utc_a36_block_regime_a37.py'
+      - 'SOL_LONG_15UTC_A36_BLOCK_REGIME_A37_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-a36-block-regime-a37.yml'
+jobs:
+  a37:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy pyarrow requests
+      - name: Run A37 block-regime anatomy
+        run: python research/sol_long_15utc_a36_block_regime_a37.py
+      - name: Persist A37 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_A36_BLOCK_REGIME_A37_*.md SOL_LONG_15UTC_A36_BLOCK_REGIME_A37_*.csv SOL_LONG_15UTC_A36_BLOCK_REGIME_A37_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A37 A36 block-regime anatomy'
+          git push origin HEAD:research/sol-long-structure-a1-run
