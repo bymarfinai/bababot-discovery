@@ -1,4 +1,6 @@
 name: SOL Long 15UTC Loss Conversion A26
+permissions:
+  contents: write
 on:
   workflow_dispatch:
   push:
@@ -21,7 +23,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install research dependencies
-        run: pip install pandas numpy pyarrow
+        run: pip install pandas numpy pyarrow requests
       - name: Run A26 15UTC loss conversion anatomy
         run: python research/sol_long_15utc_loss_conversion_a26.py
       - name: Persist A26 outputs
