@@ -1,0 +1,51 @@
+name: SOL Long Remaining Clocks A21
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'SOL_LONG_REMAINING_CLOCKS_A21_Preregistration.md'
+      - 'research/sol_long_remaining_clocks_a21.py'
+      - '.github/workflows/sol-long-remaining-clocks-a21.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a21:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pandas requests
+      - name: Run A21 remaining clocks
+        run: python research/sol_long_remaining_clocks_a21.py
+      - name: Persist A21 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_LONG_REMAINING_CLOCKS_A21_Result.md \
+                  SOL_LONG_REMAINING_CLOCKS_A21_DEVELOPMENT.csv \
+                  SOL_LONG_REMAINING_CLOCKS_A21_OOS.csv \
+                  SOL_LONG_REMAINING_CLOCKS_A21_TRADES.csv \
+                  SOL_LONG_REMAINING_CLOCKS_A21_CELLS.csv \
+                  SOL_LONG_REMAINING_CLOCKS_A21_Status.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Persist SOL A21 remaining clock results"
+          for i in 1 2 3; do
+            git pull --rebase origin research/sol-long-structure-a1-run && git push origin HEAD:research/sol-long-structure-a1-run && exit 0
+            sleep 3
+          done
+          exit 1
