@@ -93,8 +93,8 @@ def weighted_trade_result(entry_price, partial_price, partial_frac, partial_hit,
 
 def replay_core(m, *, role, partition, dev_block, execution_start, parent_entry_ts,
                 entry_ts, entry_price, H, L, R, endpos, confirmed_initial,
-                break_ts, baseline_exit_ts, baseline_exit_reason, baseline_pnl,
-                baseline_pnl_5bps, lane, component):
+                break_ts, dynamic_confirm, baseline_exit_ts, baseline_exit_reason,
+                baseline_pnl, baseline_pnl_5bps, lane, component):
     idx, hi, cl = m["idx"], m["high"], m["close"]
     ei = int(idx.searchsorted(pd.Timestamp(entry_ts), "left"))
     if ei >= len(idx) or idx[ei] != pd.Timestamp(entry_ts) or ei >= endpos:
@@ -122,7 +122,7 @@ def replay_core(m, *, role, partition, dev_block, execution_start, parent_entry_
         if not confirmed:
             if break_i >= 0 and i >= break_i:
                 confirmed = True
-            elif float(cl[i]) > H:
+            elif dynamic_confirm and float(cl[i]) > H:
                 confirmed = True
 
         # Resting E20 partial fills before an E40 runner target if both are traversed.
@@ -143,7 +143,6 @@ def replay_core(m, *, role, partition, dev_block, execution_start, parent_entry_
 
         if partial_hit and confirmed and active_floor_R is not None:
             floor_px = H + active_floor_R * R
-            # A floor above H adds information; <=H remains the frozen failed-break exit.
             if float(cl[i]) > H and float(cl[i]) <= floor_px + EPS:
                 exit_i, exit_price = next_open_exit(m, i, endpos)
                 reason = "RUNNER_FLOOR"
@@ -193,7 +192,7 @@ def replay_parent(m, r, lane):
         execution_start=r.execution_start, parent_entry_ts=r.entry_ts,
         entry_ts=r.entry_ts, entry_price=float(r.entry_price),
         H=float(r.H), L=float(r.L), R=float(r.R), endpos=endpos,
-        confirmed_initial=confirmed_initial, break_ts=break_ts,
+        confirmed_initial=confirmed_initial, break_ts=break_ts, dynamic_confirm=False,
         baseline_exit_ts=r.exit_ts, baseline_exit_reason=r.exit_reason,
         baseline_pnl=r.pnl, baseline_pnl_5bps=r.pnl_5bps,
         lane=lane, component="PARENT",
@@ -216,7 +215,7 @@ def replay_h2(m, hr, parent_row, lane):
         execution_start=hr.execution_start, parent_entry_ts=hr.parent_entry_ts,
         entry_ts=hr.recovery_entry_ts, entry_price=float(hr.recovery_entry_price),
         H=float(hr.H), L=float(hr.L), R=float(hr.R), endpos=endpos,
-        confirmed_initial=confirmed_initial, break_ts=hr.recovery_break_ts,
+        confirmed_initial=confirmed_initial, break_ts=hr.recovery_break_ts, dynamic_confirm=True,
         baseline_exit_ts=hr.recovery_exit_ts, baseline_exit_reason=hr.recovery_exit_reason,
         baseline_pnl=hr.recovery_pnl, baseline_pnl_5bps=hr.recovery_pnl_5bps,
         lane=lane, component="REC_H2",
@@ -414,7 +413,6 @@ def main():
             rrd = rrd.copy(); rrd["selection_scope"] = "DEVELOPMENT_FROZEN_WINNER"
             selected_frames.append(rrd)
 
-        cells = []
         for (role, part), pq in parent.groupby(["role", "partition"], sort=False):
             if role == "CENTRAL" and part == "development":
                 continue
@@ -424,7 +422,6 @@ def main():
             pr, rr = simulate_lane(pq.copy(), hq, m, frozen_lane)
             s = summarize(pq.copy(), hq, pr, rr)
             oos_rows.append({"role": role, "partition": part, "lane": frozen_lane, **s})
-            cells.append((role, part, s))
             pr = pr.copy(); pr["selection_scope"] = "FROZEN_OOS"; selected_frames.append(pr)
             if len(rr):
                 rr = rr.copy(); rr["selection_scope"] = "FROZEN_OOS"; selected_frames.append(rr)
