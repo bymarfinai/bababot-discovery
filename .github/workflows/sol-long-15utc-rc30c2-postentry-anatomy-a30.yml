@@ -1,0 +1,35 @@
+name: SOL Long 15UTC RC30C2 Postentry Anatomy A30
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/sol-long-structure-a1-run]
+    paths:
+      - 'research/sol_long_15utc_rc30c2_postentry_anatomy_a30.py'
+      - 'SOL_LONG_15UTC_RC30C2_POSTENTRY_ANATOMY_A30_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-rc30c2-postentry-anatomy-a30.yml'
+jobs:
+  a30:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas numpy pyarrow requests
+      - name: Run A30 postentry anatomy
+        run: python research/sol_long_15utc_rc30c2_postentry_anatomy_a30.py
+      - name: Persist A30 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_RC30C2_POSTENTRY_ANATOMY_A30_*.md SOL_LONG_15UTC_RC30C2_POSTENTRY_ANATOMY_A30_*.csv SOL_LONG_15UTC_RC30C2_POSTENTRY_ANATOMY_A30_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A30 RC30_C2 postentry anatomy'
+          git push origin HEAD:research/sol-long-structure-a1-run
