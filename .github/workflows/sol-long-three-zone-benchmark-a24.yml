@@ -1,0 +1,56 @@
+name: SOL Long Three-Zone Benchmark A24
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'SOL_LONG_THREE_ZONE_BENCHMARK_A24_Preregistration.md'
+      - 'research/sol_long_three_zone_benchmark_a24.py'
+      - '.github/workflows/sol-long-three-zone-benchmark-a24.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a24:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install research dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pandas requests
+
+      - name: Run A24 three-zone benchmark
+        run: python research/sol_long_three_zone_benchmark_a24.py
+
+      - name: Persist A24 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_LONG_THREE_ZONE_BENCHMARK_A24_Result.md \
+                  SOL_LONG_THREE_ZONE_BENCHMARK_A24_SUMMARY.csv \
+                  SOL_LONG_THREE_ZONE_BENCHMARK_A24_COMPONENTS.csv \
+                  SOL_LONG_THREE_ZONE_BENCHMARK_A24_Status.txt
+          if git diff --cached --quiet; then
+            echo "No A24 output changes"
+            exit 0
+          fi
+          git commit -m "Persist SOL A24 three-zone benchmark results"
+          for i in 1 2 3; do
+            git pull --rebase origin research/sol-long-structure-a1-run && git push origin HEAD:research/sol-long-structure-a1-run && exit 0
+            sleep 3
+          done
+          exit 1
