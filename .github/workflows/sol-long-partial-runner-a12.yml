@@ -1,0 +1,53 @@
+name: SOL LONG Partial Runner A12
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'SOL_LONG_PARTIAL_RUNNER_A12_Preregistration.md'
+      - 'research/sol_long_partial_runner_a12.py'
+      - '.github/workflows/sol-long-partial-runner-a12.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a12:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install -r requirements.txt pandas
+      - name: Run A12 partial runner
+        run: python research/sol_long_partial_runner_a12.py
+      - name: Persist A12 outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_LONG_PARTIAL_RUNNER_A12_Result.md \
+                  SOL_LONG_PARTIAL_RUNNER_A12_DEVELOPMENT.csv \
+                  SOL_LONG_PARTIAL_RUNNER_A12_OOS.csv \
+                  SOL_LONG_PARTIAL_RUNNER_A12_TRADES.csv \
+                  SOL_LONG_PARTIAL_RUNNER_A12_Status.txt
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'research: persist SOL partial runner A12 results'
+          for i in 1 2 3 4; do
+            git pull --rebase origin research/sol-long-structure-a1-run && \
+            git push origin HEAD:research/sol-long-structure-a1-run && exit 0
+            sleep $((i * 2))
+          done
+          exit 1
