@@ -1,0 +1,35 @@
+name: SOL Long 15UTC Confirmed E20 Continuation A40
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/sol-long-structure-a1-run]
+    paths:
+      - 'research/sol_long_15utc_confirmed_e20_continuation_a40.py'
+      - 'SOL_LONG_15UTC_CONFIRMED_E20_CONTINUATION_A40_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-confirmed-e20-continuation-a40.yml'
+jobs:
+  a40:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy pyarrow requests
+      - name: Run A40 confirmed E20 continuation
+        run: python research/sol_long_15utc_confirmed_e20_continuation_a40.py
+      - name: Persist A40 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_CONFIRMED_E20_CONTINUATION_A40_*.md SOL_LONG_15UTC_CONFIRMED_E20_CONTINUATION_A40_*.csv SOL_LONG_15UTC_CONFIRMED_E20_CONTINUATION_A40_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A40 confirmed E20 continuation'
+          git push origin HEAD:research/sol-long-structure-a1-run
