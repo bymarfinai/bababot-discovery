@@ -22,6 +22,7 @@ def pf(v):
     x=pd.to_numeric(v,errors="coerce").dropna();gp=float(x[x>0].sum());gl=float(-x[x<=0].sum())
     if gl==0:return np.inf if gp>0 else np.nan
     return gp/gl
+
 def fmt(v,d=2):
     if pd.isna(v):return "-"
     if np.isinf(v):return "inf"
@@ -117,10 +118,11 @@ def main():
         supported=central_ok and sr>=3 and ss>=3 and so>=3 and so5>=3
         status="SOL_LONG_15UTC_DYNAMIC_EPISODE_RESCUE_A32_SUPPORTED" if supported else "SOL_LONG_15UTC_DYNAMIC_EPISODE_RESCUE_A32_REJECTED_OOS"
     (pd.concat(alltr,ignore_index=True) if alltr else pd.DataFrame()).to_csv(OUT_TRADES,index=False)
-    r=dev.iloc[0];lines=["# SOL LONG 15:00 UTC Dynamic Episode Rescue — A32 Result","",f"Raw SOLUSDT 5m coverage: **{100*coverage:.4f}%**.","",
+    r=dev.iloc[0]
+    lines=["# SOL LONG 15:00 UTC Dynamic Episode Rescue — A32 Result","",f"Raw SOLUSDT 5m coverage: **{100*coverage:.4f}%**.","",
       "Single mechanism: RC30_C2 with a causal dynamic target sized to recover the known parent loss, cover both 5bps stress charges, and leave one additional 5bps-notional stressed margin.","","## Development","",
-      "| N | Attempt/loss | Median target R | Target hit | Rec WR | Rec PF | Rec Net | 5bps PF | 5bps Net | Rescue raw/stress | Parent WR→Episode WR | Stress WR→Episode WR | PF→Overlay | Stress PF→Overlay | +blocks raw/stress | Pass |","|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---|---|---|
-",
+      "| N | Attempt/loss | Median target R | Target hit | Rec WR | Rec PF | Rec Net | 5bps PF | 5bps Net | Rescue raw/stress | Parent WR→Episode WR | Stress WR→Episode WR | PF→Overlay | Stress PF→Overlay | +blocks raw/stress | Pass |",
+      "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|---|---|---|---|",
       f"| {int(r.recovery_n)} | {pct(r.attempt_rate)} | {fmt(r.median_dynamic_target_R,3)}R | {pct(r.target_hit_rate)} | {pct(r.recovery_wr)} | {fmt(r.recovery_pf)} | ${fmt(r.recovery_net)} | {fmt(r.recovery_pf_5bps)} | ${fmt(r.recovery_net_5bps)} | {pct(r.rescue_rate)}/{pct(r.rescue_rate_5bps)} | {pct(r.parent_wr)}→{pct(r.episode_wr)} | {pct(r.parent_wr_5bps)}→{pct(r.episode_wr_5bps)} | {fmt(r.parent_pf)}→{fmt(r.overlay_pf)} | {fmt(r.parent_pf_5bps)}→{fmt(r.overlay_pf_5bps)} | {int(r.positive_blocks_raw)}/{int(r.positive_blocks_5bps)} | {'YES' if bool(r.eligible) else 'NO'} |",""]
     if len(oos):
       lines += ["## Frozen OOS","","| Role | Partition | N | Rec WR | PF | Net | 5bps PF | 5bps Net | Parent WR→Episode WR | Stress WR→Episode WR | PF→Overlay | Stress PF→Overlay |","|---|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|"]
