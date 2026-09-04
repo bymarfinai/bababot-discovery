@@ -1,0 +1,35 @@
+name: SOL Long 15UTC Confirmed E10 Floor A35B
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/sol-long-structure-a1-run]
+    paths:
+      - 'research/sol_long_15utc_confirmed_e10_floor_anatomy_a35b.py'
+      - 'SOL_LONG_15UTC_CONFIRMED_E10_FLOOR_ANATOMY_A35B_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-confirmed-e10-floor-a35b.yml'
+jobs:
+  a35b:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas
+      - name: Run A35B E10 close-floor anatomy
+        run: python research/sol_long_15utc_confirmed_e10_floor_anatomy_a35b.py
+      - name: Persist A35B outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_CONFIRMED_E10_FLOOR_ANATOMY_A35B_*.md SOL_LONG_15UTC_CONFIRMED_E10_FLOOR_ANATOMY_A35B_*.csv SOL_LONG_15UTC_CONFIRMED_E10_FLOOR_ANATOMY_A35B_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A35B E10 close-floor anatomy'
+          git push origin HEAD:research/sol-long-structure-a1-run
