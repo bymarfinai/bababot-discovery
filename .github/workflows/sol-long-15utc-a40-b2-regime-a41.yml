@@ -1,0 +1,35 @@
+name: SOL Long 15UTC A40 B2 Regime A41
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/sol-long-structure-a1-run]
+    paths:
+      - 'research/sol_long_15utc_a40_b2_regime_anatomy_a41.py'
+      - 'SOL_LONG_15UTC_A40_B2_REGIME_ANATOMY_A41_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-a40-b2-regime-a41.yml'
+jobs:
+  a41:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy pyarrow requests
+      - name: Run A41 B2 regime anatomy
+        run: python research/sol_long_15utc_a40_b2_regime_anatomy_a41.py
+      - name: Persist A41 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_A40_B2_REGIME_ANATOMY_A41_*.md SOL_LONG_15UTC_A40_B2_REGIME_ANATOMY_A41_*.csv SOL_LONG_15UTC_A40_B2_REGIME_ANATOMY_A41_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A41 A40 B2 regime anatomy'
+          git push origin HEAD:research/sol-long-structure-a1-run
