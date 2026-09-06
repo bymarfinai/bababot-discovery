@@ -1,0 +1,35 @@
+name: SOL Long Portfolio A42 Integration A43
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/sol-long-structure-a1-run]
+    paths:
+      - 'research/sol_long_portfolio_a42_integration_a43.py'
+      - 'SOL_LONG_PORTFOLIO_A42_INTEGRATION_A43_Preregistration.md'
+      - '.github/workflows/sol-long-portfolio-a42-integration-a43.yml'
+jobs:
+  a43:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy
+      - name: Run A43 portfolio integration audit
+        run: python research/sol_long_portfolio_a42_integration_a43.py
+      - name: Persist A43 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_PORTFOLIO_A42_INTEGRATION_A43_*.md SOL_LONG_PORTFOLIO_A42_INTEGRATION_A43_*.csv SOL_LONG_PORTFOLIO_A42_INTEGRATION_A43_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A43 portfolio A42 integration audit'
+          git push origin HEAD:research/sol-long-structure-a1-run
