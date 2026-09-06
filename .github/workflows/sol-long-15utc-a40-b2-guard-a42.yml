@@ -1,0 +1,35 @@
+name: SOL Long 15UTC A40 B2 Guard A42
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/sol-long-structure-a1-run]
+    paths:
+      - 'research/sol_long_15utc_a40_b2_guard_a42.py'
+      - 'SOL_LONG_15UTC_A40_B2_GUARD_A42_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-a40-b2-guard-a42.yml'
+jobs:
+  a42:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy pyarrow requests
+      - name: Run A42 B2 guard
+        run: python research/sol_long_15utc_a40_b2_guard_a42.py
+      - name: Persist A42 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_A40_B2_GUARD_A42_*.md SOL_LONG_15UTC_A40_B2_GUARD_A42_*.csv SOL_LONG_15UTC_A40_B2_GUARD_A42_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A42 A40 B2 guard'
+          git push origin HEAD:research/sol-long-structure-a1-run
