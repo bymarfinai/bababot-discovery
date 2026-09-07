@@ -1,0 +1,48 @@
+name: SOL Long 15UTC Loss Confirmation Candle A55
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'SOL_LONG_15UTC_LOSS_CONFIRMATION_CANDLE_A55_Preregistration.md'
+      - 'research/sol_long_15utc_loss_confirmation_candle_a55.py'
+      - '.github/workflows/sol-long-15utc-loss-confirmation-candle-a55.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a55:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Run A55 loss confirmation candle anatomy
+        run: python research/sol_long_15utc_loss_confirmation_candle_a55.py
+      - name: Persist A55 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_LONG_15UTC_LOSS_CONFIRMATION_CANDLE_A55_PAIRS.csv \
+                  SOL_LONG_15UTC_LOSS_CONFIRMATION_CANDLE_A55_CONTINUOUS.csv \
+                  SOL_LONG_15UTC_LOSS_CONFIRMATION_CANDLE_A55_BINARY.csv \
+                  SOL_LONG_15UTC_LOSS_CONFIRMATION_CANDLE_A55_COVERAGE.csv \
+                  SOL_LONG_15UTC_LOSS_CONFIRMATION_CANDLE_A55_Result.md \
+                  SOL_LONG_15UTC_LOSS_CONFIRMATION_CANDLE_A55_Status.txt
+          if git diff --cached --quiet; then
+            echo "No A55 output changes"
+          else
+            git commit -m "research: persist A55 loss confirmation candle anatomy"
+            git push origin HEAD:research/sol-long-structure-a1-run
+          fi
