@@ -1,0 +1,48 @@
+name: SOL Long 15UTC Failure Warning A52
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'research/sol_long_15utc_failure_warning_a52.py'
+      - 'SOL_LONG_15UTC_FAILURE_WARNING_A52_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-failure-warning-a52.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a52:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas numpy
+
+      - name: Run A52 failure warning validation
+        run: python research/sol_long_15utc_failure_warning_a52.py
+
+      - name: Persist A52 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_FAILURE_WARNING_A52_SUMMARY.csv \
+                  SOL_LONG_15UTC_FAILURE_WARNING_A52_DEV_BLOCKS.csv \
+                  SOL_LONG_15UTC_FAILURE_WARNING_A52_M2_LEGACY.csv \
+                  SOL_LONG_15UTC_FAILURE_WARNING_A52_Result.md \
+                  SOL_LONG_15UTC_FAILURE_WARNING_A52_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A52 15UTC failure warning validation'
+          git pull --rebase origin research/sol-long-structure-a1-run
+          git push origin HEAD:research/sol-long-structure-a1-run
