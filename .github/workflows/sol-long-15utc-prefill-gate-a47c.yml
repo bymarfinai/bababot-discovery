@@ -31,6 +31,19 @@ jobs:
       - name: Install dependencies
         run: pip install pandas numpy
 
+      - name: Patch A47C dict initialization
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('research/sol_long_15utc_prefill_quality_gate_a47c.py')
+          s = p.read_text(encoding='utf-8')
+          old = 'seen = set()'
+          new = 'seen = {}'
+          if old not in s:
+              raise SystemExit('expected A47C expression not found')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+
       - name: Run A47C pre-fill quality gate
         run: python research/sol_long_15utc_prefill_quality_gate_a47c.py
 
@@ -38,7 +51,8 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add SOL_LONG_15UTC_PREFILL_GATE_A47C_DEVELOPMENT.csv \
+          git add research/sol_long_15utc_prefill_quality_gate_a47c.py \
+                  SOL_LONG_15UTC_PREFILL_GATE_A47C_DEVELOPMENT.csv \
                   SOL_LONG_15UTC_PREFILL_GATE_A47C_OOS.csv \
                   SOL_LONG_15UTC_PREFILL_GATE_A47C_TRADES.csv \
                   SOL_LONG_15UTC_PREFILL_GATE_A47C_Result.md \
