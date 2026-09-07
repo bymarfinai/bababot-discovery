@@ -25,10 +25,11 @@ A51 does **not** search for a recovery trade, does not optimize thresholds, and 
 A51 must reproduce, not reinterpret, the frozen A2 simulator:
 
 1. Before a completed close above H, breakout is **not confirmed**.
-2. Before confirmation, a completed close `< L` is the terminal `REFERENCE_INVALIDATION` event; execution is the next bar open when available.
+2. Before confirmation, a completed close `< L` is the structural reference-invalidation event. When a following bar exists, execution is the next bar open and A2 calls the exit `REFERENCE_INVALIDATION`.
 3. A completed close `> H` confirms the breakout.
-4. After confirmation, the first completed close `<= H` is the terminal `FAILED_BREAK` event; execution is the next bar open when available.
-5. If neither target nor terminal structural event occurs before the frozen horizon, the trade terminates by `TIME`.
+4. After confirmation, the first completed close `<= H` is the structural failed-break event. When a following bar exists, execution is the next bar open and A2 calls the exit `FAILED_BREAK`.
+5. If a structural invalidation occurs on the **final evaluable bar**, there is no next open inside the frozen horizon; A2 exits that bar at its close with `TIME_AFTER_FINAL_INVALIDATION`. This edge must be reported explicitly rather than silently treated as pure time decay.
+6. If neither target nor structural terminal event occurs before the frozen horizon, the trade terminates by `TIME`.
 
 This mechanical audit is frozen before looking at A51 outputs.
 
@@ -36,7 +37,7 @@ This mechanical audit is frozen before looking at A51 outputs.
 
 The existing L2/L3/L4/L5 names may represent **one common structural trigger with different latency**, rather than four distinct failure mechanisms. A51 will test this by reconstructing the first terminal event timestamp candle-by-candle.
 
-L0 and L1 are evaluated separately because they occur without a confirmed breakout.
+L0 and L1 are evaluated separately because they occur without a confirmed breakout. A51 also explicitly checks whether the legacy L1 bucket contains any final-bar reference-invalidations due to the existing `loss_class()` definition.
 
 ## Outputs required per trade
 
@@ -46,6 +47,7 @@ For every CENTRAL 15UTC parent trade, reconstruct:
 - entry timestamp
 - first breakout-confirming close timestamp (`close > H`)
 - terminal trigger type and timestamp
+- whether trigger was executable at the next open inside the horizon
 - current strategy execution/exit timestamp
 - trigger-to-exit lead in minutes
 - entry-to-trigger minutes
@@ -58,13 +60,14 @@ For every CENTRAL 15UTC parent trade, reconstruct:
 
 ## Fixed mechanism summary
 
-A51 will collapse terminal events into exactly three mechanism families, defined before results:
+A51 will classify reconstructed terminal events into exactly four mechanism families, defined before results:
 
-- `M0_REFERENCE_INVALIDATION`: no confirmed breakout; first completed close `< L`
+- `M0_REFERENCE_INVALIDATION`: no confirmed breakout; first completed close `< L`, with a following bar available for next-open execution
+- `M0F_REFERENCE_INVALIDATION_FINAL_BAR`: no confirmed breakout; first completed close `< L` occurs on the final evaluable bar, so next-open execution is unavailable
 - `M1_TIME_NO_STRUCTURAL_FAIL`: no target and no structural terminal trigger before horizon
-- `M2_FAILED_BREAK`: confirmed breakout; first completed close `<= H`
+- `M2_FAILED_BREAK`: confirmed breakout; first completed close `<= H` (including an explicit flag if it occurs on the final evaluable bar)
 
-The existing L0–L5 classes remain preserved in every output row.
+The existing L0–L5 classes remain preserved in every output row. A51 must report any mismatch between legacy class names and reconstructed mechanism family.
 
 ## Fixed latency summary for M2
 
@@ -79,7 +82,7 @@ No new latency cutoff will be selected from results.
 
 ## Fixed pre-terminal warning diagnostics
 
-These are anatomy-only and **not executable rules** in A51. For each terminal mechanism, report whether the following fixed causal conditions occurred before the terminal trigger:
+These are anatomy-only and **not executable rules** in A51. For each terminal mechanism, report whether the following fixed causal conditions occurred strictly before the terminal trigger where applicable:
 
 ### Before breakout / M0-M1
 - completed close `<= L + 0.25R`
@@ -101,7 +104,7 @@ A51 is invalid unless:
 - CENTRAL trade counts reconcile exactly with the frozen 15UTC parent: Development 601, External 281, Reference Validation 337, total 1219.
 - Raw loss counts reconcile: Development 357, External 166, Reference Validation 187, total 710.
 - Every L0 and every L2–L5 loss has exactly one reconstructed structural terminal trigger matching the simulator's `invalidation_close_ts`.
-- L1 has no structural invalidation trigger before time exit.
+- Any L1 row with non-null `invalidation_close_ts` must be explained only by the frozen final-bar `TIME_AFTER_FINAL_INVALIDATION` edge; otherwise reconciliation fails.
 - No timestamp uses future data relative to the event being recorded.
 
 ## Decision logic
@@ -114,6 +117,7 @@ The result must answer:
 2. Are L2–L5 truly distinct trigger mechanisms or one trigger with different survival time?
 3. How much decision lead exists between trigger close and actual exit execution?
 4. Which classes are structurally triggered versus merely time-expired?
-5. Are any fixed warning events consistently earlier than terminal failure and common enough to justify a separately preregistered A52?
+5. Does the legacy taxonomy hide any final-bar structural failure inside L1?
+6. Are any fixed warning events consistently earlier than terminal failure and common enough to justify a separately preregistered A52?
 
 Any A52 must be separately preregistered. No post-hoc threshold rescue, OOS retuning, or live change is allowed from A51 alone.
