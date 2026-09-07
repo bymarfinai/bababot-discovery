@@ -1,0 +1,47 @@
+name: SOL Long 15UTC L2 Fast Fail Anatomy A50
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'research/sol_long_15utc_l2_fast_fail_anatomy_a50.py'
+      - 'SOL_LONG_15UTC_L2_FAST_FAIL_ANATOMY_A50_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-l2-fast-fail-anatomy-a50.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a50:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+
+      - name: Run A50 L2 fast-fail anatomy
+        run: python research/sol_long_15utc_l2_fast_fail_anatomy_a50.py
+
+      - name: Persist A50 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_L2_FAST_FAIL_ANATOMY_A50_TRADES.csv \
+                  SOL_LONG_15UTC_L2_FAST_FAIL_ANATOMY_A50_FEATURES.csv \
+                  SOL_LONG_15UTC_L2_FAST_FAIL_ANATOMY_A50_Result.md \
+                  SOL_LONG_15UTC_L2_FAST_FAIL_ANATOMY_A50_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A50 15UTC L2 fast-fail anatomy'
+          git pull --rebase origin research/sol-long-structure-a1-run
+          git push origin HEAD:research/sol-long-structure-a1-run
