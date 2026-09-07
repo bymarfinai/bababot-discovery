@@ -1,0 +1,39 @@
+name: SOL Long 15UTC A56 Identity Audit
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - '.github/workflows/sol-long-15utc-loss-confirmation-guard-a56-identity-audit.yml'
+      - 'research/sol_long_15utc_loss_confirmation_guard_a56_identity_audit.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run A56 identity audit
+        run: python research/sol_long_15utc_loss_confirmation_guard_a56_identity_audit.py
+      - name: Persist audit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_LONG_15UTC_LOSS_CONFIRMATION_GUARD_A56_IDENTITY_AUDIT.csv SOL_LONG_15UTC_LOSS_CONFIRMATION_GUARD_A56_IDENTITY_AUDIT.md
+          if git diff --cached --quiet; then
+            echo "No audit changes"
+          else
+            git commit -m "research: persist A56 identity technical audit"
+            git push origin HEAD:research/sol-long-structure-a1-run
+          fi
