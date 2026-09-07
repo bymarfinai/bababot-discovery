@@ -1,0 +1,35 @@
+name: SOL Long Portfolio A42 State Anatomy A44
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/sol-long-structure-a1-run]
+    paths:
+      - 'research/sol_long_portfolio_a42_state_anatomy_a44.py'
+      - 'SOL_LONG_PORTFOLIO_A42_STATE_ANATOMY_A44_Preregistration.md'
+      - '.github/workflows/sol-long-portfolio-a42-state-anatomy-a44.yml'
+jobs:
+  a44:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy
+      - name: Run A44 portfolio-state anatomy
+        run: python research/sol_long_portfolio_a42_state_anatomy_a44.py
+      - name: Persist A44 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_PORTFOLIO_A42_STATE_ANATOMY_A44_*.md SOL_LONG_PORTFOLIO_A42_STATE_ANATOMY_A44_*.csv SOL_LONG_PORTFOLIO_A42_STATE_ANATOMY_A44_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A44 A42 portfolio-state anatomy'
+          git push origin HEAD:research/sol-long-structure-a1-run
