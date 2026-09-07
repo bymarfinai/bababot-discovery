@@ -313,7 +313,7 @@ def main():
               "| Quantile | Raw extension | Frozen target | Positive extension N |",
               "|---|---:|---:|---:|"]
     for _, r in targets.iterrows():
-        lines.append(f"| Q{int(round(100*r.quantile))} | {num(r.raw_extension_R,3)}R | E{int(round(100*r.target_R)):02d} | {int(r.positive_extension_n)} |")
+        lines.append(f"| Q{int(round(100*r['quantile']))} | {num(r.raw_extension_R,3)}R | E{int(round(100*r.target_R)):02d} | {int(r.positive_extension_n)} |")
     lines += ["", "Native target set: **" + ", ".join(f"E{int(round(100*x)):02d}" for x in levels) + "**.", ""]
 
     lines += ["## Development calibration grid", "",
