@@ -1,0 +1,1 @@
+A59 substantive design is locked by SOL_LONG_15UTC_H05_PARTIAL_DERISK_RESTORE_A59_Preregistration.md. Any subsequent change before a valid result may only correct technical execution/reconciliation errors and may not alter ratio, H05/H10 levels, gates, or stress accounting.
