@@ -1,0 +1,1 @@
+Do not treat this marker as a result. A59 result is valid only after GitHub Actions completes and persists the preregistered outputs.
