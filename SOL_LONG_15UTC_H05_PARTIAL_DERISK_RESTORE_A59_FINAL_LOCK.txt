@@ -1,0 +1,1 @@
+A59 design is locked. Authoritative result must come from the launched workflow and persisted result files.
