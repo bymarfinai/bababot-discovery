@@ -1,0 +1,49 @@
+name: SOL Long 15UTC Loss Confirmation Guard A56
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - '.github/workflows/sol-long-15utc-loss-confirmation-guard-a56.yml'
+      - 'research/sol_long_15utc_loss_confirmation_guard_a56.py'
+      - 'SOL_LONG_15UTC_LOSS_CONFIRMATION_GUARD_A56_Preregistration.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a56:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Run A56 executable loss confirmation guard
+        run: python research/sol_long_15utc_loss_confirmation_guard_a56.py
+      - name: Persist A56 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            SOL_LONG_15UTC_LOSS_CONFIRMATION_GUARD_A56_TRADES.csv \
+            SOL_LONG_15UTC_LOSS_CONFIRMATION_GUARD_A56_METRICS.csv \
+            SOL_LONG_15UTC_LOSS_CONFIRMATION_GUARD_A56_BLOCKS.csv \
+            SOL_LONG_15UTC_LOSS_CONFIRMATION_GUARD_A56_IDENTITY.csv \
+            SOL_LONG_15UTC_LOSS_CONFIRMATION_GUARD_A56_Result.md \
+            SOL_LONG_15UTC_LOSS_CONFIRMATION_GUARD_A56_Status.txt
+          if git diff --cached --quiet; then
+            echo "No A56 output changes"
+          else
+            git commit -m "research: persist A56 executable loss confirmation guard"
+            git push origin HEAD:research/sol-long-structure-a1-run
+          fi
