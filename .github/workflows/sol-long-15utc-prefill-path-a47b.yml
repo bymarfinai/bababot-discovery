@@ -1,0 +1,47 @@
+name: SOL Long 15UTC PreFill Path A47B
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'research/sol_long_15utc_prefill_path_anatomy_a47b.py'
+      - 'SOL_LONG_15UTC_PREFILL_PATH_ANATOMY_A47B_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-prefill-path-a47b.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a47b:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+
+      - name: Run A47B pre-fill path anatomy
+        run: python research/sol_long_15utc_prefill_path_anatomy_a47b.py
+
+      - name: Persist A47B outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_PREFILL_PATH_A47B_TRADES.csv \
+                  SOL_LONG_15UTC_PREFILL_PATH_A47B_FEATURES.csv \
+                  SOL_LONG_15UTC_PREFILL_PATH_A47B_Result.md \
+                  SOL_LONG_15UTC_PREFILL_PATH_A47B_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A47B 15UTC pre-fill path anatomy'
+          git pull --rebase origin research/sol-long-structure-a1-run
+          git push origin HEAD:research/sol-long-structure-a1-run
