@@ -1,0 +1,36 @@
+name: SOL Long 15UTC Post-H05 A54 Cohort Audit
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'research/sol_long_15utc_post_h05_cohort_a54_audit.py'
+      - '.github/workflows/sol-long-15utc-post-h05-cohort-a54-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen A53 cohort audit
+        run: python research/sol_long_15utc_post_h05_cohort_a54_audit.py
+      - name: Persist audit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_POST_H05_SECONDARY_TRIGGER_A54_COHORT_AUDIT.md SOL_LONG_15UTC_POST_H05_SECONDARY_TRIGGER_A54_COHORT_AUDIT.csv
+          git diff --cached --quiet || git commit -m 'research: persist A54 frozen POST_H05 cohort audit'
+          git pull --rebase origin research/sol-long-structure-a1-run
+          git push origin HEAD:research/sol-long-structure-a1-run
