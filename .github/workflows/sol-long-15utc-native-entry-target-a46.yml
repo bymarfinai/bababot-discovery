@@ -38,7 +38,7 @@ jobs:
           p = Path('research/sol_long_15utc_native_entry_target_a46.py')
           s = p.read_text(encoding='utf-8')
           old = '100*r.quantile'
-          new = '100*r["quantile"]'
+          new = "100*r['quantile']"
           if old not in s:
               raise SystemExit('expected A46 report expression not found')
           p.write_text(s.replace(old, new), encoding='utf-8')
