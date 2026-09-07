@@ -1,0 +1,36 @@
+name: SOL Long 15UTC Parent Pre-Range Anatomy A45
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/sol-long-structure-a1-run]
+    paths:
+      - 'research/sol_long_15utc_parent_prerange_anatomy_a45.py'
+      - 'SOL_LONG_15UTC_PARENT_PRERANGE_ANATOMY_A45_Preregistration.md'
+      - 'SOL_LONG_15UTC_PARENT_PRERANGE_ANATOMY_A45_Preregistration_Amendment.md'
+      - '.github/workflows/sol-long-15utc-parent-prerange-anatomy-a45.yml'
+jobs:
+  a45:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Run A45 pre-range anatomy
+        run: python research/sol_long_15utc_parent_prerange_anatomy_a45.py
+      - name: Persist A45 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_PARENT_PRERANGE_ANATOMY_A45_TRADES.csv SOL_LONG_15UTC_PARENT_PRERANGE_ANATOMY_A45_FEATURES.csv SOL_LONG_15UTC_PARENT_PRERANGE_ANATOMY_A45_Result.md SOL_LONG_15UTC_PARENT_PRERANGE_ANATOMY_A45_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A45 15UTC parent pre-range anatomy'
+          git push origin HEAD:research/sol-long-structure-a1-run
