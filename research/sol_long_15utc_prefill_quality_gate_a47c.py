@@ -123,7 +123,7 @@ def main() -> None:
     ]
 
     dev_rows = []
-    seen = set()
+    seen = {}
     for name, threshold in thresholds:
         if pd.isna(threshold):
             dev_rows.append({"candidate": name, "threshold": np.nan, "available": False, "eligible": False})

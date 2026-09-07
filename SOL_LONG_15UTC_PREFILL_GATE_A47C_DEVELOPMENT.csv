@@ -1,0 +1,4 @@
+candidate,threshold,available,duplicate_of,eligible,n,wr,pf,exp,net,max_dd,max_loss_streak,wr_5bps,pf_5bps,exp_5bps,net_5bps,max_dd_5bps,max_loss_streak_5bps,stress_wins,stress_losses,winner_retention,loser_rejection
+MIDPOINT,0.12406875094804302,True,,False,245.0,0.46938775510204084,1.624931006810012,1.090644294261146,267.20785209398076,39.08746040938388,7.0,0.46530612244897956,1.4475787183895625,0.8406442942611461,205.9578520939808,43.83746040938388,7.0,114.0,131.0,0.47107438016528924,0.6350974930362117
+T55_MAXN,,False,,False,,,,,,,,,,,,,,,,,
+T60_MAXN,,False,,False,,,,,,,,,,,,,,,,,
