@@ -1,0 +1,1 @@
+A59 remains locked to the preregistered single hybrid rule. Ignore ancillary lock-marker files; they do not alter the design or result.
