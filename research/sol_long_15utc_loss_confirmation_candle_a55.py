@@ -123,7 +123,6 @@ def candle_features(x, ts, H, L, R, mechanism):
 def control_live_and_state(r, ts, mechanism):
     ts = pd.Timestamp(ts)
     if ts < pd.Timestamp(r.entry_ts): return False
-    # Candidate candle must complete before any frozen exit/terminal event has occurred.
     if pd.Timestamp(r.exit_ts) <= ts: return False
     if pd.notna(r.invalidation_close_ts) and pd.Timestamp(r.invalidation_close_ts) <= ts: return False
     br = pd.Timestamp(r.h1_break_ts) if pd.notna(r.h1_break_ts) else pd.NaT
@@ -284,7 +283,6 @@ def analyze_bin(pairs):
       for lead in LEADS:
         devq=pairs[(pairs.partition=="development")&(pairs.mechanism==mech)&(pairs.lead_min==lead)]
         for f in BIN_FEATURES:
-            # Mechanism-specific states do not apply to the other mechanism.
             if mech=="M2_FAILED_BREAK" and f.startswith("M0_"): continue
             if mech=="M0_REFERENCE_INVALIDATION" and f.startswith("M2_"): continue
             ds=bin_stats(devq,f); adequate,same,block_ok=block_bin(devq,f,mech)
@@ -316,11 +314,9 @@ def control_reuse(pairs):
 
 
 def main():
-    m,coverage_raw=a2.a1.load5()
-    pairs,cov=build_pairs(m,m)
-    # a1.load5 returns the 5m DataFrame as the first object; keep explicit parity alias.
-    x=m
-    # build_pairs signature receives both market holders; simulator expects the same market DataFrame.
+    x,coverage_raw=a2.a1.load5()
+    m=a2.make_market_with_open(x)
+    pairs,cov=build_pairs(m,x)
     pairs.to_csv(OUT_PAIRS,index=False)
     reuse=control_reuse(pairs)
     cov=cov.merge(reuse,on=["partition","mechanism","lead_min"],how="left")
@@ -333,7 +329,6 @@ def main():
     candidates=[]
     for _,r in rb.iterrows(): candidates.append((int(r.lead_min),0,-float(r.dev_gap),"BINARY",str(r.mechanism),str(r.feature)))
     for _,r in rc.iterrows(): candidates.append((int(r.lead_min),1,-float(r.dev_effect),"CONTINUOUS",str(r.mechanism),str(r.feature)))
-    # Earlier causal lead is larger minutes. Sort 15m first, then 10m, then 5m.
     candidates.sort(key=lambda z:(-z[0],z[1],z[2],z[4],z[5]))
     primary=candidates[0] if candidates else None
     status="SOL_LONG_15UTC_LOSS_CONFIRMATION_CANDLE_A55_SUPPORTED_FOR_A56" if primary else "SOL_LONG_15UTC_LOSS_CONFIRMATION_CANDLE_A55_INCONCLUSIVE"
