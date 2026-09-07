@@ -1,0 +1,4 @@
+partition,w10_n,available_n,availability_rate,parity_n,parity_rate,duplicate_used_rows_pooled,months_requested_pooled,fetch_error_count_pooled
+development,300,300,1.0,300,1.0,0,71,0
+external,192,192,1.0,192,1.0,0,71,0
+reference_validation,184,184,1.0,184,1.0,0,71,0
