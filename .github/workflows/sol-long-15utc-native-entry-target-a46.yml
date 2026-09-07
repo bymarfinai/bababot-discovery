@@ -31,6 +31,19 @@ jobs:
       - name: Install dependencies
         run: pip install pandas numpy requests
 
+      - name: Patch A46 report-column access
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('research/sol_long_15utc_native_entry_target_a46.py')
+          s = p.read_text(encoding='utf-8')
+          old = '100*r.quantile'
+          new = '100*r["quantile"]'
+          if old not in s:
+              raise SystemExit('expected A46 report expression not found')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+          PY
+
       - name: Run A46 native calibration
         run: python research/sol_long_15utc_native_entry_target_a46.py
 
@@ -38,7 +51,8 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add SOL_LONG_15UTC_NATIVE_ENTRY_TARGET_A46_TARGETS.csv \
+          git add research/sol_long_15utc_native_entry_target_a46.py \
+                  SOL_LONG_15UTC_NATIVE_ENTRY_TARGET_A46_TARGETS.csv \
                   SOL_LONG_15UTC_NATIVE_ENTRY_TARGET_A46_DEVELOPMENT.csv \
                   SOL_LONG_15UTC_NATIVE_ENTRY_TARGET_A46_OOS.csv \
                   SOL_LONG_15UTC_NATIVE_ENTRY_TARGET_A46_TRADES.csv \
