@@ -1,0 +1,49 @@
+name: SOL Long 15UTC M2 Loss Confirmation Sequence A57
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - '.github/workflows/sol-long-15utc-m2-loss-confirmation-sequence-a57.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a57:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+
+      - name: Run A57 M2 loss confirmation sequence anatomy
+        run: python research/sol_long_15utc_m2_loss_confirmation_sequence_a57.py
+
+      - name: Persist A57 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            SOL_LONG_15UTC_M2_LOSS_CONFIRMATION_SEQUENCE_A57_EVENTS.csv \
+            SOL_LONG_15UTC_M2_LOSS_CONFIRMATION_SEQUENCE_A57_MOTIFS.csv \
+            SOL_LONG_15UTC_M2_LOSS_CONFIRMATION_SEQUENCE_A57_BLOCKS.csv \
+            SOL_LONG_15UTC_M2_LOSS_CONFIRMATION_SEQUENCE_A57_CONTINUOUS.csv \
+            SOL_LONG_15UTC_M2_LOSS_CONFIRMATION_SEQUENCE_A57_Result.md \
+            SOL_LONG_15UTC_M2_LOSS_CONFIRMATION_SEQUENCE_A57_Status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "research: persist A57 M2 loss confirmation sequence anatomy"
+            git push origin HEAD:research/sol-long-structure-a1-run
+          fi
