@@ -1,0 +1,1 @@
+Only SOL_LONG_15UTC_H05_PARTIAL_DERISK_RESTORE_A59_Result.md and Status.txt produced by the launched workflow constitute the A59 result.
