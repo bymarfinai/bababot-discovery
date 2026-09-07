@@ -1,0 +1,47 @@
+name: SOL Long 15UTC PreEntry Quality A47
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'research/sol_long_15utc_preentry_quality_anatomy_a47.py'
+      - 'SOL_LONG_15UTC_PREENTRY_QUALITY_ANATOMY_A47_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-preentry-quality-a47.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a47:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+
+      - name: Run A47 pre-entry quality anatomy
+        run: python research/sol_long_15utc_preentry_quality_anatomy_a47.py
+
+      - name: Persist A47 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_PREENTRY_QUALITY_A47_TRADES.csv \
+                  SOL_LONG_15UTC_PREENTRY_QUALITY_A47_FEATURES.csv \
+                  SOL_LONG_15UTC_PREENTRY_QUALITY_A47_Result.md \
+                  SOL_LONG_15UTC_PREENTRY_QUALITY_A47_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A47 15UTC pre-entry quality anatomy'
+          git pull --rebase origin research/sol-long-structure-a1-run
+          git push origin HEAD:research/sol-long-structure-a1-run
