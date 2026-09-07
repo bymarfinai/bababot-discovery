@@ -1,0 +1,48 @@
+name: SOL Long 15UTC Executable Guard A53
+
+on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - 'research/sol_long_15utc_executable_guard_a53.py'
+      - 'SOL_LONG_15UTC_EXECUTABLE_GUARD_A53_Preregistration.md'
+      - '.github/workflows/sol-long-15utc-executable-guard-a53.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  a53:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-long-structure-a1-run
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+
+      - name: Run A53 executable guard simulation
+        run: python research/sol_long_15utc_executable_guard_a53.py
+
+      - name: Persist A53 outputs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_LONG_15UTC_EXECUTABLE_GUARD_A53_TRADES.csv \
+                  SOL_LONG_15UTC_EXECUTABLE_GUARD_A53_METRICS.csv \
+                  SOL_LONG_15UTC_EXECUTABLE_GUARD_A53_BLOCKS.csv \
+                  SOL_LONG_15UTC_EXECUTABLE_GUARD_A53_Result.md \
+                  SOL_LONG_15UTC_EXECUTABLE_GUARD_A53_Status.txt
+          git diff --cached --quiet || git commit -m 'research: persist A53 15UTC executable guard simulation'
+          git pull --rebase origin research/sol-long-structure-a1-run
+          git push origin HEAD:research/sol-long-structure-a1-run
