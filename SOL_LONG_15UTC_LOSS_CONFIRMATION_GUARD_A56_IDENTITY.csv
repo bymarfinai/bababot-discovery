@@ -1,0 +1,4 @@
+partition,n,a56_guard_exits,a53_guard_exits,same_n,same_entry,same_guard_flags,same_warning_ts,same_exit_ts,same_pnl,same_pnl_5bps,identity_exact
+development,601,52,52,True,True,True,False,False,False,False,False
+external,281,19,19,True,True,True,True,True,True,True,True
+reference_validation,337,35,35,True,True,True,True,True,True,True,True
