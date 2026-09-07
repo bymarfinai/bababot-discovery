@@ -1,0 +1,2 @@
+entry_ts,H,L,R,a56_warning_ts,a53_warning_ts,a56_exit_ts,a53_exit_ts,a56_pnl,a53_pnl,a56_warning_close,a56_close_minus_L_R,a56_close_minus_H_R,a56_below_L,a56_in_literal_L25,a53_warning_close,a53_close_minus_L_R,a53_close_minus_H_R,a53_below_L,a53_in_literal_L25
+2022-09-21 18:00:00+00:00,32.34,31.4,0.9400000000000048,2022-09-21 18:05:00+00:00,2022-09-21 18:00:00+00:00,2022-09-21 18:10:00+00:00,2022-09-21 18:05:00+00:00,-13.914656771799649,-16.69758812615957,31.43,0.03191489361702232,-0.9680851063829776,False,True,31.25,-0.15957446808510406,-1.1595744680851041,True,False
