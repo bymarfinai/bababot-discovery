@@ -7,11 +7,11 @@
 - Pair: `SOL`
 - Discovery branch: `research/sol-long-structure-a1-run`
 - State originally established from commit: `12c483959af3ac87c63d671f7b2edccb2fed2218`
-- Latest completed experiment: `A62`
-- Next available experiment ID: `A63`
+- Latest completed experiment: `A63`
+- Next available experiment ID: `A64`
 - Pair-native rule: **copy the discovery grammar, never copy the coordinates**.
 
-`A63` is an identifier only. No A63 hypothesis, feature set, snapshot, threshold, or intervention is approved by this state update.
+`A64` is an identifier only. No A64 hypothesis, MAE threshold, snapshot, exit, derisk rule, gate, or other intervention is approved by this state update.
 
 ## Frozen execution parent
 
@@ -19,23 +19,24 @@ The execution parent remains frozen unless a future experiment is explicitly pre
 
 `R360 / 15UTC / E0_RESTING_H -> E40`
 
-Do not retune range, hour, entry, or target in response to the A62 anatomy result.
+Do not retune range, hour, entry, or target in response to A62/A63 anatomy or specificity results.
 
 ## Frozen mature loss universe
 
 The mature pooled CENTRAL loss universe remains fixed by the A26/A51 lineage:
 
-| Partition | CENTRAL losses | L0 / M0 |
-|---|---:|---:|
-| Development | 357 | 37 |
-| External Validation | 166 | 13 |
-| Reference Validation | 187 | 26 |
-| **Pooled** | **710** | **76** |
+| Partition | CENTRAL losses | L0 / M0 | M1 |
+|---|---:|---:|---:|
+| Development | 357 | 37 | 58 |
+| External Validation | 166 | 13 | 16 |
+| Reference Validation | 187 | 26 | 21 |
+| **Pooled** | **710** | **76** | **95** |
 
 - `L0 = NEVER_BREAK_REFERENCE_INVALIDATION`
-- In the mature A51 mechanism taxonomy, L0 corresponds essentially to `M0`, the genuine never-break/reference-invalidation mechanism.
+- In the mature A51 mechanism taxonomy, L0 corresponds to the `M0_REFERENCE_INVALIDATION` mechanism used by the deterministic runners.
+- `M1 = NEVER_BREAK_TIME / M1_TIME_NO_STRUCTURAL_FAIL` is the alternate never-break loss mechanism used as the frozen A63 comparator.
 - External Validation and Reference Validation must never be merged into Development or used for tuning.
-- L0/M0 cohort identity must not be redefined from a newly observed feature.
+- Cohort identity must not be redefined from a newly observed feature.
 
 ## Scientific protocol
 
@@ -48,138 +49,203 @@ Every scientific experiment follows this lifecycle:
 5. **Write a separate scientific verdict** without post-hoc threshold rescue or retuning.
 6. **Advance discovery state manually** only after the verdict is complete.
 
-A descriptive/anatomical separator is not automatically an executable trading intervention. Any economic intervention requires a separate preregistered experiment.
+A descriptive or mechanism-specific separator is not automatically an executable trading intervention. Economic intervention requires a separate preregistered experiment.
 
-## Latest completed experiment — A62
+## A62 — Early-progress anatomy
 
-### A62 question
+A62 asked what was already causally different in frozen L0/M0 trades relative to age/state-matched eventual winners at fixed `30m`, `60m`, and `120m` snapshots.
 
-**L0 / M0 EARLY-PROGRESS ANATOMY**
+Verdict: **`SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_SUPPORTED`**.
 
-> What is already causally different in the early progress path of frozen L0/M0 trades, well before late terminal reference invalidation, relative to eventual positive parent trades that are still live and still pre-break at the same fixed trade age?
+The `30m` snapshot did not establish a robust family. At `60m` and `120m`, three feature families replicated across Development and both OOS partitions:
 
-A62 was descriptive/mechanistic only. It compared the exact frozen L0/M0 cases against age/state-matched eventual winners at fixed `30m`, `60m`, and `120m` snapshots.
+- `running_mae_R`: deeper adverse excursion;
+- `close_H_R`: weaker current location relative to frozen H;
+- `drawdown_from_best_R`: larger giveback from best post-entry excursion.
 
-The `E0_RESTING_H` entry touch/fill candle was excluded from all A62 path features because the fill occurs intrabar while the frozen simulator begins evaluation on the following candle. This prevents pre-fill movement from contaminating post-entry anatomy.
+A62 did **not** establish `running_mfe_R`, `recovery_from_worst_R`, or `upper_half_close_fraction` as supported families.
 
-### A62 verdict
-
-**`SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_SUPPORTED`**
-
-Reconciliation remained exact:
-
-| Partition | Parent trades | CENTRAL losses | L0 / M0 |
-|---|---:|---:|---:|
-| Development | 601 | 357 | 37 |
-| External Validation | 281 | 166 | 13 |
-| Reference Validation | 337 | 187 | 26 |
-| **Pooled** | **1,219** | **710** | **76** |
-
-Raw SOLUSDT 5m coverage was **99.7671%**.
-
-### What A62 actually found
-
-The `30m` snapshot did **not** establish a robust feature family across Development + both OOS partitions.
-
-The robust anatomy appears at approximately **60 minutes** and persists at **120 minutes**. Three preregistered feature families passed the frozen 2-of-3 replication rule:
-
-1. **`running_mae_R` — deeper adverse excursion**
-   - 60m: Development `+0.260R / effect 0.990`; External `+0.135R / 0.523`; Reference `+0.216R / 0.768`.
-   - 120m: Development `+0.345R / 1.560`; External `+0.232R / 0.829`; Reference `+0.360R / 1.484`.
-
-2. **`close_H_R` — materially weaker location relative to H**
-   - 60m: Development `-0.353R / 1.231`; External `-0.318R / 1.354`; Reference `-0.250R / 1.302`.
-   - 120m: Development `-0.377R / 1.419`; External `-0.350R / 1.870`; Reference `-0.290R / 0.915`.
-
-3. **`drawdown_from_best_R` — larger giveback from best excursion**
-   - 60m: Development `+0.279R / 1.585`; External `+0.164R / 1.091`; Reference `+0.076R / 0.304`.
-   - 120m: Development `+0.218R / 0.841`; External `+0.223R / 1.109`; Reference `+0.243R / 0.888`.
-
-The Development block-direction rules also passed for those three families at the supported ages.
-
-### What A62 did not establish
-
-- `running_mfe_R` fully replicated only at `120m`, so it failed the frozen 2-of-3 family rule.
-- `recovery_from_worst_R` did not fully replicate at any fixed snapshot.
-- `upper_half_close_fraction` did not fully replicate at any fixed snapshot.
-
-Therefore the A62 result should **not** be simplified into “L0 is just low MFE,” “L0 fails to recover,” or “L0 has low upper-half occupancy.”
-
-The narrow supported statement is:
-
-> Genuine L0/M0 trades develop a replicated early-path deterioration signature by roughly 60 minutes: deeper adverse excursion, a substantially weaker current location relative to the frozen H, and greater giveback from the best post-entry excursion. The same pattern remains visible at 120 minutes.
-
-### A62 interpretation boundary
-
-A62 remains anatomy, not execution.
-
-The observed medians are **not thresholds**. They must not be converted post hoc into:
-
-- an emergency stop;
-- a partial derisk rule;
-- an early exit;
-- an entry filter;
-- a composite loser score;
-- a live Baba Bot intervention.
-
-Any such action would require a new separately preregistered experiment that explicitly measures winner damage and out-of-sample economics.
+A62 remained anatomy only; no executable threshold or intervention was authorized.
 
 Result persistence commit: `aabdbd16514c027fe7f81fe8ecf84db589eea3da`.
 Scientific verdict commit: `37f9c233baa0ad34c613c5fbaa67276c4cb625a3`.
+
+## Latest completed experiment — A63
+
+### A63 question
+
+**L0 / M0 EARLY-PROGRESS SPECIFICITY**
+
+> Is the replicated A62 60–120 minute deterioration signature actually specific to L0/M0 reference-invalidation losses, or is it also present in another never-break loss mechanism, M1_TIME_NO_STRUCTURAL_FAIL?
+
+A63 was descriptive/mechanistic specificity only. It did not test trading economics.
+
+The comparator was frozen before result inspection:
+
+- Case: exact frozen `M0_REFERENCE_INVALIDATION` losses.
+- Control: exact frozen `M1_TIME_NO_STRUCTURAL_FAIL` losses.
+- Same partition.
+- Development additionally required the same frozen `dev_block`, with no relaxation.
+- Both case and control had to remain live and pre-break at the same fixed age.
+- Only the three A62-supported feature families were carried forward.
+- Only the two A62-supported ages, `60m` and `120m`, were carried forward.
+
+A63 therefore did not reopen unsupported A62 features or create a new feature/age sweep.
+
+### A63 verdict
+
+**`SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_SUPPORTED`**
+
+Reconciliation remained exact:
+
+| Partition | Parent trades | CENTRAL losses | L0 / M0 | M1 |
+|---|---:|---:|---:|---:|
+| Development | 601 | 357 | 37 | 58 |
+| External Validation | 281 | 166 | 13 | 16 |
+| Reference Validation | 337 | 187 | 26 | 21 |
+| **Pooled** | **1,219** | **710** | **76** | **95** |
+
+Raw SOLUSDT 5m coverage was **99.7671%**.
+
+### A63 matching support
+
+| Partition | Age | Eligible L0 | Matched M1 | Unique M1 controls | Max reuse |
+|---|---:|---:|---:|---:|---:|
+| Development | 60m | 33 | 33 | 24 | 2x |
+| Development | 120m | 29 | 29 | 22 | 2x |
+| External Validation | 60m | 12 | 12 | 9 | 2x |
+| External Validation | 120m | 11 | 11 | 8 | 2x |
+| Reference Validation | 60m | 22 | 22 | 13 | 3x |
+| Reference Validation | 120m | 19 | 19 | 11 | 2x |
+
+All fixed snapshots met the preregistered support minimums.
+
+### What A63 established
+
+Only **`running_mae_R`** passed the strict 2-of-2 L0-specificity rule.
+
+#### `running_mae_R` — L0-specific at both 60m and 120m
+
+At `60m`:
+
+- Development: L0-minus-M1 median gap `+0.222R`, effect `1.219`, Development block direction `4/4`.
+- External Validation: `+0.114R`, effect `0.545`.
+- Reference Validation: `+0.320R`, effect `0.798`.
+
+At `120m`:
+
+- Development: `+0.216R`, effect `1.235`, Development block direction `3/3`.
+- External Validation: `+0.206R`, effect `0.969`.
+- Reference Validation: `+0.240R`, effect `0.655`.
+
+The same preregistered direction therefore survives Development and both OOS partitions at **both fixed ages**.
+
+The narrow supported statement is:
+
+> L0/M0 reference-invalidation losses experience systematically deeper early adverse excursion than another never-break loss mechanism by 60 minutes, and that mechanism-specific difference remains visible at 120 minutes.
+
+### What A63 did not establish
+
+#### `close_H_R`
+
+`close_H_R` fully replicated at `60m`, but at `120m` its Development block-direction rule was only `2/3`. It therefore failed the strict 2-of-2 family-specificity criterion.
+
+It must not be rescued by changing the block rule, age, threshold, or comparator after seeing the result.
+
+#### `drawdown_from_best_R`
+
+`drawdown_from_best_R` did not fully replicate as L0-specific at either fixed age. Its A62 separation versus eventual winners therefore does not survive as a robust L0-versus-M1 mechanism-specific family.
+
+It must not be rescued by a post-hoc composite or alternate threshold within the A63 lineage.
+
+### A63 interpretation boundary
+
+A63 remains **mechanism specificity, not execution**.
+
+The observed MAE gaps and medians are not thresholds. A63 does not authorize:
+
+- an MAE stop threshold;
+- emergency exit;
+- partial derisking;
+- position-size reduction;
+- entry filtering;
+- composite loser score;
+- stop-loss modification;
+- any live Baba Bot change.
+
+A future economic-feasibility experiment is now scientifically justified because A62 established early separation and A63 established mechanism specificity. But that future experiment must be separately preregistered and must explicitly quantify:
+
+- losses saved;
+- future-winner damage;
+- non-L0 trade damage;
+- total PnL impact;
+- drawdown impact;
+- trade retention / participation impact;
+- Development block consistency;
+- External and Reference Validation economics.
+
+Result persistence commit: `3a8a276b31988201070c30833bd2809b45b69145`.
+Scientific verdict commit: `c192ba3469a685e074c2712887212fbc4f65a69c`.
 
 ## Closed or strongly constrained routes
 
 The following lineage history should not be reopened casually:
 
-- `A43-A44`: portfolio/week-state path closed; no causal pre-entry portfolio-state separator replicated.
-- `A45`: pre-range anatomy produced no robust filter.
-- `A46`: native entry/target recalibration candidates failed Development eligibility/gates.
+- `A43-A44`: portfolio/week-state path closed.
+- `A45`: pre-range filter route did not produce a robust filter.
+- `A46`: native entry/target recalibration candidates failed eligibility/gates.
 - `A47`: conventional pre-entry quality route did not replicate.
-- `A47B`: pre-fill structural features replicated strongly, but this was descriptive structure only.
-- `A47C`: converting A47B structure into an economic gate failed Development eligibility.
+- `A47B -> A47C`: replicated structure did not translate into a profitable gate.
 - `A48`: participation/volume route produced no actionable replicated separator.
-- `A49`: BTC/ETH market-alignment route produced no replicated SOL separator; reinforces pair-native independence.
-- `A50-A51`: the 710-loss universe was reorganized mechanistically; terminal loss is not itself a mechanism.
-- `A52`: universal failure-warning anatomy was descriptively promising but did not establish deployability.
-- `A53`: executable guards demonstrated that catching losers can also destroy future winners and economics.
-- `A54`: post-H05/H10 secondary trigger was not robustly profitable out of sample.
-- `A55`: terminal-near M0/L0 confirmation anatomy could separate strongly and replicate anatomically.
-- `A56`: predictive loser anatomy was not equivalent to a profitable live exit.
-- `A57`: confirmation behavior differs by mechanism; a universal confirmation sequence is suspect.
-- `A58`: 1-minute intrabar decomposition found no robust universal separator.
-- `A59`: H05 hybrid/partial derisk improved Development metrics but was not robust across External/Reference Validation.
-- `A60`: 1-minute range-compression route found no stable replicated separator.
-- `A61`: LOW_MFE H05 pre-warning was closed as inconclusive/failed; no A61 threshold/window retuning is allowed.
-- `A62`: the early-progress anatomy is supported, but **direct conversion of A62 anatomy into an intervention is prohibited** without a new preregistration.
+- `A49`: BTC/ETH market-alignment route produced no replicated SOL separator.
+- `A50-A51`: mature loss taxonomy became mechanistic; terminal loss is not itself a mechanism.
+- `A52-A53`: descriptive failure warnings did not imply deployable guards.
+- `A54`: post-H05/H10 secondary trigger was not robust OOS.
+- `A55 -> A56`: strong failure anatomy did not translate into a profitable live exit.
+- `A57`: confirmation differs by mechanism; a universal sequence is suspect.
+- `A58`: 1-minute intrabar decomposition produced no robust universal separator.
+- `A59`: H05 hybrid/partial derisk was not robust across OOS partitions.
+- `A60`: 1-minute range-compression route did not replicate robustly.
+- `A61`: LOW_MFE H05 pre-warning closed as inconclusive/failed; no threshold/window retuning.
+- `A62`: direct anatomy-to-intervention conversion is prohibited.
+- `A63`: only `running_mae_R` is established as 2-of-2 L0-specific versus M1. `close_H_R` and `drawdown_from_best_R` must not be promoted as independently established L0-specific mechanisms.
+- `A63`: direct MAE-specificity-to-intervention conversion is also prohibited without a new preregistered economic test.
 
 ## Durable lessons
 
-Three lineage lessons now define the operating discipline:
+Four lineage lessons now define the operating discipline:
 
 1. **A47B -> A47C:** replicated structure does not imply a profitable gate.
 2. **A55 -> A56:** predictive failure anatomy does not imply a profitable executable exit.
-3. **A62:** earlier replicated deterioration exists, but this does not bypass lessons 1 and 2. Earlier recognition is scientifically valuable only after a separate economic-intervention test proves that winner damage does not erase the benefit.
+3. **A62:** genuine early deterioration exists by roughly 60–120 minutes.
+4. **A63:** after controlling against another never-break loss mechanism, the robust early L0-specific axis narrows to **adverse-excursion depth (`running_mae_R`)**.
 
-Accordingly, cohort identity, descriptive anatomy, and executable intervention remain separate scientific stages.
+Accordingly, cohort identity, descriptive anatomy, mechanism specificity, and executable economics remain separate scientific stages.
 
 ## Current frontier
 
-The current frontier is now a **manual post-A62 lineage decision**, not an automatically chosen A63 experiment.
+The current frontier is a **manual post-A63 economic-translation decision**.
 
 Core question:
 
-> What pair-native scientific question should follow the replicated 60–120m L0/M0 early-path deterioration without converting descriptive anatomy directly into an exit, derisk rule, gate, or threshold?
+> Can the A62+A63 mechanism-specific `running_mae_R` deterioration be translated into a causal economic intervention without destroying future winners, non-L0 trades, total PnL, or OOS robustness?
 
-`A63` is merely the next available identifier.
+This is now a scientifically justified next stage, but **not a preapproved A64 experiment**.
 
-A valid next hypothesis must be reasoned from the A62 mechanism and the full lineage, while preserving:
+`A64` remains merely the next available identifier. Before implementation, a separate A64 preregistration would need to freeze, at minimum:
 
-- frozen execution parent;
-- frozen L0/M0 identity;
-- genuine Development / External / Reference separation;
-- no post-hoc threshold rescue;
-- no BTC-coordinate transplant;
-- no automatic anatomy-to-execution leap.
+- the exact economic intervention family to test;
+- how any MAE decision boundary is obtained without OOS tuning or post-hoc rescue;
+- fixed decision age(s);
+- treatment of trades that already exited before the decision point;
+- comparator/base economics;
+- winner-damage accounting;
+- non-L0 damage accounting;
+- Development support and block gates;
+- External and Reference Validation economic gates;
+- no threshold search after validation inspection.
+
+No threshold should be inferred directly from the A63 median gaps or effects.
 
 ## Automation boundary
 
@@ -195,6 +261,7 @@ Automation may own reproducible plumbing:
 Automation must **not** decide:
 
 - the next scientific hypothesis;
+- a post-hoc MAE threshold;
 - which features to mine after seeing validation data;
 - whether a failed lineage should be rescued;
 - the substantive meaning of a result;
