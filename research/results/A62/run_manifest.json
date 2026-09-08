@@ -1,0 +1,46 @@
+{
+  "artifacts": [
+    {
+      "bytes": 103742,
+      "path": "research/results/A62/SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_EVENTS.csv",
+      "sha256": "27bf4823ad2977f4af9d6c74c2466a568f3c2ffc2503ff1ccf56d2dccc84744a"
+    },
+    {
+      "bytes": 455,
+      "path": "research/results/A62/SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_COVERAGE.csv",
+      "sha256": "2f36b2b1c906948351488a9fee263ca66fd026f3a77da0fd0655689c9e261474"
+    },
+    {
+      "bytes": 8192,
+      "path": "research/results/A62/SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_METRICS.csv",
+      "sha256": "1e2d9cda7630be1e6e719bf8ae4d47d9647390588d9db9ed69b879a62bd69292"
+    },
+    {
+      "bytes": 12347,
+      "path": "research/results/A62/SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_BLOCKS.csv",
+      "sha256": "2c38f2202087b5b6e95383c602f8b96d491b550418a9f1c4a83fc77947c71d1b"
+    },
+    {
+      "bytes": 106,
+      "path": "research/results/A62/SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_RECONCILIATION.csv",
+      "sha256": "a42acc5cd1bfde257ae34e9898ec62ccb4f5f6817482d98eb70db828595babf5"
+    },
+    {
+      "bytes": 47,
+      "path": "research/results/A62/SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_Status.txt",
+      "sha256": "2c5c946eb9e08eed8d62b64d545ed8c0ec3be306ea35e1eaef5dab4b503705a5"
+    },
+    {
+      "bytes": 3205,
+      "path": "research/results/A62/SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_Result.md",
+      "sha256": "01cab711416f75bae59f93fa0f7d33caf55ae90a49d34259bc4dbc0def5c5f47"
+    }
+  ],
+  "experiment_id": "A62",
+  "git_sha_at_run": "ed6b1597c8a23f44184c60d92d7e44d90d5437dc",
+  "preregistration_sha256": "85a0bfef100ba293710f96490570f83355d95e29554a47764b8275220d35e683",
+  "registry_sha256": "2ae5ebb6e3efe4206001ce4c8aa1a816af9c7d603a37dbe83dd81a0967e5cf62",
+  "schema_version": 1,
+  "scientific_verdict_required_separately": true,
+  "state_advanced": false
+}
