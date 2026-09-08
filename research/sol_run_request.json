@@ -1,6 +1,6 @@
 {
-  "experiment_id": "A63",
+  "experiment_id": "A64",
   "branch": "research/sol-long-structure-a1-run",
-  "request_id": "A63-20260908-02",
-  "purpose": "Retry the unchanged SOL A63 specificity experiment after a schema-only preregistration amendment required by the generic harness. Scientific question, M1 comparator, features, snapshots, matching, support rules, and gates are unchanged; no A63 result existed before the amendment."
+  "request_id": "A64-20260908-01",
+  "purpose": "Run the preregistered SOL A64 running_mae_R economic translation experiment. Threshold learning is restricted to the frozen Development-only nearest-rank Q25/Q50/Q75 family at 60m/120m; OOS remains unopened unless a Development candidate passes every preregistered gate."
 }
