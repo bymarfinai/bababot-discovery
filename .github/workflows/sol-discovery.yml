@@ -8,6 +8,7 @@ on:
       - research/sol_experiment_registry.yaml
       - research/sol_experiment_harness.py
       - research/sol_lab.py
+      - research/sol_run_request.json
       - .github/workflows/sol-discovery.yml
   workflow_dispatch:
     inputs:
@@ -20,7 +21,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: sol-discovery-${{ github.ref }}-${{ inputs.experiment_id || 'tooling-validation' }}
+  group: sol-discovery-${{ github.ref }}-${{ inputs.experiment_id || github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -44,10 +45,44 @@ jobs:
           python research/sol_lab.py validate
           python research/sol_lab.py status
 
-      - name: Enforce preregistration history
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+      - name: Resolve experiment request
+        id: request
         env:
-          EXPERIMENT_ID: ${{ inputs.experiment_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_EXPERIMENT_ID: ${{ inputs.experiment_id }}
+        run: |
+          set -euo pipefail
+          run_experiment=false
+          experiment_id=""
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            run_experiment=true
+            experiment_id="$MANUAL_EXPERIMENT_ID"
+          elif [ "$EVENT_NAME" = "push" ]; then
+            if git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" | grep -Fxq 'research/sol_run_request.json'; then
+              test -f research/sol_run_request.json || { echo "Run request file missing"; exit 1; }
+              experiment_id="$(python - <<'PY'
+import json
+from pathlib import Path
+q=json.loads(Path('research/sol_run_request.json').read_text(encoding='utf-8'))
+v=q.get('experiment_id','')
+if not isinstance(v,str):
+    raise SystemExit('experiment_id must be a string')
+print(v)
+PY
+)"
+              run_experiment=true
+            fi
+          fi
+
+          echo "run_experiment=$run_experiment" >> "$GITHUB_OUTPUT"
+          echo "experiment_id=$experiment_id" >> "$GITHUB_OUTPUT"
+          echo "Resolved run_experiment=$run_experiment experiment_id=$experiment_id"
+
+      - name: Enforce preregistration history
+        if: ${{ steps.request.outputs.run_experiment == 'true' }}
+        env:
+          EXPERIMENT_ID: ${{ steps.request.outputs.experiment_id }}
         run: |
           set -euo pipefail
 
@@ -82,26 +117,26 @@ jobs:
           echo "Implementation commit:  $IMPL_COMMIT"
 
       - name: Run experiment
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.request.outputs.run_experiment == 'true' }}
         env:
-          EXPERIMENT_ID: ${{ inputs.experiment_id }}
+          EXPERIMENT_ID: ${{ steps.request.outputs.experiment_id }}
         run: |
           set -euo pipefail
           python research/sol_lab.py run "$EXPERIMENT_ID"
           python research/sol_lab.py finalize "$EXPERIMENT_ID"
 
       - name: Upload deterministic result artifacts
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.request.outputs.run_experiment == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: sol-${{ inputs.experiment_id }}-results
-          path: research/results/${{ inputs.experiment_id }}
+          name: sol-${{ steps.request.outputs.experiment_id }}-results
+          path: research/results/${{ steps.request.outputs.experiment_id }}
           if-no-files-found: error
 
       - name: Persist generated results to selected branch
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.request.outputs.run_experiment == 'true' }}
         env:
-          EXPERIMENT_ID: ${{ inputs.experiment_id }}
+          EXPERIMENT_ID: ${{ steps.request.outputs.experiment_id }}
           TARGET_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
@@ -116,4 +151,5 @@ jobs:
           fi
 
           git commit -m "research: persist SOL ${EXPERIMENT_ID} results"
+          git pull --rebase origin "$TARGET_BRANCH"
           git push origin "HEAD:${TARGET_BRANCH}"
