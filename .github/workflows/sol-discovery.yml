@@ -1,0 +1,106 @@
+name: SOL Discovery Experiment
+
+on:
+  workflow_dispatch:
+    inputs:
+      experiment_id:
+        description: "Registered SOL experiment id (for example A62)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sol-discovery-${{ github.ref }}-${{ inputs.experiment_id }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout selected branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate tooling
+        run: |
+          python -m py_compile research/sol_experiment_harness.py research/sol_lab.py
+          python research/sol_lab.py validate
+
+      - name: Enforce preregistration history
+        env:
+          EXPERIMENT_ID: ${{ inputs.experiment_id }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$EXPERIMENT_ID" =~ ^A[1-9][0-9]*$ ]]; then
+            echo "Invalid experiment id: $EXPERIMENT_ID"
+            exit 1
+          fi
+
+          PREREG="research/experiments/${EXPERIMENT_ID}/prereg.yaml"
+          IMPL="research/experiments/${EXPERIMENT_ID}/experiment.py"
+
+          test -f "$PREREG" || { echo "Missing preregistration: $PREREG"; exit 1; }
+          test -f "$IMPL" || { echo "Missing implementation: $IMPL"; exit 1; }
+
+          PREREG_COMMIT="$(git log --diff-filter=A --format=%H -- "$PREREG" | tail -n 1)"
+          IMPL_COMMIT="$(git log --diff-filter=A --format=%H -- "$IMPL" | tail -n 1)"
+
+          test -n "$PREREG_COMMIT" || { echo "Could not identify preregistration add commit"; exit 1; }
+          test -n "$IMPL_COMMIT" || { echo "Could not identify implementation add commit"; exit 1; }
+
+          if [ "$PREREG_COMMIT" = "$IMPL_COMMIT" ]; then
+            echo "Protocol violation: preregistration and implementation were added in the same commit."
+            exit 1
+          fi
+
+          if ! git merge-base --is-ancestor "$PREREG_COMMIT" "$IMPL_COMMIT"; then
+            echo "Protocol violation: preregistration commit does not precede implementation commit."
+            exit 1
+          fi
+
+          echo "Preregistration commit: $PREREG_COMMIT"
+          echo "Implementation commit:  $IMPL_COMMIT"
+
+      - name: Run experiment
+        env:
+          EXPERIMENT_ID: ${{ inputs.experiment_id }}
+        run: |
+          set -euo pipefail
+          python research/sol_lab.py run "$EXPERIMENT_ID"
+          python research/sol_lab.py finalize "$EXPERIMENT_ID"
+
+      - name: Upload deterministic result artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-${{ inputs.experiment_id }}-results
+          path: research/results/${{ inputs.experiment_id }}
+          if-no-files-found: error
+
+      - name: Persist generated results to selected branch
+        env:
+          EXPERIMENT_ID: ${{ inputs.experiment_id }}
+          TARGET_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add "research/results/${EXPERIMENT_ID}"
+
+          if git diff --cached --quiet; then
+            echo "No generated result changes to commit."
+            exit 0
+          fi
+
+          git commit -m "research: persist SOL ${EXPERIMENT_ID} results"
+          git push origin "HEAD:${TARGET_BRANCH}"
