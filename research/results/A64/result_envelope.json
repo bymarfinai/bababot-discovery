@@ -1,0 +1,57 @@
+{
+  "artifacts": [
+    "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_RECONCILIATION.csv",
+    "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_THRESHOLDS.csv",
+    "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_DEVELOPMENT_CANDIDATES.csv",
+    "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_DEVELOPMENT_BLOCKS.csv",
+    "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_DEVELOPMENT_CANDIDATE_TRADES.csv",
+    "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_Status.txt",
+    "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_Result.md"
+  ],
+  "experiment_id": "A64",
+  "git_sha": "802393b42e9c098e85b611087ee83e7e2555a196",
+  "observed": {
+    "central_losses_total": 710,
+    "execution_parent": {
+      "entry": "E0_RESTING_H",
+      "hour": "15UTC",
+      "range": "R360",
+      "target": "E40"
+    },
+    "l0_total": 76,
+    "partitions": {
+      "Development": {
+        "central_losses": 357,
+        "l0": 37,
+        "parent": 601,
+        "winners": 244
+      },
+      "External Validation": {
+        "central_losses": 166,
+        "l0": 13,
+        "parent": 281,
+        "winners": 115
+      },
+      "Reference Validation": {
+        "central_losses": 187,
+        "l0": 26,
+        "parent": 337,
+        "winners": 150
+      }
+    }
+  },
+  "preregistration_sha256": "1954f4bd764978beee8d124532c833e756f58d2b0d9dc4a0b11cc49ed526e871",
+  "registry_sha256": "c551f7a31e141b0c08ca08e692797584bbc921527f3d5e13e05ad7eed1e04d2d",
+  "schema_version": 1,
+  "scientific_verdict": null,
+  "state_advanced": false,
+  "summary": {
+    "development_candidate_count": 6,
+    "development_pass_count": 0,
+    "gate_status": "SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_REJECTED_DEVELOPMENT",
+    "interpretation_boundary": "economic_feasibility_only_no_live_authorization",
+    "market_coverage": 0.9976708526620213,
+    "oos_gate_pass": {},
+    "selected_rule": null
+  }
+}

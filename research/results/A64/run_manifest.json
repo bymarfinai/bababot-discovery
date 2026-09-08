@@ -1,0 +1,46 @@
+{
+  "artifacts": [
+    {
+      "bytes": 127,
+      "path": "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_RECONCILIATION.csv",
+      "sha256": "e449edf0d3a7f75329359bad834281a7689bb9fc2a5f204628c4790b8d28e80d"
+    },
+    {
+      "bytes": 342,
+      "path": "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_THRESHOLDS.csv",
+      "sha256": "bace403339ccc284480ed9db9cca18c4e03a3289410bc313f9986dca69f19269"
+    },
+    {
+      "bytes": 3330,
+      "path": "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_DEVELOPMENT_CANDIDATES.csv",
+      "sha256": "4ca1b176cac4ced4a1029251e4c38b4124d3df36a3ef0e96609d5103a11d39d6"
+    },
+    {
+      "bytes": 1796,
+      "path": "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_DEVELOPMENT_BLOCKS.csv",
+      "sha256": "d408a8eace0a215b20fd1aa7791c72a85cf812f87917b6758ccd4327f66d3aaf"
+    },
+    {
+      "bytes": 1041821,
+      "path": "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_DEVELOPMENT_CANDIDATE_TRADES.csv",
+      "sha256": "306dcab9014bdb9a2fd99139d06361442362e0a7ac379c0c820f766a0d9f87c6"
+    },
+    {
+      "bytes": 74,
+      "path": "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_Status.txt",
+      "sha256": "2dc11c6e04aa5a643233cebc2d44beaad9a6dd7a7192df1cbe7b89619b037873"
+    },
+    {
+      "bytes": 2545,
+      "path": "research/results/A64/SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_Result.md",
+      "sha256": "293ba12e37072c2c4e706c80398e8e6e0d8ba42be616af642ac2fe4b1355a346"
+    }
+  ],
+  "experiment_id": "A64",
+  "git_sha_at_run": "802393b42e9c098e85b611087ee83e7e2555a196",
+  "preregistration_sha256": "1954f4bd764978beee8d124532c833e756f58d2b0d9dc4a0b11cc49ed526e871",
+  "registry_sha256": "c551f7a31e141b0c08ca08e692797584bbc921527f3d5e13e05ad7eed1e04d2d",
+  "schema_version": 1,
+  "scientific_verdict_required_separately": true,
+  "state_advanced": false
+}

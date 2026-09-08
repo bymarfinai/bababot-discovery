@@ -1,0 +1,7 @@
+snapshot_age_min,source_n,quantile,rank,threshold,eligible,duplicate_threshold
+60,33,0.25,9,0.33667907471417136,True,False
+60,33,0.5,17,0.5133333333333364,True,False
+60,33,0.75,25,0.7375178316690466,True,False
+120,29,0.25,8,0.5887850467289742,True,False
+120,29,0.5,15,0.664723032069965,True,False
+120,29,0.75,22,0.8036529680365325,True,False
