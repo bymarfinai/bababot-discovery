@@ -1,0 +1,31 @@
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sol_long_15utc_h05_prewarning_mfe_a61.py", line 12, in <module>
+    a53 = importlib.util.module_from_spec(spec); assert spec.loader is not None; spec.loader.exec_module(a53)
+                                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sol_long_15utc_executable_guard_a53.py", line 12, in <module>
+    a17 = importlib.util.module_from_spec(spec); assert spec.loader is not None; spec.loader.exec_module(a17)
+                                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sol_long_multi_clock_expansion_a17.py", line 15, in <module>
+    spec.loader.exec_module(a4)
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sol_long_h1_loss_recovery_a4.py", line 15, in <module>
+    spec.loader.exec_module(a3)
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sol_long_h1_loss_anatomy_a3.py", line 15, in <module>
+    spec.loader.exec_module(a2)
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sol_long_h1_entry_econ_a2.py", line 15, in <module>
+    spec.loader.exec_module(a1)
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/sol_long_visit_break_a1.py", line 11, in <module>
+    import requests
+ModuleNotFoundError: No module named 'requests'
+exit_code=1
