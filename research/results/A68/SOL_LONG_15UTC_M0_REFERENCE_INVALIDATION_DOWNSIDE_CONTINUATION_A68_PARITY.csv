@@ -1,0 +1,4 @@
+partition,l0_n,parent_exit_equals_causal_origin_n,parent_exit_equals_causal_origin_rate
+development,37,37,1.0
+external,13,13,1.0
+reference_validation,26,26,1.0

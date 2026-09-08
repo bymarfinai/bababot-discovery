@@ -1,0 +1,51 @@
+{
+  "artifacts": [
+    {
+      "bytes": 85636,
+      "path": "research/results/A68/SOL_LONG_15UTC_M0_REFERENCE_INVALIDATION_DOWNSIDE_CONTINUATION_A68_EVENTS.csv",
+      "sha256": "06d41c1c452f230d22f0f43a16e33d08218ab4659610621e0cfe02dc025ae7a9"
+    },
+    {
+      "bytes": 343,
+      "path": "research/results/A68/SOL_LONG_15UTC_M0_REFERENCE_INVALIDATION_DOWNSIDE_CONTINUATION_A68_COVERAGE.csv",
+      "sha256": "00cfde745cd2043b087e63087e7ce6c4517aec64dd45c1ed9d220260ba0148f3"
+    },
+    {
+      "bytes": 5666,
+      "path": "research/results/A68/SOL_LONG_15UTC_M0_REFERENCE_INVALIDATION_DOWNSIDE_CONTINUATION_A68_METRICS.csv",
+      "sha256": "204eec5f4783131fec10fa7faa365ed763038ac9dfb42c277ea46d2fb773f52c"
+    },
+    {
+      "bytes": 9327,
+      "path": "research/results/A68/SOL_LONG_15UTC_M0_REFERENCE_INVALIDATION_DOWNSIDE_CONTINUATION_A68_BLOCKS.csv",
+      "sha256": "d8b17e77ae104b349a265f31de9f07da056644e4b4b81f395ee4d4ca9fdadc2c"
+    },
+    {
+      "bytes": 160,
+      "path": "research/results/A68/SOL_LONG_15UTC_M0_REFERENCE_INVALIDATION_DOWNSIDE_CONTINUATION_A68_PARITY.csv",
+      "sha256": "d9ce40ebaacce9a5187ddfb6b9deb96d625092738f4e91e60decdafb8d42ae73"
+    },
+    {
+      "bytes": 127,
+      "path": "research/results/A68/SOL_LONG_15UTC_M0_REFERENCE_INVALIDATION_DOWNSIDE_CONTINUATION_A68_RECONCILIATION.csv",
+      "sha256": "e449edf0d3a7f75329359bad834281a7689bb9fc2a5f204628c4790b8d28e80d"
+    },
+    {
+      "bytes": 80,
+      "path": "research/results/A68/SOL_LONG_15UTC_M0_REFERENCE_INVALIDATION_DOWNSIDE_CONTINUATION_A68_Status.txt",
+      "sha256": "222a9fcb703a41913546bdf9defd1a27b915c0e168bf093977cc7b3a15f0d815"
+    },
+    {
+      "bytes": 5272,
+      "path": "research/results/A68/SOL_LONG_15UTC_M0_REFERENCE_INVALIDATION_DOWNSIDE_CONTINUATION_A68_Result.md",
+      "sha256": "22e7317d1691336afa8999952b12522031873e9cd581dd4b22cbd3118875e21c"
+    }
+  ],
+  "experiment_id": "A68",
+  "git_sha_at_run": "9516c34048b143955b9f6007a8f3cd00305f7747",
+  "preregistration_sha256": "593e9e502d72ef6c9fe24276bc782a20c30482bbecbc5e8fa018b1d0fb446dce",
+  "registry_sha256": "ccc4bf03009d2e5f86d8cdb7f2abd845e1c56cb6f17ff93d526d68b29ee6656a",
+  "schema_version": 1,
+  "scientific_verdict_required_separately": true,
+  "state_advanced": false
+}
