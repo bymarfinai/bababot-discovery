@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "experiment_id": "A65",
+  "name": "SOL LONG 15UTC L0 MAE-Conditioned Winner Recovery Anatomy",
+  "pair": "SOL",
+  "inherits": {
+    "execution_parent": {"range": "R360", "hour": "15UTC", "entry": "E0_RESTING_H", "target": "E40"},
+    "loss_taxonomy": {"central_losses_total": 710, "l0_label": "NEVER_BREAK_REFERENCE_INVALIDATION", "l0_mechanism": "M0", "l0_total": 76},
+    "partitions": {
+      "Development": {"central_losses": 357, "l0": 37},
+      "External Validation": {"central_losses": 166, "l0": 13},
+      "Reference Validation": {"central_losses": 187, "l0": 26}
+    }
+  },
+  "lineage_inputs": {
+    "a62": "running_mae_R was part of the replicated 60m-120m early deterioration anatomy.",
+    "a63": "running_mae_R was the only tested A62 family that remained specifically L0/M0 versus M1 at both 60m and 120m.",
+    "a64": "Static fixed-age full exits on Development-only MAE quantiles improved net/PF/DD diagnostically but all six failed the frozen stressed-WR preservation gate; OOS intervention economics remained unopened."
+  },
+  "scientific_question": "Holding early adverse-excursion severity approximately constant, what causal recovery-path behavior distinguishes genuine L0/M0 reference-invalidation losses from eventual parent winners that are still live and pre-break at the same 60m or 120m age?",
+  "hypothesis": "At comparable running_mae_R severity, eventual winners recover from the adverse excursion more effectively before the snapshot, while L0/M0 cases remain closer to their worst excursion, recover less efficiently relative to the depth suffered, place their worst excursion later in the observation window, and exhibit weaker post-worst close recovery slope.",
+  "execution_mode": "descriptive_mechanistic_only",
+  "cohort_definition": {
+    "case": "Exact frozen M0_REFERENCE_INVALIDATION cases, unchanged from A62-A64.",
+    "control": "Eventual positive frozen-parent trade that is still live and pre-break at the same fixed snapshot.",
+    "matching": [
+      "same partition",
+      "Development additionally requires identical frozen dev_block",
+      "same fixed snapshot age",
+      "control must be eventual parent winner",
+      "control must still be live and pre-break through the completed snapshot",
+      "choose eligible winner minimizing absolute running_mae_R difference to the L0 case",
+      "tie-break by absolute execution_start calendar distance, then earlier execution_start, then earlier entry_ts",
+      "control reuse is allowed and must be reported"
+    ],
+    "matching_axis_is_not_a_rule": "running_mae_R is used only to condition the descriptive comparison; no MAE threshold or intervention is selected."
+  },
+  "timing_semantics": {
+    "bar_size_minutes": 5,
+    "entry_fill_candle_excluded": true,
+    "measurement_start": "entry_ts + 5m",
+    "snapshot_age_definition": "At age S, use only full completed 5m bars labeled entry_ts+5m through entry_ts+S-5m inclusive.",
+    "no_post_snapshot_information_in_features": true
+  },
+  "fixed_snapshots": [60, 120],
+  "finite_feature_set": [
+    {
+      "name": "recovery_from_worst_R",
+      "formula": "(last completed snapshot close - minimum completed post-entry low through snapshot) / R",
+      "preregistered_l0_direction": "lower"
+    },
+    {
+      "name": "recovery_efficiency",
+      "formula": "recovery_from_worst_R / running_mae_R when running_mae_R > 0",
+      "preregistered_l0_direction": "lower"
+    },
+    {
+      "name": "bars_since_worst_fraction",
+      "formula": "number of completed bars after the first occurrence of the running minimum low divided by max(1, number_of_completed_bars-1)",
+      "preregistered_l0_direction": "lower"
+    },
+    {
+      "name": "post_worst_close_slope_R_per_bar",
+      "formula": "OLS slope of closes from the first running-minimum-low bar through the snapshot, divided by R; zero when only one bar is available",
+      "preregistered_l0_direction": "lower"
+    }
+  ],
+  "effect_definition": {
+    "median_gap": "median(L0) - median(MAE-matched eventual-winner control)",
+    "pooled_iqr": "mean(IQR(L0), IQR(control))",
+    "effect": "abs(median_gap) / pooled_iqr; nonzero gap over zero pooled IQR is infinite",
+    "direction_test": "sign must match preregistered L0 direction"
+  },
+  "support_rules": {
+    "Development": {
+      "minimum_matched_pairs_per_snapshot": 20,
+      "block_rule": "At least 3 dev_blocks with >=5 matched pairs; every adequate block must show the preregistered direction."
+    },
+    "External Validation": {"minimum_matched_pairs_per_snapshot": 8},
+    "Reference Validation": {"minimum_matched_pairs_per_snapshot": 8},
+    "insufficient_support": "Fixed snapshot-feature is ineligible; do not move age, relax matching, or add features."
+  },
+  "success_criteria": {
+    "development_snapshot_feature_eligible": [
+      "matched-pair support >=20",
+      "median-gap sign matches preregistered direction",
+      "effect >=0.30",
+      "Development block rule passes"
+    ],
+    "oos_snapshot_feature_replication": [
+      "Development snapshot-feature is eligible first",
+      "External support >=8, same direction, effect >=0.10",
+      "Reference support >=8, same direction, effect >=0.10"
+    ],
+    "feature_family_supported": "The same feature must fully replicate at both 60m and 120m (strict 2-of-2).",
+    "experiment_supported": "At least one recovery feature family satisfies strict 2-of-2 replication.",
+    "experiment_inconclusive": "No preregistered feature satisfies strict 2-of-2 while reconciliation succeeds.",
+    "reconciliation_fail": "Frozen counts, timing, data, or matching invariants fail."
+  },
+  "required_diagnostics": [
+    "parent/loss/L0/winner reconciliation by partition",
+    "raw 5m coverage",
+    "matched-pair counts and control reuse",
+    "absolute running_mae_R match-gap distribution by partition and age",
+    "event-level case/control recovery features",
+    "Development block-direction table",
+    "Development and OOS feature-by-age metrics",
+    "strict 2-of-2 supported feature-family list"
+  ],
+  "prohibitions": [
+    "no A64 Q25/Q50/Q75 threshold reuse as a cohort gate",
+    "no A64 candidate rescue or OOS intervention economics",
+    "no threshold learning",
+    "no exit, partial derisk, re-arm, timer, H05/H10, or live intervention",
+    "no close_H_R or drawdown_from_best_R resurrection",
+    "no feature additions after seeing results",
+    "no validation tuning",
+    "no BTC/ETH context or coordinate transplant"
+  ],
+  "decision_states": [
+    "SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_SUPPORTED",
+    "SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_INCONCLUSIVE",
+    "SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_RECONCILIATION_FAIL"
+  ],
+  "interpretation_boundary": "A supported recovery feature is mechanistic anatomy only. It does not authorize a composite, threshold, gate, exit, partial derisk, or live Baba Bot modification. Any economic translation requires a separately preregistered experiment.",
+  "retuning": "prohibited",
+  "notes": [
+    "A65 responds directly to A64's winner-retention failure rather than relaxing A64 gates.",
+    "MAE matching asks whether recovery behavior adds mechanism information beyond adverse-excursion depth itself.",
+    "The A64 rejected static full-exit family remains closed."
+  ]
+}
