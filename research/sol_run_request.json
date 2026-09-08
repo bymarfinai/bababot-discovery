@@ -1,6 +1,6 @@
 {
-  "experiment_id": "A64",
+  "experiment_id": "A65",
   "branch": "research/sol-long-structure-a1-run",
-  "request_id": "A64-20260908-02",
-  "purpose": "Retry unchanged SOL A64 after a report-only pandas Series field-access bug. Scientific feature, ages, threshold family, full-exit semantics, Development selection gates, OOS gates, and prohibitions are unchanged; the failed run persisted no result artifacts."
+  "request_id": "A65-20260908-01",
+  "purpose": "Run preregistered SOL A65 MAE-conditioned winner-recovery anatomy. Descriptive/mechanistic only; no A64 threshold rescue, no intervention economics, no validation tuning, and no live Baba Bot modification."
 }
