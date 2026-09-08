@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "experiment_id": "A66",
+  "name": "SOL LONG 15UTC L0 MAE-Conditioned Reclaim Sequence Anatomy",
+  "pair": "SOL",
+  "inherits": {
+    "execution_parent": {"range": "R360", "hour": "15UTC", "entry": "E0_RESTING_H", "target": "E40"},
+    "loss_taxonomy": {"central_losses_total": 710, "l0_label": "NEVER_BREAK_REFERENCE_INVALIDATION", "l0_mechanism": "M0", "l0_total": 76},
+    "partitions": {
+      "Development": {"central_losses": 357, "l0": 37},
+      "External Validation": {"central_losses": 166, "l0": 13},
+      "Reference Validation": {"central_losses": 187, "l0": 26}
+    }
+  },
+  "lineage_inputs": {
+    "a62": "L0/M0 develops replicated early-path deterioration by roughly 60m and 120m.",
+    "a63": "running_mae_R is the only tested A62 feature family that remained L0-specific versus M1 at both 60m and 120m.",
+    "a64": "Static fixed-age MAE full exits contained Development economic information but failed promotion because winner retention and stressed WR deteriorated.",
+    "a65": "After approximately matching L0 to eventual winners on running_mae_R severity, four simple recovery descriptors failed strict 2-of-2 replication; simple rebound magnitude, efficiency, worst timing, and post-worst slope do not explain winner retention."
+  },
+  "scientific_question": "Holding early adverse-excursion severity approximately constant, does the sequence by which price reclaims and sustains ground after the snapshot worst excursion distinguish genuine L0/M0 reference-invalidation losses from eventual winners at the same 60m or 120m age?",
+  "hypothesis": "At comparable running_mae_R severity, eventual winners exhibit stronger sequence-level reclaim behavior after the first occurrence of the snapshot worst low: they recover a larger fraction of the adverse excursion, reach a half-reclaim sooner, sustain that half-reclaim for longer, spend more of the remaining path holding above it, and accumulate less of their final adverse excursion late in the observation window. L0/M0 cases show weaker or later reclaim and more continued adverse extension.",
+  "execution_mode": "descriptive_mechanistic_only",
+  "cohort_definition": {
+    "case": "Exact frozen M0_REFERENCE_INVALIDATION cases, unchanged from A62-A65.",
+    "control": "Eventual positive frozen-parent trade that is still live and pre-break at the same fixed snapshot.",
+    "matching": [
+      "same partition",
+      "Development additionally requires identical frozen dev_block",
+      "same fixed snapshot age",
+      "control must be eventual parent winner",
+      "control must still be live and pre-break through the completed snapshot",
+      "choose eligible winner minimizing absolute running_mae_R difference to the L0 case",
+      "tie-break by absolute execution_start calendar distance, then earlier execution_start, then earlier entry_ts",
+      "control reuse allowed and reported"
+    ],
+    "conditioning_axis": "running_mae_R is used only for MAE-severity matching; it is not an executable threshold or cohort gate."
+  },
+  "timing_semantics": {
+    "bar_size_minutes": 5,
+    "entry_fill_candle_excluded": true,
+    "measurement_start": "entry_ts + 5m",
+    "snapshot_age_definition": "At age S, use only full completed 5m bars labeled entry_ts+5m through entry_ts+S-5m inclusive.",
+    "snapshot_worst_anchor": "First occurrence of the minimum completed low inside the fixed snapshot path. All reclaim-sequence features use only bars at or after that anchor and information available by the snapshot cut.",
+    "half_reclaim_level": "snapshot_worst_low + 0.50 * (H - snapshot_worst_low). This is a fixed scale-free structural level, not learned from Development or OOS.",
+    "midpoint_cut": "For 60m use completed bars through 30m-5m; for 120m use completed bars through 60m-5m when computing pre-midpoint MAE.",
+    "no_post_snapshot_information_in_features": true
+  },
+  "fixed_snapshots": [60, 120],
+  "finite_feature_set": [
+    {
+      "name": "max_reclaim_fraction_of_mae",
+      "formula": "max(0, max(post-worst completed close) - snapshot_worst_low) / max(H - snapshot_worst_low, epsilon)",
+      "preregistered_l0_direction": "lower"
+    },
+    {
+      "name": "half_reclaim_latency_fraction",
+      "formula": "bars from snapshot-worst anchor to first completed close >= half_reclaim_level divided by max(1, bars remaining after anchor); set to 1.0 when no half reclaim occurs by snapshot",
+      "preregistered_l0_direction": "higher"
+    },
+    {
+      "name": "longest_half_reclaim_run_fraction",
+      "formula": "longest consecutive run of post-worst completed closes >= half_reclaim_level divided by max(1, number of post-worst completed closes)",
+      "preregistered_l0_direction": "lower"
+    },
+    {
+      "name": "post_half_reclaim_hold_fraction",
+      "formula": "after the first completed close >= half_reclaim_level, fraction of remaining completed closes that stay >= half_reclaim_level; zero when no half reclaim occurs",
+      "preregistered_l0_direction": "lower"
+    },
+    {
+      "name": "late_mae_extension_fraction",
+      "formula": "max(0, snapshot_running_mae_R - midpoint_running_mae_R) / max(snapshot_running_mae_R, epsilon)",
+      "preregistered_l0_direction": "higher"
+    }
+  ],
+  "effect_definition": {
+    "median_gap": "median(L0) - median(MAE-matched eventual-winner control)",
+    "pooled_iqr": "mean(IQR(L0), IQR(control))",
+    "effect": "abs(median_gap) / pooled_iqr; nonzero gap over zero pooled IQR is infinite",
+    "direction_test": "sign must match the preregistered L0 direction"
+  },
+  "support_rules": {
+    "Development": {
+      "minimum_matched_pairs_per_snapshot": 20,
+      "block_rule": "At least 3 dev_blocks with >=5 matched pairs; every adequate block must show the preregistered direction."
+    },
+    "External Validation": {"minimum_matched_pairs_per_snapshot": 8},
+    "Reference Validation": {"minimum_matched_pairs_per_snapshot": 8},
+    "insufficient_support": "Fixed snapshot-feature is ineligible; do not move age, relax matching, change half-reclaim level, or add features."
+  },
+  "success_criteria": {
+    "development_snapshot_feature_eligible": [
+      "matched-pair support >=20",
+      "median-gap sign matches preregistered direction",
+      "effect >=0.30",
+      "Development block rule passes"
+    ],
+    "oos_snapshot_feature_replication": [
+      "Development snapshot-feature is eligible first",
+      "External support >=8, same direction, effect >=0.10",
+      "Reference support >=8, same direction, effect >=0.10"
+    ],
+    "feature_family_supported": "The same feature must fully replicate at both 60m and 120m (strict 2-of-2).",
+    "experiment_supported": "At least one preregistered sequence feature family satisfies strict 2-of-2 replication.",
+    "experiment_inconclusive": "No preregistered sequence feature satisfies strict 2-of-2 while reconciliation succeeds.",
+    "reconciliation_fail": "Frozen counts, causal timing, data, or matching invariants fail."
+  },
+  "required_diagnostics": [
+    "parent/loss/L0/winner reconciliation by partition",
+    "raw 5m coverage",
+    "matched-pair counts and control reuse",
+    "absolute running_mae_R match-gap distribution by partition and age",
+    "event-level case/control sequence features",
+    "Development block-direction table",
+    "Development and OOS feature-by-age metrics",
+    "strict 2-of-2 supported sequence-feature list"
+  ],
+  "prohibitions": [
+    "no A64 Q25/Q50/Q75 threshold reuse or rescue",
+    "no A64 OOS intervention economics",
+    "no threshold learning or optimization of the 0.50 reclaim level",
+    "no exit, partial derisk, re-arm, timer, H05/H10, or live intervention",
+    "no resurrection or composite of A65 failed features",
+    "no feature additions after seeing A66 results",
+    "no validation tuning or snapshot movement",
+    "no BTC/ETH context or coordinate transplant"
+  ],
+  "decision_states": [
+    "SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_SUPPORTED",
+    "SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_INCONCLUSIVE",
+    "SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_RECONCILIATION_FAIL"
+  ],
+  "interpretation_boundary": "A supported sequence feature is mechanistic anatomy only. It does not authorize a composite, threshold, gate, exit, partial derisk, re-arm, or live Baba Bot modification. Any economic translation requires a separately preregistered experiment.",
+  "retuning": "prohibited",
+  "notes": [
+    "A66 addresses A64 winner-retention tension without relaxing the A64 promotion gate.",
+    "A66 is intentionally sequence-oriented rather than a rerun of A65 terminal recovery magnitude/slope descriptors.",
+    "The 0.50 half-reclaim level is fixed before implementation and is not a Development-selected trading threshold.",
+    "Live Baba Bot remains unchanged."
+  ]
+}
