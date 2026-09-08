@@ -1,0 +1,70 @@
+{
+  "artifacts": [
+    "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_EVENTS.csv",
+    "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_COVERAGE.csv",
+    "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_METRICS.csv",
+    "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_BLOCKS.csv",
+    "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_RECONCILIATION.csv",
+    "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_Status.txt",
+    "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_Result.md"
+  ],
+  "experiment_id": "A65",
+  "git_sha": "63f7e4d283e6ce4e37064a7d6cf3753bb90adb54",
+  "observed": {
+    "central_losses_total": 710,
+    "execution_parent": {
+      "entry": "E0_RESTING_H",
+      "hour": "15UTC",
+      "range": "R360",
+      "target": "E40"
+    },
+    "l0_total": 76,
+    "partitions": {
+      "Development": {
+        "central_losses": 357,
+        "l0": 37
+      },
+      "External Validation": {
+        "central_losses": 166,
+        "l0": 13
+      },
+      "Reference Validation": {
+        "central_losses": 187,
+        "l0": 26
+      }
+    }
+  },
+  "preregistration_sha256": "40a2613438b02c2213dca45186de8df0f99e1877aaf3454aeab22a39b0bf71e7",
+  "registry_sha256": "41d191164be8ac3099c365ad3eabf7be6f146b95b8d590d8ef554c0f927f8e59",
+  "schema_version": 1,
+  "scientific_verdict": null,
+  "state_advanced": false,
+  "summary": {
+    "gate_status": "SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_INCONCLUSIVE",
+    "interpretation_boundary": "mae_conditioned_recovery_anatomy_only_no_intervention",
+    "market_coverage": 0.9976708526620213,
+    "matched_pairs_by_partition_snapshot": {
+      "development:120m": 29,
+      "development:60m": 33,
+      "external:120m": 11,
+      "external:60m": 12,
+      "reference_validation:120m": 19,
+      "reference_validation:60m": 22
+    },
+    "median_abs_mae_match_gap_by_partition_snapshot": {
+      "development:120m": 0.05597013816449181,
+      "development:60m": 0.048538845068968065,
+      "external:120m": 0.029420692430140616,
+      "external:60m": 0.008890825709729544,
+      "reference_validation:120m": 0.006430062630478406,
+      "reference_validation:60m": 0.006712894580561901
+    },
+    "replicated_snapshots_by_feature": {
+      "bars_since_worst_fraction": [],
+      "post_worst_close_slope_R_per_bar": [],
+      "recovery_efficiency": [],
+      "recovery_from_worst_R": []
+    },
+    "supported_recovery_feature_families": []
+  }
+}

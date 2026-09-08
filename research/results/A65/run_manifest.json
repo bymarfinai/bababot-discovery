@@ -1,0 +1,46 @@
+{
+  "artifacts": [
+    {
+      "bytes": 68876,
+      "path": "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_EVENTS.csv",
+      "sha256": "627899280b422ec2735dac3d0c402b6f110b82ca255b4193a7062b56ee1b237f"
+    },
+    {
+      "bytes": 799,
+      "path": "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_COVERAGE.csv",
+      "sha256": "61950d227e53b20e20928282267bd502aae2e41d51c5ce39400c0959a810716f"
+    },
+    {
+      "bytes": 4030,
+      "path": "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_METRICS.csv",
+      "sha256": "5129395a385b4104649054b5f2f6d8ca75954aa7b92ff221bee7bc2dcc3a04ae"
+    },
+    {
+      "bytes": 5892,
+      "path": "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_BLOCKS.csv",
+      "sha256": "3bfba87a16645fe098e93bc2cbb711b4c8609451e73f26deb1e287e53e637b0b"
+    },
+    {
+      "bytes": 127,
+      "path": "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_RECONCILIATION.csv",
+      "sha256": "e449edf0d3a7f75329359bad834281a7689bb9fc2a5f204628c4790b8d28e80d"
+    },
+    {
+      "bytes": 60,
+      "path": "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_Status.txt",
+      "sha256": "e5686657422531fc245aa7b5bc61e7329e3effb9305e43c3303f50a1fba153cc"
+    },
+    {
+      "bytes": 2688,
+      "path": "research/results/A65/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_Result.md",
+      "sha256": "a7b8ee2f8e14304302c8b8bafb4fcf13054567dffb65ad717fdefc63e9bc9593"
+    }
+  ],
+  "experiment_id": "A65",
+  "git_sha_at_run": "63f7e4d283e6ce4e37064a7d6cf3753bb90adb54",
+  "preregistration_sha256": "40a2613438b02c2213dca45186de8df0f99e1877aaf3454aeab22a39b0bf71e7",
+  "registry_sha256": "41d191164be8ac3099c365ad3eabf7be6f146b95b8d590d8ef554c0f927f8e59",
+  "schema_version": 1,
+  "scientific_verdict_required_separately": true,
+  "state_advanced": false
+}
