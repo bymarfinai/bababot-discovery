@@ -7,17 +7,17 @@
 - Pair: `SOL`
 - Discovery branch: `research/sol-long-structure-a1-run`
 - State originally established from commit: `12c483959af3ac87c63d671f7b2edccb2fed2218`
-- Latest completed experiment: **`A66`**
-- Next available experiment ID: **`A67`**
+- Latest completed experiment: **`A67`**
+- Next available experiment ID: **`A68`**
 - Pair-native rule: **copy the discovery grammar, never copy the coordinates**.
 
-`A67` is an identifier only. No A67 hypothesis, feature family, comparator, threshold, intervention, or promotion gate is approved by this state update.
+`A68` is an identifier only. No A68 hypothesis, feature family, comparator, threshold, intervention, or promotion gate is approved by this state update.
 
 ## Frozen execution parent
 
 `R360 / 15UTC / E0_RESTING_H -> E40`
 
-Do not retune range, clock, entry, or target in response to A62-A66 unless a future experiment is explicitly preregistered as a parent-recalibration lineage.
+Do not retune range, clock, entry, or target in response to A62-A67 unless a future experiment is explicitly preregistered as a parent-recalibration lineage.
 
 ## Frozen mature universe
 
@@ -47,7 +47,7 @@ Every experiment follows:
 
 Descriptive anatomy, mechanism specificity, economic feasibility, and production deployment are separate stages.
 
-## A62-A66 lineage
+## A62-A67 lineage
 
 ### A62 — Early-progress anatomy
 
@@ -65,7 +65,7 @@ Verdict: `c192ba3469a685e074c2712887212fbc4f65a69c`
 
 ### A64 — Static MAE economic translation
 
-**REJECTED AT DEVELOPMENT.** Six preregistered static full-exit candidates crossed 60m/120m with Development L0 Q25/Q50/Q75 MAE thresholds. All improved Development net PnL and PF diagnostically, but none preserved the frozen 5bps stressed WR baseline. No rule was selected and OOS intervention economics remained unopened.
+**REJECTED AT DEVELOPMENT.** Six preregistered static full-exit candidates crossed 60m/120m with Development L0 Q25/Q50/Q75 MAE thresholds. All improved Development net PnL and PF diagnostically, but none preserved the frozen 5bps stressed WR baseline.
 
 The strongest diagnostic, `A120_Q25`, produced approximately +$86.29 Development delta net and +$165.54 L0 PnL delta, but damaged eventual-winner PnL by about -$76.38 and reduced stressed WR. It remains diagnostic only and cannot be rescued.
 
@@ -81,19 +81,34 @@ This closed the simple story that severe-MAE winners are robustly distinguishabl
 Result persistence: `e0955aad2084f1d654b2c363656d0e686583d316`  
 Verdict: `2d6dbef9985c075dcd5c038cdd859551f7f78e8e`
 
-## Latest completed experiment — A66
+### A66 — MAE-conditioned fixed half-reclaim sequence anatomy
 
-### A66 question
+**INCONCLUSIVE.** A66 retained MAE-conditioned matching and tested a fixed 50% half-reclaim sequence/hold family:
 
-**L0 MAE-CONDITIONED RECLAIM SEQUENCE ANATOMY**
+- `max_reclaim_fraction_of_mae`
+- `half_reclaim_latency_fraction`
+- `longest_half_reclaim_run_fraction`
+- `post_half_reclaim_hold_fraction`
+- `late_mae_extension_fraction`
 
-> Holding early adverse-excursion severity approximately constant, does the sequence by which price reclaims and sustains ground after the snapshot worst excursion distinguish genuine L0/M0 reference-invalidation losses from eventual winners at the same 60m or 120m age?
+No family passed strict 2-of-2 replication. Strong 60m Development + External reclaim patterns vanished in Reference Validation; 120m directions and Development block consistency were unstable. `late_mae_extension_fraction` was explicitly not rescued.
 
-A66 retained A65's MAE-conditioned matching and moved from simple static recovery descriptors to a finite sequence/path-geometry family anchored on the first snapshot worst low and a fixed 50% half-reclaim level.
+Result persistence: `6f7a95bb7a44af8031fcca3d2e0196a0c48501e2`  
+Scientific verdict: `5a631f61b1cff5f13dccbadfaa17ae2dcc863e9a`
+
+## Latest completed experiment — A67
+
+### A67 question
+
+**L0 MAE FORMATION AND DOWNSIDE-ACCEPTANCE ANATOMY**
+
+> Holding early adverse-excursion severity approximately constant, does the way the adverse excursion is formed before the first occurrence of the snapshot worst low distinguish genuine L0/M0 reference-invalidation losses from eventual winners at the same 60m or 120m age?
+
+A67 was a genuine mechanism reset from A65-A66. It used no post-worst recovery/reclaim information. The hypothesis was that genuine L0 would look like persistent downside acceptance, whereas severe-MAE eventual winners would more often look like transient/sweep-like damage.
 
 ### Matching and support
 
-Every fixed cell exceeded the preregistered support floor:
+Every fixed partition/age exceeded the preregistered matched-pair support floor:
 
 | Partition | Age | Eligible L0 | Matched | Unique winners | Max reuse | Median abs MAE gap |
 |---|---:|---:|---:|---:|---:|---:|
@@ -106,40 +121,45 @@ Every fixed cell exceeded the preregistered support floor:
 
 Raw SOLUSDT 5m coverage remained **99.7671%**.
 
-### A66 finite sequence family
+### A67 finite formation family
 
-Only these preregistered features were tested:
+Only these preregistered features were tested, using completed bars from `entry_ts + 5m` through and including the **first snapshot-worst bar**:
 
-- `max_reclaim_fraction_of_mae`
-- `half_reclaim_latency_fraction`
-- `longest_half_reclaim_run_fraction`
-- `post_half_reclaim_hold_fraction`
-- `late_mae_extension_fraction`
+- `largest_mae_extension_share`
+- `mae_extension_bar_fraction`
+- `down_close_step_fraction`
+- `close_path_efficiency_to_worst`
+- `worst_bar_close_location`
 
-The fixed half-reclaim level was 50% of the snapshot adverse excursion. It was descriptive and never Development-optimized.
+### A67 verdict
 
-### A66 verdict
+**`SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_INCONCLUSIVE`**
 
-**`SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_INCONCLUSIVE`**
+No feature passed strict 2-of-2 replication.
 
-No sequence family passed strict 2-of-2 replication.
+The strongest tempting pattern was `largest_mae_extension_share` at 60m:
 
-At 60m, four reclaim/hold features showed large Development and External separation in the preregistered direction, but Reference Validation showed **0.000 median gap / 0.000 effect** for the same features. Development block consistency was also only `3/4` for those families.
+- Development: gap `-0.224`, effect `0.592`
+- External Validation: gap `-0.231`, effect `0.804`
+- Reference Validation: gap `+0.057`, effect `0.179`
+- Development block consistency: only `2/4`
 
-At 120m, several Development directions reversed while External/Reference often pointed in the hypothesized direction. This cross-partition instability prevents a stable mechanistic interpretation.
+Thus the apparent Development + External support reverses in Reference and fails the preregistered Development block rule. It cannot be rescued.
 
-`late_mae_extension_fraction` is specifically **not** a rescue candidate. At 120m it had positive gaps/effects across Development (`+0.216 / 0.620`), External (`+0.179 / 0.372`), and Reference (`+0.357 / 0.711`), but Development block consistency was only `2/3`; at 60m the block rule was `2/4` and Reference separation was zero. The frozen gate therefore rejects it.
+`worst_bar_close_location` was also unstable: at 60m Development had `4/4` directional blocks but effectively no pooled separation (`-0.013`, effect `0.025`), External reversed direction, and Reference showed a large effect in the hypothesized direction. At 120m Development itself reversed while both OOS partitions pointed weakly in the hypothesized direction.
 
-Result persistence: `6f7a95bb7a44af8031fcca3d2e0196a0c48501e2`  
-Scientific verdict: `5a631f61b1cff5f13dccbadfaa17ae2dcc863e9a`
+Result persistence: `99f45ed8e8f72c236325b38858f5850066410dd0`  
+Scientific verdict: `c0a0fbd5e978cc99197f99518fe630c97919b693`
 
-### A66 scientific meaning
+### A67 scientific meaning
 
-The narrow supported lineage statement is now:
+The supported lineage statement is now:
 
-> **Adverse-excursion depth remains a replicated L0/M0-specific early research axis, but neither A65's simple post-worst recovery descriptors nor A66's fixed half-reclaim sequence/hold geometry robustly explains why some severe-MAE trades remain recoverable winners while genuine L0/M0 proceeds to reference invalidation.**
+> **Adverse-excursion depth remains a replicated L0/M0-specific early research axis, but the unresolved winner-retention discriminator is not established by simple post-worst recovery (A65), fixed half-reclaim sequence/hold geometry (A66), or the tested pre-worst MAE-formation/completed-close downside-acceptance family (A67).**
 
-This does not invalidate A62/A63 and does not rehabilitate A64. It closes the exact adjacent recovery/reclaim families tested in A65-A66.
+A67 weakens the simple narrative that severe-MAE winners are merely transient sweeps while genuine L0 is a consistently more persistent grind downward, at least under the exact preregistered formation descriptors tested here.
+
+This does not invalidate A62-A63 and does not rehabilitate A64.
 
 ## Closed or strongly constrained routes
 
@@ -162,30 +182,43 @@ Do not casually reopen:
 - `A63`: promoting `close_H_R` or `drawdown_from_best_R` as strict L0-specific mechanisms;
 - `A64`: static 60/120m MAE full-exit Q25/Q50/Q75 family, gate relaxation, threshold/age rescue, or OOS rescue;
 - `A65`: exact simple MAE-conditioned recovery family or post-hoc composite;
-- `A66`: exact fixed-50%-half-reclaim sequence family;
-- `A66`: retuning half-reclaim to 25%, 75%, or another neighboring level;
-- `A66`: selecting favorable 60m Development + External while ignoring Reference;
-- `A66`: rescuing `late_mae_extension_fraction` by relaxing Development block consistency.
+- `A66`: exact fixed-50%-half-reclaim sequence family, reclaim-level retuning, Development+External-only rescue, or `late_mae_extension_fraction` rescue;
+- `A67`: exact pre-worst formation/downside-acceptance family;
+- `A67`: rescuing `largest_mae_extension_share` from Development + External while ignoring Reference;
+- `A67`: relaxing Development block consistency;
+- `A67`: neighboring formation/persistence/candle-acceptance mining after seeing the result.
 
 ## Durable lessons
 
 1. Replicated anatomy is not automatically an executable rule (`A47B -> A47C`, `A55 -> A56`).
-2. OOS gates are essential; Development improvement can reverse or fail robustness (`A59`).
+2. OOS gates are essential; Development improvement can reverse or fail robustness (`A59`, `A66`, `A67`).
 3. L0/M0 has real early deterioration and `running_mae_R` is the robust mechanism-specific axis (`A62-A63`).
 4. MAE contains economic information, but static full exit is too blunt under the frozen objective (`A64`).
-5. The eventual-winner retention problem is not robustly explained by simple post-worst recovery descriptors (`A65`).
-6. It is also not robustly explained by the tested fixed half-reclaim timing/hold sequence (`A66`).
-7. Repeatedly mining neighboring recovery/reclaim metrics is now scientifically weak; the next lineage should represent a genuine mechanism reset.
+5. Severe-MAE winner retention is not robustly explained by simple post-worst recovery (`A65`).
+6. It is not robustly explained by the tested fixed half-reclaim sequence/hold family (`A66`).
+7. It is also not robustly explained by the tested pre-worst formation/downside-acceptance family (`A67`).
+8. Repeatedly mining neighboring local price-path descriptors is now scientifically weak; the next lineage should represent another genuine causal-mechanism reset.
 
 ## Current frontier
 
-The frontier is a **manual post-A66 winner-retention mechanism reset**.
+The frontier is a **manual post-A67 winner-retention causal-mechanism reset**.
 
 Core question:
 
-> What genuinely new pair-native causal information, outside the tested simple post-worst recovery and fixed half-reclaim sequence families, explains why some severe-MAE trades remain recoverable eventual winners while genuine L0/M0 proceeds to reference invalidation?
+> What genuinely new pair-native causal information, outside static MAE thresholds, tested post-worst recovery/reclaim geometry, and the tested pre-worst MAE-formation/downside-acceptance family, explains why some severe-MAE trades remain recoverable eventual winners while genuine L0/M0 proceeds to reference invalidation?
 
-`A67` is only the next available identifier. It is **not** preapproved as a new MAE threshold search, a relaxed A64 rerun, a partial/re-arm version of `A120_Q25`, an A65 failed-feature composite, a different reclaim percentage, a rescue of `late_mae_extension_fraction`, or an OOS look at a rejected intervention candidate.
+`A68` is only the next available identifier. It is **not** preapproved as:
+
+- a new MAE threshold search;
+- a relaxed A64 rerun or partial/re-arm version of `A120_Q25`;
+- an A65/A66 failed-feature composite;
+- a different reclaim percentage;
+- a rescue of `late_mae_extension_fraction`;
+- a rescue or thresholding of `largest_mae_extension_share`;
+- a neighboring pre-worst path-persistence/candle-acceptance metric sweep;
+- an OOS look at a rejected intervention candidate.
+
+The next hypothesis should move beyond repeatedly re-describing the same local price-path geometry unless a genuinely new causal rationale is preregistered first.
 
 Live intervention remains prohibited.
 
