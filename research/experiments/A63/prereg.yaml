@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "experiment_id": "A63",
+  "name": "SOL LONG 15UTC L0 Early Progress Specificity",
+  "pair": "SOL",
+  "inherits": {
+    "execution_parent": {
+      "range": "R360",
+      "hour": "15UTC",
+      "entry": "E0_RESTING_H",
+      "target": "E40"
+    },
+    "loss_taxonomy": {
+      "central_losses_total": 710,
+      "l0_label": "NEVER_BREAK_REFERENCE_INVALIDATION",
+      "l0_mechanism": "M0_REFERENCE_INVALIDATION",
+      "l0_total": 76,
+      "m1_label": "NEVER_BREAK_TIME",
+      "m1_mechanism": "M1_TIME_NO_STRUCTURAL_FAIL",
+      "m1_total": 95
+    },
+    "partitions": {
+      "Development": {"central_losses": 357, "l0": 37, "m1": 58},
+      "External Validation": {"central_losses": 166, "l0": 13, "m1": 16},
+      "Reference Validation": {"central_losses": 187, "l0": 26, "m1": 21}
+    },
+    "a62_supported_feature_families": [
+      "running_mae_R",
+      "close_H_R",
+      "drawdown_from_best_R"
+    ],
+    "a62_replicated_snapshots_min": [60, 120]
+  },
+  "scientific_question": "Is the replicated A62 60-120 minute deterioration signature specific to frozen L0/M0 reference-invalidation losses, or is it also present in another never-break loss mechanism, M1_TIME_NO_STRUCTURAL_FAIL?",
+  "hypothesis": "Relative to age/state-matched M1 never-break time losses, L0/M0 losses already show a more severe reference-invalidation trajectory at 60 and 120 minutes: deeper running adverse excursion, a lower close relative to H, and larger drawdown from the best post-entry excursion.",
+  "execution_mode": "descriptive_mechanistic_specificity_only",
+  "lineage_constraints": {
+    "no_parent_retuning": true,
+    "no_new_feature_mining": true,
+    "features_restricted_to_A62_supported_families": true,
+    "snapshots_restricted_to_A62_replicated_ages": true,
+    "no_threshold_learning": true,
+    "no_composite_score": true,
+    "no_executable_exit_derisk_gate_or_position_change": true,
+    "no_validation_tuning": true,
+    "no_post_hoc_comparator_change": true,
+    "no_post_hoc_snapshot_change": true,
+    "result_does_not_authorize_live_intervention": true
+  },
+  "cohort_definition": {
+    "case": "Exact frozen M0_REFERENCE_INVALIDATION losses from the A51-reconciled parent universe. Cohort identity is fixed before A63 features are computed.",
+    "control": "Exact frozen M1_TIME_NO_STRUCTURAL_FAIL losses from the same A51-reconciled parent universe.",
+    "same_causal_state": "At the fixed snapshot both case and control must still be live, remain pre-break, and have no structural invalidation known at or before the last included completed bar. M1 has no breakout by mechanism; L0 invalidation must occur strictly later than the snapshot information cut.",
+    "matching": [
+      "same partition",
+      "Development additionally requires identical frozen dev_block; no relaxation",
+      "same fixed elapsed age since entry",
+      "M1 control must still be live through the snapshot",
+      "M1 control breakout confirmation must be absent through the snapshot",
+      "choose eligible M1 control with nearest absolute execution_start calendar distance",
+      "tie-break by earlier execution_start then earlier entry_ts",
+      "control reuse allowed and reported"
+    ]
+  },
+  "timing_semantics": {
+    "bar_size_minutes": 5,
+    "entry_fill_semantics": "Identical to A62: exclude the entire E0_RESTING_H touch/fill candle because fill occurs intrabar and simulator evaluation starts at entry_i + 1.",
+    "measurement_start": "First full 5m candle after the entry candle, label entry_ts + 5m.",
+    "snapshot_age_definition": "For snapshot age S minutes, information cut is entry_ts + S. Use only full post-entry bars labeled entry_ts + 5m through entry_ts + S - 5m inclusive.",
+    "case_eligibility": "L0 invalidation_close_ts and exit_ts must both be strictly later than the last included completed bar label.",
+    "control_eligibility": "M1 exit_ts must be strictly later than the last included completed bar label and h1_break_ts must be absent or strictly later.",
+    "no_post_snapshot_information_in_features": true
+  },
+  "fixed_snapshots": [60, 120],
+  "finite_feature_set": [
+    {
+      "name": "running_mae_R",
+      "formula": "max(0, (H - min full post-entry completed low through snapshot) / R)",
+      "preregistered_l0_direction": "higher"
+    },
+    {
+      "name": "close_H_R",
+      "formula": "(last completed snapshot close - H) / R",
+      "preregistered_l0_direction": "lower"
+    },
+    {
+      "name": "drawdown_from_best_R",
+      "formula": "(max full post-entry completed high through snapshot - last completed snapshot close) / R",
+      "preregistered_l0_direction": "higher"
+    }
+  ],
+  "effect_definition": {
+    "median_gap": "median(L0/M0) - median(matched M1 control)",
+    "pooled_iqr": "mean(IQR(L0/M0), IQR(M1 control))",
+    "effect": "abs(median_gap) / pooled_iqr; if pooled_iqr is zero, positive nonzero gap is treated as infinite and zero gap as zero",
+    "direction_test": "sign of median_gap must match the preregistered L0 direction"
+  },
+  "support_rules": {
+    "Development": {
+      "minimum_matched_pairs_per_snapshot": 20,
+      "block_rule": "At least 3 dev_blocks with >=5 matched pairs; every adequate block must show the preregistered median-gap direction."
+    },
+    "External Validation": {"minimum_matched_pairs_per_snapshot": 8},
+    "Reference Validation": {"minimum_matched_pairs_per_snapshot": 8},
+    "insufficient_support": "The fixed snapshot is ineligible. Do not shift age, change comparator, relax matching, or alter support thresholds."
+  },
+  "success_criteria": {
+    "development_snapshot_feature_eligible": [
+      "snapshot support meets Development minimum",
+      "median-gap direction matches preregistered direction",
+      "effect >= 0.30",
+      "Development block rule passes"
+    ],
+    "oos_snapshot_feature_replication": [
+      "Development snapshot-feature is eligible before OOS is considered",
+      "External Validation support >= 8 and same preregistered direction with effect >= 0.10",
+      "Reference Validation support >= 8 and same preregistered direction with effect >= 0.10"
+    ],
+    "feature_family_specific": "The same feature must achieve full Development + both-OOS replication at BOTH fixed snapshots, 60m and 120m.",
+    "experiment_supported": "At least one of the three frozen A62 feature families is L0-specific under the 2-of-2 snapshot rule.",
+    "experiment_not_specific": "No frozen A62 feature family passes the 2-of-2 specificity rule while reconciliation succeeds. This means A63 does not establish L0 specificity versus M1; it does not authorize retuning or a different comparator rescue within A63.",
+    "reconciliation_fail": "Frozen parent/loss/L0/M1 counts, causal timing, market data, or exact matching invariants fail."
+  },
+  "required_outputs": [
+    "exact parent, loss, L0/M0, and M1 reconciliation by partition",
+    "snapshot eligibility and matched-pair coverage",
+    "M1 control reuse counts",
+    "event-level L0 versus M1 feature table",
+    "Development and OOS feature-by-snapshot metrics",
+    "Development block-direction table",
+    "2-of-2 specificity verdict by feature family",
+    "human-readable result explicitly separating mechanism specificity from executable economics"
+  ],
+  "decision_states": [
+    "SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_SUPPORTED",
+    "SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_NOT_SPECIFIC",
+    "SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_RECONCILIATION_FAIL"
+  ],
+  "retuning": "prohibited",
+  "notes": [
+    "A63 is a specificity test, not an economic intervention experiment.",
+    "M1 is chosen before seeing A63 results because it is the cleanest alternate never-break loss mechanism and avoids the post-break state contamination inherent in M2 failed-break losses at 60-120m.",
+    "Only the three A62-supported families and the two A62-replicated ages are carried forward; unsupported A62 features are not reopened.",
+    "If A63 is supported, a later separately preregistered study may ask whether the mechanism can be operationalized. If A63 is not specific, no threshold/composite rescue is allowed inside A63.",
+    "Live Baba Bot remains unchanged."
+  ]
+}
