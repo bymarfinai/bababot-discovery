@@ -3,8 +3,8 @@
   "pair": "SOL",
   "discovery_branch": "research/sol-long-structure-a1-run",
   "state_established_from_commit": "12c483959af3ac87c63d671f7b2edccb2fed2218",
-  "latest_completed_experiment": "A62",
-  "next_available_experiment": "A63",
+  "latest_completed_experiment": "A63",
+  "next_available_experiment": "A64",
   "auto_advance_next_experiment": false,
   "pair_native_rule": "copy the discovery grammar, never copy the coordinates",
   "execution_parent": {
@@ -60,36 +60,44 @@
     "A59_H05_HYBRID_PARTIAL_DERISK",
     "A60_1M_RANGE_COMPRESSION",
     "A61_LOW_MFE_H05_PREWARNING_RETUNE",
-    "A62_DIRECT_ANATOMY_TO_INTERVENTION"
+    "A62_DIRECT_ANATOMY_TO_INTERVENTION",
+    "A63_CLOSE_H_AS_2OF2_L0_SPECIFIC",
+    "A63_DRAWDOWN_FROM_BEST_AS_L0_SPECIFIC",
+    "A63_DIRECT_MAE_TO_INTERVENTION"
   ],
   "latest_verdict": {
-    "experiment_id": "A62",
-    "status": "SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_SUPPORTED",
-    "execution_mode": "descriptive_mechanistic_only",
-    "result_persistence_commit": "aabdbd16514c027fe7f81fe8ecf84db589eea3da",
-    "verdict_commit": "37f9c233baa0ad34c613c5fbaa67276c4cb625a3",
-    "supported_feature_families": [
-      "running_mae_R",
-      "close_H_R",
-      "drawdown_from_best_R"
+    "experiment_id": "A63",
+    "status": "SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_SUPPORTED",
+    "execution_mode": "descriptive_mechanistic_specificity_only",
+    "result_persistence_commit": "3a8a276b31988201070c30833bd2809b45b69145",
+    "verdict_commit": "c192ba3469a685e074c2712887212fbc4f65a69c",
+    "comparator": {
+      "label": "NEVER_BREAK_TIME",
+      "mechanism": "M1_TIME_NO_STRUCTURAL_FAIL",
+      "pooled_count": 95
+    },
+    "l0_specific_feature_families": [
+      "running_mae_R"
     ],
     "replicated_snapshots": [
       60,
       120
     ],
-    "unsupported_as_families": [
-      "running_mfe_R",
-      "recovery_from_worst_R",
-      "upper_half_close_fraction"
+    "not_established_as_2of2_l0_specific": [
+      "close_H_R",
+      "drawdown_from_best_R"
     ],
-    "interpretation": "L0/M0 early-path deterioration becomes robust around 60m and persists at 120m through deeper adverse excursion, weaker location relative to H, and larger giveback from best excursion.",
+    "interpretation": "A63 narrows the broader A62 anatomy: deeper running adverse excursion is the only tested early-progress family that remains L0/M0-specific versus another never-break loss mechanism at both 60m and 120m across Development and both OOS partitions.",
     "executable_intervention_authorized": false
   },
   "current_frontier": {
-    "name": "POST_A62_LINEAGE_DECISION",
-    "question": "What pair-native scientific question should follow the replicated 60-120m L0/M0 early-path deterioration without converting descriptive anatomy directly into an exit, derisk rule, gate, or threshold?",
-    "mode": "manual_hypothesis_selection",
-    "a63_is_identifier_only_not_preapproved_hypothesis": true
+    "name": "POST_A63_ECONOMIC_TRANSLATION_DECISION",
+    "question": "Can the A62+A63 mechanism-specific running_mae_R deterioration be translated into a causal economic intervention without destroying future winners, non-L0 trades, total PnL, or OOS robustness?",
+    "mode": "manual_hypothesis_selection_before_economic_test",
+    "scientifically_justified_next_stage": "separately_preregistered_economic_feasibility",
+    "a64_is_identifier_only_not_preapproved_hypothesis": true,
+    "mae_threshold_not_preapproved": true,
+    "executable_intervention_still_prohibited": true
   },
   "automation_boundary": {
     "may_automate": [
