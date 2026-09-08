@@ -3,8 +3,8 @@
   "pair": "SOL",
   "discovery_branch": "research/sol-long-structure-a1-run",
   "state_established_from_commit": "12c483959af3ac87c63d671f7b2edccb2fed2218",
-  "latest_completed_experiment": "A63",
-  "next_available_experiment": "A64",
+  "latest_completed_experiment": "A64",
+  "next_available_experiment": "A65",
   "auto_advance_next_experiment": false,
   "pair_native_rule": "copy the discovery grammar, never copy the coordinates",
   "execution_parent": {
@@ -20,21 +20,9 @@
     "l0_total": 76
   },
   "partitions": {
-    "Development": {
-      "central_losses": 357,
-      "l0": 37,
-      "tuning_allowed": true
-    },
-    "External Validation": {
-      "central_losses": 166,
-      "l0": 13,
-      "tuning_allowed": false
-    },
-    "Reference Validation": {
-      "central_losses": 187,
-      "l0": 26,
-      "tuning_allowed": false
-    }
+    "Development": {"central_losses": 357, "l0": 37, "tuning_allowed": true},
+    "External Validation": {"central_losses": 166, "l0": 13, "tuning_allowed": false},
+    "Reference Validation": {"central_losses": 187, "l0": 26, "tuning_allowed": false}
   },
   "protocol": {
     "ordered_stages": [
@@ -63,41 +51,48 @@
     "A62_DIRECT_ANATOMY_TO_INTERVENTION",
     "A63_CLOSE_H_AS_2OF2_L0_SPECIFIC",
     "A63_DRAWDOWN_FROM_BEST_AS_L0_SPECIFIC",
-    "A63_DIRECT_MAE_TO_INTERVENTION"
+    "A63_DIRECT_MAE_TO_INTERVENTION",
+    "A64_STATIC_MAE_FULL_EXIT_60_120_Q25_Q50_Q75",
+    "A64_POSTHOC_WR_GATE_RELAXATION",
+    "A64_POSTHOC_THRESHOLD_OR_AGE_RESCUE"
   ],
   "latest_verdict": {
-    "experiment_id": "A63",
-    "status": "SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_SUPPORTED",
-    "execution_mode": "descriptive_mechanistic_specificity_only",
-    "result_persistence_commit": "3a8a276b31988201070c30833bd2809b45b69145",
-    "verdict_commit": "c192ba3469a685e074c2712887212fbc4f65a69c",
-    "comparator": {
-      "label": "NEVER_BREAK_TIME",
-      "mechanism": "M1_TIME_NO_STRUCTURAL_FAIL",
-      "pooled_count": 95
+    "experiment_id": "A64",
+    "status": "SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_REJECTED_DEVELOPMENT",
+    "execution_mode": "development_selected_economic_feasibility",
+    "result_persistence_commit": "ad8ecdba677ed0f96b004507535c2c3d5b78a18a",
+    "verdict_commit": "27368e56c3966f071e54f2c79d56d56a2faa418a",
+    "development_candidate_count": 6,
+    "development_pass_count": 0,
+    "oos_intervention_economics_opened": false,
+    "selected_rule": null,
+    "common_decisive_failure": "All six candidates reduced 5bps win rate below the frozen Development baseline and therefore failed the preregistered 5bps WR non-degradation gate.",
+    "strongest_nonpromotional_diagnostic": {
+      "candidate_id": "A120_Q25",
+      "snapshot_age_min": 120,
+      "threshold_running_mae_R": 0.5887850467289742,
+      "raw_delta_net": 86.29448742118078,
+      "stress_delta_net": 86.29448742118078,
+      "l0_pnl_delta": 165.54120235372196,
+      "winner_pnl_delta": -76.38074937183065,
+      "positive_dev_blocks_raw": 5,
+      "positive_dev_blocks_stress": 5,
+      "stress_wr": 0.3876871880199667,
+      "promotional_status": "REJECTED_DIAGNOSTIC_ONLY"
     },
-    "l0_specific_feature_families": [
-      "running_mae_R"
-    ],
-    "replicated_snapshots": [
-      60,
-      120
-    ],
-    "not_established_as_2of2_l0_specific": [
-      "close_H_R",
-      "drawdown_from_best_R"
-    ],
-    "interpretation": "A63 narrows the broader A62 anatomy: deeper running adverse excursion is the only tested early-progress family that remains L0/M0-specific versus another never-break loss mechanism at both 60m and 120m across Development and both OOS partitions.",
+    "interpretation": "A62+A63 mechanism-specific adverse-excursion depth contains Development economic information, but the exact A64 static full-exit translation is too blunt to satisfy the complete frozen promotion objective because future-winner retention and stressed win rate deteriorate.",
     "executable_intervention_authorized": false
   },
   "current_frontier": {
-    "name": "POST_A63_ECONOMIC_TRANSLATION_DECISION",
-    "question": "Can the A62+A63 mechanism-specific running_mae_R deterioration be translated into a causal economic intervention without destroying future winners, non-L0 trades, total PnL, or OOS robustness?",
-    "mode": "manual_hypothesis_selection_before_economic_test",
-    "scientifically_justified_next_stage": "separately_preregistered_economic_feasibility",
-    "a64_is_identifier_only_not_preapproved_hypothesis": true,
-    "mae_threshold_not_preapproved": true,
-    "executable_intervention_still_prohibited": true
+    "name": "POST_A64_WINNER_RETENTION_MECHANISM_DECISION",
+    "question": "What pair-native causal mechanism distinguishes MAE-deteriorating trades that still recover into eventual winners from genuine L0/M0 reference-invalidation losses, without post-hoc rescue of the rejected A64 threshold family?",
+    "mode": "manual_hypothesis_selection_before_new_lineage",
+    "scientifically_justified_next_stage": "mechanistic_refinement_before_any_new_intervention",
+    "a65_is_identifier_only_not_preapproved_hypothesis": true,
+    "a64_candidate_promotion_prohibited": true,
+    "a64_gate_relaxation_prohibited": true,
+    "mae_remains_research_axis_not_executable_rule": true,
+    "live_intervention_still_prohibited": true
   },
   "automation_boundary": {
     "may_automate": [
