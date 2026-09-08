@@ -1,0 +1,71 @@
+{
+  "artifacts": [
+    "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_EVENTS.csv",
+    "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_COVERAGE.csv",
+    "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_METRICS.csv",
+    "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_BLOCKS.csv",
+    "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_RECONCILIATION.csv",
+    "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_Status.txt",
+    "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_Result.md"
+  ],
+  "experiment_id": "A67",
+  "git_sha": "395adf2fafe939ec32745d708c4c1b8b9286c075",
+  "observed": {
+    "central_losses_total": 710,
+    "execution_parent": {
+      "entry": "E0_RESTING_H",
+      "hour": "15UTC",
+      "range": "R360",
+      "target": "E40"
+    },
+    "l0_total": 76,
+    "partitions": {
+      "Development": {
+        "central_losses": 357,
+        "l0": 37
+      },
+      "External Validation": {
+        "central_losses": 166,
+        "l0": 13
+      },
+      "Reference Validation": {
+        "central_losses": 187,
+        "l0": 26
+      }
+    }
+  },
+  "preregistration_sha256": "3f3f42c38c31c213f68ecfa6135ac8de5e8024b491befd11a9177a9c9ba799d3",
+  "registry_sha256": "f14f85b81de8d74543242069268440d2f77e2bcb7cc94f9e7e44a8e77c6a5fdd",
+  "schema_version": 1,
+  "scientific_verdict": null,
+  "state_advanced": false,
+  "summary": {
+    "gate_status": "SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_INCONCLUSIVE",
+    "interpretation_boundary": "mae_conditioned_pre_worst_formation_anatomy_only_no_intervention",
+    "market_coverage": 0.9976708526620213,
+    "matched_pairs_by_partition_snapshot": {
+      "development:120m": 29,
+      "development:60m": 33,
+      "external:120m": 11,
+      "external:60m": 12,
+      "reference_validation:120m": 19,
+      "reference_validation:60m": 22
+    },
+    "median_abs_mae_match_gap_by_partition_snapshot": {
+      "development:120m": 0.05597013816449181,
+      "development:60m": 0.048538845068968065,
+      "external:120m": 0.029420692430140616,
+      "external:60m": 0.008890825709729544,
+      "reference_validation:120m": 0.006430062630478406,
+      "reference_validation:60m": 0.006712894580561901
+    },
+    "replicated_snapshots_by_feature": {
+      "close_path_efficiency_to_worst": [],
+      "down_close_step_fraction": [],
+      "largest_mae_extension_share": [],
+      "mae_extension_bar_fraction": [],
+      "worst_bar_close_location": []
+    },
+    "supported_formation_feature_families": []
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "artifacts": [
+    {
+      "bytes": 78619,
+      "path": "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_EVENTS.csv",
+      "sha256": "7525746c9009a5e272a3e74d261e9733d12160d7377b868f421d5b656cefa940"
+    },
+    {
+      "bytes": 799,
+      "path": "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_COVERAGE.csv",
+      "sha256": "61950d227e53b20e20928282267bd502aae2e41d51c5ce39400c0959a810716f"
+    },
+    {
+      "bytes": 5142,
+      "path": "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_METRICS.csv",
+      "sha256": "8167d2b66f051fafeb6f508442c235816ac1fdb28cd012240b9592be3713888e"
+    },
+    {
+      "bytes": 7570,
+      "path": "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_BLOCKS.csv",
+      "sha256": "45a3cea4caad471aa07146e8dfd9d80d23b34a3fcac84820a884e72f3f7d9dbd"
+    },
+    {
+      "bytes": 127,
+      "path": "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_RECONCILIATION.csv",
+      "sha256": "e449edf0d3a7f75329359bad834281a7689bb9fc2a5f204628c4790b8d28e80d"
+    },
+    {
+      "bytes": 69,
+      "path": "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_Status.txt",
+      "sha256": "b162276454f582ad72d361c6db617ede1bb80541948b1f037c1415d51ccd5623"
+    },
+    {
+      "bytes": 3067,
+      "path": "research/results/A67/SOL_LONG_15UTC_L0_MAE_FORMATION_DOWNSIDE_ACCEPTANCE_A67_Result.md",
+      "sha256": "a1605e95e15c7b2974f07003e8a47bd46430d48c9b795e606828930563125cf1"
+    }
+  ],
+  "experiment_id": "A67",
+  "git_sha_at_run": "395adf2fafe939ec32745d708c4c1b8b9286c075",
+  "preregistration_sha256": "3f3f42c38c31c213f68ecfa6135ac8de5e8024b491befd11a9177a9c9ba799d3",
+  "registry_sha256": "f14f85b81de8d74543242069268440d2f77e2bcb7cc94f9e7e44a8e77c6a5fdd",
+  "schema_version": 1,
+  "scientific_verdict_required_separately": true,
+  "state_advanced": false
+}
