@@ -5,11 +5,11 @@
   "pair": "SOL",
   "inherits": {
     "execution_parent": {"range": "R360", "hour": "15UTC", "entry": "E0_RESTING_H", "target": "E40"},
-    "loss_taxonomy": {"central_losses_total": 710, "l0_label": "NEVER_BREAK_REFERENCE_INVALIDATION", "l0_mechanism": "M0_REFERENCE_INVALIDATION", "l0_total": 76},
+    "loss_taxonomy": {"central_losses_total": 710, "l0_label": "NEVER_BREAK_REFERENCE_INVALIDATION", "l0_mechanism": "M0", "l0_total": 76},
     "partitions": {
-      "Development": {"parent": 601, "central_losses": 357, "l0_m0": 37, "raw_winners": 244},
-      "External Validation": {"parent": 281, "central_losses": 166, "l0_m0": 13, "raw_winners": 115},
-      "Reference Validation": {"parent": 337, "central_losses": 187, "l0_m0": 26, "raw_winners": 150}
+      "Development": {"central_losses": 357, "l0": 37},
+      "External Validation": {"central_losses": 166, "l0": 13},
+      "Reference Validation": {"central_losses": 187, "l0": 26}
     }
   },
   "lineage_inputs": {
@@ -43,6 +43,7 @@
     "primary": [30, 60],
     "persistence_diagnostic": [120]
   },
+  "fixed_snapshots": [30, 60, 120],
   "normalization": "All price excursions are normalized by the frozen parent trade R for that M0 case.",
   "finite_feature_set": [
     {
@@ -133,6 +134,7 @@
     "A68 is intentionally downstream of confirmed structural failure and therefore asks a different causal question from A62-A67 winner-retention prediction.",
     "The earliest executable next-bar open is frozen before implementation to prevent hindsight entry selection.",
     "30m and 60m are the primary immediate-continuation horizons; 120m is frozen now as a persistence diagnostic so it cannot be added post hoc.",
+    "This metadata-only schema alignment does not change the preregistered scientific question, hypothesis, features, horizons, support rules, success criteria, or prohibitions.",
     "Live Baba Bot remains unchanged."
   ]
 }
