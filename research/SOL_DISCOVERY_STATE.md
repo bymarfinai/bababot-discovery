@@ -1,27 +1,25 @@
 # SOL Discovery State
 
-> Authoritative operational checkpoint for the SOL discovery lineage. This file summarizes frozen state and the current scientific frontier; it does **not** replace experiment preregistrations, deterministic result artifacts, or scientific verdict documents.
+> Authoritative operational checkpoint for the SOL discovery lineage. This summarizes frozen state and the current scientific frontier; canonical preregistrations, deterministic result artifacts, and scientific verdict documents remain authoritative for each experiment.
 
 ## Baseline
 
 - Pair: `SOL`
 - Discovery branch: `research/sol-long-structure-a1-run`
 - State originally established from commit: `12c483959af3ac87c63d671f7b2edccb2fed2218`
-- Latest completed experiment: **`A65`**
-- Next available experiment ID: **`A66`**
+- Latest completed experiment: **`A66`**
+- Next available experiment ID: **`A67`**
 - Pair-native rule: **copy the discovery grammar, never copy the coordinates**.
 
-`A66` is an identifier only. No A66 hypothesis, feature family, threshold, comparator, intervention, or promotion gate is approved by this state update.
+`A67` is an identifier only. No A67 hypothesis, feature family, comparator, threshold, intervention, or promotion gate is approved by this state update.
 
 ## Frozen execution parent
 
-The execution parent remains:
-
 `R360 / 15UTC / E0_RESTING_H -> E40`
 
-Do not retune range, clock, entry, or target in response to A62-A65 unless a future experiment is explicitly preregistered as a parent-recalibration lineage.
+Do not retune range, clock, entry, or target in response to A62-A66 unless a future experiment is explicitly preregistered as a parent-recalibration lineage.
 
-## Frozen mature loss universe
+## Frozen mature universe
 
 | Partition | Parent | CENTRAL losses | L0 / M0 | M1 | Raw winners |
 |---|---:|---:|---:|---:|---:|
@@ -31,70 +29,73 @@ Do not retune range, clock, entry, or target in response to A62-A65 unless a fut
 | **Pooled** | **1,219** | **710** | **76** | **95** | **509** |
 
 - `L0 = NEVER_BREAK_REFERENCE_INVALIDATION`
-- Deterministic runner mechanism: `M0_REFERENCE_INVALIDATION`
-- `M1 = NEVER_BREAK_TIME / M1_TIME_NO_STRUCTURAL_FAIL`
-- External Validation and Reference Validation must never be merged into Development or used for tuning.
-- Cohort identity must not be redefined from newly observed features.
+- Deterministic mechanism: `M0_REFERENCE_INVALIDATION`
+- `M1 = M1_TIME_NO_STRUCTURAL_FAIL`
+- External and Reference Validation are never tuning sets.
+- Cohort identity cannot be redefined from newly observed features.
 
 ## Scientific protocol
 
-Every scientific experiment follows:
+Every experiment follows:
 
-1. preregister the question, frozen inputs, finite search family, support rules, and success criteria;
+1. preregister the scientific question, frozen inputs, finite feature/search family, support rules, and success criteria;
 2. commit preregistration before implementation;
 3. implement and run through CI;
 4. persist deterministic result artifacts;
-5. write a separate scientific verdict without post-hoc rescue or retuning;
-6. advance discovery state manually only after the verdict is complete.
+5. write a separate scientific verdict without post-hoc rescue;
+6. advance state manually only after the verdict.
 
 Descriptive anatomy, mechanism specificity, economic feasibility, and production deployment are separate stages.
 
-## A62 — Early-progress anatomy
+## A62-A66 lineage
 
-Verdict: **`SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_SUPPORTED`**.
+### A62 — Early-progress anatomy
 
-At 60m and 120m, three feature families replicated across Development and both OOS partitions: deeper `running_mae_R`, weaker `close_H_R`, and larger `drawdown_from_best_R`. A62 was descriptive only.
+**SUPPORTED.** At 60m and 120m, L0/M0 showed replicated deeper `running_mae_R`, weaker `close_H_R`, and larger `drawdown_from_best_R` versus age/state-matched eventual winners. A62 was descriptive only.
 
-Result persistence commit: `aabdbd16514c027fe7f81fe8ecf84db589eea3da`.
-Scientific verdict commit: `37f9c233baa0ad34c613c5fbaa67276c4cb625a3`.
+Result persistence: `aabdbd16514c027fe7f81fe8ecf84db589eea3da`  
+Verdict: `37f9c233baa0ad34c613c5fbaa67276c4cb625a3`
 
-## A63 — Early-progress specificity
+### A63 — Mechanism specificity
 
-Verdict: **`SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_SUPPORTED`**.
+**SUPPORTED.** Against frozen M1 never-break losses, only **`running_mae_R`** survived the strict 2-of-2 specificity rule at both 60m and 120m across Development and both OOS partitions. `close_H_R` and `drawdown_from_best_R` did not.
 
-A63 compared L0/M0 with the frozen M1 never-break loss mechanism at 60m and 120m. Only **`running_mae_R`** survived the strict 2-of-2 specificity rule across Development and both OOS partitions. `close_H_R` and `drawdown_from_best_R` did not.
+Result persistence: `3a8a276b31988201070c30833bd2809b45b69145`  
+Verdict: `c192ba3469a685e074c2712887212fbc4f65a69c`
 
-Result persistence commit: `3a8a276b31988201070c30833bd2809b45b69145`.
-Scientific verdict commit: `c192ba3469a685e074c2712887212fbc4f65a69c`.
+### A64 — Static MAE economic translation
 
-## A64 — Early MAE economic translation
+**REJECTED AT DEVELOPMENT.** Six preregistered static full-exit candidates crossed 60m/120m with Development L0 Q25/Q50/Q75 MAE thresholds. All improved Development net PnL and PF diagnostically, but none preserved the frozen 5bps stressed WR baseline. No rule was selected and OOS intervention economics remained unopened.
 
-Verdict: **`SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_REJECTED_DEVELOPMENT`**.
+The strongest diagnostic, `A120_Q25`, produced approximately +$86.29 Development delta net and +$165.54 L0 PnL delta, but damaged eventual-winner PnL by about -$76.38 and reduced stressed WR. It remains diagnostic only and cannot be rescued.
 
-A64 tested six preregistered static full-exit candidates: 60m/120m crossed with Development L0 Q25/Q50/Q75 `running_mae_R` thresholds. All six improved Development net PnL and PF diagnostically, but zero passed every frozen promotion gate. The common decisive failure was deterioration of 5bps stressed WR below the frozen Development baseline. No candidate was promoted and OOS intervention economics correctly remained unopened.
+Result persistence: `ad8ecdba677ed0f96b004507535c2c3d5b78a18a`  
+Verdict: `27368e56c3966f071e54f2c79d56d56a2faa418a`
 
-`A120_Q25` remains diagnostic only; it cannot be rescued, partialized, rearmed, threshold-shifted, or promoted post hoc.
+### A65 — MAE-conditioned simple recovery anatomy
 
-Result persistence commit: `ad8ecdba677ed0f96b004507535c2c3d5b78a18a`.
-Scientific verdict commit: `27368e56c3966f071e54f2c79d56d56a2faa418a`.
+**INCONCLUSIVE.** L0/M0 cases were matched to eventual winners on nearest `running_mae_R` severity at the same age. Four simple recovery families (`recovery_from_worst_R`, `recovery_efficiency`, `bars_since_worst_fraction`, `post_worst_close_slope_R_per_bar`) failed strict 2-of-2 replication at 60m and 120m.
 
-## Latest completed experiment — A65
+This closed the simple story that severe-MAE winners are robustly distinguishable from L0 merely because they rebound more, recover more efficiently, hit the worst earlier, or have a stronger post-worst slope.
 
-### A65 question
+Result persistence: `e0955aad2084f1d654b2c363656d0e686583d316`  
+Verdict: `2d6dbef9985c075dcd5c038cdd859551f7f78e8e`
 
-**L0 MAE-CONDITIONED WINNER RECOVERY ANATOMY**
+## Latest completed experiment — A66
 
-> Holding early adverse-excursion severity approximately constant, what causal recovery-path behavior distinguishes genuine L0/M0 reference-invalidation losses from eventual parent winners that are still live and pre-break at the same 60m or 120m age?
+### A66 question
 
-A65 directly addressed A64's winner-retention tension mechanistically rather than relaxing the rejected A64 economic gate.
+**L0 MAE-CONDITIONED RECLAIM SEQUENCE ANATOMY**
 
-### Frozen comparator and matching
+> Holding early adverse-excursion severity approximately constant, does the sequence by which price reclaims and sustains ground after the snapshot worst excursion distinguish genuine L0/M0 reference-invalidation losses from eventual winners at the same 60m or 120m age?
 
-Eligible L0/M0 cases were matched to eventual parent winners at the same fixed age and partition. Development also required the same frozen `dev_block`. The selected control minimized absolute `running_mae_R` distance, with deterministic tie-breaks. Control reuse was preregistered and reported.
+A66 retained A65's MAE-conditioned matching and moved from simple static recovery descriptors to a finite sequence/path-geometry family anchored on the first snapshot worst low and a fixed 50% half-reclaim level.
 
-All fixed snapshots met the preregistered support floor:
+### Matching and support
 
-| Partition | Age | Eligible L0 | Matched | Unique controls | Max reuse | Median abs MAE gap |
+Every fixed cell exceeded the preregistered support floor:
+
+| Partition | Age | Eligible L0 | Matched | Unique winners | Max reuse | Median abs MAE gap |
 |---|---:|---:|---:|---:|---:|---:|
 | Development | 60m | 33 | 33 | 20 | 5x | 0.049R |
 | Development | 120m | 29 | 29 | 13 | 5x | 0.056R |
@@ -105,56 +106,49 @@ All fixed snapshots met the preregistered support floor:
 
 Raw SOLUSDT 5m coverage remained **99.7671%**.
 
-### A65 finite feature family
+### A66 finite sequence family
 
-Only four preregistered simple recovery descriptors were tested:
+Only these preregistered features were tested:
 
-- `recovery_from_worst_R`
-- `recovery_efficiency`
-- `bars_since_worst_fraction`
-- `post_worst_close_slope_R_per_bar`
+- `max_reclaim_fraction_of_mae`
+- `half_reclaim_latency_fraction`
+- `longest_half_reclaim_run_fraction`
+- `post_half_reclaim_hold_fraction`
+- `late_mae_extension_fraction`
 
-The preregistered L0/M0 direction was lower for every family. A feature had to fully replicate at **both 60m and 120m** after Development eligibility and both OOS gates.
+The fixed half-reclaim level was 50% of the snapshot adverse excursion. It was descriptive and never Development-optimized.
 
-### A65 verdict
+### A66 verdict
 
-**`SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECOVERY_A65_INCONCLUSIVE`**
+**`SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_INCONCLUSIVE`**
 
-No feature family satisfied strict 2-of-2 replication.
+No sequence family passed strict 2-of-2 replication.
 
-| Age | Feature | Dev gap/effect | Dev blocks | External gap/effect | Reference gap/effect | Full OOS |
-|---:|---|---:|---:|---:|---:|---|
-| 60m | `recovery_from_worst_R` | -0.071 / 0.371 | 2/4 | -0.071 / 0.403 | +0.026 / 0.209 | NO |
-| 60m | `recovery_efficiency` | -0.307 / 0.575 | 2/4 | -0.562 / 1.043 | -0.009 / 0.028 | NO |
-| 60m | `bars_since_worst_fraction` | 0.000 / 0.000 | 2/4 | -0.200 / 0.356 | -0.150 / 0.261 | NO |
-| 60m | `post_worst_close_slope_R_per_bar` | -0.026 / 0.547 | 3/4 | -0.004 / 0.134 | +0.003 / 0.085 | NO |
-| 120m | `recovery_from_worst_R` | +0.118 / 0.368 | 1/3 | -0.029 / 0.122 | -0.174 / 0.630 | NO |
-| 120m | `recovery_efficiency` | +0.046 / 0.085 | 2/3 | -0.569 / 0.886 | -0.354 / 0.889 | NO |
-| 120m | `bars_since_worst_fraction` | +0.182 / 0.471 | 1/3 | -0.182 / 0.327 | -0.364 / 0.800 | NO |
-| 120m | `post_worst_close_slope_R_per_bar` | -0.009 / 0.254 | 2/3 | -0.004 / 0.198 | -0.016 / 0.667 | NO |
+At 60m, four reclaim/hold features showed large Development and External separation in the preregistered direction, but Reference Validation showed **0.000 median gap / 0.000 effect** for the same features. Development block consistency was also only `3/4` for those families.
 
-This is not a technical or support failure. At 120m, three families reverse the preregistered direction in Development while often pointing the hypothesized way OOS. `post_worst_close_slope_R_per_bar` remains directionally negative but misses the frozen Development effect and block gates. These inconsistencies prohibit a favorable post-hoc interpretation.
+At 120m, several Development directions reversed while External/Reference often pointed in the hypothesized direction. This cross-partition instability prevents a stable mechanistic interpretation.
 
-### A65 scientific meaning
+`late_mae_extension_fraction` is specifically **not** a rescue candidate. At 120m it had positive gaps/effects across Development (`+0.216 / 0.620`), External (`+0.179 / 0.372`), and Reference (`+0.357 / 0.711`), but Development block consistency was only `2/3`; at 60m the block rule was `2/4` and Reference separation was zero. The frozen gate therefore rejects it.
 
-The narrow conclusion is:
+Result persistence: `6f7a95bb7a44af8031fcca3d2e0196a0c48501e2`  
+Scientific verdict: `5a631f61b1cff5f13dccbadfaa17ae2dcc863e9a`
 
-> **After approximately conditioning on MAE severity, the tested simple post-worst recovery descriptors do not robustly explain why some severe-MAE trades remain recoverable eventual winners while genuine L0/M0 proceeds to reference invalidation.**
+### A66 scientific meaning
 
-A65 does not invalidate A62/A63 and does not rehabilitate A64. It closes the exact simple recovery family under the frozen A65 design.
+The narrow supported lineage statement is now:
 
-Result persistence commit: `e0955aad2084f1d654b2c363656d0e686583d316`.
-Scientific verdict commit: `2d6dbef9985c075dcd5c038cdd859551f7f78e8e`.
+> **Adverse-excursion depth remains a replicated L0/M0-specific early research axis, but neither A65's simple post-worst recovery descriptors nor A66's fixed half-reclaim sequence/hold geometry robustly explains why some severe-MAE trades remain recoverable winners while genuine L0/M0 proceeds to reference invalidation.**
+
+This does not invalidate A62/A63 and does not rehabilitate A64. It closes the exact adjacent recovery/reclaim families tested in A65-A66.
 
 ## Closed or strongly constrained routes
 
 Do not casually reopen:
 
-- `A43-A44`: portfolio/week-state route;
+- `A43-A44`: portfolio/week-state;
 - `A45`: pre-range filter;
-- `A46`: failed entry/target recalibration route;
-- `A47`: conventional pre-entry quality;
-- `A47B -> A47C`: descriptive separator -> failed economic gate;
+- `A46`: failed entry/target recalibration;
+- `A47`, `A47B -> A47C`: pre-entry separator and failed economic gate translation;
 - `A48`: participation/volume;
 - `A49`: BTC/ETH alignment for SOL;
 - `A52-A53`: generic warning -> hard guard;
@@ -165,49 +159,41 @@ Do not casually reopen:
 - `A60`: 1m range compression;
 - `A61`: LOW_MFE H05 prewarning retune;
 - `A62`: direct anatomy-to-intervention conversion;
-- `A63`: `close_H_R` or `drawdown_from_best_R` as strict 2-of-2 L0-specific mechanisms;
-- `A64`: static 60/120m MAE full-exit Q25/Q50/Q75 family and all post-hoc gate/threshold/age rescue;
-- `A65`: the exact four-feature MAE-conditioned simple recovery family;
-- `A65`: post-hoc composite of failed recovery descriptors;
-- `A65`: retuning directions, effect floors, support floors, ages, or matching after result inspection.
+- `A63`: promoting `close_H_R` or `drawdown_from_best_R` as strict L0-specific mechanisms;
+- `A64`: static 60/120m MAE full-exit Q25/Q50/Q75 family, gate relaxation, threshold/age rescue, or OOS rescue;
+- `A65`: exact simple MAE-conditioned recovery family or post-hoc composite;
+- `A66`: exact fixed-50%-half-reclaim sequence family;
+- `A66`: retuning half-reclaim to 25%, 75%, or another neighboring level;
+- `A66`: selecting favorable 60m Development + External while ignoring Reference;
+- `A66`: rescuing `late_mae_extension_fraction` by relaxing Development block consistency.
 
 ## Durable lessons
 
-1. **A47B -> A47C:** replicated structure does not imply a profitable gate.
-2. **A55 -> A56:** predictive failure anatomy does not imply a profitable live exit.
-3. **A59:** Development economics can reverse OOS; OOS gates remain essential.
-4. **A62:** genuine early deterioration exists around 60-120m.
-5. **A63:** the robust L0-specific early axis narrows to `running_mae_R`.
-6. **A64:** mechanism-specific information can improve PnL/PF/DD while failing promotion because eventual-winner retention and stressed WR deteriorate.
-7. **A65:** after approximately holding MAE severity constant, simple post-worst rebound descriptors do not provide a robust additional discriminator. The winner-retention problem is more structural than this recovery-feature family captured.
+1. Replicated anatomy is not automatically an executable rule (`A47B -> A47C`, `A55 -> A56`).
+2. OOS gates are essential; Development improvement can reverse or fail robustness (`A59`).
+3. L0/M0 has real early deterioration and `running_mae_R` is the robust mechanism-specific axis (`A62-A63`).
+4. MAE contains economic information, but static full exit is too blunt under the frozen objective (`A64`).
+5. The eventual-winner retention problem is not robustly explained by simple post-worst recovery descriptors (`A65`).
+6. It is also not robustly explained by the tested fixed half-reclaim timing/hold sequence (`A66`).
+7. Repeatedly mining neighboring recovery/reclaim metrics is now scientifically weak; the next lineage should represent a genuine mechanism reset.
 
 ## Current frontier
 
-The frontier is now a **manual post-A65 winner-retention structure decision**.
+The frontier is a **manual post-A66 winner-retention mechanism reset**.
 
 Core question:
 
-> What genuinely new pair-native causal structure distinguishes severe-MAE trades that remain recoverable eventual winners from genuine L0/M0 reference-invalidation losses, given that static MAE full exit failed A64 promotion and simple post-worst recovery descriptors failed A65 strict replication?
+> What genuinely new pair-native causal information, outside the tested simple post-worst recovery and fixed half-reclaim sequence families, explains why some severe-MAE trades remain recoverable eventual winners while genuine L0/M0 proceeds to reference invalidation?
 
-This remains a mechanistic question before another intervention question.
+`A67` is only the next available identifier. It is **not** preapproved as a new MAE threshold search, a relaxed A64 rerun, a partial/re-arm version of `A120_Q25`, an A65 failed-feature composite, a different reclaim percentage, a rescue of `late_mae_extension_fraction`, or an OOS look at a rejected intervention candidate.
 
-`A66` is only the next available identifier. It is **not** preapproved as:
-
-- a new MAE threshold search;
-- a relaxed-WR rerun of A64;
-- a partial/re-arm version of `A120_Q25`;
-- an OOS look at an A64 rejected candidate;
-- a composite of A65 failed recovery features;
-- a threshold derived from an A65 median;
-- a resurrection of A63-rejected `close_H_R` or `drawdown_from_best_R`.
-
-Any A66 must be a genuinely new preregistered pair-native mechanism hypothesis.
+Live intervention remains prohibited.
 
 ## Automation boundary
 
-Automation may own reproducible plumbing: registry validation, experiment IDs/paths, frozen invariant assertions, preregistration-history guards, deterministic result envelopes, CI execution, and artifact persistence.
+Automation may own reproducible plumbing: registry validation, experiment paths, frozen invariant assertions, preregistration-history guards, deterministic result envelopes, CI execution, and artifact persistence.
 
-Automation must not decide the next scientific hypothesis, rescue a failed candidate, relax a gate post hoc, select features after validation inspection, write substantive interpretation automatically, make the scientific verdict, or advance state automatically.
+Automation must not decide the next scientific hypothesis, rescue a failed candidate, relax a gate post hoc, select features after validation inspection, make the substantive scientific verdict, or advance state automatically.
 
 ## Update policy
 
