@@ -61,16 +61,7 @@ jobs:
           elif [ "$EVENT_NAME" = "push" ]; then
             if git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" | grep -Fxq 'research/sol_run_request.json'; then
               test -f research/sol_run_request.json || { echo "Run request file missing"; exit 1; }
-              experiment_id="$(python - <<'PY'
-import json
-from pathlib import Path
-q=json.loads(Path('research/sol_run_request.json').read_text(encoding='utf-8'))
-v=q.get('experiment_id','')
-if not isinstance(v,str):
-    raise SystemExit('experiment_id must be a string')
-print(v)
-PY
-)"
+              experiment_id="$(python -c 'import json; print(json.load(open("research/sol_run_request.json", encoding="utf-8"))["experiment_id"])')"
               run_experiment=true
             fi
           fi
