@@ -1,6 +1,6 @@
 {
   "experiment_id": "A62",
   "branch": "research/sol-long-structure-a1-run",
-  "request_id": "A62-20260908-02",
-  "purpose": "Execute the already-preregistered and separately-implemented SOL A62 experiment through the generic SOL discovery workflow. This retry follows workflow registration sync on main only; it does not alter the hypothesis, features, thresholds, support rules, or scientific gates."
+  "request_id": "A62-20260908-03",
+  "purpose": "Execute the already-preregistered and separately-implemented SOL A62 experiment through the generic SOL discovery workflow after an orchestration-only YAML fix. Hypothesis, features, thresholds, support rules, cohorts, snapshots, and scientific gates are unchanged."
 }
