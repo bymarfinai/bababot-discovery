@@ -302,7 +302,6 @@ def run(context):
         if loss_n != LOSSES[p]: errors.append(f"{p} losses {loss_n}!={LOSSES[p]}")
         if l0_n != L0[p]: errors.append(f"{p} L0 {l0_n}!={L0[p]}")
         if winner_n != WINNERS[p]: errors.append(f"{p} winners {winner_n}!={WINNERS[p]}")
-        # Frozen baseline values must be internally identical to themselves under the A64 envelope.
         for _, r in q.iterrows():
             if not np.isfinite(float(r.pnl)) or not np.isfinite(float(r.pnl_5bps)):
                 errors.append(f"{p} nonfinite parent PnL {r.entry_ts}")
@@ -387,7 +386,6 @@ def run(context):
         cid = selected["candidate_id"]
         age = int(selected["snapshot_age_min"])
         threshold = float(selected["threshold"])
-        # Persist the selected Development trade set too.
         for row in candidate_metrics[cid][1].to_dict("records"):
             row["candidate_id"] = cid
             selected_trade_rows.append(row)
@@ -461,7 +459,7 @@ def run(context):
         if pd.isna(r.get("quantile")):
             lines.append(f"| {int(r.snapshot_age_min)}m | {int(r.source_n)} | - | - | - | - |")
         else:
-            lines.append(f"| {int(r.snapshot_age_min)}m | {int(r.source_n)} | Q{int(round(100*r.quantile))} | {int(r['rank'])} | {fnum(r.threshold, 6)} | {'YES' if bool(r.get('duplicate_threshold', False)) else 'NO'} |")
+            lines.append(f"| {int(r.snapshot_age_min)}m | {int(r.source_n)} | Q{int(round(100*r['quantile']))} | {int(r['rank'])} | {fnum(r.threshold, 6)} | {'YES' if bool(r.get('duplicate_threshold', False)) else 'NO'} |")
     lines += [
         "",
         "## Development candidate economics",
