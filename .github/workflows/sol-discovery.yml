@@ -1,6 +1,14 @@
 name: SOL Discovery Experiment
 
 on:
+  push:
+    branches:
+      - research/sol-long-structure-a1-run
+    paths:
+      - research/sol_experiment_registry.yaml
+      - research/sol_experiment_harness.py
+      - research/sol_lab.py
+      - .github/workflows/sol-discovery.yml
   workflow_dispatch:
     inputs:
       experiment_id:
@@ -12,7 +20,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: sol-discovery-${{ github.ref }}-${{ inputs.experiment_id }}
+  group: sol-discovery-${{ github.ref }}-${{ inputs.experiment_id || 'tooling-validation' }}
   cancel-in-progress: false
 
 jobs:
@@ -30,12 +38,14 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate tooling
+      - name: Validate tooling and frozen registry
         run: |
           python -m py_compile research/sol_experiment_harness.py research/sol_lab.py
           python research/sol_lab.py validate
+          python research/sol_lab.py status
 
       - name: Enforce preregistration history
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
           EXPERIMENT_ID: ${{ inputs.experiment_id }}
         run: |
@@ -72,6 +82,7 @@ jobs:
           echo "Implementation commit:  $IMPL_COMMIT"
 
       - name: Run experiment
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
           EXPERIMENT_ID: ${{ inputs.experiment_id }}
         run: |
@@ -80,6 +91,7 @@ jobs:
           python research/sol_lab.py finalize "$EXPERIMENT_ID"
 
       - name: Upload deterministic result artifacts
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: actions/upload-artifact@v4
         with:
           name: sol-${{ inputs.experiment_id }}-results
@@ -87,6 +99,7 @@ jobs:
           if-no-files-found: error
 
       - name: Persist generated results to selected branch
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
           EXPERIMENT_ID: ${{ inputs.experiment_id }}
           TARGET_BRANCH: ${{ github.ref_name }}
