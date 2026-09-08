@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "experiment_id": "A62",
+  "name": "SOL LONG 15UTC L0 Early Progress Anatomy",
+  "pair": "SOL",
+  "inherits": {
+    "execution_parent": {
+      "range": "R360",
+      "hour": "15UTC",
+      "entry": "E0_RESTING_H",
+      "target": "E40"
+    },
+    "loss_taxonomy": {
+      "central_losses_total": 710,
+      "l0_label": "NEVER_BREAK_REFERENCE_INVALIDATION",
+      "l0_mechanism": "M0",
+      "l0_total": 76
+    },
+    "partitions": {
+      "Development": {
+        "central_losses": 357,
+        "l0": 37
+      },
+      "External Validation": {
+        "central_losses": 166,
+        "l0": 13
+      },
+      "Reference Validation": {
+        "central_losses": 187,
+        "l0": 26
+      }
+    }
+  },
+  "scientific_question": "What is already causally different in the early progress path of frozen L0/M0 trades, well before late terminal reference invalidation, relative to eventual positive parent trades that are still live and still pre-break at the same fixed trade age?",
+  "hypothesis": "Frozen L0/M0 losses exhibit persistently weaker early progress before any breakout confirmation: lower favorable progress and acceptance near the upper half of the reference range, deeper adverse progress, weaker recovery from adverse excursion, and larger giveback from best excursion than age/state-matched eventual positive parent trades.",
+  "execution_mode": "descriptive_only",
+  "lineage_constraints": {
+    "no_parent_retuning": true,
+    "no_threshold_learning": true,
+    "no_feature_sweep_beyond_preregistered_set": true,
+    "no_composite_score": true,
+    "no_executable_exit_or_gate": true,
+    "no_validation_tuning": true,
+    "no_post_hoc_snapshot_change": true,
+    "result_does_not_authorize_live_intervention": true
+  },
+  "cohort_definition": {
+    "case": "Exact frozen L0/M0 parent losses: raw parent PnL <= 0, invalidation_close_ts present, and h1_break_ts absent for the full trade. This identity is not redefined from A62 features.",
+    "control": "Eventual positive frozen-parent trade with raw PnL > 0 that, at the fixed snapshot, is still live and has not yet confirmed breakout.",
+    "same_causal_state": "Both case and control must be pre-break at the completed snapshot candle. The terminal invalidation candle may not be the snapshot candle.",
+    "matching": [
+      "same partition",
+      "Development additionally requires identical frozen dev_block; no relaxation",
+      "same fixed elapsed age since entry",
+      "control raw PnL > 0",
+      "control exit/invalidation must occur strictly after the snapshot candle label",
+      "control breakout confirmation must be absent or strictly after the snapshot candle label",
+      "choose eligible control with nearest absolute execution_start calendar distance",
+      "tie-break by earlier execution_start then earlier entry_ts",
+      "control reuse allowed and reported"
+    ]
+  },
+  "timing_semantics": {
+    "bar_size_minutes": 5,
+    "snapshot_age_definition": "For snapshot age S minutes, information cut is entry_ts + S. Only 5m bars whose candle close is known by that cut are used; with repository bar labels this means labels from entry_ts through entry_ts + S - 5m inclusive.",
+    "case_eligibility": "The L0 invalidation candle label must be strictly later than the last included completed bar label.",
+    "no_post_snapshot_information_in_features": true
+  },
+  "fixed_snapshots": [30, 60, 120],
+  "finite_feature_set": [
+    {
+      "name": "running_mfe_R",
+      "formula": "max(0, (max completed high through snapshot - H) / R)",
+      "preregistered_l0_direction": "lower"
+    },
+    {
+      "name": "running_mae_R",
+      "formula": "max(0, (H - min completed low through snapshot) / R)",
+      "preregistered_l0_direction": "higher"
+    },
+    {
+      "name": "close_H_R",
+      "formula": "(last completed snapshot close - H) / R",
+      "preregistered_l0_direction": "lower"
+    },
+    {
+      "name": "recovery_from_worst_R",
+      "formula": "(last completed snapshot close - min completed low through snapshot) / R",
+      "preregistered_l0_direction": "lower"
+    },
+    {
+      "name": "drawdown_from_best_R",
+      "formula": "(max completed high through snapshot - last completed snapshot close) / R",
+      "preregistered_l0_direction": "higher"
+    },
+    {
+      "name": "upper_half_close_fraction",
+      "formula": "fraction of completed closes through snapshot >= L + 0.50R",
+      "preregistered_l0_direction": "lower"
+    }
+  ],
+  "effect_definition": {
+    "median_gap": "median(L0) - median(matched winner control)",
+    "pooled_iqr": "mean(IQR(L0), IQR(control))",
+    "effect": "abs(median_gap) / pooled_iqr; if pooled_iqr is zero, positive nonzero gap is treated as infinite and zero gap as zero",
+    "direction_test": "sign of median_gap must match the preregistered L0 direction"
+  },
+  "support_rules": {
+    "Development": {
+      "minimum_matched_pairs_per_snapshot": 20,
+      "block_rule": "At least 3 dev_blocks with >=5 matched pairs; every adequate block must show the preregistered median-gap direction."
+    },
+    "External Validation": {
+      "minimum_matched_pairs_per_snapshot": 8
+    },
+    "Reference Validation": {
+      "minimum_matched_pairs_per_snapshot": 8
+    },
+    "insufficient_support": "The fixed snapshot is ineligible. Do not move the snapshot or relax matching/support rules."
+  },
+  "success_criteria": {
+    "development_snapshot_feature_eligible": [
+      "snapshot support meets Development minimum",
+      "median-gap direction matches preregistered direction",
+      "effect >= 0.30",
+      "Development block rule passes"
+    ],
+    "oos_snapshot_feature_replication": [
+      "Development snapshot-feature is eligible before OOS is considered",
+      "External Validation support >= 8 and same preregistered direction with effect >= 0.10",
+      "Reference Validation support >= 8 and same preregistered direction with effect >= 0.10"
+    ],
+    "feature_family_supported": "The same preregistered feature must achieve OOS snapshot-feature replication at at least 2 of the 3 fixed snapshots. This prevents declaring a mechanism from one isolated age.",
+    "experiment_supported": "At least one feature family is supported. Multiple supported families are reported without fitting a composite or selecting a threshold.",
+    "experiment_inconclusive": "No feature family satisfies the frozen family support rule, while reconciliation succeeds.",
+    "reconciliation_fail": "Frozen parent/loss/L0 counts, causal timing, required market data, or exact matching invariants fail."
+  },
+  "required_outputs": [
+    "exact parent, loss, and L0 reconciliation by partition",
+    "snapshot eligibility and matched-pair coverage",
+    "control reuse counts",
+    "case/control event-level feature table",
+    "Development and OOS feature-by-snapshot metrics",
+    "Development block-direction table",
+    "supported feature-family list under the frozen 2-of-3 rule",
+    "human-readable result with explicit statement that A62 is descriptive only"
+  ],
+  "decision_states": [
+    "SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_SUPPORTED",
+    "SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_INCONCLUSIVE",
+    "SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_RECONCILIATION_FAIL"
+  ],
+  "retuning": "prohibited",
+  "notes": [
+    "A62 intentionally studies early progress from entry rather than terminal-near lead windows used in A55.",
+    "No A61 LOW_MFE threshold/window is reused or retuned.",
+    "A62 does not change position size, target, stop/invalidation mechanics, exit timing, or live Baba Bot.",
+    "A structural separator is not an executable rule; any intervention requires a separately preregistered later experiment."
+  ]
+}
