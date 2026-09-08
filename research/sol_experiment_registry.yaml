@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "pair": "SOL",
+  "discovery_branch": "research/sol-long-structure-a1-run",
+  "state_established_from_commit": "12c483959af3ac87c63d671f7b2edccb2fed2218",
+  "latest_completed_experiment": "A61",
+  "next_available_experiment": "A62",
+  "auto_advance_next_experiment": false,
+  "pair_native_rule": "copy the discovery grammar, never copy the coordinates",
+  "execution_parent": {
+    "range": "R360",
+    "hour": "15UTC",
+    "entry": "E0_RESTING_H",
+    "target": "E40"
+  },
+  "loss_taxonomy": {
+    "central_losses_total": 710,
+    "l0_label": "NEVER_BREAK_REFERENCE_INVALIDATION",
+    "l0_mechanism": "M0",
+    "l0_total": 76
+  },
+  "partitions": {
+    "Development": {
+      "central_losses": 357,
+      "l0": 37,
+      "tuning_allowed": true
+    },
+    "External Validation": {
+      "central_losses": 166,
+      "l0": 13,
+      "tuning_allowed": false
+    },
+    "Reference Validation": {
+      "central_losses": 187,
+      "l0": 26,
+      "tuning_allowed": false
+    }
+  },
+  "protocol": {
+    "ordered_stages": [
+      "preregister",
+      "commit_preregistration",
+      "implement_and_run_via_ci",
+      "persist_result",
+      "scientific_verdict"
+    ],
+    "post_hoc_retuning": "prohibited",
+    "validation_tuning": "prohibited",
+    "descriptive_result_implies_executable_intervention": false
+  },
+  "closed_or_constrained_routes": [
+    "A43-A44_PORTFOLIO_STATE",
+    "A45_PRERANGE_FILTER",
+    "A46_ENTRY_TARGET_RECALIBRATION",
+    "A47_CONVENTIONAL_PREENTRY_QUALITY",
+    "A48_PARTICIPATION_VOLUME",
+    "A49_BTC_ETH_MARKET_ALIGNMENT",
+    "A54_POST_H05_H10_SECONDARY_TRIGGER",
+    "A58_UNIVERSAL_1M_INTRABAR_SEPARATOR",
+    "A59_H05_HYBRID_PARTIAL_DERISK",
+    "A60_1M_RANGE_COMPRESSION",
+    "A61_LOW_MFE_H05_PREWARNING_RETUNE"
+  ],
+  "current_frontier": {
+    "name": "L0_EARLY_PROGRESS_ANATOMY",
+    "question": "What is already causally different in the early progress path of L0/M0 trades, well before late terminal-failure anatomy?",
+    "mode": "descriptive_mechanistic_first",
+    "a62_is_identifier_only_not_preapproved_hypothesis": true
+  },
+  "automation_boundary": {
+    "may_automate": [
+      "registry_validation",
+      "experiment_path_scaffolding",
+      "frozen_invariant_assertions",
+      "preregistration_history_guards",
+      "deterministic_result_envelopes",
+      "ci_execution",
+      "artifact_persistence"
+    ],
+    "must_remain_reasoned_and_manual": [
+      "scientific_hypothesis",
+      "feature_selection",
+      "lineage_decision",
+      "substantive_interpretation",
+      "scientific_verdict",
+      "state_advancement"
+    ]
+  }
+}
