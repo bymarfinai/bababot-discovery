@@ -62,7 +62,9 @@
   },
   "timing_semantics": {
     "bar_size_minutes": 5,
-    "snapshot_age_definition": "For snapshot age S minutes, information cut is entry_ts + S. Only 5m bars whose candle close is known by that cut are used; with repository bar labels this means labels from entry_ts through entry_ts + S - 5m inclusive.",
+    "entry_fill_semantics": "For E0_RESTING_H the simulator records entry_ts as the H-touch candle label, but the resting-limit fill occurs intrabar and simulator evaluation starts at entry_i + 1. Therefore A62 excludes the entire entry candle from all path features to avoid mixing pre-fill movement into post-entry anatomy.",
+    "measurement_start": "First full 5m candle after the entry candle, label entry_ts + 5m.",
+    "snapshot_age_definition": "For snapshot age S minutes, information cut is entry_ts + S. Only full post-entry 5m bars whose close is known by that cut are used; labels run from entry_ts + 5m through entry_ts + S - 5m inclusive.",
     "case_eligibility": "The L0 invalidation candle label must be strictly later than the last included completed bar label.",
     "no_post_snapshot_information_in_features": true
   },
@@ -70,12 +72,12 @@
   "finite_feature_set": [
     {
       "name": "running_mfe_R",
-      "formula": "max(0, (max completed high through snapshot - H) / R)",
+      "formula": "max(0, (max full post-entry completed high through snapshot - H) / R)",
       "preregistered_l0_direction": "lower"
     },
     {
       "name": "running_mae_R",
-      "formula": "max(0, (H - min completed low through snapshot) / R)",
+      "formula": "max(0, (H - min full post-entry completed low through snapshot) / R)",
       "preregistered_l0_direction": "higher"
     },
     {
@@ -85,17 +87,17 @@
     },
     {
       "name": "recovery_from_worst_R",
-      "formula": "(last completed snapshot close - min completed low through snapshot) / R",
+      "formula": "(last completed snapshot close - min full post-entry completed low through snapshot) / R",
       "preregistered_l0_direction": "lower"
     },
     {
       "name": "drawdown_from_best_R",
-      "formula": "(max completed high through snapshot - last completed snapshot close) / R",
+      "formula": "(max full post-entry completed high through snapshot - last completed snapshot close) / R",
       "preregistered_l0_direction": "higher"
     },
     {
       "name": "upper_half_close_fraction",
-      "formula": "fraction of completed closes through snapshot >= L + 0.50R",
+      "formula": "fraction of full post-entry completed closes through snapshot >= L + 0.50R",
       "preregistered_l0_direction": "lower"
     }
   ],
@@ -151,6 +153,13 @@
     "SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_RECONCILIATION_FAIL"
   ],
   "retuning": "prohibited",
+  "preregistration_amendments": [
+    {
+      "stage": "before_implementation_and_before_any_A62_result",
+      "reason": "Simulator audit showed E0_RESTING_H entry_ts is the intrabar H-touch/fill candle while evaluation begins at entry_i + 1. The entry candle is therefore excluded to prevent pre-fill contamination.",
+      "scientific_effect": "Tightens causal measurement only; parent, cohort, snapshots, features, directions, support thresholds, and success gates are unchanged."
+    }
+  ],
   "notes": [
     "A62 intentionally studies early progress from entry rather than terminal-near lead windows used in A55.",
     "No A61 LOW_MFE threshold/window is reused or retuned.",
