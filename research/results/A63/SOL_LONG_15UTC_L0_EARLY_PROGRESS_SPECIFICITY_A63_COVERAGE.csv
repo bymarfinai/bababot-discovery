@@ -1,0 +1,7 @@
+partition,snapshot_age_min,l0_total,m1_total,eligible_l0_n,matched_n,match_rate,unique_control_n,reused_match_n,max_control_reuse
+development,60,37,58,33,33,1.0,24,9,3
+development,120,37,58,29,29,1.0,22,7,3
+external,60,13,16,12,12,1.0,8,4,3
+external,120,13,16,11,11,1.0,8,3,3
+reference_validation,60,26,21,22,22,1.0,11,11,4
+reference_validation,120,26,21,19,19,1.0,9,10,4

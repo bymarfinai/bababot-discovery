@@ -1,0 +1,72 @@
+{
+  "artifacts": [
+    "research/results/A63/SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_EVENTS.csv",
+    "research/results/A63/SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_COVERAGE.csv",
+    "research/results/A63/SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_METRICS.csv",
+    "research/results/A63/SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_BLOCKS.csv",
+    "research/results/A63/SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_RECONCILIATION.csv",
+    "research/results/A63/SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_Status.txt",
+    "research/results/A63/SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_Result.md"
+  ],
+  "experiment_id": "A63",
+  "git_sha": "185cec4e1ff7534643883adee0f697d5ea20db5a",
+  "observed": {
+    "central_losses_total": 710,
+    "execution_parent": {
+      "entry": "E0_RESTING_H",
+      "hour": "15UTC",
+      "range": "R360",
+      "target": "E40"
+    },
+    "l0_total": 76,
+    "m1_total": 95,
+    "partitions": {
+      "Development": {
+        "central_losses": 357,
+        "l0": 37,
+        "m1": 58
+      },
+      "External Validation": {
+        "central_losses": 166,
+        "l0": 13,
+        "m1": 16
+      },
+      "Reference Validation": {
+        "central_losses": 187,
+        "l0": 26,
+        "m1": 21
+      }
+    }
+  },
+  "preregistration_sha256": "2847b16cee9638265ca0ede3c36ff2a4339e2f38f0547ec9cc217ccfb59f9c70",
+  "registry_sha256": "c53bd7738924d4f586db1b2ea82a7c7ee5791284fd6e461e2a8cfbddbf43cb04",
+  "schema_version": 1,
+  "scientific_verdict": null,
+  "state_advanced": false,
+  "summary": {
+    "gate_status": "SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_SUPPORTED",
+    "interpretation_boundary": "mechanism_specificity_only_no_executable_intervention",
+    "l0_specific_feature_families": [
+      "running_mae_R"
+    ],
+    "market_coverage": 0.9976708526620213,
+    "matched_pairs_by_partition_snapshot": {
+      "development:120m": 29,
+      "development:60m": 33,
+      "external:120m": 11,
+      "external:60m": 12,
+      "reference_validation:120m": 19,
+      "reference_validation:60m": 22
+    },
+    "replicated_snapshots_by_feature": {
+      "close_H_R": [
+        60
+      ],
+      "drawdown_from_best_R": [],
+      "running_mae_R": [
+        60,
+        120
+      ]
+    }
+  }
+}
