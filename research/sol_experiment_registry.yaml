@@ -3,8 +3,8 @@
   "pair": "SOL",
   "discovery_branch": "research/sol-long-structure-a1-run",
   "state_established_from_commit": "12c483959af3ac87c63d671f7b2edccb2fed2218",
-  "latest_completed_experiment": "A61",
-  "next_available_experiment": "A62",
+  "latest_completed_experiment": "A62",
+  "next_available_experiment": "A63",
   "auto_advance_next_experiment": false,
   "pair_native_rule": "copy the discovery grammar, never copy the coordinates",
   "execution_parent": {
@@ -59,13 +59,37 @@
     "A58_UNIVERSAL_1M_INTRABAR_SEPARATOR",
     "A59_H05_HYBRID_PARTIAL_DERISK",
     "A60_1M_RANGE_COMPRESSION",
-    "A61_LOW_MFE_H05_PREWARNING_RETUNE"
+    "A61_LOW_MFE_H05_PREWARNING_RETUNE",
+    "A62_DIRECT_ANATOMY_TO_INTERVENTION"
   ],
+  "latest_verdict": {
+    "experiment_id": "A62",
+    "status": "SOL_LONG_15UTC_L0_EARLY_PROGRESS_A62_SUPPORTED",
+    "execution_mode": "descriptive_mechanistic_only",
+    "result_persistence_commit": "aabdbd16514c027fe7f81fe8ecf84db589eea3da",
+    "verdict_commit": "37f9c233baa0ad34c613c5fbaa67276c4cb625a3",
+    "supported_feature_families": [
+      "running_mae_R",
+      "close_H_R",
+      "drawdown_from_best_R"
+    ],
+    "replicated_snapshots": [
+      60,
+      120
+    ],
+    "unsupported_as_families": [
+      "running_mfe_R",
+      "recovery_from_worst_R",
+      "upper_half_close_fraction"
+    ],
+    "interpretation": "L0/M0 early-path deterioration becomes robust around 60m and persists at 120m through deeper adverse excursion, weaker location relative to H, and larger giveback from best excursion.",
+    "executable_intervention_authorized": false
+  },
   "current_frontier": {
-    "name": "L0_EARLY_PROGRESS_ANATOMY",
-    "question": "What is already causally different in the early progress path of L0/M0 trades, well before late terminal-failure anatomy?",
-    "mode": "descriptive_mechanistic_first",
-    "a62_is_identifier_only_not_preapproved_hypothesis": true
+    "name": "POST_A62_LINEAGE_DECISION",
+    "question": "What pair-native scientific question should follow the replicated 60-120m L0/M0 early-path deterioration without converting descriptive anatomy directly into an exit, derisk rule, gate, or threshold?",
+    "mode": "manual_hypothesis_selection",
+    "a63_is_identifier_only_not_preapproved_hypothesis": true
   },
   "automation_boundary": {
     "may_automate": [
