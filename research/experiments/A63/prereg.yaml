@@ -13,17 +13,27 @@
     "loss_taxonomy": {
       "central_losses_total": 710,
       "l0_label": "NEVER_BREAK_REFERENCE_INVALIDATION",
-      "l0_mechanism": "M0_REFERENCE_INVALIDATION",
-      "l0_total": 76,
-      "m1_label": "NEVER_BREAK_TIME",
-      "m1_mechanism": "M1_TIME_NO_STRUCTURAL_FAIL",
-      "m1_total": 95
+      "l0_mechanism": "M0",
+      "l0_total": 76
     },
     "partitions": {
-      "Development": {"central_losses": 357, "l0": 37, "m1": 58},
-      "External Validation": {"central_losses": 166, "l0": 13, "m1": 16},
-      "Reference Validation": {"central_losses": 187, "l0": 26, "m1": 21}
-    },
+      "Development": {"central_losses": 357, "l0": 37},
+      "External Validation": {"central_losses": 166, "l0": 13},
+      "Reference Validation": {"central_losses": 187, "l0": 26}
+    }
+  },
+  "comparator_taxonomy": {
+    "m1_label": "NEVER_BREAK_TIME",
+    "m1_mechanism": "M1_TIME_NO_STRUCTURAL_FAIL",
+    "m1_total": 95,
+    "source": "A51 frozen mechanistic loss taxonomy"
+  },
+  "comparator_partitions": {
+    "Development": {"m1": 58},
+    "External Validation": {"m1": 16},
+    "Reference Validation": {"m1": 21}
+  },
+  "lineage_inputs": {
     "a62_supported_feature_families": [
       "running_mae_R",
       "close_H_R",
@@ -137,6 +147,13 @@
     "SOL_LONG_15UTC_L0_EARLY_PROGRESS_SPECIFICITY_A63_RECONCILIATION_FAIL"
   ],
   "retuning": "prohibited",
+  "preregistration_amendments": [
+    {
+      "stage": "after_implementation_but_before_any_A63_result",
+      "reason": "Generic harness requires inherits.loss_taxonomy and inherits.partitions to exactly equal the frozen registry objects. The initial A63 prereg placed the already-frozen A51 M1 comparator metadata inside those inherited objects, which the harness correctly rejected as a taxonomy mutation.",
+      "scientific_effect": "Schema-only relocation: M1 comparator label/mechanism/counts moved to comparator_taxonomy/comparator_partitions and A62 carry-forward metadata moved to lineage_inputs. Scientific question, hypothesis, comparator identity, cohort counts, features, directions, snapshots, support thresholds, matching, and success gates are unchanged. No A63 feature values or results existed before this amendment."
+    }
+  ],
   "notes": [
     "A63 is a specificity test, not an economic intervention experiment.",
     "M1 is chosen before seeing A63 results because it is the cleanest alternate never-break loss mechanism and avoids the post-break state contamination inherent in M2 failed-break losses at 60-120m.",
