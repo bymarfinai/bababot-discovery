@@ -4,33 +4,27 @@
   "name": "SOL LONG 15UTC L0 Early MAE Economic Translation",
   "pair": "SOL",
   "inherits": {
-    "execution_parent": {
-      "range": "R360",
-      "hour": "15UTC",
-      "entry": "E0_RESTING_H",
-      "target": "E40"
-    },
-    "loss_taxonomy": {
-      "central_losses_total": 710,
-      "l0_label": "NEVER_BREAK_REFERENCE_INVALIDATION",
-      "l0_mechanism": "M0",
-      "l0_total": 76
-    },
+    "execution_parent": {"range": "R360", "hour": "15UTC", "entry": "E0_RESTING_H", "target": "E40"},
+    "loss_taxonomy": {"central_losses_total": 710, "l0_label": "NEVER_BREAK_REFERENCE_INVALIDATION", "l0_mechanism": "M0", "l0_total": 76},
     "partitions": {
-      "Development": {"central_losses": 357, "l0": 37, "tuning_allowed": true},
-      "External Validation": {"central_losses": 166, "l0": 13, "tuning_allowed": false},
-      "Reference Validation": {"central_losses": 187, "l0": 26, "tuning_allowed": false}
+      "Development": {"central_losses": 357, "l0": 37},
+      "External Validation": {"central_losses": 166, "l0": 13},
+      "Reference Validation": {"central_losses": 187, "l0": 26}
     }
   },
   "lineage_inputs": {
-    "a62_result": "running_mae_R was one of three early deterioration families replicated at 60m and 120m versus age/state-matched eventual winners.",
-    "a63_result": "running_mae_R was the only tested A62 family that remained L0/M0-specific versus M1_TIME_NO_STRUCTURAL_FAIL at both 60m and 120m across Development and both OOS partitions.",
-    "a56_warning": "A hard failure guard can save loser PnL yet destroy more future-winner PnL.",
-    "a59_warning": "An executable response can pass Development economics and still reverse out of sample."
+    "a62": "running_mae_R replicated at 60m and 120m versus age/state-matched eventual winners.",
+    "a63": "running_mae_R was the only tested A62 family specific to L0/M0 versus M1 at both 60m and 120m across Development and both OOS partitions.",
+    "a56": "hard guards can save loser PnL yet sacrifice more future-winner PnL.",
+    "a59": "an executable response can pass Development and reverse out of sample."
   },
   "scientific_question": "Can the A62+A63 mechanism-specific early running_mae_R deterioration be translated into one causal pre-break full-exit rule that improves untouched parent economics without sacrificing more future-winner PnL than it saves specifically from frozen L0/M0 losses, and does that exact Development-selected rule replicate in both OOS partitions?",
   "hypothesis": "Among parent trades still live and pre-break at 60m or 120m, sufficiently deep running adverse excursion identifies a subset where a causal full exit can save more L0/M0 loss than the PnL sacrificed on eventual parent winners and improve portfolio economics. A finite threshold family may be selected on Development only; the exact selected age and threshold must then be frozen before External and Reference Validation are opened.",
   "execution_mode": "development_selected_economic_feasibility",
+  "finite_feature_set": [
+    {"name": "running_mae_R", "formula": "max(0, (H - minimum low of full post-entry completed 5m bars from entry_ts+5m through entry_ts+age-5m inclusive) / R)", "direction": "higher_is_more_L0_like"}
+  ],
+  "fixed_snapshots": [60, 120],
   "parent_counts": {
     "Development": {"parent": 601, "raw_winners": 244},
     "External Validation": {"parent": 281, "raw_winners": 115},
@@ -39,91 +33,91 @@
   "economics": {
     "notional_usd": 500.0,
     "stress_all_in_fraction": 0.0005,
-    "baseline": "Exact frozen parent raw and 5bps replay. Baseline parity is mandatory before any candidate is interpreted.",
-    "intervention": "For a qualifying still-live pre-break parent, exit 100% at the open timestamp entry_ts + selected_age after the selected-age information cut is complete.",
-    "position_path": "No re-entry, no re-arm, no partial size, no second action."
+    "baseline": "Exact frozen parent raw and 5bps replay; parity mandatory.",
+    "intervention": "If still live and pre-break and running_mae_R >= frozen threshold, exit 100% at the open timestamp entry_ts + selected_age.",
+    "position_path": "No re-entry, re-arm, partial size, or second action."
   },
   "signal_semantics": {
-    "feature": "running_mae_R",
-    "formula": "max(0, (H - minimum low of full post-entry completed 5m bars from entry_ts+5m through entry_ts+age-5m inclusive) / R)",
-    "direction": "higher_is_more_L0_like",
     "entry_fill_candle_excluded": true,
-    "fixed_candidate_ages_min": [60, 120],
     "eligible_parent_state": [
-      "parent remains live strictly beyond the intervention execution timestamp entry_ts + age",
-      "breakout confirmation h1_break_ts is absent or strictly later than the last completed snapshot bar",
-      "all signal bars are completed before the intervention execution open",
-      "if the frozen parent resolves at or before the intervention execution timestamp, parent resolution has precedence and no A64 exit occurs"
+      "parent exit_ts is strictly later than entry_ts + age",
+      "h1_break_ts is absent or strictly later than entry_ts + age - 5m",
+      "signal uses only full completed bars through entry_ts + age - 5m",
+      "parent resolution at or before intervention execution has precedence"
     ]
   },
   "development_threshold_learning": {
-    "source_cohort": "Development frozen M0_REFERENCE_INVALIDATION trades only, restricted independently at each candidate age to cases still live through the intervention execution timestamp and still pre-break through the snapshot.",
+    "source_cohort": "Development frozen M0_REFERENCE_INVALIDATION only, independently at each fixed age, restricted to cases still live through intervention execution and still pre-break through the snapshot.",
     "minimum_source_support_per_age": 20,
     "quantiles": [0.25, 0.50, 0.75],
-    "quantile_rule": "Empirical nearest-rank without interpolation: sort eligible Development L0 running_mae_R ascending; for quantile q use value at 1-based rank ceil(q*N). Duplicate resulting thresholds are de-duplicated within age.",
-    "candidate_grid": "At most 2 ages x 3 Development-only quantiles = 6 candidates. No other age, threshold, feature, composite, or neighboring value may be tested in A64.",
+    "quantile_rule": "Empirical nearest-rank without interpolation: sort eligible Development L0 running_mae_R ascending; q uses 1-based rank ceil(q*N). Duplicate thresholds are de-duplicated within age.",
+    "maximum_candidate_count": 6,
     "validation_data_used_for_selection": false
   },
+  "support_rules": {
+    "threshold_source": "Each candidate age requires >=20 eligible Development L0 cases.",
+    "development_blocks": "At least 4/6 frozen Development blocks must have positive raw delta net and at least 4/6 must have positive 5bps delta net.",
+    "development_first": "External and Reference intervention economics are not computed unless at least one Development candidate passes every Development gate.",
+    "oos": "Only the single Development-selected exact age+threshold is tested in External and Reference Validation; no retuning."
+  },
   "development_candidate_gate": [
-    "exact parent baseline parity passes",
-    "threshold source support at the candidate age is >=20 frozen Development L0 cases",
-    "raw net PnL is greater than baseline",
-    "5bps net PnL is greater than baseline",
-    "raw PF is greater than baseline",
-    "5bps PF is greater than baseline",
-    "5bps WR is not lower than baseline",
-    "raw max drawdown is not higher than baseline",
-    "at least 4 of 6 frozen Development blocks have positive raw delta net",
-    "at least 4 of 6 frozen Development blocks have positive 5bps delta net",
-    "L0/M0 PnL delta is positive",
-    "L0/M0 PnL saved is strictly greater than absolute negative PnL delta on eventual baseline winners"
+    "raw net > baseline",
+    "5bps net > baseline",
+    "raw PF > baseline",
+    "5bps PF > baseline",
+    "5bps WR >= baseline",
+    "raw max DD <= baseline",
+    "positive raw delta net in >=4/6 Development blocks",
+    "positive 5bps delta net in >=4/6 Development blocks",
+    "L0/M0 PnL delta > 0",
+    "L0/M0 PnL delta > max(0, -aggregate PnL delta on eventual baseline winners)"
   ],
   "development_selection_rule": {
-    "if_no_candidate_passes": "A64_REJECTED_DEVELOPMENT and External/Reference intervention economics remain unopened.",
-    "if_one_or_more_pass": "Select exactly one candidate by highest Development 5bps delta net; tie-break by highest raw delta net, then lower absolute winner damage, then earlier age, then higher threshold. Freeze its age and exact numeric threshold before computing OOS intervention results."
+    "if_none_pass": "Reject Development and leave OOS intervention economics unopened.",
+    "if_multiple_pass": "Select highest Development 5bps delta net; tie-break highest raw delta net, lower winner damage, earlier age, then higher threshold."
   },
   "oos_confirmation_gate": {
-    "applies_only_if_development_candidate_selected": true,
-    "same_exact_rule_no_retuning": true,
-    "required_independently_in_both_external_and_reference_validation": [
-      "raw net PnL is greater than baseline",
-      "5bps net PnL is greater than baseline",
-      "raw PF is greater than baseline",
-      "5bps PF is greater than baseline",
-      "5bps WR is not lower than baseline",
-      "raw max drawdown is not higher than baseline",
-      "L0/M0 PnL delta is positive",
-      "L0/M0 PnL saved is strictly greater than absolute negative PnL delta on eventual baseline winners"
+    "required_independently_in_external_and_reference": [
+      "raw net > baseline",
+      "5bps net > baseline",
+      "raw PF > baseline",
+      "5bps PF > baseline",
+      "5bps WR >= baseline",
+      "raw max DD <= baseline",
+      "L0/M0 PnL delta > 0",
+      "L0/M0 PnL delta > max(0, -aggregate PnL delta on eventual baseline winners)"
     ]
   },
+  "success_criteria": {
+    "supported": "At least one Development candidate passes every frozen Development gate; the deterministic selection rule freezes one exact age+threshold; that exact rule then passes every OOS gate independently in both External and Reference Validation.",
+    "rejected_development": "No Development candidate passes every frozen Development gate; OOS intervention economics remain unopened.",
+    "rejected_oos": "A Development-selected rule exists but fails at least one frozen OOS gate in External or Reference Validation.",
+    "reconciliation_fail": "Frozen parent/loss/L0/winner counts, market timing, or baseline parity fail."
+  },
   "required_diagnostics": [
-    "frozen parent/loss/L0 reconciliation and parent winner counts by partition",
-    "raw SOLUSDT 5m coverage",
-    "Development L0 threshold-source support and exact nearest-rank threshold values by age",
+    "parent/loss/L0/winner reconciliation by partition",
+    "raw 5m coverage",
+    "Development L0 threshold-source support and exact thresholds by age",
     "all Development candidate economics and gate clauses",
-    "selected age and exact threshold if any",
-    "trigger count and trigger rate",
-    "triggered frozen L0/M0 count",
-    "triggered other-loss count",
-    "triggered eventual baseline-winner count",
-    "eventual-winner PnL delta and winner flips to nonpositive",
-    "L0/M0 PnL delta",
-    "non-L0-loss PnL delta",
-    "total raw and 5bps delta net",
-    "N, WR, PF, net, expectancy, max DD, max loss streak for baseline and intervention",
-    "Development six-block raw and 5bps delta net",
-    "OOS metrics only for the one Development-selected candidate and only if Development gate passes"
+    "selected exact age and threshold if any",
+    "trigger counts split L0, other losses, and eventual winners",
+    "winner PnL delta and winner flips",
+    "L0 PnL delta and non-L0-loss PnL delta",
+    "raw and 5bps total delta net",
+    "N, WR, PF, net, expectancy, max DD, max loss streak",
+    "Development six-block raw and stress delta net",
+    "OOS metrics only if Development passes"
   ],
   "prohibitions": [
-    "do not carry close_H_R or drawdown_from_best_R into A64",
-    "do not test 30m or any age other than 60m and 120m",
-    "do not use an A62/A63 median as an executable threshold",
-    "do not add partial derisk, re-arm, timer, H05/H10 logic, calendar state, BTC/ETH context, or composite score",
-    "do not optimize threshold on External Validation or Reference Validation",
-    "do not rescue a rejected Development candidate with OOS performance",
-    "do not rescue a selected rule by moving its threshold or age after OOS",
-    "do not interpret WR improvement alone as support",
-    "do not modify live Baba Bot"
+    "no close_H_R or drawdown_from_best_R",
+    "no 30m or ages outside 60m/120m",
+    "no A62/A63 median used directly as executable threshold",
+    "no partial derisk, re-arm, timer, H05/H10, calendar, BTC/ETH context, or composite",
+    "no validation tuning",
+    "no Development failure rescue from OOS",
+    "no selected-rule threshold/age movement after OOS",
+    "no WR-only promotion",
+    "no live Baba Bot modification"
   ],
   "decision_states": [
     "SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_SUPPORTED",
@@ -131,13 +125,20 @@
     "SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_REJECTED_OOS",
     "SOL_LONG_15UTC_L0_EARLY_MAE_ECONOMIC_TRANSLATION_A64_RECONCILIATION_FAIL"
   ],
-  "interpretation_boundary": "Even a SUPPORTED A64 establishes historical economic feasibility of one Development-selected pair-native intervention architecture. It does not by itself authorize production/live deployment; a separate deployment/forward-validation decision is required.",
+  "interpretation_boundary": "SUPPORTED means historical economic feasibility of one Development-selected pair-native intervention architecture, not production authorization. Separate deployment/forward validation remains required.",
   "retuning": "prohibited",
+  "preregistration_amendments": [
+    {
+      "stage": "after_prereg_commit_before_implementation_or_any_A64_result",
+      "reason": "Generic harness schema audit requires finite_feature_set, fixed_snapshots, support_rules, success_criteria and exact inherited partition identity without registry tuning flags.",
+      "scientific_effect": "Schema-only normalization. The scientific question, only feature running_mae_R, ages 60/120, Q25/Q50/Q75 nearest-rank Development-only threshold family, full-exit semantics, Development gates, deterministic selection rule, OOS gates, and prohibitions are unchanged."
+    }
+  ],
   "notes": [
-    "A64 is the first economic translation after the A62 anatomy and A63 specificity chain.",
-    "The finite Development-only threshold family is preregistered before implementation and OOS inspection; this is model selection, not OOS tuning.",
-    "The L0-saved-greater-than-winner-damage clause directly addresses the A56 failure mode and prevents apparent success that depends mainly on unrelated non-L0 losses.",
-    "Full exit is used as the simplest falsifiable counterfactual; partial sizing and re-arm are deliberately excluded because A59 already showed that extra response architecture can overfit Development and reverse OOS.",
+    "A64 is the first economic translation after A62 anatomy and A63 specificity.",
+    "Finite Development-only threshold learning is preregistered model selection, not OOS tuning.",
+    "The L0-saved-greater-than-winner-damage clause directly addresses A56's failure mode.",
+    "Full exit is the simplest falsifiable counterfactual; A59's partial/re-arm architecture is not reopened.",
     "Live Baba Bot remains unchanged."
   ]
 }
