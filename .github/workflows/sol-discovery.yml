@@ -39,6 +39,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install SOL research runtime dependencies
+        run: python -m pip install --disable-pip-version-check numpy pandas
+
       - name: Validate tooling and frozen registry
         run: |
           python -m py_compile research/sol_experiment_harness.py research/sol_lab.py
