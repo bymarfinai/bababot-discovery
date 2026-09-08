@@ -1,0 +1,71 @@
+{
+  "artifacts": [
+    "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_EVENTS.csv",
+    "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_COVERAGE.csv",
+    "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_METRICS.csv",
+    "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_BLOCKS.csv",
+    "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_RECONCILIATION.csv",
+    "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_Status.txt",
+    "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_Result.md"
+  ],
+  "experiment_id": "A66",
+  "git_sha": "2d5e3dcfd3603ed1120f155502a286944a4cb78d",
+  "observed": {
+    "central_losses_total": 710,
+    "execution_parent": {
+      "entry": "E0_RESTING_H",
+      "hour": "15UTC",
+      "range": "R360",
+      "target": "E40"
+    },
+    "l0_total": 76,
+    "partitions": {
+      "Development": {
+        "central_losses": 357,
+        "l0": 37
+      },
+      "External Validation": {
+        "central_losses": 166,
+        "l0": 13
+      },
+      "Reference Validation": {
+        "central_losses": 187,
+        "l0": 26
+      }
+    }
+  },
+  "preregistration_sha256": "86abe1adb7c2bdc049b768823ccd0ad2314f8f38cafb93d0ac70a243d1d18f5d",
+  "registry_sha256": "49ab395936c57655a44e8eea97aba25fe3f1d72adb440f04293f423416068d0b",
+  "schema_version": 1,
+  "scientific_verdict": null,
+  "state_advanced": false,
+  "summary": {
+    "gate_status": "SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_INCONCLUSIVE",
+    "interpretation_boundary": "mae_conditioned_reclaim_sequence_anatomy_only_no_intervention",
+    "market_coverage": 0.9976708526620213,
+    "matched_pairs_by_partition_snapshot": {
+      "development:120m": 29,
+      "development:60m": 33,
+      "external:120m": 11,
+      "external:60m": 12,
+      "reference_validation:120m": 19,
+      "reference_validation:60m": 22
+    },
+    "median_abs_mae_match_gap_by_partition_snapshot": {
+      "development:120m": 0.05597013816449181,
+      "development:60m": 0.048538845068968065,
+      "external:120m": 0.029420692430140616,
+      "external:60m": 0.008890825709729544,
+      "reference_validation:120m": 0.006430062630478406,
+      "reference_validation:60m": 0.006712894580561901
+    },
+    "replicated_snapshots_by_feature": {
+      "half_reclaim_latency_fraction": [],
+      "late_mae_extension_fraction": [],
+      "longest_half_reclaim_run_fraction": [],
+      "max_reclaim_fraction_of_mae": [],
+      "post_half_reclaim_hold_fraction": []
+    },
+    "supported_reclaim_sequence_feature_families": []
+  }
+}

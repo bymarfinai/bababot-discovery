@@ -1,0 +1,46 @@
+{
+  "artifacts": [
+    {
+      "bytes": 66098,
+      "path": "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_EVENTS.csv",
+      "sha256": "efe1bfd3cfe4f9ddc6d3ede3c179e2e7e5010bd46b1d4dad425843df520e31dd"
+    },
+    {
+      "bytes": 799,
+      "path": "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_COVERAGE.csv",
+      "sha256": "61950d227e53b20e20928282267bd502aae2e41d51c5ce39400c0959a810716f"
+    },
+    {
+      "bytes": 4580,
+      "path": "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_METRICS.csv",
+      "sha256": "8f4fd53a2dafa5b73455ec1b8ed7050b1a643394972134407c30dd14f45458f7"
+    },
+    {
+      "bytes": 6922,
+      "path": "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_BLOCKS.csv",
+      "sha256": "418fc809d929649989807db4a59a4ad172b857ed7762f61aa7a79b8037e72dba"
+    },
+    {
+      "bytes": 127,
+      "path": "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_RECONCILIATION.csv",
+      "sha256": "e449edf0d3a7f75329359bad834281a7689bb9fc2a5f204628c4790b8d28e80d"
+    },
+    {
+      "bytes": 68,
+      "path": "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_Status.txt",
+      "sha256": "e7e85881230faea41ca24b3c182e1dfeb464d0d3c46aa60e9fef05e83a53291d"
+    },
+    {
+      "bytes": 3006,
+      "path": "research/results/A66/SOL_LONG_15UTC_L0_MAE_CONDITIONED_RECLAIM_SEQUENCE_A66_Result.md",
+      "sha256": "00fb1acbaa21232fbe3e21fbfe02775275b04629f3b7b4804ac2792e26aba2bc"
+    }
+  ],
+  "experiment_id": "A66",
+  "git_sha_at_run": "2d5e3dcfd3603ed1120f155502a286944a4cb78d",
+  "preregistration_sha256": "86abe1adb7c2bdc049b768823ccd0ad2314f8f38cafb93d0ac70a243d1d18f5d",
+  "registry_sha256": "49ab395936c57655a44e8eea97aba25fe3f1d72adb440f04293f423416068d0b",
+  "schema_version": 1,
+  "scientific_verdict_required_separately": true,
+  "state_advanced": false
+}
