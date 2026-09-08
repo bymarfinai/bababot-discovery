@@ -1,6 +1,6 @@
 {
-  "experiment_id": "A62",
+  "experiment_id": "A63",
   "branch": "research/sol-long-structure-a1-run",
-  "request_id": "A62-20260908-05",
-  "purpose": "Execute the already-preregistered and separately-implemented SOL A62 experiment after completing generic CI runtime dependencies (numpy, pandas, requests). Hypothesis, features, thresholds, support rules, cohorts, snapshots, and scientific gates are unchanged."
+  "request_id": "A63-20260908-01",
+  "purpose": "Execute the already-preregistered and separately-implemented SOL A63 L0 early-progress specificity experiment through the generic SOL discovery workflow. Comparator, features, snapshots, support rules, and scientific gates are frozen in preregistration and are not altered by this request."
 }
