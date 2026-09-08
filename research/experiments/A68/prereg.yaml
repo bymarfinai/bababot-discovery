@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "experiment_id": "A68",
+  "name": "SOL LONG 15UTC M0 Reference-Invalidation Downside-Continuation Anatomy",
+  "pair": "SOL",
+  "inherits": {
+    "execution_parent": {"range": "R360", "hour": "15UTC", "entry": "E0_RESTING_H", "target": "E40"},
+    "loss_taxonomy": {"central_losses_total": 710, "l0_label": "NEVER_BREAK_REFERENCE_INVALIDATION", "l0_mechanism": "M0_REFERENCE_INVALIDATION", "l0_total": 76},
+    "partitions": {
+      "Development": {"parent": 601, "central_losses": 357, "l0_m0": 37, "raw_winners": 244},
+      "External Validation": {"parent": 281, "central_losses": 166, "l0_m0": 13, "raw_winners": 115},
+      "Reference Validation": {"parent": 337, "central_losses": 187, "l0_m0": 26, "raw_winners": 150}
+    }
+  },
+  "lineage_inputs": {
+    "a62": "L0/M0 develops replicated early deterioration and running_mae_R is an important adverse-excursion axis.",
+    "a63": "running_mae_R remained the robust tested L0-specific early mechanism axis versus M1.",
+    "a64": "Static MAE exits reduced L0 damage and drawdown diagnostically but harmed eventual winners and failed the frozen stressed-WR gate.",
+    "a65": "Simple post-worst recovery descriptors did not robustly separate severe-MAE winners from L0.",
+    "a66": "Fixed half-reclaim sequence/hold geometry did not robustly separate severe-MAE winners from L0.",
+    "a67": "Pre-worst MAE-formation and completed-close downside-acceptance descriptors were inconclusive; adjacent winner-retention feature mining is closed."
+  },
+  "scientific_question": "Once the frozen M0 reference invalidation of the SOL long thesis is causally confirmed, does SOL exhibit replicated immediate downside continuation from the earliest executable next-bar open, such that long-thesis failure may represent a directional regime transition worth testing later as a reverse-short intervention?",
+  "hypothesis": "A causally confirmed M0 reference invalidation is not merely the terminal label of a losing long. From the next executable 5m bar open, downside continuation should dominate upside rebound over the immediate 30m and 60m horizons across Development, External Validation, and Reference Validation. The 120m horizon is a preregistered persistence diagnostic, not required for the primary mechanism claim.",
+  "execution_mode": "post_failure_directional_anatomy_only",
+  "cohort_definition": {
+    "case": "Exact frozen M0_REFERENCE_INVALIDATION cases only, unchanged from A55 and A62-A67.",
+    "no_control_matching": true,
+    "reason": "A68 tests the directional path after an already-observed structural failure event against a fixed neutral directional reference, not whether M0 can be predicted before it occurs.",
+    "cohort_identity_must_not_change": true
+  },
+  "causal_timing": {
+    "bar_size_minutes": 5,
+    "signal_bar": "The raw 5m bar labeled invalidation_close_ts. Its invalidating close is not actionable until that bar completes.",
+    "earliest_executable_origin_ts": "invalidation_close_ts + 5m",
+    "origin_price": "raw SOLUSDT 5m open at earliest_executable_origin_ts",
+    "same_invalidation_bar_execution_prohibited": true,
+    "same_invalidation_bar_low_or_close_as_short_fill_prohibited": true,
+    "parent_exit_parity": "Report whether frozen M0 parent exit_ts equals earliest_executable_origin_ts; do not redefine M0 if parity differs.",
+    "forward_window": "For horizon H, use only bars labeled origin_ts through origin_ts+H-5m inclusive; the horizon close is the close of the final completed bar."
+  },
+  "fixed_horizons_minutes": {
+    "primary": [30, 60],
+    "persistence_diagnostic": [120]
+  },
+  "normalization": "All price excursions are normalized by the frozen parent trade R for that M0 case.",
+  "finite_feature_set": [
+    {
+      "name": "short_close_return_R",
+      "formula": "(origin_open - final_completed_close_at_horizon) / parent_R",
+      "neutral_reference": 0.0,
+      "preregistered_direction": "higher"
+    },
+    {
+      "name": "short_excursion_dominance_R",
+      "formula": "short_mfe_R - short_mae_R, where short_mfe_R=max(0,(origin_open-min_forward_low)/R) and short_mae_R=max(0,(max_forward_high-origin_open)/R)",
+      "neutral_reference": 0.0,
+      "preregistered_direction": "higher"
+    },
+    {
+      "name": "short_capture_fraction",
+      "formula": "short_mfe_R / (short_mfe_R + short_mae_R); set to 0.5 only if both excursions are zero",
+      "neutral_reference": 0.5,
+      "preregistered_direction": "higher",
+      "role": "corroborative_only"
+    }
+  ],
+  "required_diagnostics": [
+    "short_mfe_R",
+    "short_mae_R",
+    "short_close_positive flag",
+    "parent long pnl",
+    "invalidation_close_ts",
+    "causal origin_ts and origin_open",
+    "parent exit_ts parity with causal origin",
+    "raw 5m coverage through every forward horizon",
+    "event-level forward anatomy",
+    "partition/horizon medians and IQR-normalized effects",
+    "Development block-direction table",
+    "30m/60m primary family replication and 120m persistence status"
+  ],
+  "effect_definition": {
+    "centered_median": "median(feature) - preregistered neutral_reference",
+    "iqr": "P75(feature) - P25(feature)",
+    "effect": "abs(centered_median) / IQR; nonzero centered median over zero IQR is infinite; zero over zero IQR is zero",
+    "direction_test": "centered_median must be strictly positive for every preregistered higher-direction feature"
+  },
+  "support_rules": {
+    "Development": {
+      "minimum_cases_per_horizon": 20,
+      "block_rule": "At least 3 dev_blocks with >=5 M0 cases; every adequate block must have a strictly positive centered median for the tested feature."
+    },
+    "External Validation": {"minimum_cases_per_horizon": 8},
+    "Reference Validation": {"minimum_cases_per_horizon": 8},
+    "missing_forward_data": "Case is ineligible only for that fixed horizon; report coverage. Do not move the horizon or impute future bars."
+  },
+  "success_criteria": {
+    "development_horizon_feature_eligible": [
+      "support >=20",
+      "centered median strictly positive",
+      "effect >=0.30",
+      "Development block rule passes"
+    ],
+    "oos_horizon_feature_replication": [
+      "Development horizon-feature is eligible first",
+      "External support >=8, centered median strictly positive, effect >=0.10",
+      "Reference support >=8, centered median strictly positive, effect >=0.10"
+    ],
+    "primary_feature_family_supported": "The same core directional feature, short_close_return_R or short_excursion_dominance_R, must fully replicate at BOTH preregistered primary horizons 30m and 60m across Development + External + Reference (strict primary 2-of-2).",
+    "experiment_supported": "At least one core directional feature family satisfies strict primary 2-of-2 replication.",
+    "experiment_inconclusive": "No core directional feature family satisfies strict primary 2-of-2 while reconciliation and causal timing succeed.",
+    "reconciliation_fail": "Frozen parent/loss/M0 counts, raw timing parity needed for measurement, or data invariants fail."
+  },
+  "interpretation_boundary": "A supported A68 establishes only replicated post-invalidation downside-continuation anatomy. It does NOT authorize a live short, a stop/target, sizing, leverage, same-bar reversal, or combined long-plus-short economic claim. A reverse-short intervention requires a separately preregistered economic-translation experiment.",
+  "prohibitions": [
+    "no A64 MAE threshold rescue or early-exit retuning",
+    "no A65-A67 failed-feature composite or neighboring winner-retention metric mining",
+    "no alternate invalidation definition",
+    "no same-candle short fill or use of invalidation-candle low as executable price",
+    "no search over entry delay; A68 origin is fixed to next-bar open",
+    "no search over horizons beyond fixed 30m/60m primary and 120m diagnostic",
+    "no short TP, SL, trailing stop, partial, re-entry, leverage, or size optimization",
+    "no validation tuning or feature addition after results",
+    "no live Baba Bot modification"
+  ],
+  "decision_states": [
+    "SOL_LONG_15UTC_M0_REFERENCE_INVALIDATION_DOWNSIDE_CONTINUATION_A68_SUPPORTED",
+    "SOL_LONG_15UTC_M0_REFERENCE_INVALIDATION_DOWNSIDE_CONTINUATION_A68_INCONCLUSIVE",
+    "SOL_LONG_15UTC_M0_REFERENCE_INVALIDATION_DOWNSIDE_CONTINUATION_A68_RECONCILIATION_FAIL"
+  ],
+  "retuning": "prohibited",
+  "notes": [
+    "A68 is intentionally downstream of confirmed structural failure and therefore asks a different causal question from A62-A67 winner-retention prediction.",
+    "The earliest executable next-bar open is frozen before implementation to prevent hindsight entry selection.",
+    "30m and 60m are the primary immediate-continuation horizons; 120m is frozen now as a persistence diagnostic so it cannot be added post hoc.",
+    "Live Baba Bot remains unchanged."
+  ]
+}
