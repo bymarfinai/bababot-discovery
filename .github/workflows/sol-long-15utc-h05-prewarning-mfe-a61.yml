@@ -27,7 +27,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install pandas numpy
+        run: pip install pandas numpy requests
 
       - name: Run A61 H05 prewarning MFE revalidation
         run: |
