@@ -1,6 +1,6 @@
 {
   "experiment_id": "A64",
   "branch": "research/sol-long-structure-a1-run",
-  "request_id": "A64-20260908-01",
-  "purpose": "Run the preregistered SOL A64 running_mae_R economic translation experiment. Threshold learning is restricted to the frozen Development-only nearest-rank Q25/Q50/Q75 family at 60m/120m; OOS remains unopened unless a Development candidate passes every preregistered gate."
+  "request_id": "A64-20260908-02",
+  "purpose": "Retry unchanged SOL A64 after a report-only pandas Series field-access bug. Scientific feature, ages, threshold family, full-exit semantics, Development selection gates, OOS gates, and prohibitions are unchanged; the failed run persisted no result artifacts."
 }
