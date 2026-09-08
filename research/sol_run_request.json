@@ -1,6 +1,6 @@
 {
   "experiment_id": "A63",
   "branch": "research/sol-long-structure-a1-run",
-  "request_id": "A63-20260908-01",
-  "purpose": "Execute the already-preregistered and separately-implemented SOL A63 L0 early-progress specificity experiment through the generic SOL discovery workflow. Comparator, features, snapshots, support rules, and scientific gates are frozen in preregistration and are not altered by this request."
+  "request_id": "A63-20260908-02",
+  "purpose": "Retry the unchanged SOL A63 specificity experiment after a schema-only preregistration amendment required by the generic harness. Scientific question, M1 comparator, features, snapshots, matching, support rules, and gates are unchanged; no A63 result existed before the amendment."
 }
