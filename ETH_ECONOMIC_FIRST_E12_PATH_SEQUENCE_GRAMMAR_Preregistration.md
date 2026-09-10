@@ -27,77 +27,62 @@ Clock is context only. Candidate identity does **not** include clock.
 All 48 half-hour UTC clocks are evaluated separately. Clock can never be selected as part of a candidate. A candidate must work across many clock contexts.
 
 ## Path horizons and exit holds
-Sequence lookbacks are family-specific below. Exit holds for all families:
-`120, 240, 360, 720, 960 minutes`.
-
-All path features use only open prices from the preregistered lookback ending at the entry open. No future bar information enters the event definition.
+Exit holds for all families: `120, 240, 360, 720, 960 minutes`.
+All path features use only open prices from the preregistered lookback ending at the entry open. No future bar information enters the event definition. IRR and ER leg returns use log returns so leg ratios are additive and directionally symmetric.
 
 ## Family 1 — IRR
 Lookbacks: `60, 120, 240, 360m`.
-
-Split the lookback into three equal chronological legs, producing returns `r1, r2, r3`.
-A valid IRR event requires:
+Split the lookback into three equal chronological legs, producing log returns `r1, r2, r3`.
+A valid event requires:
 - `r1 != 0`,
 - `sign(r2) = -sign(r1)`,
 - `sign(r3) = sign(r1)`,
-- retrace ratio `abs(r2)/abs(r1)` in one of two fixed bands:
-  - `SHALLOW = [0.15, 0.50)`
-  - `MEDIUM = [0.50, 0.85]`
-- re-acceleration ratio `abs(r3)/abs(r1) >= q`, with `q ∈ {0.25, 0.50}`,
+- retrace ratio `abs(r2)/abs(r1)` in one of three fixed bands:
+  - `R1 = [0.15, 0.40)`
+  - `R2 = [0.40, 0.65)`
+  - `R3 = [0.65, 0.90]`
+- re-acceleration ratio `abs(r3)/abs(r1) >= q`, with `q ∈ {0.25, 0.40, 0.55}`,
 - the final entry price remains on the impulse side of the path start.
 
 Base direction = sign of `r1`.
-Modes:
-- `CONTINUE`: trade in base direction.
-- `REVERSE`: trade opposite base direction.
-
-Candidate count: `4 LB × 2 retrace bands × 2 reaccel thresholds × 2 modes × 5 holds = 160`.
+Modes: `CONTINUE` or `REVERSE`.
+Candidate count: `4 × 3 × 3 × 2 × 5 = 360`.
 
 ## Family 2 — CE
 Lookbacks: `120, 240, 360, 480m`.
-
-Split the path at 2/3 of the lookback:
-- first 2/3 = compression segment,
-- last 1/3 = expansion segment.
-
-For each segment compute mean absolute log-return per 5m step. A valid event requires:
+Split the path at 2/3 of the lookback: first 2/3 compression segment, last 1/3 expansion segment.
+For each segment compute mean absolute log-return per 5m step.
+A valid event requires:
 - expansion/compression activity ratio `>= a`, where `a ∈ {1.5, 2.0, 3.0}`,
-- expansion directional efficiency `abs(expansion net move) / sum(abs(expansion step moves)) >= e`, where `e ∈ {0.40, 0.60}`,
+- expansion directional efficiency `abs(expansion net log move) / sum(abs(expansion step log moves)) >= e`, where `e ∈ {0.35, 0.50, 0.65}`,
 - non-zero expansion net direction.
 
 Base direction = expansion net direction.
-Modes:
-- `CONTINUE`: follow expansion.
-- `REVERSE`: oppose expansion.
-
-Candidate count: `4 LB × 3 activity ratios × 2 efficiency thresholds × 2 modes × 5 holds = 240`.
+Modes: `CONTINUE` or `REVERSE`.
+Candidate count: `4 × 3 × 3 × 2 × 5 = 360`.
 
 ## Family 3 — ER
 Lookbacks: `60, 120, 240, 360m`.
-
-Split the path into equal first and second halves. Let first-half return be the excursion leg and second-half return be the recovery leg.
+Split the path into equal first and second halves. First-half log return is the excursion leg; second-half log return is the recovery leg.
 A valid event requires:
 - non-zero first-half excursion,
 - second-half move opposite the excursion,
-- first-half directional efficiency `>= e`, `e ∈ {0.40, 0.60}`,
+- first-half directional efficiency `>= e`, `e ∈ {0.35, 0.50, 0.65}`,
 - recovery ratio `abs(second-half return)/abs(first-half return)` in:
-  - `SHALLOW = [0.25, 0.50)`
-  - `DEEP = [0.50, 0.80]`,
+  - `R1 = [0.20, 0.40)`
+  - `R2 = [0.40, 0.60)`
+  - `R3 = [0.60, 0.80]`,
 - entry remains on the original excursion side of the path start.
 
 Base direction = original excursion direction.
-Modes:
-- `RESUME`: trade back in original excursion direction.
-- `EXTEND_RECOVERY`: trade in recovery direction.
-
-Candidate count: `4 LB × 2 efficiency thresholds × 2 recovery bands × 2 modes × 5 holds = 160`.
+Modes: `RESUME` or `EXTEND_RECOVERY`.
+Candidate count: `4 × 3 × 3 × 2 × 5 = 360`.
 
 ## Total candidate identities
-Exactly **560** candidate identities. Each is evaluated across all 48 clock contexts. Candidate identity never includes clock.
+Exactly **1,080** candidate identities. Each is evaluated across all 48 clock contexts. Candidate identity never includes clock.
 
 ## Development clock-level evaluation
 A candidate-clock is evaluable when it has at least **45 trades** in Development.
-
 A candidate-clock is supportive when evaluable and all are true:
 - WR >= **54%**,
 - net PnL > 0,
@@ -133,7 +118,6 @@ Split UTC into six fixed four-hour blocks. A block is supportive if at least hal
 
 ## Development selection
 A candidate passes only if breadth + median economics + all three eras + clock-block breadth all pass.
-
 Rank passing candidates lexicographically by:
 1. highest minimum annual median expectancy,
 2. highest supportive fraction,
@@ -144,15 +128,13 @@ Rank passing candidates lexicographically by:
 7. shorter hold,
 8. shorter lookback,
 9. stable family/parameter lexical tie-break.
-
 No raw-top substitution if zero candidates pass.
 
 ## Boundary handling
-A selected candidate is boundary-open if its lookback or hold is at that family/grid minimum or maximum, or any ordinal threshold parameter is at the outermost tested value. Boundary winner does **not** open OOS; it requires a new preregistered refinement.
+A selected candidate is boundary-open if its lookback or hold is at that family/grid minimum or maximum, or an ordinal numeric shape parameter is at its minimum/maximum tested level. The middle band/threshold values are interior. Boundary winner does **not** open OOS; it requires a new preregistered refinement.
 
 ## Holdout gate if an interior winner exists
 Freeze the exact candidate identity. Evaluate across all 48 clock contexts separately in External and Reference Validation.
-
 Each holdout must have:
 - evaluable clocks >= **16** (>=25 trades per evaluable clock),
 - median WR >= **53%**,
@@ -160,7 +142,6 @@ Each holdout must have:
 - median PF >= **1.08**,
 - positive-expectancy fraction >= **55%**,
 - supportive clock blocks >= **4/6**, where supportive holdout clock means WR>=52%, expectancy>0, PF>=1.05.
-
 Both holdouts must pass unchanged. No second-best candidate, no gate relaxation, no post-hoc coordinate change.
 
 ## Interpretation discipline
