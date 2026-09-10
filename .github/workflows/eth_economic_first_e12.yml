@@ -1,0 +1,35 @@
+name: ETH Economic-First E12 path-sequence grammar
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - eth-economic-first-e12-path-sequence-grammar
+    paths:
+      - '.eth-economic-first-e12-trigger'
+      - 'research/eth_economic_first_e12_path_sequence_grammar.py'
+      - 'ETH_ECONOMIC_FIRST_E12_PATH_SEQUENCE_GRAMMAR_Preregistration.md'
+      - '.github/workflows/eth_economic_first_e12.yml'
+
+jobs:
+  e12:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH Economic-First E12
+        run: |
+          set -euo pipefail
+          LOG=ETH_ECONOMIC_FIRST_E12_PATH_SEQUENCE_GRAMMAR_Run.log
+          echo 'ETH Economic-First E12 path-sequence grammar' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_economic_first_e12_path_sequence_grammar.py 2>&1 | tee -a "$LOG"
+          python research/eth_economic_first_e12_path_sequence_grammar.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-economic-first-e12-path-sequence-grammar
+          path: ETH_ECONOMIC_FIRST_E12_PATH_SEQUENCE_GRAMMAR_*
+          if-no-files-found: warn
