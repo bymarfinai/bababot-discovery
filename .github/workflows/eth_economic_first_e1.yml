@@ -1,0 +1,39 @@
+name: ETH Economic-First E1 clock drift
+
+on:
+  push:
+    branches: [eth-economic-first-e1-clock-drift]
+    paths:
+      - 'ETH_ECONOMIC_FIRST_E1_CLOCK_DRIFT_Preregistration.md'
+      - 'research/eth_economic_first_e1_clock_drift.py'
+      - '.github/workflows/eth_economic_first_e1.yml'
+      - '.eth-economic-first-e1-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e1:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH Economic-First E1
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOG=ETH_ECONOMIC_FIRST_E1_CLOCK_DRIFT_Run.log
+          echo 'ETH Economic-First E1 clock drift' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_economic_first_e1_clock_drift.py 2>&1 | tee -a "$LOG"
+          python research/eth_economic_first_e1_clock_drift.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eth-economic-first-e1-clock-drift
+          path: |
+            ETH_ECONOMIC_FIRST_E1_CLOCK_DRIFT_*
