@@ -1,0 +1,31 @@
+name: ETH Economic-First E10B fine region
+on:
+  push:
+    branches: [eth-economic-first-e10b-fine-region]
+    paths:
+      - 'research/eth_economic_first_e10b_fine_region.py'
+      - 'ETH_ECONOMIC_FIRST_E10B_FINE_REGION_Preregistration.md'
+      - '.eth-economic-first-e10b-trigger'
+      - '.github/workflows/eth_economic_first_e10b.yml'
+  workflow_dispatch:
+jobs:
+  e10b:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH Economic-First E10B
+        run: |
+          set -euo pipefail
+          LOG=ETH_ECONOMIC_FIRST_E10B_FINE_REGION_Run.log
+          echo 'ETH Economic-First E10B fine region refinement' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_economic_first_e10b_fine_region.py 2>&1 | tee -a "$LOG"
+          python research/eth_economic_first_e10b_fine_region.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-economic-first-e10b-fine-region
+          path: ETH_ECONOMIC_FIRST_E10B_FINE_REGION_*
