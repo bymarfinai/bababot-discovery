@@ -6,6 +6,7 @@ on:
     paths:
       - 'ETH_DISCOVERY2_RESET_G4_ENTRY_DISCOVERY_Preregistration.md'
       - 'research/eth_discovery2_reset_g4_entry_discovery.py'
+      - 'research/eth_discovery2_reset_g4_entry_discovery_corrected.py'
       - '.github/workflows/eth_discovery2_reset_g4.yml'
       - '.eth-discovery2-reset-g4-trigger'
   workflow_dispatch:
@@ -29,8 +30,8 @@ jobs:
           LOG=ETH_DISCOVERY2_RESET_G4_ENTRY_DISCOVERY_Run.log
           echo 'ETH Discovery 2 Reset G4 entry discovery' > "$LOG"
           echo "commit=$GITHUB_SHA" >> "$LOG"
-          python -m py_compile research/eth_discovery2_reset_g4_entry_discovery.py 2>&1 | tee -a "$LOG"
-          python research/eth_discovery2_reset_g4_entry_discovery.py 2>&1 | tee -a "$LOG"
+          python -m py_compile research/eth_discovery2_reset_g4_entry_discovery.py research/eth_discovery2_reset_g4_entry_discovery_corrected.py 2>&1 | tee -a "$LOG"
+          python research/eth_discovery2_reset_g4_entry_discovery_corrected.py 2>&1 | tee -a "$LOG"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
