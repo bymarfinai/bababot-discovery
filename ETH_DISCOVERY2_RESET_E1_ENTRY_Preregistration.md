@@ -47,7 +47,7 @@ For resting limits:
 3. If eligible bar opens at/below limit, fill at open (price improvement).
 4. Else if low <= limit, fill at the fixed limit.
 5. If completed close <L occurs before any fill, order is cancelled from the next bar onward.
-6. If an intrabar limit fill occurs and that same bar later closes <L, the fill remains valid; post-entry outcome evaluation starts from the next raw bar to avoid unknown intrabar ordering.
+6. If an intrabar limit fill occurs and that same bar later closes <L, the fill remains valid and that completed close is safely classifiable as OPPOSITE because the limit touch necessarily occurred before bar close. Other same-bar high/checkpoint excursions are not credited for an intrabar fill because their ordering relative to the fill is unknown. Subsequent path evaluation starts from the next raw bar.
 7. If a strict close >H occurs before fill, the resting candidate expires as missed continuation and cannot fill later.
 8. Order expires at its 30m/60m window if unfilled.
 
