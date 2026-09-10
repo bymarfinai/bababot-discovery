@@ -1,0 +1,39 @@
+name: ETH Economic-First E2 drive response
+
+on:
+  push:
+    branches: [eth-economic-first-e2-drive-response]
+    paths:
+      - 'ETH_ECONOMIC_FIRST_E2_DRIVE_RESPONSE_Preregistration.md'
+      - 'research/eth_economic_first_e2_drive_response.py'
+      - '.github/workflows/eth_economic_first_e2.yml'
+      - '.eth-economic-first-e2-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH Economic-First E2
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOG=ETH_ECONOMIC_FIRST_E2_DRIVE_RESPONSE_Run.log
+          echo 'ETH Economic-First E2 drive response' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_economic_first_e2_drive_response.py 2>&1 | tee -a "$LOG"
+          python research/eth_economic_first_e2_drive_response.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eth-economic-first-e2-drive-response
+          path: |
+            ETH_ECONOMIC_FIRST_E2_DRIVE_RESPONSE_*
