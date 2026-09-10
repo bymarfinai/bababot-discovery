@@ -1,0 +1,39 @@
+name: ETH Economic-First E6 low-drive management
+
+on:
+  push:
+    branches: [eth-economic-first-e6-lowdrive-management]
+    paths:
+      - 'ETH_ECONOMIC_FIRST_E6_LOWDRIVE_MANAGEMENT_Preregistration.md'
+      - 'research/eth_economic_first_e6_lowdrive_management.py'
+      - '.github/workflows/eth_economic_first_e6.yml'
+      - '.eth-economic-first-e6-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e6:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH Economic-First E6
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOG=ETH_ECONOMIC_FIRST_E6_LOWDRIVE_MANAGEMENT_Run.log
+          echo 'ETH Economic-First E6 low-drive management frontier' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_economic_first_e6_lowdrive_management.py 2>&1 | tee -a "$LOG"
+          python research/eth_economic_first_e6_lowdrive_management.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eth-economic-first-e6-lowdrive-management
+          path: |
+            ETH_ECONOMIC_FIRST_E6_LOWDRIVE_MANAGEMENT_*
