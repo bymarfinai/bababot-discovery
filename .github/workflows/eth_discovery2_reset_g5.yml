@@ -1,0 +1,39 @@
+name: ETH Discovery 2 Reset G5 economic translation
+
+on:
+  push:
+    branches: [eth-discovery2-reset-g5-economic-translation]
+    paths:
+      - 'ETH_DISCOVERY2_RESET_G5_ECONOMIC_TRANSLATION_Preregistration.md'
+      - 'research/eth_discovery2_reset_g5_economic_translation.py'
+      - '.github/workflows/eth_discovery2_reset_g5.yml'
+      - '.eth-discovery2-reset-g5-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  g5:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH Discovery 2 Reset G5
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOG=ETH_DISCOVERY2_RESET_G5_ECONOMIC_TRANSLATION_Run.log
+          echo 'ETH Discovery 2 Reset G5 economic translation' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_discovery2_reset_g5_economic_translation.py 2>&1 | tee -a "$LOG"
+          python research/eth_discovery2_reset_g5_economic_translation.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eth-discovery2-reset-g5-economic-translation
+          path: |
+            ETH_DISCOVERY2_RESET_G5_ECONOMIC_TRANSLATION_*
