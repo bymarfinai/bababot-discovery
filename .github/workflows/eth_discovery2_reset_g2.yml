@@ -1,0 +1,39 @@
+name: ETH Discovery 2 Reset G2 geometry refinement
+
+on:
+  push:
+    branches: [eth-discovery2-reset-g2-geometry-refine]
+    paths:
+      - 'ETH_DISCOVERY2_RESET_G2_GEOMETRY_REFINE_Preregistration.md'
+      - 'research/eth_discovery2_reset_g2_geometry_refine.py'
+      - '.github/workflows/eth_discovery2_reset_g2.yml'
+      - '.eth-discovery2-reset-g2-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  g2:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH Discovery 2 Reset G2
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOG=ETH_DISCOVERY2_RESET_G2_GEOMETRY_REFINE_Run.log
+          echo 'ETH Discovery 2 Reset G2 geometry refinement' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_discovery2_reset_g2_geometry_refine.py 2>&1 | tee -a "$LOG"
+          python research/eth_discovery2_reset_g2_geometry_refine.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eth-discovery2-reset-g2-geometry-refine
+          path: |
+            ETH_DISCOVERY2_RESET_G2_GEOMETRY_REFINE_*
