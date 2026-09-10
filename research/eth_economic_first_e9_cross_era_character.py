@@ -70,15 +70,12 @@ def candidate_rows_for_pair(x5: pd.DataFrame, clock: int, lb: int):
             net_all = gross_all - FEE
             for regime in REGIMES:
                 rm = regime_mask(strength, regime)
-                # Development aggregate is the union of same-calendar-year contained trades.
-                year_masks = {}
                 dev_mask = np.zeros(len(S), dtype=bool)
                 year_stats = {}
                 for y in YEARS:
                     ya = pd.Timestamp(f"{y}-01-01", tz="UTC")
                     yz = pd.Timestamp(f"{y+1}-01-01", tz="UTC")
                     ym = base_dev & rm & (pre >= ya) & (ent >= ya) & (ex < yz)
-                    year_masks[y] = ym
                     dev_mask |= ym
                     year_stats[y] = summarize_arr(net_all[ym], gross_all[ym])
                 s = summarize_arr(net_all[dev_mask], gross_all[dev_mask])
@@ -182,13 +179,20 @@ def selected_trade_df(x5: pd.DataFrame, part: str, sel) -> pd.DataFrame:
     ex,valid,xp,delta,sign=e3.hold_base(x5,S,int(sel.hold_min))
     pa,pz=base.PARTS[part]
     m=valid&(pre>=pa)&(ent>=pa)&(ex<pz)&regime_mask(strength,str(sel.strength_regime))
-    direction=sign if str(sel.mode)=="MOMENTUM" else -sign
+    if part == "development":
+        same_year=np.zeros(len(S),dtype=bool)
+        for y in YEARS:
+            ya=pd.Timestamp(f"{y}-01-01",tz="UTC"); yz=pd.Timestamp(f"{y+1}-01-01",tz="UTC")
+            same_year |= (pre>=ya)&(ent>=ya)&(ex<yz)
+        m &= same_year
+    mode=str(sel["mode"])
+    direction=sign if mode=="MOMENTUM" else -sign
     gross=NOTIONAL*direction*delta; net=gross-FEE
     idx=np.where(m)[0]
     return pd.DataFrame({
         "partition":part,
         "clock_utc":str(sel.clock_utc),"clock_wib":str(sel.clock_wib),
-        "lookback_min":int(sel.lookback_min),"mode":str(sel.mode),"strength_regime":str(sel.strength_regime),"hold_min":int(sel.hold_min),
+        "lookback_min":int(sel.lookback_min),"mode":mode,"strength_regime":str(sel.strength_regime),"hold_min":int(sel.hold_min),
         "pre_ts":pre[idx],"entry_ts":ent[idx],"exit_ts":ex[idx],
         "pre_price":S.pre_price.to_numpy(float)[idx],"entry_price":S.entry_price.to_numpy(float)[idx],"exit_price":xp[idx],
         "drive_return":S.drive_return.to_numpy(float)[idx],"strength_pct":strength[idx],
@@ -246,6 +250,7 @@ def main():
     ]
 
     Tdev=selected_trade_df(x5,"development",sel)
+    if len(Tdev)!=int(sel.trades): raise AssertionError(f"selected Development cohort mismatch {len(Tdev)} != {int(sel.trades)}")
     if bool(sel.boundary):
         status="ETH_ECONOMIC_FIRST_E9_BOUNDARY_OPEN"; OUT_STATUS.write_text(status+"\n"); Tdev.to_csv(OUT_TRADES,index=False)
         lines += ["","Winner touches a preregistered lookback/hold sentinel; holdouts remain closed.","",f"**Status: {status}**","","Research/shadow only."]
