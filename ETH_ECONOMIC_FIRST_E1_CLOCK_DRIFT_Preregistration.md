@@ -65,9 +65,11 @@ Total Development candidates:
 A trade is included only when both exact entry and exact exit bars exist and the complete interval lies inside the requested partition.
 
 ## Trade PnL
-LONG gross return = `exit / entry - 1`.
+This is linear USDT-margined fixed-notional PnL.
 
-SHORT gross return = `entry / exit - 1`.
+LONG gross return = `(exit - entry) / entry`.
+
+SHORT gross return = `(entry - exit) / entry`.
 
 Gross PnL = `$500 × gross return`.
 
