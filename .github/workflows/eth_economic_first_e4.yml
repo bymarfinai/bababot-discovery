@@ -1,0 +1,39 @@
+name: ETH Economic-First E4 boundary refinement
+
+on:
+  push:
+    branches: [eth-economic-first-e4-boundary-refinement]
+    paths:
+      - 'ETH_ECONOMIC_FIRST_E4_BOUNDARY_REFINEMENT_Preregistration.md'
+      - 'research/eth_economic_first_e4_boundary_refinement.py'
+      - '.github/workflows/eth_economic_first_e4.yml'
+      - '.eth-economic-first-e4-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e4:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH Economic-First E4
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOG=ETH_ECONOMIC_FIRST_E4_BOUNDARY_REFINEMENT_Run.log
+          echo 'ETH Economic-First E4 boundary refinement' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_economic_first_e4_boundary_refinement.py 2>&1 | tee -a "$LOG"
+          python research/eth_economic_first_e4_boundary_refinement.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eth-economic-first-e4-boundary-refinement
+          path: |
+            ETH_ECONOMIC_FIRST_E4_BOUNDARY_REFINEMENT_*
