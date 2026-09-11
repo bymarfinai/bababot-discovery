@@ -8,6 +8,9 @@ on:
       - '.github/workflows/eth_e15b_sequential_portfolio.yml'
       - '.e15b-trigger'
 
+permissions:
+  contents: write
+
 jobs:
   replay:
     runs-on: ubuntu-24.04
@@ -19,6 +22,17 @@ jobs:
       - run: pip install pandas numpy requests
       - name: Run E15B sequential replay
         run: python research/eth_e15b_sequential_portfolio.py
+      - name: Persist E15B outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_E15B_SEQUENTIAL_PORTFOLIO_*
+          if git diff --cached --quiet; then
+            echo "No result changes to persist"
+          else
+            git commit -m "research: persist ETH E15B sequential results"
+            git push
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: eth-e15b-sequential-portfolio
