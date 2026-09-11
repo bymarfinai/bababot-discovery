@@ -1,0 +1,32 @@
+name: SOL Economic-First frozen-winner OOS validation
+
+on:
+  push:
+    branches:
+      - sol-economic-first-oos-validation
+    paths:
+      - '.sol-economic-first-oos-validation-trigger'
+
+jobs:
+  sol-oos-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered SOL frozen-winner OOS validation
+        run: |
+          set -euo pipefail
+          LOG=SOL_ECONOMIC_FIRST_OOS_VALIDATION_Run.log
+          echo 'SOL Economic-First frozen-winner OOS validation' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/sol_economic_first_oos_validation.py 2>&1 | tee -a "$LOG"
+          python research/sol_economic_first_oos_validation.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-economic-first-oos-validation
+          path: SOL_ECONOMIC_FIRST_OOS_VALIDATION_*
+          if-no-files-found: error
