@@ -1,0 +1,54 @@
+name: ETH E15A max-6h parallel 24h
+
+on:
+  push:
+    branches: [eth-e15a-long-max6h-24h]
+    paths:
+      - 'research/eth_e15a_max6h_hour_worker.py'
+      - 'research/eth_e15a_max6h_aggregate.py'
+      - '.github/workflows/eth_e15a_max6h_parallel.yml'
+      - '.e15a-parallel-trigger'
+
+jobs:
+  hour:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        hour: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run hour
+        env:
+          E15A_HOUR_WIB: ${{ matrix.hour }}
+        run: python research/eth_e15a_max6h_hour_worker.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: e15a-hour-${{ matrix.hour }}
+          path: ETH_E15A_H*_*.csv
+          if-no-files-found: error
+
+  aggregate:
+    needs: hour
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: e15a-hour-*
+          path: .
+          merge-multiple: true
+      - run: python research/eth_e15a_max6h_aggregate.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-e15a-max6h-24h-parallel
+          path: ETH_E15A_LONG_MAX6H_24H_PARALLEL_*
+          if-no-files-found: error
