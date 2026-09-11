@@ -1,0 +1,36 @@
+name: ETH E14A 24H daily campaign aggregation
+
+on:
+  push:
+    branches:
+      - eth-e14a-24h-daily-campaign
+    paths:
+      - 'research/eth_e14a_24h_daily_campaign.py'
+      - 'ETH_E14A_24H_DAILY_CAMPAIGN_PREREGISTRATION.md'
+      - 'ETH_E14A_TRIGGER.txt'
+      - '.github/workflows/eth_e14a_24h_daily_campaign.yml'
+  workflow_dispatch:
+
+jobs:
+  e14a:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH E14A
+        run: |
+          set -euo pipefail
+          LOG=ETH_E14A_24H_DAILY_CAMPAIGN_Run.log
+          echo 'ETH E14A 24H daily campaign aggregation' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_e14a_24h_daily_campaign.py 2>&1 | tee -a "$LOG"
+          python research/eth_e14a_24h_daily_campaign.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-e14a-24h-daily-campaign
+          path: ETH_E14A_24H_DAILY_CAMPAIGN_*
+          if-no-files-found: error
