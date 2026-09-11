@@ -1,0 +1,32 @@
+name: ETH E13C native-hold sequential audit
+
+on:
+  push:
+    branches:
+      - eth-e13c-e12-native-hold-sequential
+    paths:
+      - '.eth-e13c-trigger'
+
+jobs:
+  e13c:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH E13C
+        run: |
+          set -euo pipefail
+          LOG=ETH_E13C_E12_NATIVE_HOLD_SEQUENTIAL_Run.log
+          echo 'ETH E13C E12 native-hold one-position sequential audit' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_e13c_e12_native_hold_sequential.py 2>&1 | tee -a "$LOG"
+          python research/eth_e13c_e12_native_hold_sequential.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-e13c-e12-native-hold-sequential
+          path: ETH_E13C_E12_NATIVE_HOLD_SEQUENTIAL_*
+          if-no-files-found: error
