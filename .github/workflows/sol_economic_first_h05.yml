@@ -1,0 +1,32 @@
+name: SOL Economic-First H05 one-hour LONG character
+
+on:
+  push:
+    branches:
+      - sol-economic-first-h05-long-12-13wib-character
+    paths:
+      - '.sol-economic-first-h05-trigger'
+
+jobs:
+  sol-h05:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered SOL Economic-First H05
+        run: |
+          set -euo pipefail
+          LOG=SOL_ECONOMIC_FIRST_H05_LONG_12_13WIB_CHARACTER_Run.log
+          echo 'SOL Economic-First H05 one-hour LONG character discovery' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/sol_economic_first_h05_long_12_13wib_character.py 2>&1 | tee -a "$LOG"
+          python research/sol_economic_first_h05_long_12_13wib_character.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-economic-first-h05-long-12-13wib-character
+          path: SOL_ECONOMIC_FIRST_H05_LONG_12_13WIB_CHARACTER_*
+          if-no-files-found: warn
