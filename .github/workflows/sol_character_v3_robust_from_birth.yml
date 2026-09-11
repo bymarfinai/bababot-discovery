@@ -1,0 +1,64 @@
+name: SOL Character V3 Robust-from-Birth
+
+on:
+  push:
+    branches:
+      - sol-character-v3-robust-from-birth
+    paths:
+      - '.sol-character-v3-trigger'
+
+jobs:
+  session:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        session: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered V3 session worker
+        run: |
+          set -euo pipefail
+          python -m py_compile research/sol_character_v3_robust_from_birth.py
+          python research/sol_character_v3_robust_from_birth.py --session ${{ matrix.session }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-v3-session-${{ matrix.session }}
+          path: |
+            SOL_CHARACTER_V3_ROBUST_FROM_BIRTH_Session_*_Grid.csv
+            SOL_CHARACTER_V3_ROBUST_FROM_BIRTH_Session_*_Status.txt
+          if-no-files-found: error
+
+  aggregate:
+    needs: session
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sol-v3-session-*
+          path: v3-session-results
+          merge-multiple: true
+      - name: Aggregate frozen V3 result
+        run: |
+          set -euo pipefail
+          LOG=SOL_CHARACTER_V3_ROBUST_FROM_BIRTH_Run.log
+          echo 'SOL Character Discovery V3 Robust-from-Birth exact execution' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/sol_character_v3_robust_from_birth.py 2>&1 | tee -a "$LOG"
+          python research/sol_character_v3_robust_from_birth.py --aggregate v3-session-results 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-character-v3-robust-from-birth-final
+          path: SOL_CHARACTER_V3_ROBUST_FROM_BIRTH_*
+          if-no-files-found: error
