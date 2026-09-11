@@ -1,0 +1,2 @@
+hour_wib,region_id,character_rule,lookback_min,hold_min,train_trades,train_wr,train_net,train_exp,train_pf,train_dd,train_ls,positive_halves,min_half_exp,region_cells,region_strict_temporal_cells,region_median_exp,region_median_pf,region_median_dd,validation_opened
+1,1,EFF_HIGH__RV_LOW,240,360,167,0.6526946107784432,314.78051735794213,1.8849132775924677,2.1327085794505867,65.69901455039422,4,3,-0.17625441889115306,5,2,1.8849132775924677,2.072569362266715,65.69901455039422,False
