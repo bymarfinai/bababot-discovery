@@ -1,0 +1,33 @@
+name: ETH E14B 24H opportunity-cost scheduler
+
+on:
+  push:
+    branches:
+      - eth-e14b-24h-opportunity-scheduler
+    paths:
+      - '.eth-e14b-trigger'
+  workflow_dispatch:
+
+jobs:
+  e14b:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH E14B
+        run: |
+          set -euo pipefail
+          LOG=ETH_E14B_24H_OPPORTUNITY_SCHEDULER_Run.log
+          echo 'ETH E14B 24H causal opportunity-cost scheduler' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_e14b_24h_opportunity_scheduler.py 2>&1 | tee -a "$LOG"
+          python research/eth_e14b_24h_opportunity_scheduler.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-e14b-24h-opportunity-scheduler
+          path: ETH_E14B_24H_OPPORTUNITY_SCHEDULER_*
+          if-no-files-found: error
