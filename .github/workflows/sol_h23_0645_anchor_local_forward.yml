@@ -1,0 +1,32 @@
+name: SOL H23 06:45 WIB anchor-local forward shadow
+
+on:
+  push:
+    branches:
+      - sol-h23-0645-anchor-local-forward
+    paths:
+      - '.sol-h23-0645-anchor-local-forward-trigger'
+
+jobs:
+  sol-h23-0645-forward:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered SOL H23 06:45 anchor-local forward shadow
+        run: |
+          set -euo pipefail
+          LOG=SOL_H23_0645_ANCHOR_LOCAL_FORWARD_Run.log
+          echo 'SOL H23 06:45 WIB anchor-local forward shadow' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/sol_h23_0645_anchor_local_forward.py 2>&1 | tee -a "$LOG"
+          python research/sol_h23_0645_anchor_local_forward.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-h23-0645-anchor-local-forward
+          path: SOL_H23_0645_ANCHOR_LOCAL_FORWARD_*
+          if-no-files-found: error
