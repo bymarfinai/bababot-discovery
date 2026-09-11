@@ -1,0 +1,2 @@
+hour_wib,character_rule,lookback_min,hold_min,train_trades,train_wr,train_exp,train_pf,validation_trades,validation_wr,validation_net,validation_exp,validation_pf,validation_dd,validation_ls,validation_pass,validation_opened,oos_2025plus_opened
+1,EFF_HIGH__RV_LOW,240,360,167,0.6526946107784432,1.884913277592468,2.1327085794505867,98,0.4387755102040816,219.01591275342187,2.2348562525859377,2.2072213317946585,102.95376765542676,17,False,True,False
