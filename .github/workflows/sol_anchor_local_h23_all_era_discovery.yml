@@ -1,0 +1,32 @@
+name: SOL H23 exact-anchor all-era discovery
+
+on:
+  push:
+    branches:
+      - sol-anchor-local-h23-all-era-discovery
+    paths:
+      - '.sol-anchor-local-h23-all-era-discovery-trigger'
+
+jobs:
+  sol-h23-anchor-local:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered SOL H23 exact-anchor all-era discovery
+        run: |
+          set -euo pipefail
+          LOG=SOL_ANCHOR_LOCAL_H23_ALL_ERA_DISCOVERY_Run.log
+          echo 'SOL H23 exact-anchor all-era discovery' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/sol_anchor_local_h23_all_era_discovery.py 2>&1 | tee -a "$LOG"
+          python research/sol_anchor_local_h23_all_era_discovery.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-anchor-local-h23-all-era-discovery
+          path: SOL_ANCHOR_LOCAL_H23_ALL_ERA_DISCOVERY_*
+          if-no-files-found: error
