@@ -1,0 +1,34 @@
+name: ETH E15A 24H max-6h LONG rediscovery
+
+on:
+  push:
+    branches: [eth-e15a-long-max6h-24h]
+    paths:
+      - 'research/ETH_E15A_MAX6H_24H_PREREGISTRATION.md'
+      - 'research/eth_e15a_long_max6h_24h.py'
+      - '.github/workflows/eth_e15a_long_max6h_24h.yml'
+      - '.e15a-trigger'
+
+jobs:
+  e15a:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH E15A
+        run: |
+          set -euo pipefail
+          LOG=ETH_E15A_LONG_MAX6H_24H_Run.log
+          echo 'ETH E15A 24H LONG max-6h rediscovery' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_e15a_long_max6h_24h.py 2>&1 | tee -a "$LOG"
+          python research/eth_e15a_long_max6h_24h.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-e15a-long-max6h-24h
+          path: ETH_E15A_LONG_MAX6H_24H_*
+          if-no-files-found: error
