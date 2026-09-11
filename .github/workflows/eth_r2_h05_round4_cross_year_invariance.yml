@@ -1,0 +1,47 @@
+name: ETH R2 H05 round4 cross-year invariance
+
+on:
+  push:
+    branches:
+      - eth-r2-h05-robust-lab
+    paths:
+      - '.r2-h05-r4-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  round4:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run R2 H05 round4 cross-year invariance
+        run: python research/eth_r2_h05_round4_cross_year_invariance.py
+      - name: Persist R2 H05 round4 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R2_H05_R4_CrossYearGrid.csv ETH_R2_H05_R4_Regions.csv ETH_R2_H05_R4_Result.md ETH_R2_H05_R4_Status.txt
+          if [ -f ETH_R2_H05_R4_FrozenRegion.csv ]; then git add ETH_R2_H05_R4_FrozenRegion.csv; fi
+          if git diff --cached --quiet; then
+            echo "No result changes to persist"
+          else
+            git commit -m "research: persist ETH R2 H05 round4 invariance"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin HEAD:"$GITHUB_REF_NAME"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r2-h05-round4-cross-year-invariance
+          path: |
+            ETH_R2_H05_R4_CrossYearGrid.csv
+            ETH_R2_H05_R4_Regions.csv
+            ETH_R2_H05_R4_Result.md
+            ETH_R2_H05_R4_Status.txt
+            ETH_R2_H05_R4_FrozenRegion.csv
+          if-no-files-found: warn
