@@ -1,0 +1,1 @@
+trigger ETH E14A preregistered 24h daily campaign aggregation
