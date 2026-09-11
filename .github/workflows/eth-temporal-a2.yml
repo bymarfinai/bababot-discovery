@@ -1,0 +1,36 @@
+name: ETH Temporal A2 Minimal State
+on:
+  push:
+    paths:
+      - '.github/workflows/eth-temporal-a2.yml'
+      - 'research/eth_temporal_a2_23wib_minimal_state.py'
+      - 'research/ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_PREREG.md'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: python research/eth_temporal_a2_23wib_minimal_state.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-temporal-a2-results
+          path: |
+            ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_Candidates.csv
+            ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_Yearly.csv
+            ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_Thresholds.csv
+            ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_Family_Best.csv
+            ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_Result.md
+            ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_Status.txt
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_Candidates.csv ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_Yearly.csv ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_Thresholds.csv ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_Family_Best.csv ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_Result.md ETH_TEMPORAL_A2_23WIB_MINIMAL_STATE_Status.txt
+          git commit -m 'research: persist ETH Temporal A2 results' || true
+          git push
