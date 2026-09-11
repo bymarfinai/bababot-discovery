@@ -1,0 +1,32 @@
+name: ETH Economic-First E12H one-hour LONG character
+
+on:
+  push:
+    branches:
+      - eth-e12h-long-20-21wib-character
+    paths:
+      - '.eth-e12h-trigger'
+
+jobs:
+  e12h:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH Economic-First E12H
+        run: |
+          set -euo pipefail
+          LOG=ETH_ECONOMIC_FIRST_E12H_LONG_20_21WIB_CHARACTER_Run.log
+          echo 'ETH Economic-First E12H one-hour LONG character discovery' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_economic_first_e12h_long_20_21wib_character.py 2>&1 | tee -a "$LOG"
+          python research/eth_economic_first_e12h_long_20_21wib_character.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-economic-first-e12h-long-20-21wib-character
+          path: ETH_ECONOMIC_FIRST_E12H_LONG_20_21WIB_CHARACTER_*
+          if-no-files-found: warn
