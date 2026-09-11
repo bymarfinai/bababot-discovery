@@ -1,0 +1,26 @@
+name: ETH E15B sequential portfolio replay
+
+on:
+  push:
+    branches: [eth-e15b-sequential-portfolio]
+    paths:
+      - 'research/eth_e15b_sequential_portfolio.py'
+      - '.github/workflows/eth_e15b_sequential_portfolio.yml'
+      - '.e15b-trigger'
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run E15B sequential replay
+        run: python research/eth_e15b_sequential_portfolio.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-e15b-sequential-portfolio
+          path: ETH_E15B_SEQUENTIAL_PORTFOLIO_*
+          if-no-files-found: error
