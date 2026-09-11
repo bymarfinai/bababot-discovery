@@ -22,7 +22,9 @@ LOOKBACK = 15
 HOLD = 120
 RULE = "DRIVE_DOWN__STR_B80_100"
 FWD_START = pd.Timestamp("2026-08-01T00:00:00Z")
-FWD_END = pd.Timestamp("2026-09-12T00:00:00Z")
+ORIGINAL_TARGET_END = pd.Timestamp("2026-09-12T00:00:00Z")
+# Amendment 1: source availability was known before any forward outcome exposure.
+FWD_END = pd.Timestamp("2026-09-11T00:00:00Z")
 
 
 def support_gate(stats: dict) -> bool:
@@ -49,8 +51,8 @@ def money(value: float) -> str:
 
 
 def main() -> None:
-    # Extend the existing raw-data loader only to the preregistered forward end.
-    # Historical bars are required solely for causal rolling-state construction.
+    # Load exactly through the preregistered complete-data interim end.
+    # Historical bars before FWD_START are required solely for causal state construction.
     base.END = FWD_END
     x5, coverage = base.load5("SOLUSDT")
     required_last = FWD_END - pd.Timedelta(minutes=5)
@@ -112,7 +114,8 @@ def main() -> None:
 
     summary = pd.DataFrame([{
         "forward_start": FWD_START,
-        "forward_end_exclusive": FWD_END,
+        "interim_forward_end_exclusive": FWD_END,
+        "original_target_end_exclusive": ORIGINAL_TARGET_END,
         "source_last_bar": x5.index.max(),
         "coverage": coverage,
         "clock_utc": "23:45",
@@ -131,12 +134,14 @@ def main() -> None:
     lines = [
         "# SOL H23 06:45 WIB Anchor-Local Forward Shadow Result",
         "",
-        f"Forward window: **{FWD_START.isoformat()}** to **{FWD_END.isoformat()}** exclusive.",
+        f"Complete-data interim forward window: **{FWD_START.isoformat()}** to **{FWD_END.isoformat()}** exclusive.",
+        f"Original preregistered target end retained in audit trail: **{ORIGINAL_TARGET_END.isoformat()}** exclusive.",
         f"Raw source last 5m bar: **{x5.index.max().isoformat()}**.",
         f"Raw SOLUSDT 5m coverage: **{coverage:.4%}**.",
         "",
         "Frozen candidate: **23:45 UTC / 06:45 WIB — DRIVE_DOWN__STR_B80_100 / LB15 / hold120m**.",
         "No alternate clock, rule, lookback, hold, entry, or exit was scanned.",
+        "Interim cutoff was frozen solely from source-data availability before any forward outcome was exposed.",
         "",
         "## Forward aggregate",
         "",
@@ -169,7 +174,7 @@ def main() -> None:
     ]
     if stats["trades"] < 40:
         lines += [
-            "The frozen supportive gate requires N >= 40. This first forward window is therefore formally insufficient regardless of observed WR or PnL.",
+            "The frozen supportive gate requires N >= 40. This interim forward window is therefore formally insufficient regardless of observed WR or PnL.",
             "The result is a shadow observation only and must not be used to tune or replace the candidate.",
         ]
     else:
