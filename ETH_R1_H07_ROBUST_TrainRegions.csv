@@ -1,0 +1,2 @@
+region_id,character_rule,cells,lookbacks,holds,strict_temporal_cells,median_expectancy,median_pf,median_max_dd,qualifies
+1,DRIVE_DOWN__EXT_MID,2,240,360;480,0,0.199283671891373,1.0632808307664634,130.79906329492454,False
