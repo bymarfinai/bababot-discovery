@@ -1,0 +1,64 @@
+name: SOL Robustness-First Discovery V2 Parallel
+
+on:
+  push:
+    branches:
+      - sol-robustness-first-v2-discovery
+    paths:
+      - '.sol-robustness-first-v2-parallel-trigger'
+
+jobs:
+  hourly:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        hour: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen V2 hourly worker
+        run: |
+          set -euo pipefail
+          python -m py_compile research/sol_robustness_first_v2.py research/sol_robustness_first_v2_hour.py
+          python research/sol_robustness_first_v2_hour.py --hour ${{ matrix.hour }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-v2-hour-${{ matrix.hour }}
+          path: |
+            SOL_ROBUSTNESS_FIRST_V2_H*_Grid.csv
+            SOL_ROBUSTNESS_FIRST_V2_H*_Meta.txt
+          if-no-files-found: error
+
+  aggregate:
+    needs: hourly
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sol-v2-hour-*
+          path: v2-hour-results
+          merge-multiple: true
+      - name: Aggregate exact frozen V2 result
+        run: |
+          set -euo pipefail
+          LOG=SOL_ROBUSTNESS_FIRST_V2_Parallel_Run.log
+          echo 'SOL Robustness-First Discovery V2 parallel exact execution' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/sol_robustness_first_v2_aggregate.py 2>&1 | tee -a "$LOG"
+          python research/sol_robustness_first_v2_aggregate.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-robustness-first-v2-final
+          path: SOL_ROBUSTNESS_FIRST_V2_*
+          if-no-files-found: error
