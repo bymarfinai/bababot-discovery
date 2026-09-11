@@ -34,7 +34,8 @@ jobs:
             echo "No result changes to persist"
           else
             git commit -m "research: persist ETH R1 H01 train result"
-            git push
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin HEAD:"$GITHUB_REF_NAME"
           fi
       - uses: actions/upload-artifact@v4
         with:
