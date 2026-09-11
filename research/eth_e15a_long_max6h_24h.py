@@ -60,7 +60,6 @@ def main():
     if coverage < .995:
         raise RuntimeError(f"coverage too low {coverage}")
 
-    # Freeze the altered search family globally for exact reuse of E12 candidate evaluator.
     e12.HOLDS = HOLDS
     e12.LOOKBACKS = LOOKBACKS
 
@@ -79,7 +78,6 @@ def main():
         D.insert(0, "hour_wib", hour)
         C = rank_passers(D)
         if len(C):
-            C.insert(0, "hour_wib", hour)
             all_passers.append(C)
         r = representative(D)
         hour_rows.append({
