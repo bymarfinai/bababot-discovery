@@ -1,0 +1,32 @@
+name: SOL Economic-First Four-Winner Reference Validation
+
+on:
+  push:
+    branches:
+      - sol-economic-first-4winner-reference-validation
+    paths:
+      - '.sol-economic-first-4winner-reference-validation-trigger'
+
+jobs:
+  sol-4winner-reference-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered SOL four-winner Reference Validation
+        run: |
+          set -euo pipefail
+          LOG=SOL_ECONOMIC_FIRST_4WINNER_REFERENCE_VALIDATION_Run.log
+          echo 'SOL four-winner frozen Reference Validation' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/sol_economic_first_4winner_reference_validation.py 2>&1 | tee -a "$LOG"
+          python research/sol_economic_first_4winner_reference_validation.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-economic-first-4winner-reference-validation
+          path: SOL_ECONOMIC_FIRST_4WINNER_REFERENCE_VALIDATION_*
+          if-no-files-found: error
