@@ -1,0 +1,45 @@
+name: ETH R1 H01 2024 validation
+
+on:
+  push:
+    branches:
+      - eth-r1-robust-native-discovery
+    paths:
+      - 'research/eth_r1_h01_2024_validation.py'
+      - '.github/workflows/eth_r1_h01_2024_validation.yml'
+      - '.r1-h01-validation-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run one-shot frozen 2024 validation
+        run: python research/eth_r1_h01_2024_validation.py
+      - name: Persist H01 validation outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R1_H01_ROBUST_ValidationEvents.csv ETH_R1_H01_ROBUST_ValidationAnchors.csv ETH_R1_H01_ROBUST_ValidationHalves.csv ETH_R1_H01_ROBUST_ValidationSummary.csv ETH_R1_H01_ROBUST_ValidationResult.md ETH_R1_H01_ROBUST_ValidationStatus.txt
+          git commit -m "research: persist ETH R1 H01 one-shot validation"
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin HEAD:"$GITHUB_REF_NAME"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r1-h01-2024-validation
+          path: |
+            ETH_R1_H01_ROBUST_ValidationEvents.csv
+            ETH_R1_H01_ROBUST_ValidationAnchors.csv
+            ETH_R1_H01_ROBUST_ValidationHalves.csv
+            ETH_R1_H01_ROBUST_ValidationSummary.csv
+            ETH_R1_H01_ROBUST_ValidationResult.md
+            ETH_R1_H01_ROBUST_ValidationStatus.txt
+          if-no-files-found: error
