@@ -1,0 +1,3 @@
+region_id,character_rule,cells,lookbacks,holds,strict_both_cells,median_min_year_exp,median_min_year_pf,median_max_year_dd,qualifies
+1,EFF_MID__EXT_LOW,1,240,480,0,1.4223368020005527,1.505983029880113,84.13005304482445,False
+2,DRIVE_DOWN__STR_B0_20,1,120,360,0,0.5999347797642516,1.3431762995635474,104.53383145965296,False
