@@ -1,0 +1,32 @@
+name: ETH E13C source-subset LONG 22-04 WIB
+
+on:
+  push:
+    branches:
+      - eth-e13c-source-subset-long-22-04wib
+    paths:
+      - '.eth-e13c-trigger'
+
+jobs:
+  e13c:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH E13C
+        run: |
+          set -euo pipefail
+          LOG=ETH_E13C_SOURCE_SUBSET_LONG_22_04WIB_Run.log
+          echo 'ETH E13C sequential LONG source-subset discovery' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_e13c_source_subset_long_22_04wib.py 2>&1 | tee -a "$LOG"
+          python research/eth_e13c_source_subset_long_22_04wib.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-e13c-source-subset-long-22-04wib
+          path: ETH_E13C_SOURCE_SUBSET_LONG_22_04WIB_*
+          if-no-files-found: warn
