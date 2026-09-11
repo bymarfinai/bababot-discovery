@@ -1,0 +1,2 @@
+region_id,cells,lookbacks,holds,BASE_strict_temporal_cells,median_timing_median_exp,median_timing_median_pf,qualifies
+1,1,180,240,0,1.9101691902436588,1.93824491187699,False
