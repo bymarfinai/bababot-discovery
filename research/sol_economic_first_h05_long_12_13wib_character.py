@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""Preregistered H05 adapter for the frozen SOL economic-first engine."""
+
+from pathlib import Path
+
+import sol_economic_first_h00_long_07_08wib_character as engine
+
+
+ROOT = Path(__file__).resolve().parent.parent
+PFX = "SOL_ECONOMIC_FIRST_H05_LONG_12_13WIB_CHARACTER"
+
+# Only the independent hour and output namespace change.
+engine.CLOCKS = (300, 315, 330, 345)
+engine.PFX = PFX
+engine.OUT_GRID = ROOT / f"{PFX}_DevelopmentGrid.csv"
+engine.OUT_LEADER = ROOT / f"{PFX}_DevelopmentLeaderboard.csv"
+engine.OUT_ATLAS = ROOT / f"{PFX}_SelectedAnchorAtlas.csv"
+engine.OUT_RESULT = ROOT / f"{PFX}_Result.md"
+engine.OUT_STATUS = ROOT / f"{PFX}_Status.txt"
+
+
+def relabel_outputs() -> None:
+    result = engine.OUT_RESULT.read_text()
+    replacements = (
+        ("SOL Economic-First H00 — 07:00–08:00 WIB", "SOL Economic-First H05 — 12:00–13:00 WIB"),
+        ("00:00–01:00 UTC / 07:00–08:00 WIB", "05:00–06:00 UTC / 12:00–13:00 WIB"),
+        ("07:00–08:00 WIB", "12:00–13:00 WIB"),
+        ("SOL_ECONOMIC_FIRST_H00_", "SOL_ECONOMIC_FIRST_H05_"),
+    )
+    for old, new in replacements:
+        result = result.replace(old, new)
+    engine.OUT_RESULT.write_text(result)
+    engine.OUT_STATUS.write_text(
+        engine.OUT_STATUS.read_text().replace("SOL_ECONOMIC_FIRST_H00_", "SOL_ECONOMIC_FIRST_H05_")
+    )
+
+
+def main() -> None:
+    engine.main()
+    relabel_outputs()
+    print(engine.OUT_RESULT.read_text())
+
+
+if __name__ == "__main__":
+    main()
