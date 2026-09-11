@@ -1,0 +1,38 @@
+name: ETH Temporal A1 Primitive
+on:
+  push:
+    branches: [eth-temporal-a1-primitive]
+    paths:
+      - '.github/workflows/eth-temporal-a1.yml'
+      - 'research/eth_temporal_a1_primitive.py'
+      - 'ETH_TEMPORAL_A1_PRIMITIVE_Preregistration.md'
+      - '.eth-temporal-a1-trigger'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas requests
+      - run: python research/eth_temporal_a1_primitive.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-temporal-a1-results
+          path: |
+            ETH_TEMPORAL_A1_PRIMITIVE_Grid.csv
+            ETH_TEMPORAL_A1_PRIMITIVE_24H_Representatives.csv
+            ETH_TEMPORAL_A1_PRIMITIVE_Yearly.csv
+            ETH_TEMPORAL_A1_PRIMITIVE_Result.md
+            ETH_TEMPORAL_A1_PRIMITIVE_Status.txt
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add ETH_TEMPORAL_A1_PRIMITIVE_Grid.csv ETH_TEMPORAL_A1_PRIMITIVE_24H_Representatives.csv ETH_TEMPORAL_A1_PRIMITIVE_Yearly.csv ETH_TEMPORAL_A1_PRIMITIVE_Result.md ETH_TEMPORAL_A1_PRIMITIVE_Status.txt
+          git commit -m 'research: persist ETH temporal A1 results' || true
+          git push
