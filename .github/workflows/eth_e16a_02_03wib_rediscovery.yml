@@ -5,6 +5,7 @@ on:
     branches: [eth-e16a-long-02-03wib-rediscovery]
     paths:
       - 'research/eth_e16a_long_02_03wib_rediscovery.py'
+      - 'research/eth_e16a_long_02_03wib_rediscovery_v2.py'
       - 'research/ETH_E16A_02_03WIB_PREREGISTRATION.md'
       - '.github/workflows/eth_e16a_02_03wib_rediscovery.yml'
       - '.e16a-trigger'
@@ -23,7 +24,7 @@ jobs:
           python-version: '3.11'
       - run: pip install pandas numpy requests
       - name: Run E16A 02-03 WIB rediscovery
-        run: python research/eth_e16a_long_02_03wib_rediscovery.py
+        run: python research/eth_e16a_long_02_03wib_rediscovery_v2.py
       - name: Persist E16A outputs
         run: |
           git config user.name "github-actions[bot]"
