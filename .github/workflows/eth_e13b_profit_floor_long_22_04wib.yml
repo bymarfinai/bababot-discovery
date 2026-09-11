@@ -1,0 +1,32 @@
+name: ETH E13B profit-floor LONG 22-04 WIB
+
+on:
+  push:
+    branches:
+      - eth-e13b-profit-floor-long-22-04wib
+    paths:
+      - '.eth-e13b-trigger'
+
+jobs:
+  e13b:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH E13B
+        run: |
+          set -euo pipefail
+          LOG=ETH_E13B_PROFIT_FLOOR_LONG_22_04WIB_Run.log
+          echo 'ETH E13B sequential LONG minimum-profit-floor discovery' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_e13b_profit_floor_long_22_04wib.py 2>&1 | tee -a "$LOG"
+          python research/eth_e13b_profit_floor_long_22_04wib.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-e13b-profit-floor-long-22-04wib
+          path: ETH_E13B_PROFIT_FLOOR_LONG_22_04WIB_*
+          if-no-files-found: warn
