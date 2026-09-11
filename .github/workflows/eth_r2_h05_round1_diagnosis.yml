@@ -1,0 +1,44 @@
+name: ETH R2 H05 round1 diagnosis
+
+on:
+  push:
+    branches:
+      - eth-r2-h05-robust-lab
+    paths:
+      - '.r2-h05-r1-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run R2 H05 round1 diagnosis
+        run: python research/eth_r2_h05_round1_diagnosis.py
+      - name: Persist R2 H05 round1 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R2_H05_R1_FamilyDiagnosis.csv ETH_R2_H05_R1_CellDiagnosis.csv ETH_R2_H05_R1_Result.md ETH_R2_H05_R1_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes to persist"
+          else
+            git commit -m "research: persist ETH R2 H05 round1 diagnosis"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin HEAD:"$GITHUB_REF_NAME"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r2-h05-round1-diagnosis
+          path: |
+            ETH_R2_H05_R1_FamilyDiagnosis.csv
+            ETH_R2_H05_R1_CellDiagnosis.csv
+            ETH_R2_H05_R1_Result.md
+            ETH_R2_H05_R1_Status.txt
