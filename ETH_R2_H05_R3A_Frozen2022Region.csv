@@ -1,0 +1,2 @@
+region_id,pair_state,character_rule,region_coords,region_cells,region_strict_cells,region_median_min_half_exp,region_median_exp,region_median_pf,representative_lb,representative_hold,representative_n,representative_wr,representative_exp,representative_pf,representative_dd,representative_ls,confirm_2023_opened
+11,EFF_MID__RANGE_LOW,DRIVE_DOWN__EFF_MID__RANGE_LOW,240x360;240x480;360x120;360x240;360x360;360x480,6,4,1.212665295796572,1.4785484474699073,1.8185048906880397,360,360,65,0.6923076923076923,2.4098428319582426,2.7820096016915294,31.7574603175902,5,False
