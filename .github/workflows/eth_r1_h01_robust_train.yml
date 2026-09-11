@@ -1,0 +1,48 @@
+name: ETH R1 H01 robust train
+
+on:
+  push:
+    branches:
+      - eth-r1-robust-native-discovery
+    paths:
+      - 'research/eth_r1_h01_robust_train.py'
+      - '.github/workflows/eth_r1_h01_robust_train.yml'
+      - '.r1-h01-train-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run R1 H01 train-only discovery
+        run: python research/eth_r1_h01_robust_train.py
+      - name: Persist R1 H01 train outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R1_H01_ROBUST_TrainGrid.csv ETH_R1_H01_ROBUST_TrainRegions.csv ETH_R1_H01_ROBUST_TrainResult.md ETH_R1_H01_ROBUST_TrainStatus.txt
+          if [ -f ETH_R1_H01_ROBUST_FrozenCandidate.csv ]; then git add ETH_R1_H01_ROBUST_FrozenCandidate.csv; fi
+          if git diff --cached --quiet; then
+            echo "No result changes to persist"
+          else
+            git commit -m "research: persist ETH R1 H01 train result"
+            git push
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r1-h01-robust-train
+          path: |
+            ETH_R1_H01_ROBUST_TrainGrid.csv
+            ETH_R1_H01_ROBUST_TrainRegions.csv
+            ETH_R1_H01_ROBUST_TrainResult.md
+            ETH_R1_H01_ROBUST_TrainStatus.txt
+            ETH_R1_H01_ROBUST_FrozenCandidate.csv
+          if-no-files-found: warn
