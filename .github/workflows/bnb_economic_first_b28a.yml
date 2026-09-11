@@ -1,0 +1,32 @@
+name: BNB Economic-First B28A one-hour LONG character
+
+on:
+  push:
+    branches:
+      - bnb-b28a-long-00-01wib-character
+    paths:
+      - '.bnb-b28a-trigger'
+
+jobs:
+  b28a:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered BNB Economic-First B28A
+        run: |
+          set -euo pipefail
+          LOG=BNB_ECONOMIC_FIRST_B28A_LONG_00_01WIB_CHARACTER_Run.log
+          echo 'BNB Economic-First B28A one-hour LONG character discovery' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/bnb_economic_first_b28a_long_00_01wib_character.py 2>&1 | tee -a "$LOG"
+          python research/bnb_economic_first_b28a_long_00_01wib_character.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bnb-economic-first-b28a-long-00-01wib-character
+          path: BNB_ECONOMIC_FIRST_B28A_LONG_00_01WIB_CHARACTER_*
+          if-no-files-found: warn
