@@ -1,0 +1,32 @@
+name: DOGE D1D 16-17 WIB LONG character
+
+on:
+  push:
+    branches:
+      - doge-d1d-long-16-17wib-character
+    paths:
+      - '.doge-d1d-trigger'
+  workflow_dispatch:
+
+jobs:
+  doge-d1d:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered DOGE D1D
+        run: |
+          set -euo pipefail
+          LOG=DOGE_D1D_LONG_16_17WIB_CHARACTER_Run.log
+          echo 'DOGE D1D 16:00-17:00 WIB LONG pair-native character discovery' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/doge_d1d_long_16_17wib_character.py 2>&1 | tee -a "$LOG"
+          python research/doge_d1d_long_16_17wib_character.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: doge-d1d-long-16-17wib-character
+          path: DOGE_D1D_LONG_16_17WIB_CHARACTER_*
+          if-no-files-found: warn
