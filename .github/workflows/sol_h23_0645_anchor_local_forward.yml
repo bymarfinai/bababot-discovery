@@ -18,15 +18,21 @@ jobs:
           python-version: '3.11'
       - run: pip install pandas numpy requests
       - name: Run preregistered SOL H23 06:45 anchor-local forward shadow
+        id: forward
+        continue-on-error: true
         run: |
-          set -euo pipefail
+          set -o pipefail
           LOG=SOL_H23_0645_ANCHOR_LOCAL_FORWARD_Run.log
           echo 'SOL H23 06:45 WIB anchor-local forward shadow' > "$LOG"
           echo "commit=$GITHUB_SHA" >> "$LOG"
           python -m py_compile research/sol_h23_0645_anchor_local_forward.py 2>&1 | tee -a "$LOG"
           python research/sol_h23_0645_anchor_local_forward.py 2>&1 | tee -a "$LOG"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: sol-h23-0645-anchor-local-forward
           path: SOL_H23_0645_ANCHOR_LOCAL_FORWARD_*
           if-no-files-found: error
+      - name: Preserve technical failure state
+        if: steps.forward.outcome == 'failure'
+        run: exit 1
