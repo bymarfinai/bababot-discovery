@@ -1,0 +1,32 @@
+name: ETH E13D winner-hour selection
+
+on:
+  push:
+    branches:
+      - eth-e13d-winner-hour-selection
+    paths:
+      - '.eth-e13d-trigger'
+
+jobs:
+  e13d:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered ETH E13D
+        run: |
+          set -euo pipefail
+          LOG=ETH_E13D_WINNER_HOUR_SELECTION_Run.log
+          echo 'ETH E13D winner-hour sequential selection' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/eth_e13d_winner_hour_selection.py 2>&1 | tee -a "$LOG"
+          python research/eth_e13d_winner_hour_selection.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-e13d-winner-hour-selection
+          path: ETH_E13D_WINNER_HOUR_SELECTION_*
+          if-no-files-found: error
