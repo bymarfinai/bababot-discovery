@@ -1,0 +1,2 @@
+forward_start,interim_forward_end_exclusive,original_target_end_exclusive,source_last_bar,coverage,clock_utc,clock_wib,rule,lookback_min,hold_min,trades,win_rate,net_pnl,expectancy,pf,max_dd,max_loss_streak,max_win_streak,support_gate_evaluable,support_gate,status
+2026-08-01 00:00:00+00:00,2026-09-11 00:00:00+00:00,2026-09-12 00:00:00+00:00,2026-09-10 23:55:00+00:00,0.9977145033806304,23:45,06:45,DRIVE_DOWN__STR_B80_100,15,120,4,0.5,-1.0209327495429976,-0.2552331873857494,0.83651689936866,5.236686174200559,1,1,False,False,SOL_H23_0645_FORWARD_INSUFFICIENT_SAMPLE
