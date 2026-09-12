@@ -1,0 +1,39 @@
+name: ETH R5 Frozen Plateau Stress
+
+on:
+  push:
+    paths:
+      - '.r5-stress-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  r5_stress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen H04 plateau implementation stress
+        run: python research/eth_r5_frozen_plateau_stress.py
+      - name: Persist R5 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R5_FROZEN_PLATEAU_STRESS_*
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "research: persist ETH R5 frozen plateau stress results"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin HEAD:"$GITHUB_REF_NAME"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r5-frozen-plateau-stress
+          path: 'ETH_R5_FROZEN_PLATEAU_STRESS_*'
+          if-no-files-found: error
