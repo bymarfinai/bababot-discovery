@@ -1,0 +1,51 @@
+name: SOL R4b Stage A 2022 Component Freeze
+
+on:
+  push:
+    branches:
+      - sol-r4b-cohort-plateau-screen
+    paths:
+      - '.sol-r4b-stageA-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sol-r4b-stageA:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered SOL R4b Stage A
+        run: |
+          set -euo pipefail
+          LOG=SOL_R4B_STAGEA_Run.log
+          echo 'SOL R4b Stage A 2022 Component Freeze' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/sol_r4b_stageA_2022_component_freeze.py 2>&1 | tee -a "$LOG"
+          python research/sol_r4b_stageA_2022_component_freeze.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-r4b-stageA-2022
+          path: |
+            SOL_R4B_STAGEA_*
+          if-no-files-found: error
+      - name: Persist compact Stage A outputs to branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_R4B_STAGEA_2022_ALL_COMPONENTS.csv SOL_R4B_STAGEA_2022_FROZEN_COMPONENTS.csv SOL_R4B_STAGEA_2022_COMPONENT_FREEZE.md SOL_R4B_STAGEA_Status.txt SOL_R4B_STAGEA_Run.log
+          if git diff --cached --quiet; then
+            echo 'No compact Stage A output changes to persist.'
+          else
+            git commit -m 'research: persist SOL R4b Stage A 2022 component freeze'
+            git push origin HEAD:sol-r4b-cohort-plateau-screen
+          fi
