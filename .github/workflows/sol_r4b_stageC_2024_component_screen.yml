@@ -1,0 +1,53 @@
+name: SOL R4b Stage C 2024 Component Screen
+
+on:
+  push:
+    branches:
+      - sol-r4b-cohort-plateau-screen
+    paths:
+      - '.sol-r4b-stageC-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sol-r4b-stageC:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen SOL R4b Stage C
+        run: |
+          set -euo pipefail
+          LOG=SOL_R4B_STAGEC_Run.log
+          echo 'SOL R4b Stage C 2024 Component Screen' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo 'source_registry=SOL_R4B_STAGEB_2023_STABLE_PLATEAUS.csv' >> "$LOG"
+          echo 'frozen_plateaus=8 frozen_cells=21 no_reselection=true' >> "$LOG"
+          python -m py_compile research/sol_r4b_stageC_2024_component_screen.py 2>&1 | tee -a "$LOG"
+          python research/sol_r4b_stageC_2024_component_screen.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-r4b-stageC-2024
+          path: |
+            SOL_R4B_STAGEC_*
+          if-no-files-found: error
+      - name: Persist Stage C outputs to branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_R4B_STAGEC_*
+          if git diff --cached --quiet; then
+            echo 'No Stage C output changes to persist.'
+          else
+            git commit -m 'research: persist SOL R4b Stage C 2024 screen'
+            git push origin HEAD:sol-r4b-cohort-plateau-screen
+          fi
