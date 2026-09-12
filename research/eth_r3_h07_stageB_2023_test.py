@@ -12,3 +12,7 @@ base.HOUR_WIB = 7
 
 if __name__ == "__main__":
     base.main()
+    if base.OUT_RESULT.exists():
+        base.OUT_RESULT.write_text(base.OUT_RESULT.read_text().replace("ETH R3 H06", "ETH R3 H07"))
+    if base.OUT_STATUS.exists():
+        base.OUT_STATUS.write_text(base.OUT_STATUS.read_text().replace("ETH_R3_H06", "ETH_R3_H07"))
