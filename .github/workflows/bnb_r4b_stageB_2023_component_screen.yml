@@ -1,0 +1,42 @@
+name: BNB R4b StageB 2023 component screen
+
+on:
+  push:
+    branches:
+      - bnb-r4b-cohort-plateau-screen
+    paths:
+      - '.bnb-r4b-stageB-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stageB:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run BNB R4b 2023 frozen-component screen
+        run: python research/bnb_r4b_component_stageB_2023_screen.py
+      - name: Persist BNB R4b Stage B outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BNB_R4B_STAGEB_2023_*
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "research: persist BNB R4b stageB 2023 component screen"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin HEAD:"$GITHUB_REF_NAME"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bnb-r4b-stageB-2023-component-screen
+          path: 'BNB_R4B_STAGEB_2023_*'
+          if-no-files-found: error
