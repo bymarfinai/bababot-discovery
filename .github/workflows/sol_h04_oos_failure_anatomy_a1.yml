@@ -1,0 +1,32 @@
+name: SOL H04 OOS failure anatomy A1
+
+on:
+  push:
+    branches:
+      - sol-h04-oos-failure-anatomy-a1
+    paths:
+      - '.sol-h04-oos-failure-anatomy-a1-trigger'
+
+jobs:
+  sol-h04-anatomy-a1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered SOL H04 OOS failure anatomy A1
+        run: |
+          set -euo pipefail
+          LOG=SOL_H04_OOS_FAILURE_ANATOMY_A1_Run.log
+          echo 'SOL H04 OOS failure anatomy A1' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/sol_h04_oos_failure_anatomy_a1.py 2>&1 | tee -a "$LOG"
+          python research/sol_h04_oos_failure_anatomy_a1.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-h04-oos-failure-anatomy-a1
+          path: SOL_H04_OOS_FAILURE_ANATOMY_A1_*
+          if-no-files-found: error
