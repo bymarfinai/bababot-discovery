@@ -11,6 +11,7 @@ on:
       - '.r4b-stageB-trigger'
       - '.r4b-stageC-trigger'
       - '.r4b-stageD-trigger'
+      - '.r4b-stageE-trigger'
   workflow_dispatch:
 
 permissions:
@@ -143,4 +144,26 @@ jobs:
         with:
           name: eth-r4b-stageD-2025-final-oos
           path: 'ETH_R4B_STAGE_D_2025_*'
+          if-no-files-found: error
+
+  r4b_stageE:
+    if: ${{ contains(github.event.head_commit.message, 'R4b stageE') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install pandas numpy requests
+      - name: Run H04 frozen plateau 2026 YTD shadow
+        run: python research/eth_r4b_stageE_2026_ytd_shadow.py
+      - name: Persist R4b Stage E outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R4B_STAGE_E_2026_YTD_*
+          if git diff --cached --quiet; then echo "No result changes"; else git commit -m "research: persist ETH R4b stageE 2026 YTD shadow" && git pull --rebase origin "$GITHUB_REF_NAME" && git push origin HEAD:"$GITHUB_REF_NAME"; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r4b-stageE-2026-ytd-shadow
+          path: 'ETH_R4B_STAGE_E_2026_YTD_*'
           if-no-files-found: error
