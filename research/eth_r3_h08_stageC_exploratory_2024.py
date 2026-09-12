@@ -32,8 +32,8 @@ def events_for_period(cache, lb, hold, rule):
         gross=e12.NOTIONAL*np.asarray(delta,float)[m]
         net=gross-e12.FEE
         for entry_ts, exit_ts, g, n in zip(ent[m], ex[m], gross, net):
-            rows.append({"entry_ts":entry_ts,"exit_ts":exit_ts,"clock":int(clock),"net":float(n)})
-    return pd.DataFrame(rows)
+            rows.append({"entry_ts":entry_ts,"exit_ts":exit_ts,"clock":int(clock),"gross":float(g),"net":float(n)})
+    return pd.DataFrame(rows, columns=["entry_ts","exit_ts","clock","gross","net"])
 
 
 def main():
