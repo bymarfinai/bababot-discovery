@@ -5,6 +5,8 @@ on:
     branches:
       - eth-r3-h05-stability-retest
     paths:
+      - 'research/eth_r3_h05_stageA_2022_dev.py'
+      - '.github/workflows/eth_r3_h05_stageA_2022_dev.yml'
       - '.r3-h05-stageA-trigger'
   workflow_dispatch:
 
