@@ -7,6 +7,9 @@ on:
     paths:
       - '.sol-h04-oos-failure-anatomy-a1-trigger'
 
+permissions:
+  contents: write
+
 jobs:
   sol-h04-anatomy-a1:
     runs-on: ubuntu-24.04
@@ -30,3 +33,15 @@ jobs:
           name: sol-h04-oos-failure-anatomy-a1
           path: SOL_H04_OOS_FAILURE_ANATOMY_A1_*
           if-no-files-found: error
+      - name: Persist A1 outputs to branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_H04_OOS_FAILURE_ANATOMY_A1_*
+          if git diff --cached --quiet; then
+            echo 'No A1 output changes to persist.'
+          else
+            git commit -m 'persist SOL H04 OOS failure anatomy A1 outputs'
+            git push origin HEAD:sol-h04-oos-failure-anatomy-a1
+          fi
