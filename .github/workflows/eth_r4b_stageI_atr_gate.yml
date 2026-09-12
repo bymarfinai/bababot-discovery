@@ -1,0 +1,41 @@
+name: ETH R4b Stage I frozen ATR gate operational test
+
+on:
+  push:
+    branches:
+      - eth-r4-cohort-plateau-screen
+    paths:
+      - '.r4b-stageI-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stageI:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen H04 ATR1H operational gate test
+        run: python research/eth_r4b_stageI_atr_gate_operational_test.py
+      - name: Persist Stage I outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R4B_STAGE_I_ATR_GATE_*
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "research: persist ETH R4b stageI frozen ATR gate operational test"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin HEAD:"$GITHUB_REF_NAME"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r4b-stageI-frozen-atr-gate
+          path: 'ETH_R4B_STAGE_I_ATR_GATE_*'
+          if-no-files-found: error
