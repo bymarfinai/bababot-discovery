@@ -7,9 +7,11 @@ on:
     paths:
       - 'research/eth_r3_h08_stageA_2022_dev.py'
       - 'research/eth_r3_h08_stageB_2023_test.py'
+      - 'research/eth_r3_h08_stageC_exploratory_2024.py'
       - '.github/workflows/eth_r3_h06_stageA_2022_dev.yml'
       - '.r3-h08-stageA-trigger'
       - '.r3-h08-stageB-trigger'
+      - '.r3-h08-stageC-trigger'
   workflow_dispatch:
 
 permissions:
@@ -17,7 +19,7 @@ permissions:
 
 jobs:
   stageA:
-    if: ${{ !contains(github.event.head_commit.message, 'H08 stageB') }}
+    if: ${{ !contains(github.event.head_commit.message, 'H08 stageB') && !contains(github.event.head_commit.message, 'H08 stageC exploratory') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -79,3 +81,33 @@ jobs:
             ETH_R3_H08_STAGEB_Result.md
             ETH_R3_H08_STAGEB_Status.txt
           if-no-files-found: warn
+
+  stageC_exploratory:
+    if: ${{ contains(github.event.head_commit.message, 'H08 stageC exploratory') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run ETH R3 H08 Stage C exploratory 2024
+        run: python research/eth_r3_h08_stageC_exploratory_2024.py
+      - name: Persist Stage C outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R3_H08_STAGEC_2024_LocalNeighborhood.csv ETH_R3_H08_STAGEC_Exploratory2024_Result.md ETH_R3_H08_STAGEC_Exploratory2024_Status.txt
+          if git diff --cached --quiet; then echo "No result changes"; else
+            git commit -m "research: persist ETH R3 H08 stageC exploratory 2024"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin HEAD:"$GITHUB_REF_NAME"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r3-h08-stageC-exploratory-2024
+          path: |
+            ETH_R3_H08_STAGEC_2024_LocalNeighborhood.csv
+            ETH_R3_H08_STAGEC_Exploratory2024_Result.md
+            ETH_R3_H08_STAGEC_Exploratory2024_Status.txt
+          if-no-files-found: error
