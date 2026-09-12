@@ -21,7 +21,7 @@ jobs:
           python-version: '3.11'
       - run: pip install pandas numpy requests
       - name: Run ETH R3 H04 Stage A
-        run: python research/eth_r3_h04_stageA_2022_dev.py
+        run: python research/eth_r3_h04_stageA_2022_dev_v2.py
       - name: Persist Stage A outputs
         run: |
           git config user.name "github-actions[bot]"
