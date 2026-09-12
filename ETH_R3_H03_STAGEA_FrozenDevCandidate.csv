@@ -1,0 +1,2 @@
+character_rule,dev_lb,dev_hold,dev_n,dev_wr,dev_net,dev_exp,dev_pf,dev_dd,dev_ls,dev_H1_exp,dev_H1_pf,dev_H2_exp,dev_H2_pf,dev_positive_anchors,test_2023_opened
+DRIVE_UP__STR_B40_60,360,480,82,0.6463414634146342,291.0612418652042,3.549527339819563,2.451321917778998,47.74205079973011,5,2.873621371731302,2.152445591137041,3.6172928135602573,2.4383548703790163,4,False
