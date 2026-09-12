@@ -2,247 +2,162 @@
 
 ## Purpose
 
-Reset SOL robust-character discovery to the methodology that produced the ETH R4b robust plateau: robustness is evaluated at the level of a frozen connected region in lookback x hold space, not at a single best coordinate.
+Reset SOL robust-character discovery to the methodology that produced the ETH R4b robust plateau. Robustness is evaluated at the level of a frozen connected region in lookback × hold space, not a single best coordinate.
 
-This protocol and the Stage-A refinements below are frozen **before any SOL R4b result is generated**.
+All stage rules are frozen before that stage's next-year data is opened. Any alignment to the exact ETH R4b implementation must therefore be committed before the corresponding SOL year is evaluated.
 
-## Core principle
+## Research question
 
-The research question is:
+> Does SOL contain a simple clock-local structural character whose positive economics persist as a connected LB × Hold plateau across sequential calendar years?
 
-> Does SOL contain a simple clock-local structural character whose positive economics persist as a connected LB x Hold plateau across sequential calendar years?
+The discovery unit is a connected parameter plateau. No absolute-scale or broad-regime rescue layer from SOL RCD v2/v3 is used in R4b.
 
-The unit of discovery is a **connected parameter plateau**, not the top individual backtest cell.
+## Sequential protocol
 
-No absolute-scale or broad-regime rescue layer from SOL RCD v2/v3 is included in R4b Stage A. Those experiments remain historical lessons only.
+1. **Stage A — 2022 discovery/freeze**: search 24 WIB hours, freeze connected LB×Hold components. 2023+ closed.
+2. **Stage B — 2023 same-cell screen**: exact 2022 component membership only. No reselection. 2024+ closed.
+3. **Stage C — 2024 persistence diagnostic**: only Stage-B survivors, unchanged.
+4. **Stage D — 2025 historical confirmation**: only Stage-C survivors, unchanged.
+5. **Fresh forward validation**: because prior SOL work has already exposed 2025–2026, genuine clean validation after this reset must use future data after the raw-data cutoff 2026-08-26.
 
-## Frozen sequence
-
-1. **Stage A — 2022 connected-component discovery and freeze**
-   - Use 2022 only.
-   - Search all 24 WIB hours independently.
-   - Freeze connected LB x Hold components before 2023 is opened.
-2. **Stage B — 2023 same-cell component screen**
-   - Test only the exact frozen 2022 component cells.
-   - No timing-cell reselection, no character replacement, no threshold change.
-   - 2024+ remains closed to R4b selection.
-3. **Stage C — 2024 plateau persistence diagnostic**
-   - Open only Stage-B-surviving plateau(s).
-   - No component modification.
-4. **Stage D — 2025 final historical confirmation**
-   - Open only Stage-C-surviving frozen plateau(s).
-   - No replacement or retuning.
-5. **Fresh forward validation**
-   - Because SOL 2025 and 2026 have already been examined in earlier project experiments, neither can be represented as globally pristine untouched OOS.
-   - The first genuinely clean confirmation after this reset must use future data after the current raw-data cutoff (2026-08-26).
-
-For experimental discipline, 2026 remains closed during Stages A-D even though it has prior project exposure.
+For experimental discipline, 2026 remains closed during Stages A–D.
 
 ## Frozen market/execution model
 
 - Pair: SOLUSDT
-- Direction: LONG only
+- LONG only
 - Raw timeframe: 5m
 - Entry: exact 5m open at the quarter-hour clock
 - Exit: exact 5m open at frozen hold horizon
 - Notional: $500
 - Round-trip fee: $0.75
-- Weekdays only, matching the existing causal structural engine
-- No TP/SL/Fibonacci/entry-location optimization in R4b character discovery
+- Weekdays only
+- No TP/SL/Fibonacci/entry-location optimization
 
-## Clock habitats
+## Clock habitats and structural vocabulary
 
-Search 24 independent **WIB clock hours** H00-H23.
+Search 24 independent WIB clock hours H00–H23. Each pools HH:00, HH:15, HH:30 and HH:45 WIB.
 
-Each hour pools four quarter-hour anchors:
-
-- HH:00 WIB
-- HH:15 WIB
-- HH:30 WIB
-- HH:45 WIB
-
-The WIB hour is a habitat. Quarter-hour anchors are pooled for component discovery; anchor concentration is checked as a preregistered intra-year stability requirement but cannot create a post-hoc sub-hour winner.
-
-## Frozen structural vocabulary
-
-Reuse the existing SOL-native causal 90-rule vocabulary from `sol_economic_first_h00_long_07_08wib_character.py` without modification.
-
-It consists of causal drive direction/strength and causal-percentile market-structure states using efficiency, realized volatility, realized range and terminal extension/location. Percentiles use only prior observations under the existing causal implementation.
-
-No new feature may be added after Stage A results are seen.
+Reuse the existing SOL-native causal 90-rule vocabulary from `sol_economic_first_h00_long_07_08wib_character.py` unchanged. Percentile features retain the existing causal implementation. No feature may be added after Stage A.
 
 ## Frozen timing grid
 
-To mirror ETH R4b:
+- Lookbacks: 60, 120, 180, 240, 360 minutes
+- Holds: 120, 240, 360, 480 minutes
 
-- Lookbacks: **60, 120, 180, 240, 360 minutes**
-- Holds: **120, 240, 360, 480 minutes**
+### Stage A — 2022 strict cell eligibility
 
-Each hour x character therefore has a 5 x 4 timing grid.
+Aligned to the actual ETH R4b upstream `dev_eligible` logic before SOL Stage A was run:
 
-## Stage A — 2022 strict cell eligibility
-
-This section is aligned to the actual ETH R4b upstream 2022 `dev_eligible` protocol before SOL Stage A is run.
-
-A timing cell is strict-eligible only when all are true:
-
-- N >= **60**
-- WR >= **55%**
+- N >= 60
+- WR >= 55%
 - Net PnL > 0
-- Expectancy >= **$0.50/trade**
-- PF >= **1.20**
-- Max DD <= **$125**
-- 2022 H1 contains trades, expectancy > 0, PF > 1
-- 2022 H2 contains trades, expectancy > 0, PF > 1
-- at least **2 of 4 quarter-hour anchors** are positive, where an anchor is positive only if N >= 12, expectancy > 0 and PF > 1
+- Expectancy >= $0.50/trade
+- PF >= 1.20
+- Max DD <= $125
+- 2022 H1: trades present, expectancy > 0, PF > 1
+- 2022 H2: trades present, expectancy > 0, PF > 1
+- at least 2/4 positive quarter-hour anchors; each positive anchor requires N >= 12, expectancy > 0, PF > 1
+- maximum loss streak is diagnostic only for strict membership
 
-Maximum loss streak is **diagnostic only** at Stage A and is not a strict-eligibility gate, matching ETH R4b.
+### Stage A — halo support
 
-These gates define 2022 component membership only. They are not a requirement that every future-year cell reproduce identical metrics.
+An immediate one-grid-step neighbor is supportive only when:
 
-## Stage A — halo economic support
-
-For each strict component, immediate one-grid-step neighboring timing cells in the same hour and character count as economically supportive halo cells only when all are true:
-
-- N >= **55**
-- WR >= **52%**
-- Net PnL > 0
-- Expectancy > 0
-- PF >= **1.10**
-- Max DD <= **$160**
-- Max loss streak <= **12**
-- 2022 H1 expectancy > 0
-- 2022 H2 expectancy > 0
-- minimum of H1/H2 expectancy > 0
-- at least **2 positive anchors** under the same N>=12 / Exp>0 / PF>1 anchor definition
-
-Halo support is ranking evidence and cannot turn a non-strict timing cell into a strict component member.
-
-## Connected-component geometry
-
-Within each WIB hour and character, strict-eligible timing cells form a graph on the ordered LB x Hold grid.
-
-Two cells are adjacent only when they differ by exactly one grid step in **one** dimension:
-
-- adjacent lookback, same hold; or
-- adjacent hold, same lookback.
-
-Diagonal-only contact does not connect components.
-
-A component is the maximal connected set under this 4-neighbor rule.
-
-A valid frozen plateau must contain at least **2 strict-eligible timing cells**. Singletons are not robust plateaus.
-
-## Stage A component ranking and freeze
-
-Freeze at most the top **3 components per WIB hour**.
-
-Ranking is aligned to ETH R4b and fixed lexicographically by:
-
-1. larger component size;
-2. larger number of economically positive halo cells;
-3. larger number of positive-expectancy component cells;
-4. higher component minimum expectancy;
-5. higher component mean expectancy;
-6. deterministic character/cell ordering as final tie-break.
-
-PF/DD/LS remain fully reported but are not inserted as post-hoc ranking criteria beyond the frozen cell/halo gates above.
-
-No 2023 information may affect Stage A ranking.
-
-## Stage B — 2023 same-cell screen
-
-Exact component membership from 2022 is immutable.
-
-For every frozen component cell, compute 2023 economics at the same hour, character, LB and hold.
-
-Per-cell **economic viability** is frozen as:
-
-- N >= 45
+- N >= 55
 - WR >= 52%
-- Net PnL > 0
+- Net > 0
 - Expectancy > 0
-- PF >= 1.15
-- DD <= min($160, 1.50 x 2022 DD + $20)
+- PF >= 1.10
+- DD <= $160
+- LS <= 12
+- H1 expectancy > 0
+- H2 expectancy > 0
+- minimum H1/H2 expectancy > 0
+- at least 2 positive anchors
 
-Maximum loss streak is a risk-clustering diagnostic, not a hard viability gate. Warning threshold:
+Halo cells rank components but never join strict component membership.
 
-- max(12, 2022 loss streak + 4)
+### Connected-component geometry
 
-Per-cell strict stability versus 2022 is diagnostic:
+Strict-eligible cells within the same WIB hour and character connect only by one grid step in one dimension: adjacent lookback at the same hold, or adjacent hold at the same lookback. Diagonal-only contact does not connect.
 
-- economically viable; and
-- WR change >= -5 percentage points; and
-- expectancy retention >= 60%; and
-- PF retention >= 70%.
+Minimum valid component size = 2 strict cells. Freeze at most top 3 components per WIB hour.
 
-### Stage B component verdict
+Stage-A ranking is fixed by: component size, positive halo count, positive-expectancy cell count, expectancy floor, expectancy mean, then deterministic character/cell ordering.
 
-A component is `STABLE_PLATEAU_FROZEN` when all are true:
+## Stage B — 2023 exact ETH-style same-cell screen
 
-- at least 50% of its frozen cells are economically viable;
-- at least 2 cells are economically viable (to prevent a one-cell plateau claim);
-- component median expectancy > 0;
-- component median PF >= 1.15;
-- at least one cell meets strict stability OR all frozen cells have positive expectancy.
+This section was aligned to `eth_r4b_component_stageB_2023_screen.py` **after SOL Stage A was frozen but before any SOL 2023 result was generated**.
 
-Otherwise it is `PLATEAU_DEGRADATION_FAIL`.
+Exact 2022 component membership is immutable. Every frozen cell is tested at the same WIB hour, character, LB and hold in 2023.
 
-No failed component can be rescued or replaced after 2023 is opened.
-
-## Stage C — 2024 persistence diagnostic
-
-Only Stage-B survivors are evaluated.
-
-No 2024 reselection is allowed.
-
-A plateau persists when:
-
-- at least 50% of frozen cells remain economically viable under the same adaptive-DD viability rule;
-- component median expectancy > 0;
-- component median PF > 1.00.
-
-2024 is a persistence diagnostic for SOL R4b, not a new discovery year.
-
-## Stage D — 2025 final historical confirmation
-
-Only Stage-C survivors are evaluated, with frozen membership unchanged.
-
-Per-cell economic viability:
+Per-cell 2023 **economic viability**:
 
 - N >= 50
 - WR >= 52%
 - Net PnL > 0
 - Expectancy > 0
 - PF >= 1.15
-- DD <= min($160, 1.50 x 2022 DD + $20)
+- DD <= min($160, 1.50 × 2022 DD + $20)
+
+Loss streak is a risk-clustering diagnostic only. Warning threshold = max(12, 2022 LS + 4).
+
+Per-cell **strict stability** versus its own 2022 baseline:
+
+- economically viable; and
+- WR change >= -5 percentage points; and
+- expectancy retention >= 60%; and
+- PF retention >= 70%.
+
+### Stage-B component verdict — exact ETH logic
+
+For a frozen component with `n` cells, `v` economically viable cells, and `s` strict-stable cells:
+
+- `STABLE_PLATEAU_FROZEN` iff `n >= 2`, `v >= 2`, `s >= 1`, and `v/n >= 0.50`.
+- `PARTIAL_PLATEAU_PERSISTENCE` iff stable-plateau pass is not reached but `v >= 2`.
+- `NARROW_STABLE_POINT` iff `n == 1` and `s >= 1` (not possible for valid SOL Stage-A components, retained only for semantic parity).
+- otherwise `PLATEAU_DEGRADATION_FAIL`.
+
+Only `STABLE_PLATEAU_FROZEN` components can proceed to Stage C. No median-economic override, replacement candidate, or threshold relaxation is permitted.
+
+## Stage C — 2024 persistence diagnostic
+
+Only Stage-B survivors may be evaluated. Exact membership remains frozen and there is no 2024 reselection.
+
+Before 2024 is opened, the SOL Stage-C protocol must be checked against the exact ETH R4b Stage-C implementation and committed. No rule may be altered after SOL 2024 is evaluated.
+
+## Stage D — 2025 historical confirmation
+
+Only Stage-C survivors may be evaluated, with membership unchanged.
+
+Per-cell viability target, subject only to pre-2025 confirmation against the exact ETH Stage-D implementation:
+
+- N >= 50
+- WR >= 52%
+- Net > 0
+- Expectancy > 0
+- PF >= 1.15
+- DD <= min($160, 1.50 × 2022 DD + $20)
 
 Loss streak remains diagnostic-only with warning threshold max(12, 2022 LS + 4).
 
-Component verdict:
-
-- `FINAL_HISTORICAL_PLATEAU_PASS`: at least 50% of cells viable (and at least 2 viable), median expectancy > 0, median PF >= 1.15.
-- `PARTIAL_HISTORICAL_PERSISTENCE`: pass not reached, but at least 2 cells viable OR both median expectancy > 0 and median PF > 1.00.
-- `FINAL_HISTORICAL_PLATEAU_FAIL`: neither condition is met.
-
-Because 2025 has prior SOL-project exposure, Stage D is explicitly **historical confirmation**, not pristine OOS.
+Component-level target semantics follow ETH R4b: judge the whole frozen plateau, not a post-hoc best cell. Because 2025 has prior SOL-project exposure, Stage D is **historical confirmation**, not pristine OOS.
 
 ## Stop rules
 
 At every stage:
 
 - no character substitution after opening the next year;
-- no addition of scale/regime filters;
+- no scale/regime filter addition;
 - no threshold relaxation;
 - no LB/hold expansion;
-- no anchor selection;
-- no TP/SL or exit rescue;
-- no choosing the best future-year cell as a replacement for the frozen plateau.
+- no quarter-hour anchor selection;
+- no TP/SL/exit rescue;
+- no future-year best-cell replacement for the frozen plateau.
 
-If no plateau survives a stage, R4b stops and the failure is recorded.
+If no `STABLE_PLATEAU_FROZEN` component survives Stage B, R4b stops before 2024. Equivalent stop rules apply at later stages.
 
 ## Scientific success definition
 
-A SOL R4b character is historically robust only if a frozen 2022 connected plateau survives the sequential 2023 and 2024 screens and then passes the frozen 2025 component-level historical-confirmation gate.
-
-Even then, deployment-grade robustness requires a later clean forward test on data not previously exposed anywhere in the SOL research program.
+A SOL R4b character is historically robust only if a frozen 2022 connected plateau survives the sequential 2023 and 2024 screens and passes the frozen 2025 component-level historical confirmation. Deployment-grade robustness still requires genuinely fresh forward data not previously exposed anywhere in the SOL research program.
