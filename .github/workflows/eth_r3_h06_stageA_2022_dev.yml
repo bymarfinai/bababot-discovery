@@ -1,13 +1,13 @@
-name: ETH R3 H15-H23 completion scan
+name: ETH R3 H00-H02 standardized scan
 
 on:
   push:
     branches:
-      - eth-r3-h15-h23-completion-scan
+      - eth-r3-full24-standardized-map
     paths:
-      - 'research/eth_r3_h15_h23_completion_scan.py'
+      - 'research/eth_r3_h00_h02_standardized_scan.py'
       - '.github/workflows/eth_r3_h06_stageA_2022_dev.yml'
-      - '.r3-h15-h23-trigger'
+      - '.r3-h00-h02-trigger'
   workflow_dispatch:
 
 permissions:
@@ -22,29 +22,23 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas numpy requests
-      - name: Run ETH R3 H15-H23 completion scan
-        run: python research/eth_r3_h15_h23_completion_scan.py
-      - name: Persist completion outputs
+      - name: Run ETH R3 H00-H02 standardized scan
+        run: python research/eth_r3_h00_h02_standardized_scan.py
+      - name: Persist standardized outputs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ETH_R3_H15* ETH_R3_H16* ETH_R3_H17* ETH_R3_H18* ETH_R3_H19* ETH_R3_H20* ETH_R3_H21* ETH_R3_H22* ETH_R3_H23*
+          git add ETH_R3_H00* ETH_R3_H01* ETH_R3_H02*
           if git diff --cached --quiet; then echo "No result changes"; else
-            git commit -m "research: persist ETH R3 H15-H23 completion scan"
+            git commit -m "research: persist ETH R3 H00-H02 standardized scan"
             git pull --rebase origin "$GITHUB_REF_NAME"
             git push origin HEAD:"$GITHUB_REF_NAME"
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: eth-r3-h15-h23-completion-scan
+          name: eth-r3-h00-h02-standardized-scan
           path: |
-            ETH_R3_H15*
-            ETH_R3_H16*
-            ETH_R3_H17*
-            ETH_R3_H18*
-            ETH_R3_H19*
-            ETH_R3_H20*
-            ETH_R3_H21*
-            ETH_R3_H22*
-            ETH_R3_H23*
+            ETH_R3_H00*
+            ETH_R3_H01*
+            ETH_R3_H02*
           if-no-files-found: error
