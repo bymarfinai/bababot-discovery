@@ -1,0 +1,2 @@
+character_rule,lookback_min,hold_min,trades,wr,net,exp,pf,dd,ls,mean_2022_2023_wr,wr_floor,mean_2022_2023_exp,exp_floor,mean_2022_2023_pf,pf_floor,dd_cap,ls_cap,passed
+DRIVE_DOWN__STR_B80_100,240,360,0,,0.0,,,,0,0.5928660380715175,0.5328660380715176,2.734111019000764,1.5037610604504204,2.4503076851160066,1.5926999953254044,153.00289689303614,12,False
