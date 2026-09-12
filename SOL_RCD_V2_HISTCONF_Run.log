@@ -1,0 +1,18 @@
+SOL RCD v2 historical confirmation
+commit=4e93c7f315c6720c1324e190145403365d9d85a3
+SOL_RCD_V2_HISTCONF_0_STRONG_1_PARTIAL_3_FAIL
+# SOL RCD v2 — Secondary Historical Confirmation Result
+
+Raw SOLUSDT 5m coverage: **99.7698%**.
+Finalists were frozen before this run; no substitution or retuning was allowed.
+This is secondary historical confirmation, not pristine untouched OOS.
+
+**Strong: 0 / Partial: 1 / Fail: 3.**
+
+| Rank | Character | Scale | Ext N | Ext Exp | Ext PF | Ext gate | Ref N | Ref Exp | Ref PF | Ref gate | Combined N | Combined Net | Combined Exp | PF | LS | Verdict |
+|---:|---|---|---:|---:|---:|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---|
+| 1 | `DRIVE_UP__STR_B0_20` | `RAW_RANGE_LB_HIGH` | 951 | $+3.95 | 1.353 | FAIL | 221 | $+2.92 | 1.456 | PASS | 1172 | $+4401.85 | $+3.76 | 1.365 | 12 | **HISTORICAL_CONFIRMATION_FAIL** |
+| 2 | `EFF_HIGH__EXT_LOW` | `RANGE_72H_HIGH` | 428 | $+3.46 | 1.576 | PASS | 177 | $-1.59 | 0.709 | FAIL | 605 | $+1198.05 | $+1.98 | 1.339 | 9 | **HISTORICAL_CONFIRMATION_PARTIAL** |
+| 3 | `EFF_HIGH__EXT_LOW` | `RAW_RANGE_LB_LOW` | 4 | $+12.28 | inf | FAIL | 213 | $-1.97 | 0.625 | FAIL | 217 | $-370.83 | $-1.71 | 0.669 | 11 | **HISTORICAL_CONFIRMATION_FAIL** |
+| 4 | `EFF_HIGH__EXT_LOW` | `RANGE_24H_MID` | 139 | $-0.73 | 0.886 | FAIL | 305 | $-2.17 | 0.586 | FAIL | 444 | $-761.90 | $-1.72 | 0.693 | 13 | **HISTORICAL_CONFIRMATION_FAIL** |
+
