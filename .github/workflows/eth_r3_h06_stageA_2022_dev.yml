@@ -1,4 +1,5 @@
 name: ETH R3 H06 stageA 2022 development freeze
+# self-register
 
 on:
   push:
