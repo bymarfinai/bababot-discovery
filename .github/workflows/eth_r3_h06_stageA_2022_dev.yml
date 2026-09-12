@@ -1,16 +1,16 @@
-# H14 launcher registration touch
-name: ETH R3 H14 practical stability launcher
+# H15 launcher registration touch
+name: ETH R3 H15 practical stability launcher
 
 on:
   push:
     branches:
-      - eth-r3-h14-stability-retest
+      - eth-r3-h15-stability-retest
     paths:
-      - 'research/eth_r3_h14_stageA_2022_dev.py'
-      - 'research/eth_r3_h14_stageB_2023_test.py'
+      - 'research/eth_r3_h15_stageA_2022_dev.py'
+      - 'research/eth_r3_h15_stageB_2023_test.py'
       - '.github/workflows/eth_r3_h06_stageA_2022_dev.yml'
-      - '.r3-h14-stageA-trigger'
-      - '.r3-h14-stageB-trigger'
+      - '.r3-h15-stageA-trigger'
+      - '.r3-h15-stageB-trigger'
   workflow_dispatch:
 
 permissions:
@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   stageA:
-    if: ${{ !contains(github.event.head_commit.message, 'H14 stageB') }}
+    if: ${{ !contains(github.event.head_commit.message, 'H15 stageB') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,31 +26,31 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas numpy requests
-      - name: Run ETH R3 H14 Stage A
-        run: python research/eth_r3_h14_stageA_2022_dev.py
+      - name: Run ETH R3 H15 Stage A
+        run: python research/eth_r3_h15_stageA_2022_dev.py
       - name: Persist Stage A outputs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ETH_R3_H14_STAGEA_2022_DevGrid.csv ETH_R3_H14_STAGEA_Result.md ETH_R3_H14_STAGEA_Status.txt
-          if [ -f ETH_R3_H14_STAGEA_FrozenDevCandidate.csv ]; then git add ETH_R3_H14_STAGEA_FrozenDevCandidate.csv; fi
+          git add ETH_R3_H15_STAGEA_2022_DevGrid.csv ETH_R3_H15_STAGEA_Result.md ETH_R3_H15_STAGEA_Status.txt
+          if [ -f ETH_R3_H15_STAGEA_FrozenDevCandidate.csv ]; then git add ETH_R3_H15_STAGEA_FrozenDevCandidate.csv; fi
           if git diff --cached --quiet; then echo "No result changes"; else
-            git commit -m "research: persist ETH R3 H14 stageA 2022 development freeze"
+            git commit -m "research: persist ETH R3 H15 stageA 2022 development freeze"
             git pull --rebase origin "$GITHUB_REF_NAME"
             git push origin HEAD:"$GITHUB_REF_NAME"
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: eth-r3-h14-stageA-2022-development-freeze
+          name: eth-r3-h15-stageA-2022-development-freeze
           path: |
-            ETH_R3_H14_STAGEA_2022_DevGrid.csv
-            ETH_R3_H14_STAGEA_FrozenDevCandidate.csv
-            ETH_R3_H14_STAGEA_Result.md
-            ETH_R3_H14_STAGEA_Status.txt
+            ETH_R3_H15_STAGEA_2022_DevGrid.csv
+            ETH_R3_H15_STAGEA_FrozenDevCandidate.csv
+            ETH_R3_H15_STAGEA_Result.md
+            ETH_R3_H15_STAGEA_Status.txt
           if-no-files-found: warn
 
   stageB:
-    if: ${{ contains(github.event.head_commit.message, 'H14 stageB') }}
+    if: ${{ contains(github.event.head_commit.message, 'H15 stageB') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,25 +58,25 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas numpy requests
-      - name: Run ETH R3 H14 Stage B
-        run: python research/eth_r3_h14_stageB_2023_test.py
+      - name: Run ETH R3 H15 Stage B
+        run: python research/eth_r3_h15_stageB_2023_test.py
       - name: Persist Stage B outputs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ETH_R3_H14_STAGEB_2023_LocalNeighborhood.csv ETH_R3_H14_STAGEB_Result.md ETH_R3_H14_STAGEB_Status.txt
-          if [ -f ETH_R3_H14_STAGEB_FrozenStableCandidate.csv ]; then git add ETH_R3_H14_STAGEB_FrozenStableCandidate.csv; fi
+          git add ETH_R3_H15_STAGEB_2023_LocalNeighborhood.csv ETH_R3_H15_STAGEB_Result.md ETH_R3_H15_STAGEB_Status.txt
+          if [ -f ETH_R3_H15_STAGEB_FrozenStableCandidate.csv ]; then git add ETH_R3_H15_STAGEB_FrozenStableCandidate.csv; fi
           if git diff --cached --quiet; then echo "No result changes"; else
-            git commit -m "research: persist ETH R3 H14 stageB 2023 stability test"
+            git commit -m "research: persist ETH R3 H15 stageB 2023 stability test"
             git pull --rebase origin "$GITHUB_REF_NAME"
             git push origin HEAD:"$GITHUB_REF_NAME"
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: eth-r3-h14-stageB-2023-practical-stability-test
+          name: eth-r3-h15-stageB-2023-practical-stability-test
           path: |
-            ETH_R3_H14_STAGEB_2023_LocalNeighborhood.csv
-            ETH_R3_H14_STAGEB_FrozenStableCandidate.csv
-            ETH_R3_H14_STAGEB_Result.md
-            ETH_R3_H14_STAGEB_Status.txt
+            ETH_R3_H15_STAGEB_2023_LocalNeighborhood.csv
+            ETH_R3_H15_STAGEB_FrozenStableCandidate.csv
+            ETH_R3_H15_STAGEB_Result.md
+            ETH_R3_H15_STAGEB_Status.txt
           if-no-files-found: warn
