@@ -1,4 +1,4 @@
-# ETH R3 H06 — Stage B 2023 Practical Stability Test
+# ETH R3 H07 — Stage B 2023 Practical Stability Test
 
 **2023 TEST ONLY AGAINST FROZEN 2022 RULE/LOCAL TIMING. 2024 HARD LOCKED. 2025+ CLOSED.**
 
