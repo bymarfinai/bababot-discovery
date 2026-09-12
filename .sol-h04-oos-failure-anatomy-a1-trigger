@@ -1,2 +1,3 @@
 run preregistered SOL H04 OOS failure anatomy A1
 retry after transient Binance Vision connection reset
+rerun with persistent output commit
