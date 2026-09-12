@@ -1,24 +1,20 @@
-# H14 launcher registration touch
-name: ETH R3 H14 practical stability launcher
+name: ETH R3 H15-H23 completion scan
 
 on:
   push:
     branches:
-      - eth-r3-h14-stability-retest
+      - eth-r3-h15-h23-completion-scan
     paths:
-      - 'research/eth_r3_h14_stageA_2022_dev.py'
-      - 'research/eth_r3_h14_stageB_2023_test.py'
+      - 'research/eth_r3_h15_h23_completion_scan.py'
       - '.github/workflows/eth_r3_h06_stageA_2022_dev.yml'
-      - '.r3-h14-stageA-trigger'
-      - '.r3-h14-stageB-trigger'
+      - '.r3-h15-h23-trigger'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  stageA:
-    if: ${{ !contains(github.event.head_commit.message, 'H14 stageB') }}
+  scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,57 +22,29 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas numpy requests
-      - name: Run ETH R3 H14 Stage A
-        run: python research/eth_r3_h14_stageA_2022_dev.py
-      - name: Persist Stage A outputs
+      - name: Run ETH R3 H15-H23 completion scan
+        run: python research/eth_r3_h15_h23_completion_scan.py
+      - name: Persist completion outputs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ETH_R3_H14_STAGEA_2022_DevGrid.csv ETH_R3_H14_STAGEA_Result.md ETH_R3_H14_STAGEA_Status.txt
-          if [ -f ETH_R3_H14_STAGEA_FrozenDevCandidate.csv ]; then git add ETH_R3_H14_STAGEA_FrozenDevCandidate.csv; fi
+          git add ETH_R3_H15* ETH_R3_H16* ETH_R3_H17* ETH_R3_H18* ETH_R3_H19* ETH_R3_H20* ETH_R3_H21* ETH_R3_H22* ETH_R3_H23*
           if git diff --cached --quiet; then echo "No result changes"; else
-            git commit -m "research: persist ETH R3 H14 stageA 2022 development freeze"
+            git commit -m "research: persist ETH R3 H15-H23 completion scan"
             git pull --rebase origin "$GITHUB_REF_NAME"
             git push origin HEAD:"$GITHUB_REF_NAME"
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: eth-r3-h14-stageA-2022-development-freeze
+          name: eth-r3-h15-h23-completion-scan
           path: |
-            ETH_R3_H14_STAGEA_2022_DevGrid.csv
-            ETH_R3_H14_STAGEA_FrozenDevCandidate.csv
-            ETH_R3_H14_STAGEA_Result.md
-            ETH_R3_H14_STAGEA_Status.txt
-          if-no-files-found: warn
-
-  stageB:
-    if: ${{ contains(github.event.head_commit.message, 'H14 stageB') }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: pip install pandas numpy requests
-      - name: Run ETH R3 H14 Stage B
-        run: python research/eth_r3_h14_stageB_2023_test.py
-      - name: Persist Stage B outputs
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ETH_R3_H14_STAGEB_2023_LocalNeighborhood.csv ETH_R3_H14_STAGEB_Result.md ETH_R3_H14_STAGEB_Status.txt
-          if [ -f ETH_R3_H14_STAGEB_FrozenStableCandidate.csv ]; then git add ETH_R3_H14_STAGEB_FrozenStableCandidate.csv; fi
-          if git diff --cached --quiet; then echo "No result changes"; else
-            git commit -m "research: persist ETH R3 H14 stageB 2023 stability test"
-            git pull --rebase origin "$GITHUB_REF_NAME"
-            git push origin HEAD:"$GITHUB_REF_NAME"
-          fi
-      - uses: actions/upload-artifact@v4
-        with:
-          name: eth-r3-h14-stageB-2023-practical-stability-test
-          path: |
-            ETH_R3_H14_STAGEB_2023_LocalNeighborhood.csv
-            ETH_R3_H14_STAGEB_FrozenStableCandidate.csv
-            ETH_R3_H14_STAGEB_Result.md
-            ETH_R3_H14_STAGEB_Status.txt
-          if-no-files-found: warn
+            ETH_R3_H15*
+            ETH_R3_H16*
+            ETH_R3_H17*
+            ETH_R3_H18*
+            ETH_R3_H19*
+            ETH_R3_H20*
+            ETH_R3_H21*
+            ETH_R3_H22*
+            ETH_R3_H23*
+          if-no-files-found: error
