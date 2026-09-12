@@ -90,9 +90,11 @@ Interpretation of PSI is preregistered:
 A feature can be called a **primary 2026 context discriminator** only if all are true:
 
 1. PSI versus Development is >= 0.25 in 2026;
-2. 2026 has a materially concentrated band (`LOW`, `MID`, or `HIGH`) with at least 55% of candidate trades;
-3. that band's Development expectancy is meaningfully different from at least one other band and the ordering is directionally consistent with 2026 degradation;
-4. the same interpretation is not contradicted by 2025 economics.
+2. 2026 has a materially concentrated band (`LOW`, `MID`, or `HIGH`) containing at least 55% of candidate trades and at least 15 trades;
+3. the same band has at least 40 Development trades and its Development expectancy is at least **$0.75/trade worse** than the best of the other two bands;
+4. the interpretation is not contradicted by 2025: if 2025 is also concentrated >=55% in the same band, that band's 2025 expectancy must be <=0. Otherwise the feature is not accepted as a primary discriminator.
+
+The $0.75 separation was fixed before engine execution because it equals one frozen round-trip fee and prevents tiny band differences from being called economically meaningful.
 
 These rules classify evidence only; they do not create a trading gate.
 
@@ -106,6 +108,8 @@ These rules classify evidence only; they do not create a trading gate.
 Volatility context is represented by `range_24h`, `range_72h`, `range_7d`, `range_ratio_24_72`.
 
 Direction/location context is represented by `ret_24h`, `ret_72h`, `ret_7d`, `loc_24h`, `loc_72h`, `loc_7d`.
+
+If one or more primary discriminators exist only in the volatility family, verdict is `BROADER_VOLATILITY_CONTEXT_DOMINANT`. If one or more exist only in direction/location, verdict is `BROADER_DIRECTION_LOCATION_CONTEXT_DOMINANT`. If both families contain at least one primary discriminator, verdict is `MIXED_BROADER_CONTEXT_SHIFT`. If neither family contains one, verdict is `NO_CLEAR_BROADER_CONTEXT_MECHANISM`.
 
 ## Stop rule
 
