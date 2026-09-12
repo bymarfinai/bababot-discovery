@@ -1,0 +1,47 @@
+name: SOL RCD v3
+
+on:
+  push:
+    branches:
+      - sol-robust-character-discovery-v3
+    paths:
+      - '.sol-rcd-v3-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  sol-rcd-v3:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered SOL RCD v3
+        run: |
+          set -euo pipefail
+          LOG=SOL_RCD_V3_Run.log
+          echo 'SOL RCD v3' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/sol_robust_character_discovery_v3.py 2>&1 | tee -a "$LOG"
+          python research/sol_robust_character_discovery_v3.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-rcd-v3
+          path: SOL_RCD_V3_*
+          if-no-files-found: error
+      - name: Persist RCD v3 outputs to branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_RCD_V3_*
+          if git diff --cached --quiet; then
+            echo 'No RCD v3 output changes to persist.'
+          else
+            git commit -m 'persist SOL RCD v3 outputs'
+            git push origin HEAD:sol-robust-character-discovery-v3
+          fi
