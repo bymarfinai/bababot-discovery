@@ -7,6 +7,8 @@ on:
     paths:
       - '.r4-stageA-trigger'
       - '.r4-stageB-trigger'
+      - '.r4b-stageA-trigger'
+      - '.r4b-stageB-trigger'
   workflow_dispatch:
 
 permissions:
@@ -19,29 +21,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+        with: {python-version: '3.11'}
       - run: pip install pandas numpy requests
-      - name: Run ETH R4 Stage A 2022 cohort freeze
-        run: python research/eth_r4_cohort_stageA_2022_freeze.py
+      - run: python research/eth_r4_cohort_stageA_2022_freeze.py
       - name: Persist R4 Stage A outputs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ETH_R4_STAGEA_2022_PLATEAU_CENTERS.csv ETH_R4_STAGEA_2022_FROZEN_COHORT.csv ETH_R4_STAGEA_2022_COHORT_FREEZE.md ETH_R4_STAGEA_2022_Status.txt
-          if git diff --cached --quiet; then echo "No result changes"; else
-            git commit -m "research: persist ETH R4 stageA 2022 cohort freeze"
-            git pull --rebase origin "$GITHUB_REF_NAME"
-            git push origin HEAD:"$GITHUB_REF_NAME"
-          fi
+          if git diff --cached --quiet; then echo "No result changes"; else git commit -m "research: persist ETH R4 stageA 2022 cohort freeze" && git pull --rebase origin "$GITHUB_REF_NAME" && git push origin HEAD:"$GITHUB_REF_NAME"; fi
       - uses: actions/upload-artifact@v4
         with:
           name: eth-r4-stageA-2022-cohort-freeze
-          path: |
-            ETH_R4_STAGEA_2022_PLATEAU_CENTERS.csv
-            ETH_R4_STAGEA_2022_FROZEN_COHORT.csv
-            ETH_R4_STAGEA_2022_COHORT_FREEZE.md
-            ETH_R4_STAGEA_2022_Status.txt
+          path: 'ETH_R4_STAGEA_2022_*'
           if-no-files-found: error
 
   stageB:
@@ -50,28 +42,61 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+        with: {python-version: '3.11'}
       - run: pip install pandas numpy requests
-      - name: Run ETH R4 Stage B 2023 frozen cohort screen
-        run: python research/eth_r4_cohort_stageB_2023_screen.py
+      - run: python research/eth_r4_cohort_stageB_2023_screen.py
       - name: Persist R4 Stage B outputs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ETH_R4_STAGEB_2023_CANDIDATE_NEIGHBORHOODS.csv ETH_R4_STAGEB_2023_CANDIDATE_VERDICTS.csv ETH_R4_STAGEB_2023_SURVIVORS.csv ETH_R4_STAGEB_2023_COHORT_SCREEN.md ETH_R4_STAGEB_2023_Status.txt
-          if git diff --cached --quiet; then echo "No result changes"; else
-            git commit -m "research: persist ETH R4 stageB 2023 cohort screen"
-            git pull --rebase origin "$GITHUB_REF_NAME"
-            git push origin HEAD:"$GITHUB_REF_NAME"
-          fi
+          git add ETH_R4_STAGEB_2023_*
+          if git diff --cached --quiet; then echo "No result changes"; else git commit -m "research: persist ETH R4 stageB 2023 cohort screen" && git pull --rebase origin "$GITHUB_REF_NAME" && git push origin HEAD:"$GITHUB_REF_NAME"; fi
       - uses: actions/upload-artifact@v4
         with:
           name: eth-r4-stageB-2023-cohort-screen
-          path: |
-            ETH_R4_STAGEB_2023_CANDIDATE_NEIGHBORHOODS.csv
-            ETH_R4_STAGEB_2023_CANDIDATE_VERDICTS.csv
-            ETH_R4_STAGEB_2023_SURVIVORS.csv
-            ETH_R4_STAGEB_2023_COHORT_SCREEN.md
-            ETH_R4_STAGEB_2023_Status.txt
+          path: 'ETH_R4_STAGEB_2023_*'
+          if-no-files-found: error
+
+  r4b_stageA:
+    if: ${{ contains(github.event.head_commit.message, 'R4b stageA') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install pandas numpy requests
+      - name: Freeze 2022 connected components
+        run: python research/eth_r4b_component_stageA_2022_freeze.py
+      - name: Persist R4b Stage A outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R4B_STAGEA_2022_*
+          if git diff --cached --quiet; then echo "No result changes"; else git commit -m "research: persist ETH R4b stageA 2022 component freeze" && git pull --rebase origin "$GITHUB_REF_NAME" && git push origin HEAD:"$GITHUB_REF_NAME"; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r4b-stageA-2022-component-freeze
+          path: 'ETH_R4B_STAGEA_2022_*'
+          if-no-files-found: error
+
+  r4b_stageB:
+    if: ${{ contains(github.event.head_commit.message, 'R4b stageB') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install pandas numpy requests
+      - name: Test frozen component cells on 2023
+        run: python research/eth_r4b_component_stageB_2023_screen.py
+      - name: Persist R4b Stage B outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R4B_STAGEB_2023_*
+          if git diff --cached --quiet; then echo "No result changes"; else git commit -m "research: persist ETH R4b stageB 2023 component screen" && git pull --rebase origin "$GITHUB_REF_NAME" && git push origin HEAD:"$GITHUB_REF_NAME"; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r4b-stageB-2023-component-screen
+          path: 'ETH_R4B_STAGEB_2023_*'
           if-no-files-found: error
