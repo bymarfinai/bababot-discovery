@@ -21,7 +21,7 @@ jobs:
           python-version: '3.11'
       - run: pip install pandas numpy requests
       - name: Run ETH R3 H04 Stage C
-        run: python research/eth_r3_h04_stageC_2024_confirmation.py
+        run: python research/eth_r3_h04_stageC_2024_confirmation_v2.py
       - name: Persist Stage C outputs
         run: |
           git config user.name "github-actions[bot]"
@@ -30,7 +30,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No result changes to persist"
           else
-            git commit -m "research: persist ETH R3 H04 one-shot 2024 confirmation"
+            git commit -m "research: persist corrected ETH R3 H04 one-shot 2024 confirmation"
             git pull --rebase origin "$GITHUB_REF_NAME"
             git push origin HEAD:"$GITHUB_REF_NAME"
           fi
