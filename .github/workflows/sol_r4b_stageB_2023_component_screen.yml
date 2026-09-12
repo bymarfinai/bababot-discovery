@@ -1,0 +1,51 @@
+name: SOL R4b Stage B 2023 Component Screen
+
+on:
+  push:
+    branches:
+      - sol-r4b-cohort-plateau-screen
+    paths:
+      - '.sol-r4b-stageB-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sol-r4b-stageB:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen SOL R4b Stage B
+        run: |
+          set -euo pipefail
+          LOG=SOL_R4B_STAGEB_Run.log
+          echo 'SOL R4b Stage B 2023 Component Screen' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/sol_r4b_stageB_2023_component_screen.py 2>&1 | tee -a "$LOG"
+          python research/sol_r4b_stageB_2023_component_screen.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-r4b-stageB-2023
+          path: |
+            SOL_R4B_STAGEB_*
+          if-no-files-found: error
+      - name: Persist Stage B outputs to branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_R4B_STAGEB_*
+          if git diff --cached --quiet; then
+            echo 'No Stage B output changes to persist.'
+          else
+            git commit -m 'research: persist SOL R4b Stage B 2023 screen'
+            git push origin HEAD:sol-r4b-cohort-plateau-screen
+          fi
