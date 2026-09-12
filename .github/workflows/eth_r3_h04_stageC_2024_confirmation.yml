@@ -6,6 +6,7 @@ on:
       - eth-r3-h04-stability-retest
     paths:
       - '.r3-h04-stageC-trigger'
+      - '.r3-h04-stageC-corrected-trigger'
   workflow_dispatch:
 
 permissions:
