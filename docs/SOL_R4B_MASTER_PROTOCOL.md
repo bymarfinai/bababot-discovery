@@ -4,7 +4,7 @@
 
 Reset SOL robust-character discovery to the methodology that produced the ETH R4b robust plateau: robustness is evaluated at the level of a frozen connected region in lookback x hold space, not at a single best coordinate.
 
-This protocol is frozen before any SOL R4b result is generated.
+This protocol and the Stage-A refinements below are frozen **before any SOL R4b result is generated**.
 
 ## Core principle
 
@@ -61,7 +61,7 @@ Each hour pools four quarter-hour anchors:
 - HH:30 WIB
 - HH:45 WIB
 
-The WIB hour is a habitat. Quarter-hour anchors are pooled for component discovery; anchor concentration may be reported descriptively but does not create a post-hoc sub-hour winner.
+The WIB hour is a habitat. Quarter-hour anchors are pooled for component discovery; anchor concentration is checked as a preregistered intra-year stability requirement but cannot create a post-hoc sub-hour winner.
 
 ## Frozen structural vocabulary
 
@@ -82,30 +82,41 @@ Each hour x character therefore has a 5 x 4 timing grid.
 
 ## Stage A — 2022 strict cell eligibility
 
+This section is aligned to the actual ETH R4b upstream 2022 `dev_eligible` protocol before SOL Stage A is run.
+
 A timing cell is strict-eligible only when all are true:
 
-- N >= 45
-- WR >= 55%
+- N >= **60**
+- WR >= **55%**
 - Net PnL > 0
-- Expectancy >= $0.50/trade
-- PF >= 1.15
-- Max DD <= $140
-- Max loss streak <= 12
+- Expectancy >= **$0.50/trade**
+- PF >= **1.20**
+- Max DD <= **$125**
+- 2022 H1 contains trades, expectancy > 0, PF > 1
+- 2022 H2 contains trades, expectancy > 0, PF > 1
+- at least **2 of 4 quarter-hour anchors** are positive, where an anchor is positive only if N >= 12, expectancy > 0 and PF > 1
+
+Maximum loss streak is **diagnostic only** at Stage A and is not a strict-eligibility gate, matching ETH R4b.
 
 These gates define 2022 component membership only. They are not a requirement that every future-year cell reproduce identical metrics.
 
 ## Stage A — halo economic support
 
-For each strict component, immediate neighboring timing cells in the same hour and character may provide halo support when:
+For each strict component, immediate one-grid-step neighboring timing cells in the same hour and character count as economically supportive halo cells only when all are true:
 
-- N >= 45
+- N >= **55**
+- WR >= **52%**
 - Net PnL > 0
 - Expectancy > 0
-- PF >= 1.05
-- Max DD <= $160
-- Max loss streak <= 14
+- PF >= **1.10**
+- Max DD <= **$160**
+- Max loss streak <= **12**
+- 2022 H1 expectancy > 0
+- 2022 H2 expectancy > 0
+- minimum of H1/H2 expectancy > 0
+- at least **2 positive anchors** under the same N>=12 / Exp>0 / PF>1 anchor definition
 
-Halo support is descriptive/ranking evidence and cannot turn a non-strict timing cell into a strict component member.
+Halo support is ranking evidence and cannot turn a non-strict timing cell into a strict component member.
 
 ## Connected-component geometry
 
@@ -120,19 +131,22 @@ Diagonal-only contact does not connect components.
 
 A component is the maximal connected set under this 4-neighbor rule.
 
+A valid frozen plateau must contain at least **2 strict-eligible timing cells**. Singletons are not robust plateaus.
+
 ## Stage A component ranking and freeze
 
-Freeze at most the top 3 components per WIB hour.
+Freeze at most the top **3 components per WIB hour**.
 
-Ranking is fixed lexicographically by:
+Ranking is aligned to ETH R4b and fixed lexicographically by:
 
 1. larger component size;
-2. larger number of halo-supported neighbor cells;
-3. higher component minimum expectancy;
-4. higher component mean expectancy;
-5. higher component median PF;
-6. lower component maximum DD;
-7. deterministic character/cell ordering as final tie-break.
+2. larger number of economically positive halo cells;
+3. larger number of positive-expectancy component cells;
+4. higher component minimum expectancy;
+5. higher component mean expectancy;
+6. deterministic character/cell ordering as final tie-break.
+
+PF/DD/LS remain fully reported but are not inserted as post-hoc ranking criteria beyond the frozen cell/halo gates above.
 
 No 2023 information may affect Stage A ranking.
 
