@@ -1,0 +1,2 @@
+character_rule,dev_lb,dev_hold,dev_n,dev_wr,dev_net,dev_exp,dev_pf,dev_dd,dev_ls,dev_H1_exp,dev_H1_pf,dev_H2_exp,dev_H2_pf,dev_positive_anchors,test_2023_opened
+EFF_LOW__RANGE_HIGH,120,240,60,0.6,329.65055537385973,5.4941759228976625,3.019203006606318,41.67503988002898,5,3.0473496890296996,1.9109037141160907,9.164415273699605,6.136180247560539,3,False
