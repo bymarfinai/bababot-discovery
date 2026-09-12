@@ -9,6 +9,7 @@ on:
       - '.r4-stageB-trigger'
       - '.r4b-stageA-trigger'
       - '.r4b-stageB-trigger'
+      - '.r4b-stageC-trigger'
   workflow_dispatch:
 
 permissions:
@@ -65,8 +66,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.11'}
       - run: pip install pandas numpy requests
-      - name: Freeze 2022 connected components
-        run: python research/eth_r4b_component_stageA_2022_freeze.py
+      - run: python research/eth_r4b_component_stageA_2022_freeze.py
       - name: Persist R4b Stage A outputs
         run: |
           git config user.name "github-actions[bot]"
@@ -87,8 +87,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.11'}
       - run: pip install pandas numpy requests
-      - name: Test frozen component cells on 2023
-        run: python research/eth_r4b_component_stageB_2023_screen.py
+      - run: python research/eth_r4b_component_stageB_2023_screen.py
       - name: Persist R4b Stage B outputs
         run: |
           git config user.name "github-actions[bot]"
@@ -99,4 +98,26 @@ jobs:
         with:
           name: eth-r4b-stageB-2023-component-screen
           path: 'ETH_R4B_STAGEB_2023_*'
+          if-no-files-found: error
+
+  r4b_stageC:
+    if: ${{ contains(github.event.head_commit.message, 'R4b stageC') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install pandas numpy requests
+      - name: Run H04 frozen plateau 2024 diagnostic
+        run: python research/eth_r4b_stageC_2024_component_diagnostic.py
+      - name: Persist R4b Stage C outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R4B_STAGEC_2024_*
+          if git diff --cached --quiet; then echo "No result changes"; else git commit -m "research: persist ETH R4b stageC 2024 component diagnostic" && git pull --rebase origin "$GITHUB_REF_NAME" && git push origin HEAD:"$GITHUB_REF_NAME"; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r4b-stageC-2024-component-diagnostic
+          path: 'ETH_R4B_STAGEC_2024_*'
           if-no-files-found: error
