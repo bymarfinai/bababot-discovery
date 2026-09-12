@@ -1,0 +1,2 @@
+character_rule,dev_lb,dev_hold,dev_n,dev_wr,dev_net,dev_exp,dev_pf,dev_dd,dev_ls,test_lb,test_hold,test_distance,test_n,test_wr,test_net,test_exp,test_pf,test_dd,test_ls,wr_change_pp,exp_retention,pf_retention,local_viable_cells,local_stable_cells,validation_2024_opened
+DRIVE_DOWN__STR_B80_100,240,360,73,0.5753424657534246,247.0141948838752,3.38375609429966,1.9071331125750643,83.12681055814758,7,240,360,0,77,0.6103896103896104,160.5038776650438,2.0844659437018676,2.993482257656949,45.9709747717816,6,3.5047144636185745,0.6160213341657215,1.5696241850759256,5,4,False
