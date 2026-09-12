@@ -1,0 +1,41 @@
+name: ETH R4b Stage H historical energy regime validation
+
+on:
+  push:
+    branches:
+      - eth-r4-cohort-plateau-screen
+    paths:
+      - '.r4b-stageH-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stageH:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run historical energy regime validation
+        run: python research/eth_r4b_stageH_historical_energy_regime_validation.py
+      - name: Persist Stage H outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R4B_STAGE_H_*
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "research: persist ETH R4b stageH historical energy validation"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin HEAD:"$GITHUB_REF_NAME"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r4b-stageH-historical-energy-validation
+          path: 'ETH_R4B_STAGE_H_*'
+          if-no-files-found: error
