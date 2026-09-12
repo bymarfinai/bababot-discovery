@@ -1,0 +1,47 @@
+name: ETH R3 H05 stageC exploratory 2024 diagnostic
+
+on:
+  push:
+    branches:
+      - eth-r3-h05-stability-retest
+    paths:
+      - 'research/eth_r3_h05_stageC_exploratory_2024.py'
+      - '.github/workflows/eth_r3_h05_stageC_exploratory_2024.yml'
+      - '.r3-h05-stageC-exploratory-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stageC:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run ETH R3 H05 exploratory 2024 diagnostic
+        run: python research/eth_r3_h05_stageC_exploratory_2024.py
+      - name: Persist Stage C exploratory outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ETH_R3_H05_STAGEC_2024_Events.csv ETH_R3_H05_STAGEC_2024_LocalNeighborhood.csv ETH_R3_H05_STAGEC_Exploratory2024_Result.md ETH_R3_H05_STAGEC_Exploratory2024_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes to persist"
+          else
+            git commit -m "research: persist ETH R3 H05 exploratory 2024 diagnostic"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin HEAD:"$GITHUB_REF_NAME"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eth-r3-h05-stageC-exploratory-2024-diagnostic
+          path: |
+            ETH_R3_H05_STAGEC_2024_Events.csv
+            ETH_R3_H05_STAGEC_2024_LocalNeighborhood.csv
+            ETH_R3_H05_STAGEC_Exploratory2024_Result.md
+            ETH_R3_H05_STAGEC_Exploratory2024_Status.txt
+          if-no-files-found: error
