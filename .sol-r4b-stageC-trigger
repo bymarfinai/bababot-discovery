@@ -1,0 +1,15 @@
+SOL R4b Stage C 2024 frozen persistence screen
+branch=sol-r4b-cohort-plateau-screen
+source_registry=SOL_R4B_STAGEB_2023_STABLE_PLATEAUS.csv
+baseline_registry=SOL_R4B_STAGEB_2023_CELL_RESULTS.csv
+calendar_test=2024
+frozen_plateaus=8
+frozen_cells=21
+survivors=H03/R1|H04/R1|H05/R1|H06/R3|H10/R1|H14/R2|H14/R3|H15/R1
+no_reselection=true
+no_replacement=true
+no_new_search=true
+reuse_stageB_gates=true
+persist_cell_metrics=true
+persist_plateau_verdicts=true
+persist_provenance=true
