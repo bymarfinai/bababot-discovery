@@ -1,4 +1,4 @@
-# ETH R3 H06 — Stage A 2022 Development Freeze
+# ETH R3 H07 — Stage A 2022 Development Freeze
 
 **2022 ONLY. 2023 UNOPENED. 2024 HARD LOCKED. 2025+ CLOSED.**
 
