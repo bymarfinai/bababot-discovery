@@ -1,0 +1,53 @@
+name: SOL R4c H00 H120 Hourly Character Scan
+
+on:
+  push:
+    branches:
+      - sol-r4c-hourly-character-scan
+    paths:
+      - '.sol-r4c-h00-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sol-r4c-h00:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run SOL R4c H00 fixed-hold character scan
+        run: |
+          set -euo pipefail
+          LOG=SOL_R4C_H00_H120_Run.log
+          echo 'SOL R4c H00 H120 Hourly Character Scan' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo 'hour_wib=0 hold_min=120 hold_optimization=false' >> "$LOG"
+          echo 'policy=2022_discovery_then_frozen_2023_validation_then_conditional_2024_validation' >> "$LOG"
+          python -m py_compile research/sol_r4c_h00_h120_hourly_character_scan.py 2>&1 | tee -a "$LOG"
+          python research/sol_r4c_h00_h120_hourly_character_scan.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-r4c-h00-h120
+          path: |
+            SOL_R4C_H00_H120_*
+          if-no-files-found: error
+      - name: Persist H00 outputs to branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_R4C_H00_H120_*
+          if git diff --cached --quiet; then
+            echo 'No H00 output changes to persist.'
+          else
+            git commit -m 'research: persist SOL R4c H00 H120 character scan'
+            git push origin HEAD:sol-r4c-hourly-character-scan
+          fi
