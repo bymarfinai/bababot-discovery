@@ -1,0 +1,37 @@
+{
+  "pair": "BNBUSDT",
+  "side": "LONG",
+  "reset_version": "V1",
+  "habitat": "H01 01:00-02:00 WIB",
+  "status": "PRIMARY_FAIL",
+  "data_status": "VALID",
+  "development_events": 4384,
+  "primary_candidates": 34,
+  "full_gate_passers": 0,
+  "oos_status": "SEALED_NOT_DOWNLOADED_NOT_EVALUATED",
+  "strongest_candidate": {
+    "rule": "drive_240m__LOW",
+    "N": 1366,
+    "WR": 0.5673499267935578,
+    "mean_return": 0.0004432485319187212,
+    "PF": 1.1585812590268088,
+    "max_loss_streak": 14,
+    "supportive_horizons": "2/3",
+    "supportive_anchors": "4/4",
+    "years_wr55": "3/3",
+    "gates": {
+      "pooled": false,
+      "horizon": true,
+      "era": false,
+      "anchor": true,
+      "final": false
+    },
+    "fail_reasons": [
+      "pooled PF 1.1586 < 1.20",
+      "2024 PF 1.0325 < 1.05 despite positive mean/WR",
+      "120m horizon PF 1.0363 < 1.10"
+    ]
+  },
+  "next_habitat": "H02 02:00-03:00 WIB",
+  "rescue_allowed": false
+}
