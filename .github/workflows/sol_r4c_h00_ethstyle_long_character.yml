@@ -1,0 +1,52 @@
+name: SOL R4c H00 ETH-Style LONG Character
+
+on:
+  push:
+    branches:
+      - sol-r4c-hourly-character-scan
+    paths:
+      - '.sol-r4c-h00-ethstyle-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sol-r4c-h00-ethstyle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run SOL H00 ETH-style character discovery
+        run: |
+          set -euo pipefail
+          LOG=SOL_R4C_H00_ETHSTYLE_LONG_CHARACTER_Run.log
+          echo 'SOL R4c H00 ETH-Style LONG Character Discovery' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo 'hour_wib=00 direction=LONG candidates=3240 gate_relaxation=false' >> "$LOG"
+          python -m py_compile research/sol_r4c_h00_ethstyle_long_character.py 2>&1 | tee -a "$LOG"
+          python research/sol_r4c_h00_ethstyle_long_character.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-r4c-h00-ethstyle-long
+          path: |
+            SOL_R4C_H00_ETHSTYLE_LONG_CHARACTER_*
+          if-no-files-found: error
+      - name: Persist H00 ETH-style outputs
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_R4C_H00_ETHSTYLE_LONG_CHARACTER_*
+          if git diff --cached --quiet; then
+            echo 'No H00 ETH-style output changes to persist.'
+          else
+            git commit -m 'research: persist SOL R4c H00 ETH-style character'
+            git push origin HEAD:sol-r4c-hourly-character-scan
+          fi
