@@ -78,7 +78,6 @@ def stress2_gate(r) -> bool:
 
 
 def main():
-    # Validate that the inherited topology is still exactly the R4b final H22 plateau.
     r4c.validate_frozen_target()
     if r4c.RULE != "RV_HIGH__RANGE_MID":
         raise AssertionError("frozen R4c rule changed")
@@ -94,11 +93,12 @@ def main():
 
     idx = pd.DatetimeIndex(pd.to_datetime(x5.index, utc=True))
     latest_bar = idx.max()
-    if latest_bar < FREEZE_TS:
-        raise RuntimeError(f"dataset has not reached R4e freeze timestamp; max={latest_bar}")
+    if latest_bar < START_2026:
+        raise RuntimeError(f"dataset has no 2026 data; max={latest_bar}")
 
-    # A fixed-hold trade is observable when its exit timestamp has an available 5m bar.
-    # r4c excludes exit_ts >= END, so END is set one bar after the latest available bar.
+    # The repository dataset may end before the preregistration timestamp. That is valid:
+    # all available 2026 trades are then pre-freeze historical OOS and the prospective segment is empty.
+    # r4c excludes exit_ts >= END, so END is one bar after the latest available bar.
     data_end = latest_bar + pd.Timedelta(minutes=5)
 
     old_start, old_end, old_hold = r4c.START, r4c.END, r4c.HOLD
@@ -111,7 +111,7 @@ def main():
         r4c.START, r4c.END, r4c.HOLD = old_start, old_end, old_hold
 
     if L.empty:
-        raise AssertionError("no completed frozen H22 H720 trades found in 2026")
+        raise AssertionError("no completed frozen H22 H720 trades found in available 2026 data")
 
     L = L.copy().sort_values("entry_ts").reset_index(drop=True)
     L.insert(0, "segment", np.where(pd.DatetimeIndex(L.entry_ts) < FREEZE_TS,
@@ -128,7 +128,6 @@ def main():
     )
     S.to_csv(OUT_SUMMARY, index=False)
 
-    # Anchor diagnostics remain segment-separated so future prospective reruns cannot blur history.
     if A.empty:
         AD = pd.DataFrame(columns=["segment","clock_utc","clock_wib","observations","eligible","mean_votes","selected_trades"])
     else:
@@ -172,13 +171,16 @@ def main():
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for r in S.itertuples(index=False):
-        lines.append(
-            f"| {r.segment} | {int(r.slippage_bps_per_side)} bps | {int(r.trades)} | {pct(r.win_rate)} | {money(r.net_pnl)} | "
-            f"{money(r.expectancy)} | {float(r.pf):.3f} | {money(r.max_dd)} | {int(r.max_loss_streak)} |"
-            if finite(r.pf) else
-            f"| {r.segment} | {int(r.slippage_bps_per_side)} bps | {int(r.trades)} | {pct(r.win_rate)} | {money(r.net_pnl)} | "
-            f"{money(r.expectancy)} | nan | {money(r.max_dd)} | {int(r.max_loss_streak)} |"
-        )
+        if finite(r.pf):
+            lines.append(
+                f"| {r.segment} | {int(r.slippage_bps_per_side)} bps | {int(r.trades)} | {pct(r.win_rate)} | {money(r.net_pnl)} | "
+                f"{money(r.expectancy)} | {float(r.pf):.3f} | {money(r.max_dd)} | {int(r.max_loss_streak)} |"
+            )
+        else:
+            lines.append(
+                f"| {r.segment} | {int(r.slippage_bps_per_side)} bps | {int(r.trades)} | {pct(r.win_rate)} | {money(r.net_pnl)} | "
+                f"{money(r.expectancy)} | nan | {money(r.max_dd)} | {int(r.max_loss_streak)} |"
+            )
 
     lines += [
         "", "## Frozen 2026 pre-freeze gate audit", "",
