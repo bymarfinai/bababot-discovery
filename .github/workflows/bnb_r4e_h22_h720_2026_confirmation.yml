@@ -1,0 +1,42 @@
+name: BNB R4e H22 H720 2026 confirmation
+
+on:
+  push:
+    branches:
+      - bnb-r4e-h22-h720-2026-confirmation
+    paths:
+      - '.bnb-r4e-h22-h720-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  r4e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen BNB R4e H22 H720 2026 confirmation
+        run: python research/bnb_r4e_h22_h720_2026_confirmation.py
+      - name: Persist BNB R4e outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BNB_R4E_H22_H720_2026_CONFIRMATION_*
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "research: persist BNB R4e H22 H720 2026 confirmation"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin HEAD:"$GITHUB_REF_NAME"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bnb-r4e-h22-h720-2026-confirmation
+          path: 'BNB_R4E_H22_H720_2026_CONFIRMATION_*'
+          if-no-files-found: error
