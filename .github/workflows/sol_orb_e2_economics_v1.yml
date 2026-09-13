@@ -1,0 +1,34 @@
+name: SOL ORB E2 Economics v1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sol-orb-structure-detector-v1
+    paths:
+      - 'research/sol_orb_e2_economics_v1.py'
+      - 'research/sol_orb_entry_structure_character_v1.py'
+      - 'research/sol_orb_structure_detector_v1.py'
+      - 'SOL_ORB_E2_ECONOMICS_V1_PREREG.md'
+      - '.sol-orb-e2-economics-v1-trigger'
+      - '.github/workflows/sol_orb_e2_economics_v1.yml'
+
+jobs:
+  economics:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run SOL ORB E2 economics v1
+        run: |
+          set -euo pipefail
+          python -m py_compile research/sol_orb_e2_economics_v1.py
+          python research/sol_orb_e2_economics_v1.py | tee SOL_ORB_E2_ECONOMICS_V1_Run.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-orb-e2-economics-v1
+          path: SOL_ORB_E2_ECONOMICS_V1_*
+          if-no-files-found: error
