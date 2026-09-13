@@ -1,0 +1,73 @@
+{
+  "program": "BNB_LONG_CHARACTER_DISCOVERY_RESET_V1",
+  "stage": "H00_PRIMARY_DISCOVERY",
+  "habitat_wib": "00:00-01:00",
+  "status": "PRIMARY_FAIL",
+  "data_status": "VALID",
+  "development": {
+    "local_wib_years": [2022, 2023, 2024],
+    "events": 4384,
+    "coverage": 1.0,
+    "primary_candidates": 34,
+    "full_gate_passers": 0
+  },
+  "oos": {
+    "start": "2025-01-01",
+    "end": "2026-07-30",
+    "state": "SEALED_NOT_DOWNLOADED_NOT_EVALUATED"
+  },
+  "workflow": {
+    "run_id": 34743590945,
+    "execution_commit": "c00c5f6b5b8fa4d622c2c72aa862246266ba7491",
+    "artifact_id": 10313443314,
+    "artifact_sha256": "84da8713bb47d6d33f74f0288887b685aa25799fda4754974817f0d035ab91fa",
+    "conclusion": "success"
+  },
+  "strongest_near_passers": [
+    {
+      "rule": "range_location_240m__LOW",
+      "n": 1365,
+      "consensus_wr": 0.5670329670,
+      "consensus_mean": 0.0006405291,
+      "pf": 1.2393302830,
+      "supportive_horizons": 3,
+      "supportive_anchors": 4,
+      "pooled_gate": true,
+      "horizon_gate": true,
+      "era_gate": false,
+      "anchor_gate": true,
+      "fail_reason": "2022 PF 1.013 below 1.05 era floor"
+    },
+    {
+      "rule": "drive_240m__LOW",
+      "n": 1391,
+      "consensus_wr": 0.5708123652,
+      "consensus_mean": 0.0007877356,
+      "pf": 1.2837672629,
+      "supportive_horizons": 3,
+      "supportive_anchors": 4,
+      "pooled_gate": true,
+      "horizon_gate": true,
+      "era_gate": false,
+      "anchor_gate": true,
+      "fail_reason": "2022 WR 50.12%, mean -0.0057%, PF 0.984"
+    },
+    {
+      "rule": "ema20_ema50_spread__LOW",
+      "n": 1374,
+      "consensus_wr": 0.5727802038,
+      "consensus_mean": 0.0007037938,
+      "pf": 1.2554115753,
+      "supportive_horizons": 3,
+      "supportive_anchors": 4,
+      "pooled_gate": true,
+      "horizon_gate": true,
+      "era_gate": false,
+      "anchor_gate": true,
+      "fail_reason": "2022 WR 51.81%, mean -0.0086%, PF 0.977"
+    }
+  ],
+  "rescue_allowed": false,
+  "next_habitat": "H01_01:00-02:00_WIB",
+  "next_action": "RUN_PRIMARY_DISCOVERY_WITH_IDENTICAL_PREREGISTERED_BASELINE"
+}
