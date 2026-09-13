@@ -1,0 +1,81 @@
+name: SOL R4c H02-H23 Frozen Hourly Batch
+
+on:
+  push:
+    branches:
+      - sol-r4c-hourly-character-scan
+    paths:
+      - '.sol-r4c-batch-h02-h23-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  hourly:
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        hour: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen hourly discovery
+        env:
+          SOL_R4C_HOUR_WIB: ${{ matrix.hour }}
+        run: |
+          set -euo pipefail
+          printf -v HH '%02d' "$SOL_R4C_HOUR_WIB"
+          LOG="SOL_R4C_H${HH}_ETHSTYLE_LONG_CHARACTER_Run.log"
+          echo "SOL R4c H${HH} ETH-Style LONG Character Discovery" > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo "hour_wib=$SOL_R4C_HOUR_WIB direction=LONG candidates=3240 gate_relaxation=false" >> "$LOG"
+          python -m py_compile research/sol_r4c_hourly_ethstyle_long_character.py 2>&1 | tee -a "$LOG"
+          python research/sol_r4c_hourly_ethstyle_long_character.py 2>&1 | tee -a "$LOG"
+          mkdir -p "batch_out/H${HH}"
+          cp SOL_R4C_H${HH}_ETHSTYLE_LONG_CHARACTER_* "batch_out/H${HH}/"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-r4c-hour-${{ matrix.hour }}
+          path: batch_out/
+          if-no-files-found: error
+
+  persist:
+    needs: hourly
+    if: ${{ always() && needs.hourly.result == 'success' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-r4c-hourly-character-scan
+          fetch-depth: 1
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sol-r4c-hour-*
+          path: batch_outputs
+          merge-multiple: true
+      - name: Persist all hourly outputs atomically
+        run: |
+          set -euo pipefail
+          find batch_outputs -type f -maxdepth 3 -print
+          find batch_outputs -type f -name 'SOL_R4C_H*_ETHSTYLE_LONG_CHARACTER_*' -exec cp {} . \;
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_R4C_H*_ETHSTYLE_LONG_CHARACTER_*
+          if git diff --cached --quiet; then
+            echo 'No batch output changes.'
+          else
+            git commit -m 'research: persist SOL R4c H02-H23 frozen hourly batch'
+            git push origin HEAD:sol-r4c-hourly-character-scan
+          fi
