@@ -1,0 +1,32 @@
+name: BNB LONG Reset V1 H02 Primary Discovery
+
+on:
+  push:
+    branches:
+      - bnb-long-character-discovery-reset-v1
+    paths:
+      - '.bnb-reset-v1-h02-trigger'
+
+jobs:
+  h02-primary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered H02 primary discovery
+        run: |
+          set -euo pipefail
+          LOG=BNB_LONG_RESET_V1_H02_PRIMARY_Run.log
+          echo 'BNB LONG Reset V1 H02 primary discovery' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/bnb_long_reset_v1_h02_primary.py 2>&1 | tee -a "$LOG"
+          python research/bnb_long_reset_v1_h02_primary.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bnb-long-reset-v1-h02-primary
+          path: BNB_LONG_RESET_V1_H02_PRIMARY_*
+          if-no-files-found: error
