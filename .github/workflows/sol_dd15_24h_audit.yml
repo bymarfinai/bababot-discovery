@@ -1,0 +1,56 @@
+name: SOL DD15 full-gate 24h audit
+
+on:
+  push:
+    branches:
+      - audit/sol-dd15-consolidation
+    paths:
+      - '.sol-dd15-audit-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  audit-hour:
+    strategy:
+      fail-fast: false
+      max-parallel: 24
+      matrix:
+        hour: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Re-score frozen hour
+        run: python research/sol_economic_first_dd15_audit.py --hour "${{ matrix.hour }}" --input-dir audit_parts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-dd15-h${{ matrix.hour }}
+          path: audit_parts/*
+
+  consolidate:
+    needs: audit-hour
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sol-dd15-h*
+          path: audit_parts
+          merge-multiple: true
+      - name: Consolidate and persist audit
+        run: |
+          python research/sol_economic_first_dd15_consolidate.py
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add SOL_ECONOMIC_FIRST_DD15_24H_AUDIT.csv SOL_ECONOMIC_FIRST_DD15_PASSERS.csv SOL_ECONOMIC_FIRST_DD15_24H_AUDIT.md
+          git commit -m "audit(sol): persist DD15 24h full-gate rescore"
+          git push
