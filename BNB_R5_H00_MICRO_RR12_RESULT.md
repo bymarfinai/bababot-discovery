@@ -1,11 +1,11 @@
-# BNB R5 — H00 Micro RR 1:2 Character Discovery
+# BNB R5 — H00 Micro RR 1:2 LONG-Only Character Discovery
 
-**TP +0.30% / SL -0.15%. First-touch scoring. 2022–2024 selection only; 2025 historical holdout diagnostic; 2026 CLOSED.**
+**LONG only. TP +0.30% / SL -0.15%. First-touch scoring. 2022–2024 selection only; 2025 historical holdout diagnostic; 2026 CLOSED.**
 
-Coverage: **100.0000%**. Search cells: **5,400**. Eligible cells: **0**. High-WR target cells: **0**.
+Coverage: **100.0000%**. Search cells: **2,700**. Eligible cells: **0**. High-WR target cells: **0**.
 Selection class: **SAMPLE_QUALIFIED_NEAR_MISS**.
 
-## Development-selected cell
+## Development-selected LONG cell
 
 **LONG / DRIVE_DOWN__STR_B60_80 / LB60 / max hold 90m**
 
@@ -31,8 +31,9 @@ Annual TP-first: 2022 **38.24%** (N 102), 2023 **40.00%** (N 100), 2024 **39.33%
 | 00:30 | 32 | 31.25% | $-25.50 | $-0.80 | 0.227 |
 | 00:45 | 26 | 23.08% | $-25.11 | $-0.97 | 0.152 |
 
-**Status: BNB_R5_H00_MICRO_CHARACTER_NOT_SUPPORTED**
+**Status: BNB_R5_H00_LONG_MICRO_CHARACTER_NOT_SUPPORTED**
 
+Original LONG+SHORT run 34739787820 is superseded and was not used for this selection.
 Same-bar TP/SL ambiguity is always scored as SL-first. No gate relaxation was performed.
 The search remains weekday-only for comparability with the inherited causal character engine.
 2026 was not used anywhere in this experiment.
