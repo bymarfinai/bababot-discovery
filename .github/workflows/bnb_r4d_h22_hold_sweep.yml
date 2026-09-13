@@ -1,0 +1,42 @@
+name: BNB R4d H22 hold-duration sweep
+
+on:
+  push:
+    branches:
+      - bnb-r4d-h22-hold-sweep
+    paths:
+      - '.bnb-r4d-h22-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  r4d:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run BNB R4d H22 hold-duration sweep
+        run: python research/bnb_r4d_h22_hold_duration_sweep.py
+      - name: Persist BNB R4d outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BNB_R4D_H22_*
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "research: persist BNB R4d H22 hold sweep"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin HEAD:"$GITHUB_REF_NAME"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bnb-r4d-h22-hold-sweep
+          path: 'BNB_R4D_H22_*'
+          if-no-files-found: error
