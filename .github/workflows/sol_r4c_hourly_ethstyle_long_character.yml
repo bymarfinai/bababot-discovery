@@ -1,0 +1,61 @@
+name: SOL R4c Hourly ETH-Style LONG Character
+
+on:
+  push:
+    branches:
+      - sol-r4c-hourly-character-scan
+    paths:
+      - '.sol-r4c-hourly-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sol-r4c-hourly:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Resolve requested WIB hour
+        run: |
+          set -euo pipefail
+          HOUR=$(tr -dc '0-9' < .sol-r4c-hourly-trigger)
+          if [ -z "$HOUR" ]; then echo 'Missing hour'; exit 1; fi
+          if [ "$HOUR" -lt 0 ] || [ "$HOUR" -gt 23 ]; then echo "Invalid hour $HOUR"; exit 1; fi
+          echo "SOL_R4C_HOUR_WIB=$HOUR" >> "$GITHUB_ENV"
+          printf -v HH '%02d' "$HOUR"
+          echo "SOL_R4C_HH=$HH" >> "$GITHUB_ENV"
+      - name: Run frozen hourly character discovery
+        run: |
+          set -euo pipefail
+          LOG="SOL_R4C_H${SOL_R4C_HH}_ETHSTYLE_LONG_CHARACTER_Run.log"
+          echo "SOL R4c H${SOL_R4C_HH} ETH-Style LONG Character Discovery" > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo "hour_wib=$SOL_R4C_HOUR_WIB direction=LONG candidates=3240 gate_relaxation=false" >> "$LOG"
+          python -m py_compile research/sol_r4c_hourly_ethstyle_long_character.py 2>&1 | tee -a "$LOG"
+          python research/sol_r4c_hourly_ethstyle_long_character.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-r4c-hourly-ethstyle-long
+          path: |
+            SOL_R4C_H*_ETHSTYLE_LONG_CHARACTER_*
+          if-no-files-found: error
+      - name: Persist hourly outputs
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "SOL_R4C_H${SOL_R4C_HH}_ETHSTYLE_LONG_CHARACTER_"*
+          if git diff --cached --quiet; then
+            echo 'No hourly output changes to persist.'
+          else
+            git commit -m "research: persist SOL R4c H${SOL_R4C_HH} ETH-style character"
+            git push origin HEAD:sol-r4c-hourly-character-scan
+          fi
