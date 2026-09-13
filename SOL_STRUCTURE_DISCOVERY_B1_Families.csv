@@ -1,0 +1,4 @@
+family,passing_variants,neighborhood_robust,representative
+COMPRESSION_EXPANSION,0,False,
+IMPULSE_PULLBACK,0,False,
+SWEEP_RECLAIM,0,False,
