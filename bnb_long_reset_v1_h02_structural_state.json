@@ -1,0 +1,56 @@
+{
+  "status": "STRUCTURAL_PASS_WITH_SECONDARY",
+  "symbol": "BNBUSDT",
+  "side": "LONG",
+  "habitat_wib": "02:00-03:00",
+  "development": "2022-01-01 through 2024-12-31 WIB",
+  "oos": "SEALED_NOT_DOWNLOADED_NOT_EVALUATED",
+  "primary": "rv_ratio_60_240__HIGH",
+  "secondary": "efficiency_60m__HIGH",
+  "mandatory_gates": {
+    "overlap_first_per_day": true,
+    "overlap_daily_mean": true,
+    "day_cluster_bootstrap_ci_lower_positive": true,
+    "boundary_sensitivity": true,
+    "window_sensitivity": true,
+    "quarter_consistency": true
+  },
+  "bootstrap": {
+    "resamples": 10000,
+    "seed": 20260913,
+    "ci95_low": 0.00012289673211718518,
+    "ci95_high": 0.0014191933409106658
+  },
+  "primary_metrics": {
+    "n": 1448,
+    "wr": 0.5732044198895028,
+    "mean": 0.0006905149953666959,
+    "median": 0.0006610551802431,
+    "pf": 1.2912670164166862,
+    "max_dd": 0.2885055672068255,
+    "loss_streak": 12,
+    "gross_pos": 4.4326804740964665,
+    "gross_neg": -3.432814760805491,
+    "avg_win": 0.005340578884453574,
+    "avg_loss": -0.005554716441432833
+  },
+  "primary_plus_secondary_metrics": {
+    "n": 483,
+    "wr": 0.6024844720496895,
+    "mean": 0.0014700548395269605,
+    "median": 0.0009704107887498,
+    "pf": 1.642149747855618,
+    "max_dd": 0.15175831391475444,
+    "loss_streak": 8,
+    "gross_pos": 1.815754413664667,
+    "gross_neg": -1.1057179261731451,
+    "avg_win": 0.006239705888882017,
+    "avg_loss": -0.005758947532151798
+  },
+  "secondary_passers": [
+    "efficiency_60m__HIGH",
+    "lower_wick_pressure_15m__HIGH",
+    "drive_15m__HIGH"
+  ],
+  "next_action": "UNTOUCHED_OOS_VALIDATION"
+}
