@@ -22,7 +22,7 @@ jobs:
           python-version: '3.11'
       - run: pip install pandas numpy requests
       - name: Run frozen BNB R4e H22 H720 2026 confirmation
-        run: python research/bnb_r4e_h22_h720_2026_confirmation.py
+        run: python research/bnb_r4e_h22_h720_refresh_runner.py
       - name: Persist BNB R4e outputs
         run: |
           git config user.name "github-actions[bot]"
