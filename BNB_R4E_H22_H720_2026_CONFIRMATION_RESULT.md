@@ -3,7 +3,7 @@
 **Confirmation only. No 2026 value is used to alter the frozen policy.**
 
 Raw 5m coverage: **100.0000%**.
-Latest available 5m bar: **2026-08-25T23:55:00+00:00**.
+Latest available 5m bar: **2026-09-11T23:55:00+00:00**.
 R4e freeze timestamp: **2026-09-13T05:36:03+00:00**.
 Frozen policy: **BNBUSDT LONG / H22 WIB / RV_HIGH__RANGE_MID / 2-of-3 LB180-LB240-LB360 / earliest qualifying anchor / H720 / one position per day / no pyramiding**.
 
@@ -11,10 +11,10 @@ Frozen policy: **BNBUSDT LONG / H22 WIB / RV_HIGH__RANGE_MID / 2-of-3 LB180-LB24
 
 | Segment | Slip/side | N | WR | Net | Exp | PF | DD | LS |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 2026_PRE_FREEZE_OOS | 0 bps | 20 | 45.00% | $+19.56 | $+0.98 | 1.340 | $+38.86 | 6 |
-| 2026_PRE_FREEZE_OOS | 2 bps | 20 | 45.00% | $+15.56 | $+0.78 | 1.261 | $+40.06 | 6 |
-| 2026_PRE_FREEZE_OOS | 5 bps | 20 | 45.00% | $+9.56 | $+0.48 | 1.152 | $+41.86 | 6 |
-| 2026_PRE_FREEZE_OOS | 10 bps | 20 | 40.00% | $-0.44 | $-0.02 | 0.994 | $+45.61 | 7 |
+| 2026_PRE_FREEZE_OOS | 0 bps | 21 | 42.86% | $+17.28 | $+0.82 | 1.289 | $+38.86 | 6 |
+| 2026_PRE_FREEZE_OOS | 2 bps | 21 | 42.86% | $+13.08 | $+0.62 | 1.210 | $+40.06 | 6 |
+| 2026_PRE_FREEZE_OOS | 5 bps | 21 | 42.86% | $+6.78 | $+0.32 | 1.103 | $+41.86 | 6 |
+| 2026_PRE_FREEZE_OOS | 10 bps | 21 | 38.10% | $-3.72 | $-0.18 | 0.948 | $+45.61 | 7 |
 | POST_FREEZE_PROSPECTIVE | 0 bps | 0 | nan | $+0.00 | nan | nan | nan | 0 |
 | POST_FREEZE_PROSPECTIVE | 2 bps | 0 | nan | $+0.00 | nan | nan | nan | 0 |
 | POST_FREEZE_PROSPECTIVE | 5 bps | 0 | nan | $+0.00 | nan | nan | nan | 0 |
@@ -22,7 +22,7 @@ Frozen policy: **BNBUSDT LONG / H22 WIB / RV_HIGH__RANGE_MID / 2-of-3 LB180-LB24
 
 ## Frozen 2026 pre-freeze gate audit
 
-- Sample maturity: **20/24 trades** — NOT MATURE.
+- Sample maturity: **21/24 trades** — NOT MATURE.
 - 0-bps non-N economic thresholds: **FAIL**.
 - 2-bps/side stress thresholds: **PASS**.
 - Formal status: **BNB_R4E_2026_SAMPLE_NOT_MATURE**.
