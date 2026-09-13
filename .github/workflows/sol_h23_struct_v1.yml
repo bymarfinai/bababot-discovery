@@ -1,0 +1,32 @@
+name: SOL H23 structural winner-first V1
+
+on:
+  push:
+    branches:
+      - sol-structural-winner-first-h23-long-discovery
+    paths:
+      - '.sol-h23-struct-v1-trigger'
+
+jobs:
+  sol-h23-struct-v1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered SOL-H23-STRUCT-V1
+        run: |
+          set -euo pipefail
+          LOG=SOL_H23_STRUCT_V1_Run.log
+          echo 'SOL-H23-STRUCT-V1 winner-first structural discovery' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/sol_h23_struct_v1.py 2>&1 | tee -a "$LOG"
+          python research/sol_h23_struct_v1.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-h23-struct-v1
+          path: SOL_H23_STRUCT_V1_*
+          if-no-files-found: error
