@@ -26,7 +26,7 @@ HOLD_END = pd.Timestamp("2026-01-01", tz="UTC")
 CLOCKS = (1020, 1035, 1050, 1065)  # 17:00..17:45 UTC = 00:00..00:45 WIB
 LOOKBACKS = (15, 30, 60, 120, 240, 360)
 MAX_HOLDS = (15, 30, 60, 90, 120)
-DIRECTIONS = ("LONG", "SHORT")
+DIRECTIONS = ("LONG",)
 RULES = tuple(engine.RULES)
 TP_PCT = 0.0030
 SL_PCT = 0.0015
@@ -50,6 +50,8 @@ def stats(net, gross):
 
 
 def first_touch_arrays(x5: pd.DataFrame, S: pd.DataFrame, max_hold: int, direction: str):
+    if direction != "LONG":
+        raise AssertionError("R5 H00 amended protocol is LONG-only")
     idx = pd.DatetimeIndex(x5.index)
     op = x5.open.to_numpy(float)
     hi = x5.high.to_numpy(float)
@@ -65,28 +67,16 @@ def first_touch_arrays(x5: pd.DataFrame, S: pd.DataFrame, max_hold: int, directi
     exit_price = np.full(len(S), np.nan, float)
     bars_used = np.full(len(S), np.nan, float)
     ep = S.entry_price.to_numpy(float)
-    dsign = 1.0 if direction == "LONG" else -1.0
 
     for i in np.flatnonzero(valid):
         e = float(ep[i])
-        if direction == "LONG":
-            tp = e * (1.0 + TP_PCT)
-            sl = e * (1.0 - SL_PCT)
-        else:
-            tp = e * (1.0 - TP_PCT)
-            sl = e * (1.0 + SL_PCT)
-
+        tp = e * (1.0 + TP_PCT)
+        sl = e * (1.0 - SL_PCT)
         resolved = False
-        # Scan completed 5m bars from the entry bar up to, but not including, the max-hold exit bar.
         for k in range(int(ei[i]), int(xi[i])):
-            if direction == "LONG":
-                hit_tp = hi[k] >= tp
-                hit_sl = lo[k] <= sl
-            else:
-                hit_tp = lo[k] <= tp
-                hit_sl = hi[k] >= sl
-
-            # Conservative intrabar ambiguity rule: SL wins ties.
+            hit_tp = hi[k] >= tp
+            hit_sl = lo[k] <= sl
+            # Conservative same-bar ambiguity: SL wins ties.
             if hit_sl:
                 outcome[i] = "SL"
                 exit_price[i] = sl
@@ -101,12 +91,11 @@ def first_touch_arrays(x5: pd.DataFrame, S: pd.DataFrame, max_hold: int, directi
                 bars_used[i] = k - int(ei[i]) + 1
                 resolved = True
                 break
-
         if not resolved:
             xp = float(op[int(xi[i])])
             outcome[i] = "TIMEOUT"
             exit_price[i] = xp
-            gross[i] = NOTIONAL * dsign * ((xp - e) / e)
+            gross[i] = NOTIONAL * ((xp - e) / e)
             bars_used[i] = max_hold // BAR_MIN
 
     return {
@@ -142,13 +131,14 @@ def build_event_cache(x5):
             S=e11.state_frame(x5,clock,lb)
             masks=engine.masks_for_frame(S)
             for hold in MAX_HOLDS:
-                for direction in DIRECTIONS:
-                    O=first_touch_arrays(x5,S,hold,direction)
-                    cache[(clock,lb,hold,direction)] = (S,masks,O)
+                O=first_touch_arrays(x5,S,hold,"LONG")
+                cache[(clock,lb,hold,"LONG")] = (S,masks,O)
     return cache
 
 
 def events_for_cell(cache, lb:int, hold:int, direction:str, rule:str, start, end):
+    if direction != "LONG":
+        raise AssertionError("LONG-only protocol")
     frames=[]
     for clock in CLOCKS:
         S,masks,O=cache[(clock,lb,hold,direction)]
@@ -223,7 +213,7 @@ def score_development(cache, lb, hold, direction, rule):
 
 
 def score_2025(cache, sel):
-    T=events_for_cell(cache,int(sel.lookback_min),int(sel.max_hold_min),str(sel.direction),str(sel.character_rule),HOLD_START,HOLD_END)
+    T=events_for_cell(cache,int(sel.lookback_min),int(sel.max_hold_min),"LONG",str(sel.character_rule),HOLD_START,HOLD_END)
     rows=[]
     for bps in SLIPPAGE_BPS:
         s=period_metrics(T,bps)
@@ -244,43 +234,41 @@ def score_2025(cache, sel):
 
 def main():
     if len(RULES)!=90: raise AssertionError(f"expected 90 rules, got {len(RULES)}")
+    if DIRECTIONS != ("LONG",): raise AssertionError("LONG-only amendment not active")
     base.synthetic_tests()
     x5,coverage=base.load5("BNBUSDT")
     if coverage<.995: raise RuntimeError(f"coverage too low: {coverage}")
     idx=pd.DatetimeIndex(pd.to_datetime(x5.index,utc=True))
     if idx.max()<pd.Timestamp("2025-12-31 23:55:00",tz="UTC"):
         raise RuntimeError(f"2025 incomplete: {idx.max()}")
-    # Hard-close 2026 before feature construction.
-    x=x5[idx<HOLD_END].copy()
+    x=x5[idx<HOLD_END].copy()  # 2026 hard-closed before feature construction.
     cache=build_event_cache(x)
 
     rows=[]
     for lb in LOOKBACKS:
         for hold in MAX_HOLDS:
-            for direction in DIRECTIONS:
-                for rule in RULES:
-                    rows.append(score_development(cache,lb,hold,direction,rule))
+            for rule in RULES:
+                rows.append(score_development(cache,lb,hold,"LONG",rule))
     D=pd.DataFrame(rows)
-    if len(D)!=5400: raise AssertionError(f"expected 5400 cells, got {len(D)}")
+    if len(D)!=2700: raise AssertionError(f"expected 2700 LONG-only cells, got {len(D)}")
     D.to_csv(OUT_GRID,index=False)
 
     E=D[D.eligible].copy()
     if not E.empty:
-        E["dir_tie"]=E.direction.map({"LONG":0,"SHORT":1})
         E=E.sort_values(
-            ["high_wr_target_hit","min_annual_tp_rate","tp_first_rate","trades","exp_2bps","expectancy","pf","max_dd","max_hold_min","lookback_min","character_rule","dir_tie"],
-            ascending=[False,False,False,False,False,False,False,True,True,True,True,True],kind="mergesort"
+            ["high_wr_target_hit","min_annual_tp_rate","tp_first_rate","trades","exp_2bps","expectancy","pf","max_dd","max_hold_min","lookback_min","character_rule"],
+            ascending=[False,False,False,False,False,False,False,True,True,True,True],kind="mergesort"
         ).reset_index(drop=True)
         E["rank"]=np.arange(1,len(E)+1)
     E.to_csv(OUT_ELIGIBLE,index=False)
 
-    # If no eligible cell exists, still report the strongest sample-qualified near miss without changing gates.
     if E.empty:
         Q=D[(D.trades>=150)&(D.y2022_n>=40)&(D.y2023_n>=40)&(D.y2024_n>=40)].copy()
         if Q.empty:
-            status="BNB_R5_H00_NO_EVALUABLE_MICRO_CHARACTER"
+            status="BNB_R5_H00_LONG_NO_EVALUABLE_MICRO_CHARACTER"
             OUT_STATUS.write_text(status+"\n")
-            OUT_RESULT.write_text(f"# BNB R5 H00 Micro RR1:2\n\n**Status: {status}**\n\nNo sample-qualified cell. 2026 remained closed.\n")
+            OUT_RESULT.write_text(f"# BNB R5 H00 Micro RR1:2 LONG-only\n\n**Status: {status}**\n\nNo sample-qualified LONG cell. 2026 remained closed.\n")
+            print(OUT_RESULT.read_text())
             return
         Q=Q.sort_values(["min_annual_tp_rate","tp_first_rate","trades","expectancy","pf"],ascending=[False,False,False,False,False]).reset_index(drop=True)
         sel=Q.iloc[0]
@@ -302,18 +290,18 @@ def main():
         and finite(h0.pf) and float(h0.pf)>=1.10
         and float(h2.net_pnl)>0 and finite(h2.expectancy) and float(h2.expectancy)>0
     )
-    status=("BNB_R5_H00_HIGH_WR_MICRO_CHARACTER_FOUND" if dev_target and continuation
-            else "BNB_R5_H00_MICRO_CHARACTER_NEAR_MISS" if continuation
-            else "BNB_R5_H00_MICRO_CHARACTER_NOT_SUPPORTED")
+    status=("BNB_R5_H00_LONG_HIGH_WR_MICRO_CHARACTER_FOUND" if dev_target and continuation
+            else "BNB_R5_H00_LONG_MICRO_CHARACTER_NEAR_MISS" if continuation
+            else "BNB_R5_H00_LONG_MICRO_CHARACTER_NOT_SUPPORTED")
     OUT_STATUS.write_text(status+"\n")
 
     lines=[
-        "# BNB R5 — H00 Micro RR 1:2 Character Discovery","",
-        "**TP +0.30% / SL -0.15%. First-touch scoring. 2022–2024 selection only; 2025 historical holdout diagnostic; 2026 CLOSED.**","",
+        "# BNB R5 — H00 Micro RR 1:2 LONG-Only Character Discovery","",
+        "**LONG only. TP +0.30% / SL -0.15%. First-touch scoring. 2022–2024 selection only; 2025 historical holdout diagnostic; 2026 CLOSED.**","",
         f"Coverage: **{coverage:.4%}**. Search cells: **{len(D):,}**. Eligible cells: **{len(E):,}**. High-WR target cells: **{int(D.high_wr_target_hit.sum()):,}**.",
         f"Selection class: **{selection_class}**.","",
-        "## Development-selected cell","",
-        f"**{sel.direction} / {sel.character_rule} / LB{int(sel.lookback_min)} / max hold {int(sel.max_hold_min)}m**","",
+        "## Development-selected LONG cell","",
+        f"**LONG / {sel.character_rule} / LB{int(sel.lookback_min)} / max hold {int(sel.max_hold_min)}m**","",
         f"2022–2024 N **{int(sel.trades)}**, TP-first **{pct(sel.tp_first_rate)}**, net WR **{pct(sel.net_win_rate)}**, Net **{money(sel.net_pnl)}**, Exp **{money(sel.expectancy)}/trade**, PF **{float(sel.pf):.3f}**, DD **{money(sel.max_dd)}**.",
         f"2bps/side: Net **{money(sel.net_2bps)}**, Exp **{money(sel.exp_2bps)}**, PF **{float(sel.pf_2bps):.3f}**.",
         f"Annual TP-first: 2022 **{pct(sel.y2022_tp_rate)}** (N {int(sel.y2022_n)}), 2023 **{pct(sel.y2023_tp_rate)}** (N {int(sel.y2023_n)}), 2024 **{pct(sel.y2024_tp_rate)}** (N {int(sel.y2024_n)}).", "",
@@ -327,6 +315,7 @@ def main():
     for r in A.itertuples(index=False):
         lines.append(f"| {r.clock_wib} | {int(r.trades)} | {pct(r.tp_first_rate)} | {money(r.net_pnl)} | {money(r.expectancy)} | {float(r.pf):.3f} |")
     lines += ["",f"**Status: {status}**","",
+              "Original LONG+SHORT run 34739787820 is superseded and was not used for this selection.",
               "Same-bar TP/SL ambiguity is always scored as SL-first. No gate relaxation was performed.",
               "The search remains weekday-only for comparability with the inherited causal character engine.",
               "2026 was not used anywhere in this experiment.","","Research/shadow only."]
