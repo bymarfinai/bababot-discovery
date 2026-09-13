@@ -1,0 +1,54 @@
+{
+  "program": "BNB_LONG_CHARACTER_DISCOVERY_RESET_V1",
+  "status": "STAGE1_FROZEN",
+  "symbol": "BNBUSDT",
+  "side": "LONG",
+  "discovery_unit": "1h_WIB",
+  "first_stage2_habitat": {
+    "id": "H00",
+    "start_wib": "00:00",
+    "end_wib": "01:00"
+  },
+  "objective": "Find a repeatable and interpretable structural market character for BNBUSDT LONG within one fixed WIB hour at a time.",
+  "development_period": {
+    "start": "2022-01-01",
+    "end": "2024-12-31"
+  },
+  "oos_reference_period": {
+    "start": "2025-01-01",
+    "end": "2026-07-30",
+    "state": "SEALED_UNTIL_CHARACTER_FREEZE"
+  },
+  "character_layers": {
+    "primary": "structural reason the LONG opportunity exists",
+    "secondary": "optional confirmation that removes noise without replacing the primary character"
+  },
+  "allowed_structural_families": [
+    "market_regime",
+    "price_location_vs_reference_trend_structure",
+    "swing_local_high_low_structure",
+    "reclaim_rejection_behavior",
+    "range_location_compression_expansion",
+    "momentum_state",
+    "volatility_state",
+    "pre_entry_structural_context"
+  ],
+  "forbidden_rescue_actions": [
+    "shift_target_hour_after_results",
+    "merge_neighboring_hours_to_improve_score",
+    "optimize_tp_sl_during_character_discovery",
+    "tune_leverage_or_position_size",
+    "add_posthoc_filters_to_rescue_failure",
+    "relax_thresholds_until_pass",
+    "select_by_peak_win_rate_only",
+    "use_oos_while_character_is_still_mutable",
+    "inherit_prior_B28_parameters_as_mandatory_template"
+  ],
+  "historical_b28_treatment": "ARCHIVE_REFERENCE_ONLY",
+  "short_discovery": "OUT_OF_SCOPE",
+  "stage1_allows_new_backtests": false,
+  "stage1_allows_hour_scanning": false,
+  "stage1_allows_oos_opening": false,
+  "next_stage": "STAGE2_H00_CHARACTER_DISCOVERY",
+  "stop_scanning_rule": "When the first hour produces a structurally robust Development PASS, freeze that character and stop scanning new hours while it is validated."
+}
