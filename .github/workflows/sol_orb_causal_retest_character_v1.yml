@@ -1,0 +1,29 @@
+name: SOL ORB Causal Retest Character v1
+on:
+  workflow_dispatch:
+  push:
+    branches: [sol-orb-structure-detector-v1]
+    paths:
+      - 'research/sol_orb_causal_retest_character_v1.py'
+      - 'SOL_ORB_CAUSAL_RETEST_CHARACTER_V1_PREREG.md'
+      - '.sol-orb-causal-retest-character-v1-trigger'
+      - '.github/workflows/sol_orb_causal_retest_character_v1.yml'
+jobs:
+  character:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run SOL ORB causal retest character v1
+        run: |
+          set -euo pipefail
+          python -m py_compile research/sol_orb_causal_retest_character_v1.py
+          python research/sol_orb_causal_retest_character_v1.py | tee SOL_ORB_CAUSAL_RETEST_CHARACTER_V1_Run.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-orb-causal-retest-character-v1
+          path: SOL_ORB_CAUSAL_RETEST_CHARACTER_V1_*
+          if-no-files-found: error
