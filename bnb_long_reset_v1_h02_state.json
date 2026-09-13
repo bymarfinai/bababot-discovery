@@ -1,0 +1,56 @@
+{
+  "version": "bnb-long-character-discovery-reset-v1",
+  "habitat": "H02",
+  "wib_window": "02:00-03:00",
+  "status": "PRIMARY_PASS_FROZEN",
+  "selected": {
+    "rule": "rv_ratio_60_240__HIGH",
+    "feature": "rv_ratio_60_240",
+    "state": "HIGH",
+    "development_events": 4384,
+    "signals": 1448,
+    "signals_per_week": 9.24817518248175,
+    "consensus_wr": 0.5732044198895028,
+    "consensus_mean": 0.0006905149953666959,
+    "consensus_median": 0.0006610551802431,
+    "consensus_pf": 1.2912670164166862,
+    "max_loss_streak": 12,
+    "supportive_horizons": 2,
+    "supportive_anchors": 4,
+    "evaluable_anchors": 4,
+    "years_supportive": 3,
+    "years_wr_gt_55": 2
+  },
+  "reference_economics": {
+    "margin_usd": 10.0,
+    "leverage": 50,
+    "notional_usd": 500.0,
+    "diagnostic_only": true,
+    "dollar_per_signal": 0.34525749768334796,
+    "dollar_total_equivalent": 499.93285664548785,
+    "gross_positive_dollar_equivalent": 2216.340237048233,
+    "gross_negative_dollar_equivalent": 1716.4073804027455,
+    "avg_win_dollar_equivalent": 2.670289442226787,
+    "avg_loss_dollar_equivalent": -2.7773582207164167,
+    "max_dd_dollar_equivalent": 144.25278360341258
+  },
+  "years": {
+    "2022": {"n":454,"wr":0.5859030837004405,"mean":0.000705397337374321,"pf":1.240901804339782,"dollar_per_signal":0.35269866868716054,"dollar_total_equivalent":160.12519558397088,"max_dd_dollar_equivalent":144.25278360341258,"max_loss_streak":12},
+    "2023": {"n":494,"wr":0.5850202429149798,"mean":0.0006799445005526237,"pf":1.3813003128882635,"dollar_per_signal":0.33997225027631184,"dollar_total_equivalent":167.94629163649805,"max_dd_dollar_equivalent":109.04214576847755,"max_loss_streak":12},
+    "2024": {"n":500,"wr":0.55,"mean":0.0006874454777000759,"pf":1.2811592335089586,"dollar_per_signal":0.3437227388500379,"dollar_total_equivalent":171.86136942501895,"max_dd_dollar_equivalent":87.84350602827182,"max_loss_streak":10}
+  },
+  "horizons": {
+    "60": {"wr":0.5462707182320442,"mean":0.00010921361865242483,"pf":1.0512947863998503,"supportive":false},
+    "120": {"wr":0.5524861878453039,"mean":0.0005619819462206323,"pf":1.2157496485811015,"supportive":true},
+    "240": {"wr":0.5959944751381215,"mean":0.0014003494212270293,"pf":1.4138714205115168,"supportive":true}
+  },
+  "anchors": {
+    "02:00": {"n":363,"wr":0.5482093663911846,"mean":0.000409394423709754,"pf":1.1610838231012852,"supportive":true},
+    "02:15": {"n":361,"wr":0.554016620498615,"mean":0.0005827088328814751,"pf":1.2393562655175903,"supportive":true},
+    "02:30": {"n":365,"wr":0.5972602739726027,"mean":0.0007525718806530812,"pf":1.3288348484983106,"supportive":true},
+    "02:45": {"n":359,"wr":0.5933147632311978,"mean":0.0010200805358655928,"pf":1.4600253013943667,"supportive":true}
+  },
+  "gates": {"pooled":true,"horizon":true,"era":true,"anchor":true,"candidate":true},
+  "oos": {"status":"SEALED","range":"2025-01-01 through 2026-07-30","downloaded":false,"evaluated":false},
+  "scan_control": {"new_hour_scanning":"STOPPED","h03_blocked":true,"next_action":"secondary_confirmation_and_structural_stress_test_on_frozen_H02_primary"}
+}
