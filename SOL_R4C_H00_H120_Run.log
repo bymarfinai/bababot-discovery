@@ -1,0 +1,4 @@
+SOL R4c H00 H120 Hourly Character Scan
+commit=6c531ca9c450f98c2e3b7a06558e31cd38be0860
+hour_wib=0 hold_min=120 hold_optimization=false
+policy=2022_discovery_then_frozen_2023_validation_then_conditional_2024_validation
