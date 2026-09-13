@@ -1,0 +1,32 @@
+name: SOL ORB Entry Structure Character v1
+
+on:
+  push:
+    branches:
+      - sol-orb-structure-detector-v1
+    paths:
+      - '.sol-orb-entry-structure-character-v1-trigger'
+      - 'research/sol_orb_entry_structure_character_v1.py'
+      - 'SOL_ORB_ENTRY_STRUCTURE_CHARACTER_V1_PREREG.md'
+      - '.github/workflows/sol_orb_entry_structure_character_v1.yml'
+
+jobs:
+  characterize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run SOL ORB entry-structure characterization v1
+        run: |
+          set -euo pipefail
+          python -m py_compile research/sol_orb_entry_structure_character_v1.py
+          python research/sol_orb_entry_structure_character_v1.py | tee SOL_ORB_ENTRY_STRUCTURE_CHARACTER_V1_Run.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-orb-entry-structure-character-v1
+          path: SOL_ORB_ENTRY_STRUCTURE_CHARACTER_V1_*
+          if-no-files-found: error
