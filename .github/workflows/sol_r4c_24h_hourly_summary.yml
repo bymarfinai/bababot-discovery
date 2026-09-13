@@ -1,0 +1,48 @@
+name: SOL R4c 24H Hourly Summary
+
+on:
+  push:
+    branches:
+      - sol-r4c-hourly-character-scan
+    paths:
+      - '.sol-r4c-24h-summary-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  summarize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - name: Build authoritative H00-H23 summary
+        run: |
+          set -euo pipefail
+          python -m py_compile research/sol_r4c_24h_hourly_summary.py
+          python research/sol_r4c_24h_hourly_summary.py | tee SOL_R4C_24H_ETHSTYLE_LONG_CHARACTER_SummaryRun.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-r4c-24h-summary
+          path: |
+            SOL_R4C_24H_ETHSTYLE_LONG_CHARACTER_*
+          if-no-files-found: error
+      - name: Persist 24h summary
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_R4C_24H_ETHSTYLE_LONG_CHARACTER_*
+          if git diff --cached --quiet; then
+            echo 'No summary changes to persist.'
+          else
+            git commit -m 'research: persist SOL R4c 24h hourly summary'
+            git push origin HEAD:sol-r4c-hourly-character-scan
+          fi
