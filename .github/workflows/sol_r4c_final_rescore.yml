@@ -1,0 +1,48 @@
+name: SOL R4c Final Rescore
+
+on:
+  push:
+    branches:
+      - sol-r4c-final-rescore
+    paths:
+      - '.sol-r4c-final-rescore-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rescore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - name: Run full 77,760-candidate rescore
+        run: |
+          set -euo pipefail
+          python -m py_compile research/sol_r4c_final_rescore.py
+          python research/sol_r4c_final_rescore.py | tee SOL_R4C_FINAL_RESCORE_Run.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-r4c-final-rescore
+          path: |
+            SOL_R4C_FINAL_RESCORE_*
+          if-no-files-found: error
+      - name: Persist results
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SOL_R4C_FINAL_RESCORE_*
+          if git diff --cached --quiet; then
+            echo 'No result changes.'
+          else
+            git commit -m 'research: persist SOL R4c final rescore'
+            git push origin HEAD:sol-r4c-final-rescore
+          fi
