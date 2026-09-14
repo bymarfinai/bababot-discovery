@@ -2,3 +2,4 @@ trigger B28M frozen OOS validation
 preregistered protocol commit: cb4b448544aa9f3ee65a508b3d88b77e636cbf19
 runner commit: a8a3b5b41debd0f3dfc0e7d8a344eb25e64d4e46
 workflow commit: aa47d172fb78b63cb1526de5bfdd0f5c8c73823c
+registration retrigger: 1
