@@ -1,0 +1,63 @@
+{
+  "status": "OOS_PASS",
+  "symbol": "BNBUSDT",
+  "side": "LONG",
+  "habitat_wib": "02:00-03:00",
+  "primary": "rv_ratio_60_240__HIGH",
+  "secondary": "efficiency_60m__HIGH",
+  "oos_period_wib": "2025-01-01 through 2026-07-30",
+  "oos_prereg_commit": "94b085576b176ddb18d9fe03e9912d965e268095",
+  "workflow_run_id": 34805242473,
+  "trigger_head_sha": "ef35b4a01d9eeb791752d40b1b22285464b770e9",
+  "artifact_id": 10332433048,
+  "artifact_sha256": "f7c4000ff06edb5693235956bb0b576aa0cbbded98cb165ac9a35bab1543de5c",
+  "coverage": 1.0,
+  "oos_h02_events": 2304,
+  "selected_signals": 269,
+  "unique_signal_days": 171,
+  "signals_per_week": 3.269097222222222,
+  "pooled": {
+    "n": 269,
+    "wr": 0.5762081784386617,
+    "mean": 0.0008058031998741778,
+    "median": 0.0009560266750953117,
+    "pf": 1.3612008094143546,
+    "gross_pos": 0.8168733947268859,
+    "gross_neg": -0.600112333960732,
+    "avg_win": 0.005270150933721845,
+    "avg_loss": -0.005264143280357299,
+    "max_dd": 0.17872113367627454,
+    "loss_streak": 9
+  },
+  "development_reference": {
+    "n": 483,
+    "wr": 0.6024844720496895,
+    "mean": 0.0014700548395269605,
+    "pf": 1.642149747855618,
+    "max_dd": 0.15175831391475444,
+    "loss_streak": 8
+  },
+  "retention": {
+    "wr_change_percentage_points": -2.627629361102779,
+    "mean_retention_ratio": 0.5481449931034356,
+    "pf_retention_ratio": 0.8289139350365963,
+    "max_dd_ratio_oos_to_development": 1.1776694736913433
+  },
+  "gates": {
+    "pooled": true,
+    "calendar_blocks": true,
+    "horizons": true,
+    "supportive_horizons": 3,
+    "anchors": true,
+    "supportive_anchors": 3,
+    "positive_quarters": 4,
+    "evaluated_quarters": 7,
+    "quarter_warning": false
+  },
+  "warnings": [
+    "2025 block is narrowly positive: PF 1.057, just above frozen 1.05 floor",
+    "02:30 anchor is OOS-negative: mean -0.0433%, PF 0.853; it is retained because post-OOS exclusion is prohibited",
+    "Only 4/7 OOS quarters have positive mean; this exactly meets the preregistered diagnostic guardrail"
+  ],
+  "next_action": "TRADE_CONSTRUCTION"
+}
