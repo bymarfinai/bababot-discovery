@@ -1,0 +1,4 @@
+trigger B28I frozen OOS validation
+preregistered protocol commit: 73faa8ba14f20f11cf3ae90a47907877cf319e64
+runner commit: c02b71e5d1d1418a567e2819636c705c721caa2f
+workflow commit: d2c9f121f3c6f0823490244abc32367051dbda47
