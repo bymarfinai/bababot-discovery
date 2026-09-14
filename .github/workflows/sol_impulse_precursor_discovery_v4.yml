@@ -1,0 +1,36 @@
+name: SOL Impulse Precursor Discovery v4
+
+on:
+  push:
+    branches:
+      - sol-impulse-precursor-discovery-v4
+  workflow_dispatch:
+
+jobs:
+  impulse-precursor-walk-forward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Run frozen v4 impulse precursor discovery
+        run: python research/sol_impulse_precursor_discovery_v4.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-impulse-precursor-discovery-v4
+          path: |
+            SOL_IMPULSE_PRECURSOR_DISCOVERY_V4_Opportunities.csv
+            SOL_IMPULSE_PRECURSOR_DISCOVERY_V4_Predictions.csv
+            SOL_IMPULSE_PRECURSOR_DISCOVERY_V4_ScoreDeciles.csv
+            SOL_IMPULSE_PRECURSOR_DISCOVERY_V4_YearSummary.csv
+            SOL_IMPULSE_PRECURSOR_DISCOVERY_V4_FeatureImportance.csv
+            SOL_IMPULSE_PRECURSOR_DISCOVERY_V4_TransitionContrast.csv
+            SOL_IMPULSE_PRECURSOR_DISCOVERY_V4_GateAudit.csv
+            SOL_IMPULSE_PRECURSOR_DISCOVERY_V4_Result.md
+            SOL_IMPULSE_PRECURSOR_DISCOVERY_V4_Status.txt
+            research/SOL_IMPULSE_PRECURSOR_DISCOVERY_V4_PREREG.md
