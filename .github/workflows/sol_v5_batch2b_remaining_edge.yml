@@ -1,0 +1,41 @@
+name: SOL V5 Batch2B Remaining Edge
+
+on:
+  push:
+    branches:
+      - sol-v5-batch2-remaining-edge
+    paths:
+      - 'research/sol_v5_batch2b_remaining_edge.py'
+      - 'research/SOL_V5_BATCH2B_REMAINING_EDGE_PREREG.md'
+      - '.github/workflows/sol_v5_batch2b_remaining_edge.yml'
+      - '.sol-v5-batch2b-remaining-edge-trigger'
+  workflow_dispatch:
+
+jobs:
+  remaining-edge-walk-forward:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Run frozen Batch 2B remaining-edge predictor
+        run: python research/sol_v5_batch2b_remaining_edge.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-v5-batch2b-remaining-edge
+          if-no-files-found: error
+          compression-level: 6
+          path: |
+            SOL_V5_BATCH2B_REMAINING_EDGE_CheckpointsWithTargets.csv
+            SOL_V5_BATCH2B_REMAINING_EDGE_Predictions.csv
+            SOL_V5_BATCH2B_REMAINING_EDGE_SelectedEntries.csv
+            SOL_V5_BATCH2B_REMAINING_EDGE_YearSummary.csv
+            SOL_V5_BATCH2B_REMAINING_EDGE_GateAudit.csv
+            SOL_V5_BATCH2B_REMAINING_EDGE_Result.md
+            SOL_V5_BATCH2B_REMAINING_EDGE_Status.txt
+            research/SOL_V5_BATCH2B_REMAINING_EDGE_PREREG.md
