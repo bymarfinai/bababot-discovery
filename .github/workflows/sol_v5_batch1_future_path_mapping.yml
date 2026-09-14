@@ -1,0 +1,42 @@
+name: SOL V5 Batch1 Future Path Mapping
+
+on:
+  push:
+    branches:
+      - sol-v5-batch1-future-path-mapping
+    paths:
+      - 'research/sol_v5_batch1_future_path_mapping.py'
+      - 'research/SOL_V5_BATCH1_FUTURE_PATH_MAPPING_PREREG.md'
+      - '.github/workflows/sol_v5_batch1_future_path_mapping.yml'
+  workflow_dispatch:
+
+jobs:
+  future-path-mapping:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Run frozen Batch 1 mapping
+        run: python research/sol_v5_batch1_future_path_mapping.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-v5-batch1-future-path-mapping
+          path: |
+            SOL_V5_BATCH1_FUTURE_PATH_MAPPING_StateScoresAndPaths.csv
+            SOL_V5_BATCH1_FUTURE_PATH_MAPPING_ActiveFuturePaths.csv
+            SOL_V5_BATCH1_FUTURE_PATH_MAPPING_ScopeSummary.csv
+            SOL_V5_BATCH1_FUTURE_PATH_MAPPING_ScoreDecilePathSummary.csv
+            SOL_V5_BATCH1_FUTURE_PATH_MAPPING_HorizonQuantiles.csv
+            SOL_V5_BATCH1_FUTURE_PATH_MAPPING_TimingArchetypes.csv
+            SOL_V5_BATCH1_FUTURE_PATH_MAPPING_GateAudit.csv
+            SOL_V5_BATCH1_FUTURE_PATH_MAPPING_Result.md
+            SOL_V5_BATCH1_FUTURE_PATH_MAPPING_Status.txt
+            research/SOL_V5_BATCH1_FUTURE_PATH_MAPPING_PREREG.md
+          if-no-files-found: error
+          compression-level: 6
