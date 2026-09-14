@@ -1,0 +1,29 @@
+name: SOL ORB H01 Character Confirmation v1
+on:
+  workflow_dispatch:
+  push:
+    branches: [sol-orb-h01-character-confirm-v1]
+    paths:
+      - 'research/sol_orb_h01_character_confirm_v1.py'
+      - 'SOL_ORB_H01_CHARACTER_CONFIRM_V1_PREREG.md'
+      - '.sol-orb-h01-character-confirm-v1-trigger'
+      - '.github/workflows/sol_orb_h01_character_confirm_v1.yml'
+jobs:
+  confirm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen SOL ORB H01 character confirmation
+        run: |
+          set -euo pipefail
+          python -m py_compile research/sol_orb_h01_character_confirm_v1.py
+          python research/sol_orb_h01_character_confirm_v1.py | tee SOL_ORB_H01_CHARACTER_CONFIRM_V1_Run.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-orb-h01-character-confirm-v1
+          path: SOL_ORB_H01_CHARACTER_CONFIRM_V1_*
+          if-no-files-found: error
