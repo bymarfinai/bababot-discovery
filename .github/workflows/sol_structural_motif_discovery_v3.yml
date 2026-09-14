@@ -1,0 +1,38 @@
+name: SOL Structural Motif Discovery v3
+
+on:
+  push:
+    branches:
+      - sol-structural-motif-discovery-v3
+  workflow_dispatch:
+
+jobs:
+  raw-motif-walk-forward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scikit-learn scipy
+      - name: Run frozen v3 motif discovery
+        run: python research/sol_structural_motif_discovery_v3.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-structural-motif-discovery-v3
+          path: |
+            SOL_STRUCTURAL_MOTIF_DISCOVERY_V3_Opportunities.csv
+            SOL_STRUCTURAL_MOTIF_DISCOVERY_V3_Predictions.csv
+            SOL_STRUCTURAL_MOTIF_DISCOVERY_V3_TrainMotifStats.csv
+            SOL_STRUCTURAL_MOTIF_DISCOVERY_V3_MotifGeometry.csv
+            SOL_STRUCTURAL_MOTIF_DISCOVERY_V3_YearSummary.csv
+            SOL_STRUCTURAL_MOTIF_DISCOVERY_V3_EdgeQuartiles.csv
+            SOL_STRUCTURAL_MOTIF_DISCOVERY_V3_TestMotifSummary.csv
+            SOL_STRUCTURAL_MOTIF_DISCOVERY_V3_HourAudit.csv
+            SOL_STRUCTURAL_MOTIF_DISCOVERY_V3_GateAudit.csv
+            SOL_STRUCTURAL_MOTIF_DISCOVERY_V3_Result.md
+            SOL_STRUCTURAL_MOTIF_DISCOVERY_V3_Status.txt
+            research/SOL_STRUCTURAL_MOTIF_DISCOVERY_V3_PREREG.md
