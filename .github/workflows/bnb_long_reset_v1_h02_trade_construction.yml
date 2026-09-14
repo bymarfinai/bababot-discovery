@@ -1,0 +1,32 @@
+name: BNB LONG Reset V1 H02 Trade Construction
+
+on:
+  push:
+    branches:
+      - bnb-long-character-discovery-reset-v1
+    paths:
+      - '.bnb-reset-v1-h02-construction-trigger'
+
+jobs:
+  h02-trade-construction:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen H02 Development trade construction
+        run: |
+          set -euo pipefail
+          LOG=BNB_LONG_RESET_V1_H02_TRADE_CONSTRUCTION_Run.log
+          echo 'BNB LONG Reset V1 H02 Development trade construction' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          python -m py_compile research/bnb_long_reset_v1_h02_trade_construction.py 2>&1 | tee -a "$LOG"
+          python research/bnb_long_reset_v1_h02_trade_construction.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bnb-long-reset-v1-h02-trade-construction
+          path: BNB_LONG_RESET_V1_H02_TRADE_CONSTRUCTION_*
+          if-no-files-found: error
