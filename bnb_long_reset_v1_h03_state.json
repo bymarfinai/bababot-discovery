@@ -1,0 +1,47 @@
+{
+  "status": "PRIMARY_PASS",
+  "symbol": "BNBUSDT",
+  "side": "LONG",
+  "habitat_wib": "03:00-04:00",
+  "primary": "drive_60m__LOW",
+  "development_period": "2022-01-01 through 2024-12-31",
+  "oos_status": "SEALED_NOT_EVALUATED",
+  "development_events": 4384,
+  "selected_observations": 1382,
+  "signals_per_week": 8.826642335766422,
+  "pooled": {
+    "wr": 0.5774240231548481,
+    "mean": 0.0008405737958413755,
+    "median": 0.00093635150686855,
+    "pf": 1.3410166136043387,
+    "max_loss_streak": 13,
+    "raw_reference_notional_usd": 500,
+    "raw_usd_per_signal": 0.4202868979206877,
+    "raw_cumulative_equivalent_usd": 580.8364929263905,
+    "raw_max_dd_equivalent_usd": 213.04293943025605
+  },
+  "gates": {
+    "pooled": true,
+    "horizons_supportive": 3,
+    "horizon_gate": true,
+    "era_gate": true,
+    "years_wr_gt_55": 2,
+    "anchors_supportive": 4,
+    "anchor_gate": true
+  },
+  "provenance": {
+    "trigger_sha": "5fbd904cd163cafc188950886775bfca01b93ab7",
+    "github_actions_run": 34807471101,
+    "artifact_id": 10333169367,
+    "artifact_sha256": "74acae912d8ad6912d74cd43b71f1a7dba72c10972cf3bca1d506cf4ed7500dd"
+  },
+  "execution_economics": {
+    "gross_pnl": null,
+    "fees_slippage": null,
+    "net_pnl": null,
+    "max_dd": null,
+    "reason": "Primary structural stage; final executable hold/TP/SL, costs and overlap handling are not yet constructed."
+  },
+  "next_action": "H03_STRUCTURAL_STRESS_SECONDARY_CONFIRMATION",
+  "hour_scan": "STOPPED_ON_PRIMARY_PASS"
+}
