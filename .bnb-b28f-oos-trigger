@@ -1,0 +1,4 @@
+trigger B28F frozen OOS validation
+preregistered protocol commit: eb39a2c280d3c6dc848ba08f219caf55459a8d64
+runner commit: 8b1ed9cb1699029e66f70ab488db391f695625ad
+workflow commit: d3b479160ee8ce3af2744766b895b5d75ab2ddd8
