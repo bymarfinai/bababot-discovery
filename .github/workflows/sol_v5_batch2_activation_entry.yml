@@ -1,0 +1,42 @@
+name: SOL V5 Batch2 Activation Entry
+
+on:
+  push:
+    branches:
+      - sol-v5-batch2-activation-entry
+    paths:
+      - 'research/sol_v5_batch2_activation_entry.py'
+      - 'research/SOL_V5_BATCH2_ACTIVATION_ENTRY_PREREG.md'
+      - '.github/workflows/sol_v5_batch2_activation_entry.yml'
+      - '.sol-v5-batch2-activation-trigger'
+  workflow_dispatch:
+
+jobs:
+  activation-walk-forward:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Run frozen Batch 2 activation
+        run: python research/sol_v5_batch2_activation_entry.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-v5-batch2-activation-entry
+          if-no-files-found: error
+          compression-level: 6
+          path: |
+            SOL_V5_BATCH2_ACTIVATION_ENTRY_Checkpoints.csv
+            SOL_V5_BATCH2_ACTIVATION_ENTRY_CheckpointPredictions.csv
+            SOL_V5_BATCH2_ACTIVATION_ENTRY_ActivatedEntries.csv
+            SOL_V5_BATCH2_ACTIVATION_ENTRY_YearSummary.csv
+            SOL_V5_BATCH2_ACTIVATION_ENTRY_FeatureImportance.csv
+            SOL_V5_BATCH2_ACTIVATION_ENTRY_GateAudit.csv
+            SOL_V5_BATCH2_ACTIVATION_ENTRY_Result.md
+            SOL_V5_BATCH2_ACTIVATION_ENTRY_Status.txt
+            research/SOL_V5_BATCH2_ACTIVATION_ENTRY_PREREG.md
