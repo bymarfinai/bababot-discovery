@@ -5,6 +5,7 @@ on:
     branches: [sol-orb-reference-fidelity-v1]
     paths:
       - 'research/sol_orb_reference_fidelity_v1.py'
+      - 'research/run_sol_orb_reference_fidelity_v1.py'
       - 'SOL_ORB_REFERENCE_FIDELITY_V1_PREREG.md'
       - '.sol-orb-reference-fidelity-v1-trigger'
       - '.github/workflows/sol_orb_reference_fidelity_v1.yml'
@@ -20,8 +21,8 @@ jobs:
       - name: Run SOL ORB reference fidelity detector v1
         run: |
           set -euo pipefail
-          python -m py_compile research/sol_orb_reference_fidelity_v1.py
-          python research/sol_orb_reference_fidelity_v1.py | tee SOL_ORB_REFERENCE_FIDELITY_V1_Run.log
+          python -m py_compile research/sol_orb_reference_fidelity_v1.py research/run_sol_orb_reference_fidelity_v1.py
+          python research/run_sol_orb_reference_fidelity_v1.py | tee SOL_ORB_REFERENCE_FIDELITY_V1_Run.log
       - uses: actions/upload-artifact@v4
         with:
           name: sol-orb-reference-fidelity-v1
