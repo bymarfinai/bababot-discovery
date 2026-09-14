@@ -1,0 +1,34 @@
+name: BNB B28F frozen OOS validation
+
+on:
+  push:
+    branches:
+      - bnb-b28f-long-05-06wib-rtd-validation
+    paths:
+      - '.bnb-b28f-oos-trigger'
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run preregistered frozen B28F OOS validation
+        run: |
+          set -euo pipefail
+          LOG=BNB_B28F_FROZEN_OOS_VALIDATION_Run.log
+          echo 'BNB B28F frozen OOS validation' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo 'protocol=BNB_B28F_OOS_PREREG.md' >> "$LOG"
+          python -m py_compile research/bnb_b28f_frozen_oos_validation.py 2>&1 | tee -a "$LOG"
+          python research/bnb_b28f_frozen_oos_validation.py 2>&1 | tee -a "$LOG"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bnb-b28f-frozen-oos-validation
+          path: BNB_B28F_FROZEN_OOS_VALIDATION_*
+          if-no-files-found: warn
