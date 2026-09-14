@@ -18,7 +18,7 @@ jobs:
       - name: Install dependencies
         run: pip install pandas numpy requests scikit-learn scipy
       - name: Run frozen adaptive structure detector
-        run: python research/sol_adaptive_structure_detector_v1.py
+        run: python research/run_sol_adaptive_structure_detector_v1_fast.py
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
