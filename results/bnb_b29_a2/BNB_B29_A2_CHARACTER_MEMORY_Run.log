@@ -1,6 +1,9 @@
-BNB B29 A2 walk-forward character memory
-commit=b2defe89bb1382471cb091094b9c77595d9e764b
+BNB B29 A2 frozen-identity rerun
+commit=2bf2cbb6140f2ee97f6fef8a2c3da5a79fd07b76
 protocol=BNB_B29_A2_CHARACTER_MEMORY.md
+scientific_identity=B29-A2-v1 unchanged
+A2 frozen-loader diagnostic: {'attempt': 1, 'rows': 687936, 'start': Timestamp('2020-02-10 08:00:00+0000', tz='UTC'), 'last': Timestamp('2026-08-25 23:55:00+0000', tz='UTC'), 'coverage': 1.0, 'row_ok': True, 'boundary_ok': True, 'contiguous_ok': True, 'fp_hash': '2bdb2c99f961942ed48a41d3fa8f6c5a1bd083b280126308f423b98f38ff6ea6', 'fp_ok': True}
+A2 frozen-loader identity PASS on attempt 1
 fold=2022 memory=66247 query=2189 evaluable=2189 median_rho=-0.0016
 fold=2023 memory=101283 query=2190 evaluable=2190 median_rho=-0.0093
 fold=2024 memory=136322 query=2195 evaluable=2195 median_rho=0.0395
@@ -8,14 +11,14 @@ fold=2025 memory=171453 query=2190 evaluable=2190 median_rho=0.0352
 fold=2026 memory=206491 query=1421 evaluable=1421 median_rho=0.0100
 # BNB B29 A2 — Character Memory Result
 
-**Status: BNB_B29_A2_DATA_TOOLING_FAILURE**
+**Status: BNB_B29_A2_CHARACTER_MEMORY_REJECT**
 
 A2 evaluates walk-forward structural similarity and forward price behaviour only. It does not define or test entry, TP, SL, leverage, fees, PnL, or live execution.
 
 ## Frozen representation / data
 
-- A1 fingerprint hash: `a27920d29196ad1128b10a29421548cd3fb91e8a2cdd1af2433c28ceef0d387f`
-- Frozen A1 hash match: **FAIL**
+- A1 fingerprint hash: `2bdb2c99f961942ed48a41d3fa8f6c5a1bd083b280126308f423b98f38ff6ea6`
+- Frozen A1 hash match: **PASS**
 - Raw 5m coverage: 100.000000%
 - Post-2026-08-26 00:00:00+00:00 data touched: **NO**
 - Evaluable sampled queries: 10,185
@@ -43,7 +46,7 @@ A2 evaluates walk-forward structural similarity and forward price behaviour only
 ## Frozen gates
 
 - Coverage: **PASS**
-- A1 hash guard: **FAIL**
+- A1 hash guard: **PASS**
 - Schema guard: **PASS**
 - Frozen boundary: **PASS**
 - Numeric finite: **PASS**
@@ -60,7 +63,7 @@ A2 evaluates walk-forward structural similarity and forward price behaviour only
 
 ## Decision
 
-**BNB_B29_A2_DATA_TOOLING_FAILURE**
+**BNB_B29_A2_CHARACTER_MEMORY_REJECT**
 
 If PASS, freeze A2 as a reusable BNB character-memory layer before any entry/TP/SL work. If REJECT, do not tune this A2 identity against the same results.
 
