@@ -1,0 +1,62 @@
+name: BNB B29 A3 regime-aware character memory
+
+on:
+  push:
+    branches:
+      - bnb-b29-walkforward-reset
+    paths:
+      - '.bnb-b29-a3-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  regime-memory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests scikit-learn
+      - name: Run preregistered B29 A3 with exact A1 data identity guard
+        run: |
+          set -euo pipefail
+          LOG=BNB_B29_A3_REGIME_MEMORY_Run.log
+          echo 'BNB B29 A3 regime-aware character memory' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo 'protocol=BNB_B29_A3_REGIME_AWARE_CHARACTER_MEMORY.md' >> "$LOG"
+          echo 'scientific_identity=B29-A3-v1 frozen' >> "$LOG"
+          python -m py_compile research/bnb_b29_a3_regime_aware_character_memory.py research/bnb_b29_a3_regime_memory_stable_runner.py 2>&1 | tee -a "$LOG"
+          python research/bnb_b29_a3_regime_memory_stable_runner.py 2>&1 | tee -a "$LOG"
+      - name: Upload reproducibility artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bnb-b29-a3-regime-aware-character-memory
+          path: BNB_B29_A3_REGIME_MEMORY*
+          if-no-files-found: warn
+      - name: Persist compact A3 evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p results/bnb_b29_a3
+          for f in \
+            BNB_B29_A3_REGIME_MEMORY_Result.md \
+            BNB_B29_A3_REGIME_MEMORY_FoldMetrics.csv \
+            BNB_B29_A3_REGIME_MEMORY_HorizonMetrics.csv \
+            BNB_B29_A3_REGIME_MEMORY_RegimeMetrics.csv \
+            BNB_B29_A3_REGIME_MEMORY_Status.txt \
+            BNB_B29_A3_REGIME_MEMORY_Run.log; do
+            if [ -f "$f" ]; then cp "$f" results/bnb_b29_a3/; fi
+          done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/bnb_b29_a3
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Persist frozen B29 A3 evidence'
+            git push origin HEAD:bnb-b29-walkforward-reset
+          fi
