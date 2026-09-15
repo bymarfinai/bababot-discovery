@@ -1,0 +1,40 @@
+name: SOL V5 Batch2C Early Entry Management
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sol-v5-batch2c-early-entry-management
+    paths:
+      - 'research/sol_v5_batch2c_early_entry_management.py'
+      - 'research/SOL_V5_BATCH2C_EARLY_ENTRY_MANAGEMENT_PREREG.md'
+      - '.github/workflows/sol_v5_batch2c_early_entry_management.yml'
+
+jobs:
+  early-entry-management:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Run frozen Batch 2C policy
+        run: python research/sol_v5_batch2c_early_entry_management.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-v5-batch2c-early-entry-management
+          if-no-files-found: error
+          path: |
+            SOL_V5_BATCH2C_EARLY_ENTRY_MANAGEMENT_Trades.csv
+            SOL_V5_BATCH2C_EARLY_ENTRY_MANAGEMENT_DirectionPredictions.csv
+            SOL_V5_BATCH2C_EARLY_ENTRY_MANAGEMENT_YearSummary.csv
+            SOL_V5_BATCH2C_EARLY_ENTRY_MANAGEMENT_ExitReasonSummary.csv
+            SOL_V5_BATCH2C_EARLY_ENTRY_MANAGEMENT_CheckpointExitSummary.csv
+            SOL_V5_BATCH2C_EARLY_ENTRY_MANAGEMENT_GateAudit.csv
+            SOL_V5_BATCH2C_EARLY_ENTRY_MANAGEMENT_Result.md
+            SOL_V5_BATCH2C_EARLY_ENTRY_MANAGEMENT_Status.txt
+            research/SOL_V5_BATCH2C_EARLY_ENTRY_MANAGEMENT_PREREG.md
