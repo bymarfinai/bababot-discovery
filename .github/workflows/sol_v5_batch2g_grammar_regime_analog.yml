@@ -1,0 +1,42 @@
+name: SOL V5 Batch2G Grammar Regime Analog
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sol-v5-batch2g-grammar-regime-analog
+    paths:
+      - 'research/sol_v5_batch2g_grammar_regime_analog.py'
+      - 'research/SOL_V5_BATCH2G_GRAMMAR_REGIME_ANALOG_PREREG.md'
+      - '.github/workflows/sol_v5_batch2g_grammar_regime_analog.yml'
+
+jobs:
+  grammar-regime-analog:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Run frozen Batch 2G grammar regime analog
+        run: python research/sol_v5_batch2g_grammar_regime_analog.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-v5-batch2g-grammar-regime-analog
+          if-no-files-found: error
+          path: |
+            SOL_V5_BATCH2G_GRAMMAR_REGIME_ANALOG_Assignments.csv
+            SOL_V5_BATCH2G_GRAMMAR_REGIME_ANALOG_TrainingGrammarDictionary.csv
+            SOL_V5_BATCH2G_GRAMMAR_REGIME_ANALOG_AnalogAudit.csv
+            SOL_V5_BATCH2G_GRAMMAR_REGIME_ANALOG_SelectedTrades.csv
+            SOL_V5_BATCH2G_GRAMMAR_REGIME_ANALOG_PooledComparison.csv
+            SOL_V5_BATCH2G_GRAMMAR_REGIME_ANALOG_YearSummary.csv
+            SOL_V5_BATCH2G_GRAMMAR_REGIME_ANALOG_GrammarTransfer.csv
+            SOL_V5_BATCH2G_GRAMMAR_REGIME_ANALOG_GateAudit.csv
+            SOL_V5_BATCH2G_GRAMMAR_REGIME_ANALOG_Result.md
+            SOL_V5_BATCH2G_GRAMMAR_REGIME_ANALOG_Status.txt
+            research/SOL_V5_BATCH2G_GRAMMAR_REGIME_ANALOG_PREREG.md
