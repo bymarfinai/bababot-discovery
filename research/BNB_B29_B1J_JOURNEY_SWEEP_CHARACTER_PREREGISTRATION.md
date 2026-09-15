@@ -106,7 +106,7 @@ For a rule to enter the ranked development shortlist it must satisfy all:
 - max development-year share <= 45%;
 - character uses <=3 clauses.
 
-Multiple-testing control: compute two-sided/one-sided binomial significance against 50% for every development-eligible rule and apply Benjamini-Hochberg FDR at q=0.05 across all tested rules. A promoted rule must also be FDR-significant.
+Multiple-testing control: for every rule that satisfies the frozen sample-size requirements (pooled development N >=240 and N>=60 in each development year), compute the **one-sided exact binomial p-value for directional hit >50%** and apply Benjamini-Hochberg FDR at q=0.05 across that complete tested-rule set. A promoted rule must also be FDR-significant.
 
 Rank eligible development rules deterministically by:
 1. highest worst development-year +60m hit;
