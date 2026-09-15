@@ -1,0 +1,53 @@
+# BNB B29 A3 — Regime-Aware Character Memory Result
+
+**Status: BNB_B29_A3_REGIME_MEMORY_REJECT**
+
+A3 tests a causally-known slow-regime hard gate before local A1 structural similarity. No entry, TP, SL, leverage, fees, PnL, or live orders are tested.
+
+## Frozen identity
+
+- A1 fingerprint hash: `2bdb2c99f961942ed48a41d3fa8f6c5a1bd083b280126308f423b98f38ff6ea6`
+- Frozen A1 hash match: **PASS**
+- Raw 5m coverage: 100.000000%
+- Post-cutoff data touched: **NO**
+- Evaluable queries: 10,185
+
+## Walk-forward folds
+
+| Fold | Memory N | Query N | Eval N | Coverage | Regimes | Median regime N | Analog N | Same regime | Same macro eff | Same structure | Same path | Median rho | Mean sign |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2022 | 66,175 | 2,189 | 2,189 | 100.00% | 15 | 7682 | 64 | 100.00% | 100.00% | 51.56% | 54.69% | 0.0313 | 51.70% |
+| 2023 | 101,211 | 2,190 | 2,190 | 100.00% | 15 | 9898 | 64 | 100.00% | 100.00% | 50.00% | 56.25% | 0.0291 | 51.05% |
+| 2024 | 136,250 | 2,195 | 2,195 | 100.00% | 15 | 13994 | 64 | 100.00% | 100.00% | 56.25% | 59.38% | 0.0141 | 50.19% |
+| 2025 | 171,381 | 2,190 | 2,190 | 100.00% | 15 | 17689 | 64 | 100.00% | 100.00% | 62.50% | 64.06% | 0.0111 | 49.93% |
+| 2026 | 206,419 | 1,421 | 1,421 | 100.00% | 15 | 19493 | 64 | 100.00% | 100.00% | 59.38% | 60.94% | -0.0069 | 49.96% |
+
+## Pooled fixed-horizon behaviour
+
+| Horizon | N | Spearman rho | Sign agreement |
+|---:|---:|---:|---:|
+| +15m | 10,185 | 0.0209 | 50.71% |
+| +30m | 10,185 | 0.0270 | 50.88% |
+| +60m | 10,185 | 0.0198 | 50.63% |
+| +120m | 10,185 | 0.0097 | 50.47% |
+| +360m | 10,185 | 0.0034 | 50.37% |
+
+## Frozen gates
+
+- Exact A1 hash: **PASS**
+- Boundary/schema/numeric/chronology integrity: **PASS**
+- Evaluable coverage >=75% each fold: **PASS**
+- Structural/regime coherence: **FAIL** (structure 56.25%, path 59.38%, primary 100.00%, macro-eff 100.00%)
+- Positive pooled horizons: **5/5** (need >=4)
+- Median pooled rho: **0.0198** (need >=0.0300)
+- Mean pooled sign agreement: **50.61%** (need >=51.00%)
+- Positive folds: **4/5** (need >=4)
+- 2025 & 2026 positive: **FAIL**
+- Worst fold rho: **-0.0069** (must be >=-0.0200)
+- Aggregate behavioural gate: **FAIL**
+
+## Decision
+
+**BNB_B29_A3_REGIME_MEMORY_REJECT**
+
+Frozen stop rule applies after this valid identity. No live orders were placed.
