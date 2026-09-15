@@ -1,5 +1,5 @@
 BNB B29 A2 walk-forward character memory
-commit=95c1e9bbf201ff720ee77ad1f853b8a602a6c8ef
+commit=b2defe89bb1382471cb091094b9c77595d9e764b
 protocol=BNB_B29_A2_CHARACTER_MEMORY.md
 fold=2022 memory=66247 query=2189 evaluable=2189 median_rho=-0.0016
 fold=2023 memory=101283 query=2190 evaluable=2190 median_rho=-0.0093
