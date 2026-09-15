@@ -1,3 +1,4 @@
 B29 A1 causal structure fingerprint
-triggered=2026-09-14
+triggered=2026-09-15-diagnostic-rerun
 frozen_data_end=2026-08-26
+purpose=verify A1 fingerprint stability for A2 hash guard
