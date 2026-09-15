@@ -1,0 +1,4 @@
+trigger: 2026-09-15T01:05:00Z
+protocol: BNB_B29_A2_CHARACTER_MEMORY.md
+scientific_identity: B29-A2-v1
+purpose: tooling-only rerun with exact accepted A1 raw/fingerprint identity guard
