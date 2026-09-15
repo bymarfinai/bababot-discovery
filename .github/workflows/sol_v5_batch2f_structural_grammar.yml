@@ -1,0 +1,42 @@
+name: SOL V5 Batch2F Structural Grammar
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sol-v5-batch2f-structural-grammar
+    paths:
+      - 'research/sol_v5_batch2f_structural_grammar.py'
+      - 'research/SOL_V5_BATCH2F_STRUCTURAL_GRAMMAR_PREREG.md'
+      - '.github/workflows/sol_v5_batch2f_structural_grammar.yml'
+
+jobs:
+  structural-grammar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Run frozen Batch 2F structural grammar
+        run: python research/sol_v5_batch2f_structural_grammar.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-v5-batch2f-structural-grammar
+          if-no-files-found: error
+          path: |
+            SOL_V5_BATCH2F_STRUCTURAL_GRAMMAR_Assignments.csv
+            SOL_V5_BATCH2F_STRUCTURAL_GRAMMAR_TrainingMotifDictionary.csv
+            SOL_V5_BATCH2F_STRUCTURAL_GRAMMAR_EligibleMotifs.csv
+            SOL_V5_BATCH2F_STRUCTURAL_GRAMMAR_SelectedTrades.csv
+            SOL_V5_BATCH2F_STRUCTURAL_GRAMMAR_YearSummary.csv
+            SOL_V5_BATCH2F_STRUCTURAL_GRAMMAR_TransferAudit.csv
+            SOL_V5_BATCH2F_STRUCTURAL_GRAMMAR_GrammarFrequency.csv
+            SOL_V5_BATCH2F_STRUCTURAL_GRAMMAR_GateAudit.csv
+            SOL_V5_BATCH2F_STRUCTURAL_GRAMMAR_Result.md
+            SOL_V5_BATCH2F_STRUCTURAL_GRAMMAR_Status.txt
+            research/SOL_V5_BATCH2F_STRUCTURAL_GRAMMAR_PREREG.md
