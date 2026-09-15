@@ -1,8 +1,3 @@
-BNB B29 B1 event-conditioned transition
-commit=fafec98783c7b35f8fd9cc46e2083bc3c3103d4d
-protocol=research/BNB_B29_B1_EVENT_TRANSITION_PREREGISTRATION.md
-scientific_identity=B29-B1-v1 frozen; immutable A1 + gap-safe tooling only
-B1 immutable A1 gap-safe diagnostic: {'sha256': 'eae8f278d45e7c3035b03900b30e315b16a241c1fbc5fda39231681390c25cfa', 'sha_ok': True, 'rows': 229267, 'rows_ok': True, 'first': Timestamp('2020-02-10 14:15:00+0000', tz='UTC'), 'last': Timestamp('2026-08-26 00:00:00+0000', tz='UTC'), 'boundary_ok': True, 'grid_ok': True, 'gap_count': 13, 'max_gap': Timedelta('0 days 01:15:00'), 'unique_ok': True, 'schema_ok': True}
 # BNB B29 B1 — Event-Conditioned Structural Transition Result
 
 **Status: BNB_B29_B1_EVENT_TRANSITION_REJECT**
@@ -96,4 +91,3 @@ B1 tests fixed causal structural event sequences and forward direction only. No 
 No fixed event family satisfies the preregistered promotion gate. Do not proceed to execution discovery from this B1 identity.
 
 No live orders were placed.
-
