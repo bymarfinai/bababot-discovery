@@ -1,0 +1,18 @@
+BNB B29 B1 event-conditioned transition
+commit=9bb53178eaeea54ba14992c286389ede6f96b839
+protocol=research/BNB_B29_B1_EVENT_TRANSITION_PREREGISTRATION.md
+scientific_identity=B29-B1-v1 frozen
+A2 frozen-loader diagnostic: {'attempt': 1, 'rows': 687936, 'start': Timestamp('2020-02-10 08:00:00+0000', tz='UTC'), 'last': Timestamp('2026-08-25 23:55:00+0000', tz='UTC'), 'coverage': 1.0, 'row_ok': True, 'boundary_ok': True, 'contiguous_ok': True, 'fp_hash': 'a27920d29196ad1128b10a29421548cd3fb91e8a2cdd1af2433c28ceef0d387f', 'fp_ok': False}
+A2 frozen-loader diagnostic: {'attempt': 2, 'rows': 687936, 'start': Timestamp('2020-02-10 08:00:00+0000', tz='UTC'), 'last': Timestamp('2026-08-25 23:55:00+0000', tz='UTC'), 'coverage': 1.0, 'row_ok': True, 'boundary_ok': True, 'contiguous_ok': True, 'fp_hash': 'a27920d29196ad1128b10a29421548cd3fb91e8a2cdd1af2433c28ceef0d387f', 'fp_ok': False}
+A2 frozen-loader diagnostic: {'attempt': 3, 'rows': 687936, 'start': Timestamp('2020-02-10 08:00:00+0000', tz='UTC'), 'last': Timestamp('2026-08-25 23:55:00+0000', tz='UTC'), 'coverage': 1.0, 'row_ok': True, 'boundary_ok': True, 'contiguous_ok': True, 'fp_hash': 'a27920d29196ad1128b10a29421548cd3fb91e8a2cdd1af2433c28ceef0d387f', 'fp_ok': False}
+A2 frozen-loader diagnostic: {'attempt': 4, 'rows': 687936, 'start': Timestamp('2020-02-10 08:00:00+0000', tz='UTC'), 'last': Timestamp('2026-08-25 23:55:00+0000', tz='UTC'), 'coverage': 1.0, 'row_ok': True, 'boundary_ok': True, 'contiguous_ok': True, 'fp_hash': 'a27920d29196ad1128b10a29421548cd3fb91e8a2cdd1af2433c28ceef0d387f', 'fp_ok': False}
+A2 frozen-loader diagnostic: {'attempt': 5, 'rows': 687936, 'start': Timestamp('2020-02-10 08:00:00+0000', tz='UTC'), 'last': Timestamp('2026-08-25 23:55:00+0000', tz='UTC'), 'coverage': 1.0, 'row_ok': True, 'boundary_ok': True, 'contiguous_ok': True, 'fp_hash': 'a27920d29196ad1128b10a29421548cd3fb91e8a2cdd1af2433c28ceef0d387f', 'fp_ok': False}
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/bnb_b29_b1_event_transition.py", line 291, in <module>
+    main()
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/bnb_b29_b1_event_transition.py", line 223, in main
+    raw, coverage = stable.load5_frozen_identity(SYMBOL)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/bnb_b29_a2_character_memory_stable_runner.py", line 65, in load5_frozen_identity
+    raise RuntimeError(f"could not recover exact frozen A1 raw/fingerprint identity after {MAX_ATTEMPTS} attempts; last={last_diag}")
+RuntimeError: could not recover exact frozen A1 raw/fingerprint identity after 5 attempts; last={'attempt': 5, 'rows': 687936, 'start': Timestamp('2020-02-10 08:00:00+0000', tz='UTC'), 'last': Timestamp('2026-08-25 23:55:00+0000', tz='UTC'), 'coverage': 1.0, 'row_ok': True, 'boundary_ok': True, 'contiguous_ok': True, 'fp_hash': 'a27920d29196ad1128b10a29421548cd3fb91e8a2cdd1af2433c28ceef0d387f', 'fp_ok': False}
