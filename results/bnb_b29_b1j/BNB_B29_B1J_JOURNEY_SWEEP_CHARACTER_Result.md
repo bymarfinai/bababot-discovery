@@ -1,0 +1,50 @@
+# BNB B29-B1J — Journey → Sweep → Reclaim Character Result
+
+**Status: BNB_B29_B1J_JOURNEY_CHARACTER_PASS**
+
+B1J mines only preregistered causal journey/reclaim clauses around the frozen SWEEP_LOW_RECLAIM -> LONG base event. No entry, TP, SL, leverage, fees, PnL or live orders are tested.
+
+## Immutable source integrity
+
+- Accepted A1 artifact id: `10336102957`
+- Fingerprint SHA256: `eae8f278d45e7c3035b03900b30e315b16a241c1fbc5fda39231681390c25cfa`
+- Exact file hash: **PASS**
+- Rows: 229,267
+- Known non-15m gaps: 13 (never crossed by predecessor/outcome calculations)
+- B1J eligible base events 2022-2026: 8,083
+- Complete frozen grammar size: 9,047 rules
+- Sample-size eligible rules entering FDR family: 1,477
+- Rules passing all development gates: 15
+- Frozen candidates sent to reference validation: 3
+
+## Frozen development shortlist
+
+| Rank | Rule | N dev | Hit dev | Wilson LCB | Worst dev era | Aux >=54% | BH q |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 1 | `pre_trend_state==STRONG_DOWN AND pre_vol_state==EXPAND AND low_journey==CLEAN_APPROACH` | 263 | 61.22% | 55.21% | 58.75% | 4 | 0.00143631 |
+| 2 | `pre_path_state==CONT_DOWN AND reclaim_strength==HIGH AND reclaim_body==LOW` | 293 | 61.09% | 55.40% | 58.54% | 4 | 0.000883949 |
+| 3 | `low_journey==CLEAN_APPROACH AND reclaim_strength==HIGH AND reclaim_body==LOW` | 690 | 58.99% | 55.28% | 57.64% | 3 | 4.7477e-05 |
+
+## Reference validation
+
+| Rank | Rule | 2025 N / hit | 2026 N / hit | Ref hit | Ref aux >=54% | Pooled hit | Pooled Wilson | Gate |
+|---:|---|---:|---:|---:|---:|---:|---:|---|
+| 1 | `pre_trend_state==STRONG_DOWN AND pre_vol_state==EXPAND AND low_journey==CLEAN_APPROACH` | 103 / 65.05% | 57 / 45.61% | 58.13% | 2 | 60.05% | 55.31% | REJECT |
+| 2 | `pre_path_state==CONT_DOWN AND reclaim_strength==HIGH AND reclaim_body==LOW` | 93 / 55.91% | 65 / 58.46% | 56.96% | 3 | 59.65% | 55.05% | PASS |
+| 3 | `low_journey==CLEAN_APPROACH AND reclaim_strength==HIGH AND reclaim_body==LOW` | 211 / 57.35% | 146 / 47.95% | 53.50% | 1 | 57.12% | 54.10% | REJECT |
+
+## Five-era +60m detail
+
+| Rank | 2022 | 2023 | 2024 | 2025 | 2026 |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 80 / 58.75% | 78 / 64.10% | 105 / 60.95% | 103 / 65.05% | 57 / 45.61% |
+| 2 | 97 / 60.82% | 82 / 58.54% | 114 / 63.16% | 93 / 55.91% | 65 / 58.46% |
+| 3 | 214 / 58.41% | 203 / 57.64% | 273 / 60.44% | 211 / 57.35% | 146 / 47.95% |
+
+## Decision
+
+**BNB_B29_B1J_JOURNEY_CHARACTER_PASS**
+
+1 frozen journey character candidate(s) passed every preregistered development and reference gate. This is character-level promotion only; execution discovery remains separate and final ready-to-trade proof still requires future shadow data after the complete strategy is frozen.
+
+No live orders were placed.
