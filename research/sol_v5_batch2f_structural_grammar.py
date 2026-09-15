@@ -58,7 +58,7 @@ def token(prev_h: float, prev_l: float, h: float, l: float) -> str:
 
 
 def grammar_for_entry(x5: pd.DataFrame, t: pd.Timestamp) -> str | None:
-    q = x5[(x5.open_time >= t - pd.Timedelta(minutes=SEQ_BARS*5)) & (x5.open_time < t)].tail(SEQ_BARS)
+    q = x5[(x5.index >= t - pd.Timedelta(minutes=SEQ_BARS*5)) & (x5.index < t)].tail(SEQ_BARS)
     if len(q) != SEQ_BARS:
         return None
     hi = q.high.astype(float).to_numpy(); lo = q.low.astype(float).to_numpy()
