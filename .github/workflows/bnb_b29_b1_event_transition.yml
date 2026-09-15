@@ -45,9 +45,9 @@ jobs:
           echo 'BNB B29 B1 event-conditioned transition' > "$LOG"
           echo "commit=$GITHUB_SHA" >> "$LOG"
           echo 'protocol=research/BNB_B29_B1_EVENT_TRANSITION_PREREGISTRATION.md' >> "$LOG"
-          echo 'scientific_identity=B29-B1-v1 frozen; immutable A1 artifact tooling only' >> "$LOG"
-          python -m py_compile research/bnb_b29_b1_event_transition.py 2>&1 | tee -a "$LOG"
-          python research/bnb_b29_b1_event_transition.py 2>&1 | tee -a "$LOG"
+          echo 'scientific_identity=B29-B1-v1 frozen; immutable A1 + gap-safe tooling only' >> "$LOG"
+          python -m py_compile research/bnb_b29_b1_event_transition.py research/bnb_b29_b1_event_transition_stable_runner.py 2>&1 | tee -a "$LOG"
+          python research/bnb_b29_b1_event_transition_stable_runner.py 2>&1 | tee -a "$LOG"
       - name: Upload reproducibility artifact
         uses: actions/upload-artifact@v4
         if: always()
