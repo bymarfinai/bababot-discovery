@@ -1,3 +1,4 @@
-trigger: 2026-09-15T00:53:00Z
+trigger: 2026-09-15T01:01:00Z
 protocol: BNB_B29_A2_CHARACTER_MEMORY.md
 identity: B29-A2-v1
+purpose: reproducibility rerun after A1 hash diagnostic; no scientific parameter changes
