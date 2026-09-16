@@ -1,8 +1,3 @@
-BNB B29 B2S prospective event-close shadow
-commit=56ca3361b9cfd454db6ec06c40deeeeb91201f8e
-protocol=research/BNB_B29_B2S_PROSPECTIVE_SHADOW_PREREGISTRATION.md
-scientific_identity=B29-B2S-v1 frozen
-tooling_feed=Binance Vision USD-M Futures daily 5m (REST endpoint blocked by runner HTTP 451)
 {
   "raw_diag": {
     "coverage": 1.0,
