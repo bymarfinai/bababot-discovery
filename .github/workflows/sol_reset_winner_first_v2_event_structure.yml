@@ -1,0 +1,43 @@
+name: SOL Reset Winner-First V2 Event Structure
+
+on:
+  push:
+    branches:
+      - sol-reset-winner-first-v2-event-structure
+    paths:
+      - 'research/sol_reset_winner_first_v2_event_structure.py'
+      - 'research/SOL_RESET_WINNER_FIRST_V2_EVENT_STRUCTURE_PREREG.md'
+      - '.github/workflows/sol_reset_winner_first_v2_event_structure.yml'
+  workflow_dispatch:
+
+jobs:
+  winner-event-structure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile frozen Winner-First V2
+        run: python -m py_compile research/sol_reset_winner_first_v2_event_structure.py
+      - name: Run frozen Winner-First V2
+        run: python research/sol_reset_winner_first_v2_event_structure.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-reset-winner-first-v2-event-structure
+          if-no-files-found: error
+          path: |
+            SOL_RESET_WINNER_FIRST_V2_EVENT_STRUCTURE_Opportunities.csv
+            SOL_RESET_WINNER_FIRST_V2_EVENT_STRUCTURE_OOSAssignments.csv
+            SOL_RESET_WINNER_FIRST_V2_EVENT_STRUCTURE_SelectedTrades.csv
+            SOL_RESET_WINNER_FIRST_V2_EVENT_STRUCTURE_TrainingFamilyStats.csv
+            SOL_RESET_WINNER_FIRST_V2_EVENT_STRUCTURE_FamilyTransfer.csv
+            SOL_RESET_WINNER_FIRST_V2_EVENT_STRUCTURE_YearSummary.csv
+            SOL_RESET_WINNER_FIRST_V2_EVENT_STRUCTURE_GateAudit.csv
+            SOL_RESET_WINNER_FIRST_V2_EVENT_STRUCTURE_Result.md
+            SOL_RESET_WINNER_FIRST_V2_EVENT_STRUCTURE_Status.txt
+            research/SOL_RESET_WINNER_FIRST_V2_EVENT_STRUCTURE_PREREG.md
