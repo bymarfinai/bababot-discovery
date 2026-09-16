@@ -1,0 +1,41 @@
+name: SOL Reset Winner-First V1
+
+on:
+  push:
+    branches:
+      - sol-reset-winner-first-v1
+    paths:
+      - 'research/sol_reset_winner_first_v1.py'
+      - 'research/SOL_RESET_WINNER_FIRST_V1_PREREG.md'
+      - '.github/workflows/sol_reset_winner_first_v1.yml'
+  workflow_dispatch:
+
+jobs:
+  winner-first:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Run frozen winner-first V1
+        run: python research/sol_reset_winner_first_v1.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-reset-winner-first-v1
+          if-no-files-found: error
+          path: |
+            SOL_RESET_WINNER_FIRST_V1_Opportunities.csv
+            SOL_RESET_WINNER_FIRST_V1_OOSAssignments.csv
+            SOL_RESET_WINNER_FIRST_V1_SelectedTrades.csv
+            SOL_RESET_WINNER_FIRST_V1_TrainingFamilyStats.csv
+            SOL_RESET_WINNER_FIRST_V1_FamilyTransfer.csv
+            SOL_RESET_WINNER_FIRST_V1_YearSummary.csv
+            SOL_RESET_WINNER_FIRST_V1_GateAudit.csv
+            SOL_RESET_WINNER_FIRST_V1_Result.md
+            SOL_RESET_WINNER_FIRST_V1_Status.txt
+            research/SOL_RESET_WINNER_FIRST_V1_PREREG.md
