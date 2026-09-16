@@ -31,8 +31,9 @@ jobs:
           echo "commit=$GITHUB_SHA" >> "$LOG"
           echo 'protocol=research/BNB_B29_B2S_PROSPECTIVE_SHADOW_PREREGISTRATION.md' >> "$LOG"
           echo 'scientific_identity=B29-B2S-v1 frozen' >> "$LOG"
-          python -m py_compile research/bnb_b29_b2s_prospective_shadow.py 2>&1 | tee -a "$LOG"
-          python research/bnb_b29_b2s_prospective_shadow.py 2>&1 | tee -a "$LOG"
+          echo 'tooling_feed=Binance Vision USD-M Futures daily 5m (REST endpoint blocked by runner HTTP 451)' >> "$LOG"
+          python -m py_compile research/bnb_b29_b2s_prospective_shadow.py research/bnb_b29_b2s_prospective_shadow_vision_runner.py 2>&1 | tee -a "$LOG"
+          python research/bnb_b29_b2s_prospective_shadow_vision_runner.py 2>&1 | tee -a "$LOG"
       - name: Upload reproducibility artifact
         uses: actions/upload-artifact@v4
         if: always()
