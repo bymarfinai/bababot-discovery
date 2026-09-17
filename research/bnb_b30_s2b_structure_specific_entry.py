@@ -89,7 +89,6 @@ def load_raw(start: pd.Timestamp, end: pd.Timestamp) -> tuple[pd.DataFrame, dict
     for c in ["open","high","low","close"]: x[c] = pd.to_numeric(x[c], errors="coerce")
     x = x.dropna().drop_duplicates("ts", keep="last").sort_values("ts")
     x = x[(x.ts >= start.floor("D")) & (x.ts <= end.ceil("D"))].copy()
-    # Convert Binance bar-open timestamp to bar-close timestamp.
     x["ts"] = x["ts"] + BAR
     x = x.set_index("ts")[["open","high","low","close"]].astype(float)
     if x.empty or x.index.has_duplicates or not x.index.is_monotonic_increasing:
@@ -129,9 +128,6 @@ def entry_positions_for_event(sid: str, direction: str, pos: int, idx, o, h, l, 
     long = direction == "LONG"
     out = {"E0": pos, "E1": None, "E2": None, "E3": None, "E4": None}
     if pos < 15 or pos+12 >= len(idx): return out
-    if seg[pos] != seg[pos+12]:
-        # Individual policies may still trigger before a later gap, but keep scanning only while same segment.
-        pass
 
     sh = float(np.max(h[pos-2:pos+1])); sl = float(np.min(l[pos-2:pos+1])); mid = (sh+sl)/2.0
     if sid in ("S01","S05"):
@@ -146,24 +142,16 @@ def entry_positions_for_event(sid: str, direction: str, pos: int, idx, o, h, l, 
     prev_close = c[pos]
     for j in range(pos+1, min(pos+13, len(idx))):
         if idx[j]-idx[j-1] != BAR: break
-
-        # E1 structure-specific retest/hold or reject.
         if out["E1"] is None and np.isfinite(lvl):
             if long:
                 if l[j] <= lvl and c[j] > lvl: out["E1"] = j
             else:
                 if h[j] >= lvl and c[j] < lvl: out["E1"] = j
-
-        # E2 structure-candle extreme break / second expansion.
         if out["E2"] is None:
             if (long and c[j] > sh) or ((not long) and c[j] < sl): out["E2"] = j
-
-        # E3 micro BOS over previous three fully closed 5m bars.
         if out["E3"] is None and j >= 3:
             if long and c[j] > np.max(h[j-3:j]): out["E3"] = j
             if (not long) and c[j] < np.min(l[j-3:j]): out["E3"] = j
-
-        # E4 pullback-reclaim: adverse close-to-close then break most recent adverse candle extreme.
         adverse_now = (c[j] < prev_close-EPS) if long else (c[j] > prev_close+EPS)
         if adverse_now:
             adverse_extreme = h[j] if long else l[j]
@@ -185,7 +173,10 @@ def signed_forward(entry_pos: int|None, side: float, steps: int, idx, c, seg) ->
 def build_entry_ledger(raw: pd.DataFrame, events: pd.DataFrame) -> pd.DataFrame:
     idx = raw.index.to_numpy()
     o = raw.open.to_numpy(float); h=raw.high.to_numpy(float); l=raw.low.to_numpy(float); c=raw.close.to_numpy(float)
-    gaps = np.r_[True, np.diff(raw.index.asi8) != int(BAR.value)]
+    # Tooling fix: compare actual timedeltas directly. In pandas 3.x, asi8 resolution
+    # may differ from Timedelta.value resolution, which falsely marked every 5m bar as a gap.
+    diffs = raw.index[1:] - raw.index[:-1]
+    gaps = np.r_[True, np.asarray(diffs != BAR, dtype=bool)]
     seg = np.cumsum(gaps)
     posmap = {ts:i for i,ts in enumerate(raw.index)}
     rows=[]
