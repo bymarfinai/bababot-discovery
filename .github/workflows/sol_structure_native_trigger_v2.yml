@@ -1,0 +1,39 @@
+name: SOL Structure Native Trigger V2
+
+on:
+  push:
+    branches: [sol-structure-native-trigger-v2]
+    paths:
+      - 'research/sol_structure_native_trigger_v2.py'
+      - 'research/SOL_STRUCTURE_NATIVE_TRIGGER_V2_PREREG.md'
+      - '.github/workflows/sol_structure_native_trigger_v2.yml'
+  workflow_dispatch:
+
+jobs:
+  native-trigger-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile frozen native-trigger V2 detector
+        run: python -m py_compile research/sol_structure_native_trigger_v2.py
+      - name: Run frozen native-trigger V2 detector
+        run: python research/sol_structure_native_trigger_v2.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-structure-native-trigger-v2
+          if-no-files-found: error
+          path: |
+            SOL_STRUCTURE_NATIVE_TRIGGER_V2_SetupEvents.csv
+            SOL_STRUCTURE_NATIVE_TRIGGER_V2_TriggeredTrades.csv
+            SOL_STRUCTURE_NATIVE_TRIGGER_V2_Summary.csv
+            SOL_STRUCTURE_NATIVE_TRIGGER_V2_YearSummary.csv
+            SOL_STRUCTURE_NATIVE_TRIGGER_V2_Result.md
+            SOL_STRUCTURE_NATIVE_TRIGGER_V2_Status.txt
+            research/SOL_STRUCTURE_NATIVE_TRIGGER_V2_PREREG.md
