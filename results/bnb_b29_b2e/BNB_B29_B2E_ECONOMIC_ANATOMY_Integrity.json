@@ -1,0 +1,42 @@
+{
+  "a1": {
+    "boundary_ok": true,
+    "first": "2020-02-10T14:15:00+00:00",
+    "gap_count": 13,
+    "last": "2026-08-26T00:00:00+00:00",
+    "quarter_grid_ok": true,
+    "rows": 229267,
+    "rows_ok": true,
+    "schema_ok": true,
+    "sha256": "eae8f278d45e7c3035b03900b30e315b16a241c1fbc5fda39231681390c25cfa",
+    "sha_ok": true,
+    "unique_ok": true
+  },
+  "anchor_mismatches": 0,
+  "continuity_failures_all_horizons": 0,
+  "era_primary_coverage": {
+    "2022": 1.0,
+    "2023": 1.0,
+    "2024": 1.0,
+    "2025": 1.0,
+    "2026": 1.0
+  },
+  "event_counts": {
+    "2022": 97,
+    "2023": 82,
+    "2024": 114,
+    "2025": 93,
+    "2026": 65
+  },
+  "event_total": 451,
+  "integrity_errors": [],
+  "integrity_pass": true,
+  "max_anchor_abs_diff": 1.7763568394002505e-15,
+  "primary_coverage": 1.0,
+  "raw": {
+    "first_open": "2022-01-03T00:00:00+00:00",
+    "last_open": "2026-08-26T00:00:00+00:00",
+    "monthly_files": 56,
+    "rows": 488449
+  }
+}
