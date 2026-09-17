@@ -1,0 +1,39 @@
+# BNB B30-S2 — Per-Structure Entry Archetype Discovery Result
+
+**Status: BNB_B30_S2_NO_ENTRY_ARCHETYPE_PASSED**
+
+S1 structure definitions are unchanged. S2 tests only preregistered causal entry archetypes and directional close-to-close behavior. No TP/SL, excursion, PnL or other economics is evaluated.
+
+## Development winners
+
+| Structure | Selected policy | Dev N | Participation | +60 hit | Wilson LCB | Worst dev era | Status |
+|---|---|---:|---:|---:|---:|---:|---|
+| S01 SWEEP_LOW_RECLAIM | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S02 HL_CONTINUATION | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S03 BREAK_HIGH_HOLD | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S04 FAILED_BREAKDOWN_RECLAIM | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S05 SWEEP_HIGH_REJECT | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S06 LH_CONTINUATION | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S07 BREAK_LOW_HOLD | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S08 FAILED_BREAKOUT_REJECT | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+
+## One-shot 2025–2026 reference
+
+| Structure | Frozen entry | Ref N | Part. | +60 hit | 2025 | 2026 | +30 | +120 | Status |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| S01 SWEEP_LOW_RECLAIM | — | — | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S02 HL_CONTINUATION | — | — | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S03 BREAK_HIGH_HOLD | — | — | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S04 FAILED_BREAKDOWN_RECLAIM | — | — | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S05 SWEEP_HIGH_REJECT | — | — | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S06 LH_CONTINUATION | — | — | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S07 BREAK_LOW_HOLD | — | — | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+| S08 FAILED_BREAKOUT_REJECT | — | — | — | — | — | — | — | — | NO_ENTRY_ARCHETYPE_FOUND |
+
+## Decision
+**BNB_B30_S2_NO_ENTRY_ARCHETYPE_PASSED**
+
+Structures with a frozen entry archetype passing one-shot reference: **0/8**.
+Only PASS pairs may advance to S3 economics. A PASS here is directional entry evidence, not a trading win rate and not authorization for live orders.
+
+No live orders were placed.
