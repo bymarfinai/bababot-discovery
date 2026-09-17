@@ -1,0 +1,40 @@
+name: SOL Structure Trigger Matrix V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sol-structure-trigger-matrix-v1
+    paths:
+      - 'research/sol_structure_trigger_matrix_v1.py'
+      - 'research/SOL_STRUCTURE_TRIGGER_MATRIX_V1_PREREG.md'
+      - '.github/workflows/sol_structure_trigger_matrix_v1.yml'
+
+jobs:
+  structure-trigger-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile frozen structure-trigger matrix
+        run: python -m py_compile research/sol_structure_trigger_matrix_v1.py
+      - name: Run frozen structure-trigger matrix
+        run: python research/sol_structure_trigger_matrix_v1.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-structure-trigger-matrix-v1
+          if-no-files-found: error
+          path: |
+            SOL_STRUCTURE_TRIGGER_MATRIX_V1_SetupEvents.csv
+            SOL_STRUCTURE_TRIGGER_MATRIX_V1_TriggeredTrades.csv
+            SOL_STRUCTURE_TRIGGER_MATRIX_V1_Summary.csv
+            SOL_STRUCTURE_TRIGGER_MATRIX_V1_YearSummary.csv
+            SOL_STRUCTURE_TRIGGER_MATRIX_V1_Result.md
+            SOL_STRUCTURE_TRIGGER_MATRIX_V1_Status.txt
+            research/SOL_STRUCTURE_TRIGGER_MATRIX_V1_PREREG.md
