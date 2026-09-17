@@ -1,0 +1,81 @@
+name: BNB B30 S2B structure-specific 5m entry discovery
+
+on:
+  push:
+    branches:
+      - bnb-b29-walkforward-reset
+    paths:
+      - '.bnb-b30-s2b-trigger'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  structure-entry:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas==3.0.5 numpy==2.4.6 requests==2.34.2
+      - name: Download immutable accepted A1 fingerprint artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p frozen_a1
+          curl -fL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/10336102957/zip" \
+            -o /tmp/b29_a1_accepted.zip
+          unzip -q /tmp/b29_a1_accepted.zip -d frozen_a1
+          test -f frozen_a1/BNB_B29_A1_STRUCTURE_FINGERPRINT.csv.gz
+          sha256sum frozen_a1/BNB_B29_A1_STRUCTURE_FINGERPRINT.csv.gz
+      - name: Run preregistered B30 S2B structure-specific entry discovery
+        run: |
+          set -euo pipefail
+          LOG=BNB_B30_S2B_STRUCTURE_SPECIFIC_ENTRY_Run.log
+          echo 'BNB B30 S2B structure-specific 5m entry discovery' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo 'protocol=research/BNB_B30_S2B_STRUCTURE_SPECIFIC_ENTRY_PREREGISTRATION.md' >> "$LOG"
+          echo 'scientific_identity=BNB_B30_S2B_STRUCTURE_SPECIFIC_ENTRY_V1' >> "$LOG"
+          echo 'parent=BNB_B30_S1_STRUCTURE_LIBRARY_V1' >> "$LOG"
+          python -m py_compile research/bnb_b30_s1_structure_library.py research/bnb_b30_s2b_structure_specific_entry.py 2>&1 | tee -a "$LOG"
+          python research/bnb_b30_s2b_structure_specific_entry.py 2>&1 | tee -a "$LOG"
+      - name: Upload reproducibility artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bnb-b30-s2b-structure-specific-entry
+          path: BNB_B30_S2B_STRUCTURE_SPECIFIC_ENTRY*
+          if-no-files-found: warn
+      - name: Persist compact S2B evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p results/bnb_b30_s2b
+          for f in \
+            BNB_B30_S2B_STRUCTURE_SPECIFIC_ENTRY_Result.md \
+            BNB_B30_S2B_STRUCTURE_SPECIFIC_ENTRY_Development.csv \
+            BNB_B30_S2B_STRUCTURE_SPECIFIC_ENTRY_Selected.csv \
+            BNB_B30_S2B_STRUCTURE_SPECIFIC_ENTRY_Reference.csv \
+            BNB_B30_S2B_STRUCTURE_SPECIFIC_ENTRY_Entries.csv.gz \
+            BNB_B30_S2B_STRUCTURE_SPECIFIC_ENTRY_Integrity.txt \
+            BNB_B30_S2B_STRUCTURE_SPECIFIC_ENTRY_Status.txt \
+            BNB_B30_S2B_STRUCTURE_SPECIFIC_ENTRY_Run.log; do
+            if [ -f "$f" ]; then cp "$f" results/bnb_b30_s2b/; fi
+          done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/bnb_b30_s2b
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Persist B30 S2B structure-specific entry evidence'
+            git push origin HEAD:bnb-b29-walkforward-reset
+          fi
