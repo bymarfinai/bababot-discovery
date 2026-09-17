@@ -1,0 +1,40 @@
+name: SOL Structural Detector Library V2
+
+on:
+  push:
+    branches:
+      - sol-structure-library-v2
+    paths:
+      - 'research/sol_structure_library_v2.py'
+      - 'research/SOL_STRUCTURE_LIBRARY_V2_PREREG.md'
+      - '.github/workflows/sol_structure_library_v2.yml'
+  workflow_dispatch:
+
+jobs:
+  structure-library-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile frozen structural library V2
+        run: python -m py_compile research/sol_structure_library_v2.py
+      - name: Run frozen structural library V2
+        run: python research/sol_structure_library_v2.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-structure-library-v2
+          if-no-files-found: error
+          path: |
+            SOL_STRUCTURE_LIBRARY_V2_Events.csv
+            SOL_STRUCTURE_LIBRARY_V2_Summary.csv
+            SOL_STRUCTURE_LIBRARY_V2_YearSummary.csv
+            SOL_STRUCTURE_LIBRARY_V2_Overlap.csv
+            SOL_STRUCTURE_LIBRARY_V2_Result.md
+            SOL_STRUCTURE_LIBRARY_V2_Status.txt
+            research/SOL_STRUCTURE_LIBRARY_V2_PREREG.md
