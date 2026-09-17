@@ -1,0 +1,43 @@
+# BNB B30-S2B — Structure-Specific 5m Entry Discovery Result
+
+**Status: BNB_B30_S2B_NO_STRUCTURE_ENTRY_PASSED**
+
+S1 structures remain frozen. Each structure is evaluated only with its preregistered structure-specific 5m entry mechanisms. No TP/SL or economics is simulated.
+
+## Data integrity
+- Raw 5m files: **57**; rows: **489,601**; coverage: **100.000000%**
+- Normalized raw OHLC SHA256: `128251cc87181224e0d029b1088beffca28c31e76b6f0d97e717c4f62d1667c5`
+- Max raw-vs-A1 ret15 difference: **9.99634403032e-17**
+- Max event close-location difference: **1.11022302463e-16**
+
+## Development-selected entry per structure
+
+| Structure | Selected entry | Dev N | Part. | +60 hit | Wilson | Worst dev era | Status |
+|---|---|---:|---:|---:|---:|---:|---|
+| S01 SWEEP_LOW_RECLAIM | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S02 HL_CONTINUATION | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S03 BREAK_HIGH_HOLD | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S04 FAILED_BREAKDOWN_RECLAIM | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S05 SWEEP_HIGH_REJECT | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S06 LH_CONTINUATION | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S07 BREAK_LOW_HOLD | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S08 FAILED_BREAKOUT_REJECT | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+
+## One-shot 2025–2026 reference
+
+| Structure | Frozen entry | Ref N | Part. | +60 hit | 2025 | 2026 | +30 | +120 | Status |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| S01 SWEEP_LOW_RECLAIM | — | — | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S02 HL_CONTINUATION | — | — | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S03 BREAK_HIGH_HOLD | — | — | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S04 FAILED_BREAKDOWN_RECLAIM | — | — | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S05 SWEEP_HIGH_REJECT | — | — | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S06 LH_CONTINUATION | — | — | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S07 BREAK_LOW_HOLD | — | — | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+| S08 FAILED_BREAKOUT_REJECT | — | — | — | — | — | — | — | — | NO_STRUCTURE_SPECIFIC_ENTRY_FOUND |
+
+## Decision
+**BNB_B30_S2B_NO_STRUCTURE_ENTRY_PASSED**
+
+Frozen structure+entry pairs eligible for S3 economics: **0/8**.
+S2B directional hit is not trading win rate. No live orders were placed.
