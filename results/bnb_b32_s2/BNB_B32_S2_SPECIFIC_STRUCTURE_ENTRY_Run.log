@@ -1,0 +1,46 @@
+BNB B32 S2 specific structure entry discovery
+commit=36d9fd966e67d53dc0e7dd60720a0e35b38aafd4
+protocol=research/BNB_B32_S2_SPECIFIC_STRUCTURE_ENTRY_PREREGISTRATION.md
+scientific_identity=BNB_B32_S2_SPECIFIC_STRUCTURE_ENTRY_V1
+parent=BNB_B32_S1_SPECIFIC_PRICE_ACTION_LIBRARY_V1
+# BNB B32-S2 — Structure-Specific Entry Discovery Result
+
+**Status: BNB_B32_S2_NO_ENTRY_PASSED**
+
+B32-S1 structures are frozen. No TP/SL or economics is simulated.
+
+## Integrity
+- Raw rows **506,880**, coverage **100.000000%**, SHA `35831265b8520ad286834b44cd63594fed3413f51d0ee30497c93b83e1fe88d8`
+- A1 ret15 diff **9.99634403032e-17**, close-location diff **1.11022302463e-16**
+
+## Development winner per structure
+
+| Structure | Entry | N | Part. | +60 | Wilson | Worst era | Status |
+|---|---|---:|---:|---:|---:|---:|---|
+| S01 LIQUIDITY_SWEEP_DISPLACEMENT_LONG | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S02 IMPULSE_HL_READY_LONG | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S03 COMPRESSION_BREAK_RETEST_LONG | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S04 FAILED_BREAK_DISPLACEMENT_LONG | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S05 LIQUIDITY_SWEEP_DISPLACEMENT_SHORT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S06 IMPULSE_LH_READY_SHORT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S07 COMPRESSION_BREAK_RETEST_SHORT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S08 FAILED_BREAK_DISPLACEMENT_SHORT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+
+## One-shot reference
+
+| Structure | Entry | N | Part. | +60 | 2025 | 2026 | +30 | +120 | Status |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| S01 LIQUIDITY_SWEEP_DISPLACEMENT_LONG | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S02 IMPULSE_HL_READY_LONG | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S03 COMPRESSION_BREAK_RETEST_LONG | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S04 FAILED_BREAK_DISPLACEMENT_LONG | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S05 LIQUIDITY_SWEEP_DISPLACEMENT_SHORT | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S06 IMPULSE_LH_READY_SHORT | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S07 COMPRESSION_BREAK_RETEST_SHORT | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S08 FAILED_BREAK_DISPLACEMENT_SHORT | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+
+## Decision
+**BNB_B32_S2_NO_ENTRY_PASSED**
+
+Pairs eligible for B32-S3 economics: **0/8**.
+
