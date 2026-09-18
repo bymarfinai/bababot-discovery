@@ -1,0 +1,47 @@
+BNB B31 S2 swing-structure entry discovery
+commit=06db84e65cdb4a3e67b294e074503c2977b8995e
+protocol=research/BNB_B31_S2_SWING_STRUCTURE_ENTRY_PREREGISTRATION.md
+scientific_identity=BNB_B31_S2_SWING_STRUCTURE_ENTRY_V1
+parent=BNB_B31_S1_SWING_STRUCTURE_LIBRARY_V1
+# BNB B31-S2 — Per-Swing-Structure Entry Discovery Result
+
+**Status: BNB_B31_S2_NO_ENTRY_PASSED**
+
+S1 swing structures are frozen. S2 evaluates only post-structure causal entry triggers. No TP/SL or economics is simulated.
+
+## Integrity
+- Raw rows: **506,880**; coverage **100.000000%**; SHA `35831265b8520ad286834b44cd63594fed3413f51d0ee30497c93b83e1fe88d8`
+- A1 ret15 max diff **9.99634403032e-17**; close-location max diff **1.11022302463e-16**
+
+## Development winner per structure
+
+| Structure | Entry | N | Part. | +60 hit | Wilson | Worst era | Status |
+|---|---|---:|---:|---:|---:|---:|---|
+| S01 SWING_LOW_SWEEP_RECLAIM | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S02 HH_HL_SETUP | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S03 BREAK_RETEST_HOLD | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S04 FAILED_BREAKDOWN_RECLAIM | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S05 SWING_HIGH_SWEEP_REJECT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S06 LL_LH_SETUP | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S07 BREAK_RETEST_REJECT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S08 FAILED_BREAKOUT_REJECT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+
+## One-shot 2025-2026 reference
+
+| Structure | Entry | N | Part. | +60 hit | 2025 | 2026 | +30 | +120 | Status |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| S01 SWING_LOW_SWEEP_RECLAIM | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S02 HH_HL_SETUP | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S03 BREAK_RETEST_HOLD | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S04 FAILED_BREAKDOWN_RECLAIM | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S05 SWING_HIGH_SWEEP_REJECT | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S06 LL_LH_SETUP | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S07 BREAK_RETEST_REJECT | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| S08 FAILED_BREAKOUT_REJECT | — | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+
+## Decision
+**BNB_B31_S2_NO_ENTRY_PASSED**
+
+Structure+entry pairs eligible for S3 economics: **0/8**.
+A PASS here is directional entry evidence, not trading win rate and not live-trading authorization.
+
