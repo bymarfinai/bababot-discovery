@@ -143,7 +143,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add results/bnb_b31_s2
           if ! git diff --cached --quiet; then
-            git pull --rebase origin bnb-b29-walkforward-reset
             git commit -m '[skip ci] Persist B31 S2 entry evidence'
             git push origin HEAD:bnb-b29-walkforward-reset
           fi
