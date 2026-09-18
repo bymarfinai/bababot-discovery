@@ -53,6 +53,21 @@ def cooldown(df):
 def pivots(b):
     return b31.pivots(b)
 
+def last_pivot_between(seq,left_ts,right_ts):
+    for x in reversed(seq):
+        if x[1] >= right_ts:
+            continue
+        if x[1] <= left_ts:
+            return None
+        return x
+    return None
+
+def previous_pivot(seq,before_ts):
+    for x in reversed(seq):
+        if x[1] < before_ts:
+            return x
+    return None
+
 def detect(b):
     ph,pl=pivots(b)
     hc={}; lc={}
@@ -155,12 +170,10 @@ def detect(b):
             for z in newl:
                 if len(al)>=2 and len(ah)>=2:
                     prev_l,new_l=al[-2],al[-1]
-                    prior_highs=[x for x in ah if prev_l[1] < x[1] < new_l[1]]
-                    if prior_highs:
-                        last_h=prior_highs[-1]
-                        prev_h_candidates=[x for x in ah if x[1]<last_h[1]]
-                        if prev_h_candidates:
-                            prev_h=prev_h_candidates[-1]
+                    last_h=last_pivot_between(ah,prev_l[1],new_l[1])
+                    if last_h is not None:
+                        prev_h=previous_pivot(ah,last_h[1])
+                        if prev_h is not None:
                             amp=last_h[2]-prev_l[2]
                             med=float(tr_med.loc[t]) if pd.notna(tr_med.loc[t]) else np.nan
                             depth=(last_h[2]-new_l[2])/amp if amp>0 else np.nan
@@ -172,12 +185,10 @@ def detect(b):
             for z in newh:
                 if len(ah)>=2 and len(al)>=2:
                     prev_h,new_h=ah[-2],ah[-1]
-                    prior_lows=[x for x in al if prev_h[1] < x[1] < new_h[1]]
-                    if prior_lows:
-                        last_l=prior_lows[-1]
-                        prev_l_candidates=[x for x in al if x[1]<last_l[1]]
-                        if prev_l_candidates:
-                            prev_l=prev_l_candidates[-1]
+                    last_l=last_pivot_between(al,prev_h[1],new_h[1])
+                    if last_l is not None:
+                        prev_l=previous_pivot(al,last_l[1])
+                        if prev_l is not None:
                             amp=prev_h[2]-last_l[2]
                             med=float(tr_med.loc[t]) if pd.notna(tr_med.loc[t]) else np.nan
                             depth=(new_h[2]-last_l[2])/amp if amp>0 else np.nan
