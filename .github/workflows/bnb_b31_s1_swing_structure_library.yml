@@ -1,27 +1,40 @@
 name: BNB B31 S1 causal swing structure library
+
 on:
   push:
-    branches: [bnb-b29-walkforward-reset]
-    paths: ['.bnb-b31-s1-trigger']
+    branches:
+      - bnb-b29-walkforward-reset
+    paths:
+      - '.bnb-b31-s1-trigger'
+
 permissions:
   contents: write
   actions: read
+
 jobs:
   swing-structure:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-        with: {fetch-depth: 0}
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
-        with: {python-version: '3.11'}
+        with:
+          python-version: '3.11'
       - run: pip install pandas==3.0.5 numpy==2.4.6 requests==2.34.2
       - name: Download immutable accepted A1 fingerprint
-        env: {GH_TOKEN: ${{ github.token }}}
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p frozen_a1
-          curl -fL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/10336102957/zip" -o /tmp/a1.zip
+          curl -fL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/10336102957/zip" \
+            -o /tmp/a1.zip
           unzip -q /tmp/a1.zip -d frozen_a1
           test -f frozen_a1/BNB_B29_A1_STRUCTURE_FINGERPRINT.csv.gz
           sha256sum frozen_a1/BNB_B29_A1_STRUCTURE_FINGERPRINT.csv.gz
@@ -33,7 +46,8 @@ jobs:
           echo "identity=BNB_B31_S1_SWING_STRUCTURE_LIBRARY_V1" >> "$LOG"
           python -m py_compile research/bnb_b31_s1_swing_structure_library.py 2>&1 | tee -a "$LOG"
           python research/bnb_b31_s1_swing_structure_library.py 2>&1 | tee -a "$LOG"
-      - uses: actions/upload-artifact@v4
+      - name: Upload reproducibility artifact
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: bnb-b31-s1-swing-structure-library
@@ -44,10 +58,20 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p results/bnb_b31_s1
-          for f in BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Result.md BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Summary.csv BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Overlap.csv BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Events.csv.gz BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Status.txt BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Integrity.txt BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Run.log; do
-            [ ! -f "$f" ] || cp "$f" results/bnb_b31_s1/
+          for f in \
+            BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Result.md \
+            BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Summary.csv \
+            BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Overlap.csv \
+            BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Events.csv.gz \
+            BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Status.txt \
+            BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Integrity.txt \
+            BNB_B31_S1_SWING_STRUCTURE_LIBRARY_Run.log; do
+            if [ -f "$f" ]; then cp "$f" results/bnb_b31_s1/; fi
           done
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add results/bnb_b31_s1
-          if ! git diff --cached --quiet; then git commit -m '[skip ci] Persist B31 S1 swing structure evidence'; git push origin HEAD:bnb-b29-walkforward-reset; fi
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Persist B31 S1 swing structure evidence'
+            git push origin HEAD:bnb-b29-walkforward-reset
+          fi
