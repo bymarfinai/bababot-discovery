@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   swing-structure:
-    if: contains(toJSON(github.event.commits), '.bnb-b31-s1-trigger')
+    if: contains(github.event.head_commit.message, 'B31 S1:')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -79,7 +79,7 @@ jobs:
           fi
 
   swing-entry:
-    if: contains(toJSON(github.event.commits), '.bnb-b31-s2-trigger')
+    if: contains(github.event.head_commit.message, 'B31 S2:')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
