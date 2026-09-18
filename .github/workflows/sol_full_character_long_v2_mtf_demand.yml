@@ -1,0 +1,41 @@
+name: SOL Full Character Long V2 MTF Demand
+
+on:
+  push:
+    branches: [sol-full-character-long-v2-mtf-demand]
+    paths:
+      - 'research/sol_full_character_long_v2_mtf_demand.py'
+      - 'research/SOL_FULL_CHARACTER_LONG_V2_MTF_DEMAND_PREREG.md'
+      - '.github/workflows/sol_full_character_long_v2_mtf_demand.yml'
+  workflow_dispatch:
+
+jobs:
+  full-character-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile frozen MTF detector
+        run: python -m py_compile research/sol_full_character_long_v2_mtf_demand.py
+      - name: Run frozen MTF detector
+        run: python research/sol_full_character_long_v2_mtf_demand.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-full-character-long-v2-mtf-demand
+          if-no-files-found: error
+          path: |
+            SOL_FULL_CHARACTER_LONG_V2_MTF_DEMAND_H4DemandZones.csv
+            SOL_FULL_CHARACTER_LONG_V2_MTF_DEMAND_NestedStructures.csv
+            SOL_FULL_CHARACTER_LONG_V2_MTF_DEMAND_TriggeredTrades.csv
+            SOL_FULL_CHARACTER_LONG_V2_MTF_DEMAND_Summary.csv
+            SOL_FULL_CHARACTER_LONG_V2_MTF_DEMAND_YearSummary.csv
+            SOL_FULL_CHARACTER_LONG_V2_MTF_DEMAND_StructureYearSummary.csv
+            SOL_FULL_CHARACTER_LONG_V2_MTF_DEMAND_Result.md
+            SOL_FULL_CHARACTER_LONG_V2_MTF_DEMAND_Status.txt
+            research/SOL_FULL_CHARACTER_LONG_V2_MTF_DEMAND_PREREG.md
