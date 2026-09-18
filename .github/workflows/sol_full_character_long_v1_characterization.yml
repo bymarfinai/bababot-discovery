@@ -1,0 +1,40 @@
+name: SOL Full Character V1 Characterization
+
+on:
+  push:
+    branches: [sol-full-character-long-v1-characterization]
+    paths:
+      - 'research/sol_full_character_long_v1_characterization.py'
+      - 'research/SOL_FULL_CHARACTER_LONG_V1_CHARACTERIZATION_PREREG.md'
+      - '.github/workflows/sol_full_character_long_v1_characterization.yml'
+  workflow_dispatch:
+
+jobs:
+  characterize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile characterization
+        run: python -m py_compile research/sol_full_character_long_v1_characterization.py
+      - name: Run frozen characterization
+        run: python research/sol_full_character_long_v1_characterization.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-full-character-long-v1-characterization
+          if-no-files-found: error
+          path: |
+            SOL_FULL_CHARACTER_LONG_V1_CHARACTERIZATION_EnrichedTrades.csv
+            SOL_FULL_CHARACTER_LONG_V1_CHARACTERIZATION_WinnerLoserProfile.csv
+            SOL_FULL_CHARACTER_LONG_V1_CHARACTERIZATION_YearProfile.csv
+            SOL_FULL_CHARACTER_LONG_V1_CHARACTERIZATION_FeatureAssociation.csv
+            SOL_FULL_CHARACTER_LONG_V1_CHARACTERIZATION_2022Comparison.csv
+            SOL_FULL_CHARACTER_LONG_V1_CHARACTERIZATION_Result.md
+            SOL_FULL_CHARACTER_LONG_V1_CHARACTERIZATION_Status.txt
+            research/SOL_FULL_CHARACTER_LONG_V1_CHARACTERIZATION_PREREG.md
