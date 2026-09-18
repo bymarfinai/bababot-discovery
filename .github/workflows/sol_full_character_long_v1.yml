@@ -1,0 +1,41 @@
+name: SOL Full Character Long V1
+
+on:
+  push:
+    branches: [sol-full-character-long-v1]
+    paths:
+      - 'research/sol_full_character_long_v1.py'
+      - 'research/SOL_FULL_CHARACTER_LONG_V1_PREREG.md'
+      - '.github/workflows/sol_full_character_long_v1.yml'
+  workflow_dispatch:
+
+jobs:
+  full-character-long:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile frozen full-character detector
+        run: python -m py_compile research/sol_full_character_long_v1.py
+      - name: Run frozen full-character detector
+        run: python research/sol_full_character_long_v1.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-full-character-long-v1
+          if-no-files-found: error
+          path: |
+            SOL_FULL_CHARACTER_LONG_V1_Structures.csv
+            SOL_FULL_CHARACTER_LONG_V1_TriggerEligibility.csv
+            SOL_FULL_CHARACTER_LONG_V1_TriggeredTrades.csv
+            SOL_FULL_CHARACTER_LONG_V1_Summary.csv
+            SOL_FULL_CHARACTER_LONG_V1_YearSummary.csv
+            SOL_FULL_CHARACTER_LONG_V1_StructureYearSummary.csv
+            SOL_FULL_CHARACTER_LONG_V1_Result.md
+            SOL_FULL_CHARACTER_LONG_V1_Status.txt
+            research/SOL_FULL_CHARACTER_LONG_V1_PREREG.md
