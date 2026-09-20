@@ -179,8 +179,12 @@ def main():
     P = P.merge(K, on="zone_id", how="left", validate="one_to_one")
     P["period"] = [period(x) for x in P.first_touch_ts]
 
+    # S11/S12 economics baseline only includes executable plans:
+    # TP1 must exist and entry must sit above the frozen structural touch-low SL.
+    P = P[np.isfinite(P.tp1) & (P.entry_price > P.touch_low_sl)].copy()
+
     if len(P[P.period == "DEV"]) != 440 or len(P[P.period == "REF"]) != 272:
-        raise RuntimeError(f"E2 plan parity drift dev={sum(P.period=='DEV')} ref={sum(P.period=='REF')}")
+        raise RuntimeError(f"E2 executable parity drift dev={sum(P.period=='DEV')} ref={sum(P.period=='REF')}")
 
     baseline_rows = []
     for r in P.itertuples(index=False):
