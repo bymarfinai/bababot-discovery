@@ -137,7 +137,7 @@ No future pivot can be used.
 
 ## Frozen structural-consequence definition
 
-After reclaim, inspect at most 16 completed H1 bars.
+After reclaim, inspect at most 16 completed H1 bars. The reclaim bar itself counts as bar 1 of this 16-bar consequence window.
 
 For an UPPER / BUY_SIDE sweep:
 
