@@ -1,0 +1,2 @@
+coverage,construction_mean_r,construction_pf,retrospective_2025_mean_r,retrospective_2025_pf,retrospective_2025_consistent,monitor_2026_opened,monitor_2026_data_end,monitor_2026_mean_r,monitor_2026_pf,verdict
+0.9976976650486368,0.08819428925490962,1.2131131250028206,0.1071460229491668,1.2702501668301724,True,True,2026-08-26 00:00:00+00:00,0.1474489099266243,1.4151632037610113,STRUCTURAL_COMPLETION_EXIT_2026_MONITOR_DID_NOT_REPLICATE
