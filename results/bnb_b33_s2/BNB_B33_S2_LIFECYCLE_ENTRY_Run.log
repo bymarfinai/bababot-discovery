@@ -1,0 +1,62 @@
+BNB B33 S2 lifecycle phase entry discovery
+commit=8901ed3c3d2d03e55772e68fc2a88b63a77bc603
+protocol=research/BNB_B33_S2_LIFECYCLE_ENTRY_PREREGISTRATION.md
+scientific_identity=BNB_B33_S2_LIFECYCLE_ENTRY_V1
+parent=BNB_B33_S1_STRUCTURE_LIFECYCLE_V1
+# BNB B33-S2 — Lifecycle-Phase Entry Discovery Result
+
+**Status: BNB_B33_S2_NO_ENTRY_PASSED**
+
+B33-S1 lifecycle detectors are frozen. No economics is simulated.
+
+## Integrity
+- Raw rows **506,880**, coverage **100.000000%**, SHA `35831265b8520ad286834b44cd63594fed3413f51d0ee30497c93b83e1fe88d8`
+- A1 ret15 diff **9.99634403032e-17**, close-location diff **1.11022302463e-16**
+
+## Development selection
+
+| Detector | Family | Phase | Side | Entry | N | Part. | +60 | Wilson | Worst era | Status |
+|---|---|---|---|---|---:|---:|---:|---:|---:|---|
+| F1LE | F1 | EARLY | LONG | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F1LM | F1 | MATURE | LONG | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F2LE | F2 | EARLY | LONG | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F2LM | F2 | MATURE | LONG | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F3LE | F3 | EARLY | LONG | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F3LM | F3 | MATURE | LONG | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F4LE | F4 | EARLY | LONG | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F4LM | F4 | MATURE | LONG | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F1SE | F1 | EARLY | SHORT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F1SM | F1 | MATURE | SHORT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F2SE | F2 | EARLY | SHORT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F2SM | F2 | MATURE | SHORT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F3SE | F3 | EARLY | SHORT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F3SM | F3 | MATURE | SHORT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F4SE | F4 | EARLY | SHORT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F4SM | F4 | MATURE | SHORT | — | — | — | — | — | — | NO_ENTRY_FOUND |
+
+## One-shot reference
+
+| Detector | Family | Phase | Entry | N | +60 | 2025 | 2026 | +30 | +120 | Status |
+|---|---|---|---|---:|---:|---:|---:|---:|---:|---|
+| F1LE | F1 | EARLY | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F1LM | F1 | MATURE | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F2LE | F2 | EARLY | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F2LM | F2 | MATURE | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F3LE | F3 | EARLY | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F3LM | F3 | MATURE | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F4LE | F4 | EARLY | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F4LM | F4 | MATURE | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F1SE | F1 | EARLY | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F1SM | F1 | MATURE | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F2SE | F2 | EARLY | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F2SM | F2 | MATURE | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F3SE | F3 | EARLY | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F3SM | F3 | MATURE | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F4SE | F4 | EARLY | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+| F4SM | F4 | MATURE | — | — | — | — | — | — | — | NO_ENTRY_FOUND |
+
+## Decision
+**BNB_B33_S2_NO_ENTRY_PASSED**
+
+Phase+entry pairs eligible for B33-S3 economics: **0/16**.
+
