@@ -57,5 +57,6 @@ jobs:
             echo "No generated changes to persist"
           else
             git commit -m "persist SOL corrective compression character v5 result"
+            git pull --rebase origin sol-sell-structure-character-v5-corrective-compression
             git push origin HEAD:sol-sell-structure-character-v5-corrective-compression
           fi
