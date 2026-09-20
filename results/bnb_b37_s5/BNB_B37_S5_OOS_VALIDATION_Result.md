@@ -1,0 +1,71 @@
+# BNB B37-S5 — Frozen Detector Out-of-Sample Validation
+
+**STEP 5 — TRUE OOS VALIDATION**
+
+Reference opened: **2025-01-01 through 2026-08-27 00:00:00+00:00**.
+Detector definitions were frozen before this period was scored.
+
+## Integrity
+- Raw rows: **506,880**, coverage **100.000000%**.
+- Development replay parent: **201 / 201**.
+- Development candidate totals: **133 / 115 / 27 / 40**, exact match.
+- 2025-2026 was scored only after the implementation integrity check passed.
+
+## OOS parent baseline
+- Parent events: **119**.
+- Resolved: **118**; WIN **49**, LOSS **69**, ambiguous **0**, unresolved **1**.
+- Structural continuation rate: **41.53%**.
+- 95% Wilson CI: **33.04% – 50.55%**.
+
+## Frozen candidate validation
+
+| Candidate | Events | Resolved | WIN-LOSS | Rate | 95% Wilson LCB | 2025 | 2026* | vs Parent | Verdict |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| H4D_H1_PROXIMAL_RECLAIM | 68 | 67 | 36-31 | 53.73% | 41.92% | 58.97% (39) | 46.43% (28) | +12.21pp | **OOS_STRUCTURAL_EDGE_NOT_VALIDATED** |
+| H4D_H1_CLEAN_PROXIMAL_RECLAIM | 54 | 53 | 29-24 | 54.72% | 41.45% | 50.00% (32) | 61.90% (21) | +13.19pp | **OOS_STRUCTURAL_EDGE_NOT_VALIDATED** |
+| H4D_H1_BULLISH_PROXIMAL_RECLAIM | 15 | 14 | 9-5 | 64.29% | 38.76% | 71.43% (7) | 57.14% (7) | +22.76pp | **INSUFFICIENT_OOS_SUPPORT** |
+| H4D_H1_CONTROLLED_EXPANSION_CLEAN_RECLAIM | 20 | 20 | 9-11 | 45.00% | 25.82% | 33.33% (12) | 62.50% (8) | +3.47pp | **OOS_STRUCTURAL_EDGE_NOT_VALIDATED** |
+
+## Gate audit
+### H4D_H1_PROXIMAL_RECLAIM
+- support >=20 pooled and >=8 each year: **PASS**
+- pooled rate >50%: **PASS**
+- 95% Wilson LCB >50%: **FAIL**
+- 2025 >50%: **PASS**
+- 2026* >50%: **FAIL**
+- beats contemporaneous parent: **PASS**
+- verdict: **OOS_STRUCTURAL_EDGE_NOT_VALIDATED**
+
+### H4D_H1_CLEAN_PROXIMAL_RECLAIM
+- support >=20 pooled and >=8 each year: **PASS**
+- pooled rate >50%: **PASS**
+- 95% Wilson LCB >50%: **FAIL**
+- 2025 >50%: **FAIL**
+- 2026* >50%: **PASS**
+- beats contemporaneous parent: **PASS**
+- verdict: **OOS_STRUCTURAL_EDGE_NOT_VALIDATED**
+
+### H4D_H1_BULLISH_PROXIMAL_RECLAIM
+- support >=20 pooled and >=8 each year: **FAIL**
+- pooled rate >50%: **PASS**
+- 95% Wilson LCB >50%: **FAIL**
+- 2025 >50%: **PASS**
+- 2026* >50%: **PASS**
+- beats contemporaneous parent: **PASS**
+- verdict: **INSUFFICIENT_OOS_SUPPORT**
+
+### H4D_H1_CONTROLLED_EXPANSION_CLEAN_RECLAIM
+- support >=20 pooled and >=8 each year: **PASS**
+- pooled rate >50%: **FAIL**
+- 95% Wilson LCB >50%: **FAIL**
+- 2025 >50%: **FAIL**
+- 2026* >50%: **PASS**
+- beats contemporaneous parent: **PASS**
+- verdict: **OOS_STRUCTURAL_EDGE_NOT_VALIDATED**
+
+## Step-5 verdict
+**No frozen candidate satisfied the full OOS structural-edge gate.**
+Insufficient-support candidate(s): H4D_H1_BULLISH_PROXIMAL_RECLAIM.
+
+No threshold rescue, time slicing, indicator/derivative filter, TP/SL, PnL, leverage, or fee model was introduced.
+Only a Step-5 validated detector may proceed to Step 6 trading-economics testing.
