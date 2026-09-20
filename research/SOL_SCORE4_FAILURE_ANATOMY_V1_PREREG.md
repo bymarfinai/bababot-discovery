@@ -182,6 +182,36 @@ No single anatomy shift sufficiently explains the degradation.
 
 These labels are retrospective diagnoses only.
 
+### Frozen diagnosis triggers
+
+Use the following rules exactly:
+
+- **FAILURE_MODE_A_NO_FAVORABLE_EXCURSION**
+  - `mfe_r` has a downward MATERIAL_2026_SHIFT; OR
+  - 2026 `touched_100r` rate is at least 15 percentage points below the 2020-2024 reference rate.
+
+- **FAILURE_MODE_B_EXCESS_GIVEBACK**
+  - `giveback_r` has an upward MATERIAL_2026_SHIFT; OR
+  - `retained_fraction` has a downward MATERIAL_2026_SHIFT.
+
+- **FAILURE_MODE_C_RISK_GEOMETRY_EXPANSION**
+  - `initial_risk_range_units` has an upward MATERIAL_2026_SHIFT; OR
+  - `structural_reward_r` has a downward MATERIAL_2026_SHIFT.
+
+- **FAILURE_MODE_D_SLOW_OR_STALLED_DELIVERY**
+  - `time_to_mfe_min` has an upward MATERIAL_2026_SHIFT; OR
+  - `running_mfe_r_60m` or `running_mfe_r_120m` has a downward MATERIAL_2026_SHIFT.
+
+- **FAILURE_MODE_E_SIDE_CONCENTRATION**
+  - absolute 2026 BUY-vs-SELL mean realized-R gap >= 0.30R;
+  - one side mean R < 0;
+  - the other side mean R > 0.
+
+- **FAILURE_MODE_F_UNRESOLVED_MIXED**
+  - none of A-E triggers.
+
+Multiple modes may trigger simultaneously. No priority ordering or rescue rule is allowed.
+
 ## Required outputs
 
 Persist:
