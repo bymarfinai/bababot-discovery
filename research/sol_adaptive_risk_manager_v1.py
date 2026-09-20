@@ -404,7 +404,7 @@ def render(title,m,static=None):
         f"- Max DD: **{num(m['max_dd_r'])}R**",
         f"- Max losing streak: **{int(m['max_loss_streak'])}**",
         f"- Median time-to-exit: **{num(m['median_time_to_exit_min'],1)} min**",
-        f"- Same-bar managed-stop hits: **{int(m['same_bar_managed_stop_hit_n'])**}",
+        f"- Same-bar managed-stop hits: **{int(m['same_bar_managed_stop_hit_n'])}**",
     ]
     if static is not None:
         lines += [
