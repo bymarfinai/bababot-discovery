@@ -23,6 +23,7 @@ V3 and V4 filters are NOT inherited because they failed frozen confirmation.
 - Retracement anatomy: 5m.
 - 2020-2022 = derivation / rule selection only.
 - 2023-2024 = frozen confirmation.
+- Split year is the UTC calendar year of the **first return into the H1 origin zone**, because that is when all V5 path features become known.
 - 2025+ CLOSED.
 - Minimum 5m coverage >= 99.5%.
 - Only V2 outcomes CONTINUATION and INVALIDATED are used for binary separation.
