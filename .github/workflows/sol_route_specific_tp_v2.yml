@@ -1,0 +1,54 @@
+name: SOL Route-Specific TP V2
+
+on:
+  push:
+    branches: [sol-route-specific-tp-v2]
+    paths:
+      - 'research/sol_route_specific_tp_v2.py'
+      - 'research/SOL_ROUTE_SPECIFIC_TP_V2_PREREG.md'
+      - '.github/workflows/sol_route_specific_tp_v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-route-specific-tp-v2
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile
+        run: python -m py_compile research/sol_route_specific_tp_v2.py
+      - name: Run route-specific TP
+        run: python research/sol_route_specific_tp_v2.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-route-specific-tp-v2
+          if-no-files-found: error
+          path: |
+            SOL_ROUTE_SPECIFIC_TP_V2_*.csv
+            SOL_ROUTE_SPECIFIC_TP_V2_*.md
+            SOL_ROUTE_SPECIFIC_TP_V2_*.txt
+            research/SOL_ROUTE_SPECIFIC_TP_V2_PREREG.md
+      - name: Persist result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_ROUTE_SPECIFIC_TP_V2_*.csv SOL_ROUTE_SPECIFIC_TP_V2_*.md SOL_ROUTE_SPECIFIC_TP_V2_*.txt
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist SOL route-specific TP v2 result"
+            git pull --rebase origin sol-route-specific-tp-v2
+            git push origin HEAD:sol-route-specific-tp-v2
+          fi
