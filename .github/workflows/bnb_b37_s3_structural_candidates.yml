@@ -1,0 +1,72 @@
+name: BNB B37-S3 structural detector candidates
+
+on:
+  push:
+    branches:
+      - bnb-b29-walkforward-reset
+    paths:
+      - '.bnb-b37-s3-trigger'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  b37-s3-candidates:
+    if: contains(github.event.head_commit.message, 'B37-S3:')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas==3.0.5 numpy==2.4.6 requests==2.34.2 matplotlib==3.10.6
+      - name: Download immutable accepted A1 fingerprint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p frozen_a1
+          curl -fL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/10336102957/zip" \
+            -o /tmp/a1.zip
+          unzip -q /tmp/a1.zip -d frozen_a1
+          test -f frozen_a1/BNB_B29_A1_STRUCTURE_FINGERPRINT.csv.gz
+      - name: Run Step-3 candidate freezer
+        run: |
+          set -euo pipefail
+          LOG=BNB_B37_S3_STRUCTURAL_CANDIDATES_Run.log
+          echo 'BNB B37-S3 structural candidate formation' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo 'identity=BNB_B37_S3_STRUCTURAL_CANDIDATES_V1' >> "$LOG"
+          python -m py_compile research/bnb_b37_s3_structural_candidates.py 2>&1 | tee -a "$LOG"
+          python research/bnb_b37_s3_structural_candidates.py 2>&1 | tee -a "$LOG"
+      - name: Upload reproducibility artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bnb-b37-s3-structural-candidates
+          path: |
+            BNB_B37_S3_STRUCTURAL_CANDIDATES*
+          if-no-files-found: warn
+      - name: Persist Step-3 evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p results/bnb_b37_s3
+          for f in BNB_B37_S3_STRUCTURAL_CANDIDATES*; do
+            if [ -f "$f" ]; then cp "$f" results/bnb_b37_s3/; fi
+          done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/bnb_b37_s3
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Persist B37-S3 structural candidate evidence'
+            git push origin HEAD:bnb-b29-walkforward-reset
+          fi
