@@ -1,0 +1,58 @@
+name: BNB B36 H1 E1 premium recovery
+
+on:
+  push:
+    branches:
+      - bnb-b29-walkforward-reset
+    paths:
+      - '.bnb-b36-trigger'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  b36-premium:
+    if: contains(github.event.head_commit.message, 'B36:')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas==3.0.5 numpy==2.4.6 requests==2.34.2
+      - name: Run preregistered B36
+        run: |
+          set -euo pipefail
+          LOG=BNB_B36_H1_E1_PREMIUM_RECOVERY_Run.log
+          echo 'BNB B36 H1 E1 premium recovery confirmation' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo 'protocol=research/BNB_B36_H1_E1_PREMIUM_RECOVERY_PREREGISTRATION.md' >> "$LOG"
+          echo 'identity=BNB_B36_H1_E1_PREMIUM_RECOVERY_V1' >> "$LOG"
+          python -m py_compile research/bnb_b36_h1_e1_premium_recovery.py 2>&1 | tee -a "$LOG"
+          python research/bnb_b36_h1_e1_premium_recovery.py 2>&1 | tee -a "$LOG"
+      - name: Upload reproducibility artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bnb-b36-h1-e1-premium-recovery
+          path: BNB_B36_H1_E1_PREMIUM_RECOVERY*
+          if-no-files-found: warn
+      - name: Persist B36 evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p results/bnb_b36
+          for f in BNB_B36_H1_E1_PREMIUM_RECOVERY*; do
+            if [ -f "$f" ]; then cp "$f" results/bnb_b36/; fi
+          done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/bnb_b36
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Persist B36 premium-recovery evidence'
+            git push origin HEAD:bnb-b29-walkforward-reset
+          fi
