@@ -1,0 +1,36 @@
+BNB B35 1H liquidity-sweep LONG timeframe hypothesis
+commit=072f180a5d35942356e530b67a361838b9764975
+protocol=research/BNB_B35_H1_SWEEP_LONG_PREREGISTRATION.md
+identity=BNB_B35_H1_SWEEP_LONG_V1
+# BNB B35 — 1H Liquidity-Sweep LONG Timeframe Result
+
+**S1 status: STRUCTURALLY_VIABLE**
+
+## Integrity
+- Raw rows **506,880**, coverage **100.000000%**.
+- A1 ret15 diff **9.99634403032e-17**; close-location diff **1.11022302463e-16**.
+- Exact reconstructed 1H bars: **40,993**.
+
+## S1 structure census
+- H1 sweep-reclaim LONG N **2,075**.
+- 2022/2023/2024/2025/2026*: **441 / 444 / 456 / 445 / 289**.
+- Eras >=10: **5/5**; max era share **21.98%**.
+
+## S2 development
+
+| Entry | N | Part. | +120 | Wilson | Worst year | +60 | +240 | Pass |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| E0 STRUCTURE_CLOSE | 1341 | 100.00% | 52.20% | 49.52% | 51.58% | 50.34% | 54.88% | — |
+| E1 NATIVE_LEVEL_RETEST | 805 | 60.03% | 55.40% | 51.95% | 54.18% | 53.42% | 54.78% | — |
+| E2 STRUCTURE_HIGH_BREAK | 759 | 56.60% | 51.78% | 48.22% | 49.01% | 48.35% | 55.07% | — |
+| E3 PULLBACK_RECLAIM | 1181 | 88.07% | 51.99% | 49.14% | 51.29% | 52.07% | 54.45% | — |
+| E4 STRUCTURE_MID_RETEST | 862 | 64.28% | 54.76% | 51.42% | 51.41% | 53.48% | 53.25% | — |
+
+Development winner: **NONE**.
+
+Reference 2025-2026 remained **UNOPENED**.
+
+## Decision
+**BNB_B35_NO_DEVELOPMENT_ENTRY**
+
+No TP/SL/PnL/economic optimization was performed. Only a reference pass may advance to economics.
