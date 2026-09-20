@@ -1,0 +1,50 @@
+BNB B38-S3 adaptive execution state machine
+commit=5f21c142cc4586be89428df93e8ed99aa561a9b6
+identity=BNB_B38_S3_ADAPTIVE_EXECUTION_V1
+# BNB B38-S3 — Adaptive Execution State Machine
+
+**2022-2024 EXECUTION DESIGN — NO TRADE-OUTCOME SCORING**
+
+Frozen parent: **788 H1-demand / 15m structural events**.
+
+## Adaptive state machine
+
+- **A clean proximal reclaim:** entry at first-touch 15m close; invalidation reference = H1 demand_low.
+- **C sweep full reclaim:** entry at first-touch 15m close; invalidation reference = actual sweep low.
+- **B/D inside-zone close:** remain PENDING; first later 15m close above demand_high triggers entry. A close below demand_low before confirmation cancels the setup.
+- If any sweep occurs while pending, the confirmed execution becomes DELAYED_SWEEP_RECLAIM and invalidation reference = lowest sweep low seen through confirmation.
+
+## Execution census
+- ENTRY plans: **690**
+- Cancelled by demand acceptance before reclaim: **98**
+- No trigger by end-2024: **0**
+
+## First-touch archetype → execution transition
+
+| First-touch archetype | Status | Execution mode | N |
+|---|---|---|---:|
+| A_CLEAN_PROXIMAL_RECLAIM | ENTRY | IMMEDIATE_CLEAN_RECLAIM | 415 |
+| B_CLEAN_IN_ZONE_HOLD | CANCELLED_DEMAND_ACCEPTANCE | PENDING_RECLAIM | 61 |
+| B_CLEAN_IN_ZONE_HOLD | ENTRY | DELAYED_CLEAN_RECLAIM | 137 |
+| B_CLEAN_IN_ZONE_HOLD | ENTRY | DELAYED_SWEEP_RECLAIM | 28 |
+| C_SWEEP_FULL_RECLAIM | ENTRY | IMMEDIATE_SWEEP_RECLAIM | 65 |
+| D_SWEEP_PARTIAL_RECLAIM | CANCELLED_DEMAND_ACCEPTANCE | PENDING_RECLAIM | 37 |
+| D_SWEEP_PARTIAL_RECLAIM | ENTRY | DELAYED_SWEEP_RECLAIM | 45 |
+
+## Entry-plan geometry by execution mode
+
+| Mode | N | 2022/23/24 | Wait | Risk | Risk % | TP1 room | TP1 RR | TP2 room | TP2 RR | No target |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| DELAYED_CLEAN_RECLAIM | 137 | 58/38/41 | 1.00 x15m | 1.23ZW | 0.9% | 1.30ZW | 0.97R | 1.64ZW | 1.24R | 0 |
+| DELAYED_SWEEP_RECLAIM | 73 | 21/32/20 | 2.00 x15m | 2.14ZW | 0.8% | 2.58ZW | 1.10R | 2.98ZW | 1.37R | 1 |
+| IMMEDIATE_CLEAN_RECLAIM | 415 | 140/124/151 | 0.00 x15m | 1.38ZW | 0.7% | 1.80ZW | 1.19R | 2.19ZW | 1.52R | 1 |
+| IMMEDIATE_SWEEP_RECLAIM | 65 | 16/28/21 | 0.00 x15m | 3.02ZW | 0.8% | 3.76ZW | 0.98R | 4.75ZW | 1.37R | 0 |
+
+## Structural target construction
+At each entry close, the engine builds a price-sorted ladder from **already-confirmed 15m pivot highs, the frozen expansion high, and already-confirmed H1 pivot highs** above entry.
+TP1/TP2/TP3 are therefore event-specific structural objectives; no fixed percentage target is introduced.
+
+## B38-S3 freeze
+**ADAPTIVE EXECUTION LOGIC FROZEN.**
+S3 does not say which execution mode is profitable. It only defines when entry becomes structurally confirmed, where structural invalidation resides, and which overhead objectives are actually available at that moment.
+The next experiment may score this frozen engine, but must not alter these rules after reading outcomes.
