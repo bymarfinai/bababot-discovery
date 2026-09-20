@@ -73,15 +73,15 @@ jobs:
           if [ "$mode" = "smoke" ]; then
             cd research
             python - <<'PY' > ../FORWARD_SHADOW_RUN.log 2>&1
-import tuesday_a511_forward_shadow as fs
-state = fs.load_state(fs.MODEL_DEFAULT)
-df = fs.read_ledger(fs.LEDGER_DEFAULT)
-assert list(df.columns) == fs.LEDGER_COLUMNS
-assert not df.date_wib.astype(str).duplicated().any() if len(df) else True
-print("FORWARD_SHADOW_SMOKE_PASS")
-print("model_fingerprint_sha256=", state["model_fingerprint_sha256"])
-print("ledger_rows=", len(df))
-PY
+          import tuesday_a511_forward_shadow as fs
+          state = fs.load_state(fs.MODEL_DEFAULT)
+          df = fs.read_ledger(fs.LEDGER_DEFAULT)
+          assert list(df.columns) == fs.LEDGER_COLUMNS
+          assert not df.date_wib.astype(str).duplicated().any() if len(df) else True
+          print("FORWARD_SHADOW_SMOKE_PASS")
+          print("model_fingerprint_sha256=", state["model_fingerprint_sha256"])
+          print("ledger_rows=", len(df))
+          PY
             rc=$?
             cd ..
           else
