@@ -81,8 +81,7 @@ def detect_early(b):
             mid=(float(r.high)+float(r.low))/2.0
             if last_hi is not None:
                 prev_hi=prev_pivot(ah,last_hi[1])
-                prior_lows=[x for x in al if x[1]<last_hi[1]]
-                prior_lo=prior_lows[-1] if prior_lows else None
+                prior_lo=prev_pivot(al,last_hi[1])
                 if prev_hi and prior_lo and last_hi[2]>prev_hi[2]:
                     amp=float(last_hi[2]-prior_lo[2])
                     depth=(float(last_hi[2])-float(r.low))/amp if amp>0 else np.nan
@@ -90,8 +89,7 @@ def detect_early(b):
                         rows.append((t,"F2LE","IMPULSE_PULLBACK_LONG_EARLY","LONG","F2","EARLY",float(r.low)))
             if last_lo is not None:
                 prev_lo=prev_pivot(al,last_lo[1])
-                prior_highs=[x for x in ah if x[1]<last_lo[1]]
-                prior_hi=prior_highs[-1] if prior_highs else None
+                prior_hi=prev_pivot(ah,last_lo[1])
                 if prev_lo and prior_hi and last_lo[2]<prev_lo[2]:
                     amp=float(prior_hi[2]-last_lo[2])
                     depth=(float(r.high)-float(last_lo[2]))/amp if amp>0 else np.nan
