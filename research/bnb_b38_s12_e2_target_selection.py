@@ -114,7 +114,7 @@ def known_targets_at_entry(P,m15,h1,fam):
         major=min(majors) if majors else np.nan
 
         rows.append({
-            "zone_id":r.zone_id,"tp1":tp1,"tp2":tp2,"tp3":tp3,
+            "zone_id":r.zone_id,"tp2":tp2,"tp3":tp3,
             "tp1_source":sources[0] if len(sources)>=1 else "",
             "tp2_source":sources[1] if len(sources)>=2 else "",
             "tp3_source":sources[2] if len(sources)>=3 else "",
