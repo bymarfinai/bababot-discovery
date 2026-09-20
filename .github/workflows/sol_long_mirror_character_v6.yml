@@ -1,0 +1,64 @@
+name: SOL Long Mirror Character V6
+
+on:
+  push:
+    branches: [sol-long-mirror-character-v6]
+    paths:
+      - 'research/sol_long_mirror_character_v6.py'
+      - 'research/SOL_LONG_MIRROR_CHARACTER_V6_PREREG.md'
+      - '.github/workflows/sol_long_mirror_character_v6.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-long-mirror-character-v6
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile
+        run: python -m py_compile research/sol_long_mirror_character_v6.py
+      - name: Run mirror validation
+        run: python research/sol_long_mirror_character_v6.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-long-mirror-character-v6
+          if-no-files-found: error
+          path: |
+            SOL_LONG_MIRROR_CHARACTER_V6_StageA_Raids.csv
+            SOL_LONG_MIRROR_CHARACTER_V6_StageB_BOS.csv
+            SOL_LONG_MIRROR_CHARACTER_V6_StageC_Returns.csv
+            SOL_LONG_MIRROR_CHARACTER_V6_StageD_Responses.csv
+            SOL_LONG_MIRROR_CHARACTER_V6_DedupResponses.csv
+            SOL_LONG_MIRROR_CHARACTER_V6_PathFeatures.csv
+            SOL_LONG_MIRROR_CHARACTER_V6_UsableResolved.csv
+            SOL_LONG_MIRROR_CHARACTER_V6_SelectedMirrorCohort.csv
+            SOL_LONG_MIRROR_CHARACTER_V6_Comparison.csv
+            SOL_LONG_MIRROR_CHARACTER_V6_FeatureSummary.csv
+            SOL_LONG_MIRROR_CHARACTER_V6_Summary.csv
+            SOL_LONG_MIRROR_CHARACTER_V6_Result.md
+            SOL_LONG_MIRROR_CHARACTER_V6_Status.txt
+            research/SOL_LONG_MIRROR_CHARACTER_V6_PREREG.md
+      - name: Persist result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_LONG_MIRROR_CHARACTER_V6_*.csv SOL_LONG_MIRROR_CHARACTER_V6_*.md SOL_LONG_MIRROR_CHARACTER_V6_*.txt
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist SOL long mirror character v6 result"
+            git pull --rebase origin sol-long-mirror-character-v6
+            git push origin HEAD:sol-long-mirror-character-v6
+          fi
