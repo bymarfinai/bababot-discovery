@@ -36,8 +36,6 @@ def forward(p,side,steps,idx,c):
     if p is None:return np.nan
     e=p+steps
     if e>=len(idx) or idx[e]-idx[p] != steps*BAR:return np.nan
-    for k in range(p+1,e+1):
-        if idx[k]-idx[k-1] != BAR:return np.nan
     x=side*(float(c[e])/float(c[p])-1.0)
     return 0.0 if abs(x)<=EPS else x
 
