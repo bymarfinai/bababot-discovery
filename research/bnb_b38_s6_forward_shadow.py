@@ -43,6 +43,12 @@ IMMUTABLE_ENTRY_FIELDS=[
     "zone_id","first_touch_ts","first_touch_archetype","execution_mode",
     "entry_ts","entry_price","sl_reference","selected_target","target_level","target_rr"
 ]
+LEDGER_COLUMNS=[
+    "zone_id","first_touch_ts","first_touch_archetype","execution_mode",
+    "source_execution_status","entry_ts","entry_price","sl_reference",
+    "selected_target","target_level","target_rr","forward_status",
+    "resolution_ts","realized_r","first_seen_at_utc","last_checked_at_utc",
+]
 
 def utc_now():
     return pd.Timestamp(datetime.now(timezone.utc))
@@ -205,10 +211,17 @@ def rebuild_plans(raw,latest):
 
 def read_ledger():
     if not LEDGER.exists():
-        return pd.DataFrame()
-    q=pd.read_csv(LEDGER)
-    for c in ["first_touch_ts","entry_ts","resolution_ts","first_seen_at_utc","last_checked_at_utc"]:
-        if c in q.columns: q[c]=pd.to_datetime(q[c],utc=True,errors="coerce")
+        return pd.DataFrame(columns=LEDGER_COLUMNS)
+    try:
+        q=pd.read_csv(LEDGER)
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame(columns=LEDGER_COLUMNS)
+    for col in LEDGER_COLUMNS:
+        if col not in q.columns:
+            q[col]=np.nan
+    q=q[LEDGER_COLUMNS].copy()
+    for col in ["first_touch_ts","entry_ts","resolution_ts","first_seen_at_utc","last_checked_at_utc"]:
+        q[col]=pd.to_datetime(q[col],utc=True,errors="coerce")
     return q
 
 def ffloat(x):
@@ -270,7 +283,7 @@ def current_rows(P,raw,latest,now):
         else:
             raise RuntimeError(f"unexpected source status {r.execution_status}")
         rows.append(base)
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows,columns=LEDGER_COLUMNS)
 
 def same_value(a,b):
     if pd.isna(a) and pd.isna(b): return True
@@ -333,6 +346,12 @@ def merge_ledger(old,cur,now):
     return z.sort_values(["first_touch_ts","zone_id"]).reset_index(drop=True)
 
 def stats(q):
+    if q is None or len(q)==0 or "forward_status" not in q.columns:
+        return {
+            "events":0,"resolved":0,"wins":0,"losses":0,
+            "hit_rate":np.nan,"expectancy_r":np.nan,"total_r":np.nan,
+            "profit_factor":np.nan,"max_loss_streak":0,"max_drawdown_r":np.nan,
+        }
     resolved=q[q.forward_status.isin(["PAPER_WIN","PAPER_LOSS"])].copy()
     wins=resolved[resolved.forward_status=="PAPER_WIN"]
     losses=resolved[resolved.forward_status=="PAPER_LOSS"]
@@ -370,7 +389,7 @@ def render(ledger,latest,created_seed,now):
         gate="FORWARD_EDGE_GATE_FAIL"
 
     modes=[]
-    if len(ledger):
+    if len(ledger) and "execution_mode" in ledger.columns:
         e=ledger[ledger.execution_mode.astype(str)!="PENDING_RECLAIM"]
         for mode,q in e.groupby("execution_mode"):
             modes.append({"execution_mode":mode,**stats(q)})
