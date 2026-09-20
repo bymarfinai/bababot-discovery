@@ -1,0 +1,56 @@
+name: BNB B38-S6 Hourly Forward Shadow
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: bnb-b38-s6-hourly-forward-shadow
+  cancel-in-progress: false
+
+jobs:
+  shadow:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bnb-b29-walkforward-reset
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas==3.0.5 numpy==2.4.6 requests==2.34.2 matplotlib==3.10.6
+      - name: Run frozen B38-S6 prospective shadow
+        run: |
+          set -euo pipefail
+          python research/bnb_b38_s6_forward_shadow.py | tee BNB_B38_S6_RUN.log
+      - name: Persist shadow evidence to research branch
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p forward/bnb_b38_s6
+          if [ -f BNB_B38_S6_RUN.log ]; then
+            cp BNB_B38_S6_RUN.log forward/bnb_b38_s6/BNB_B38_S6_LastRun.log
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add forward/bnb_b38_s6
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] B38-S6 hourly prospective shadow update'
+            git pull --rebase origin bnb-b29-walkforward-reset
+            git push origin HEAD:bnb-b29-walkforward-reset
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bnb-b38-s6-hourly-${{ github.run_id }}
+          path: |
+            BNB_B38_S6_RUN.log
+            forward/bnb_b38_s6/
+          if-no-files-found: warn
