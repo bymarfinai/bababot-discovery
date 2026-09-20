@@ -1,0 +1,61 @@
+name: SOL Structural Liquidity Detector V3
+
+on:
+  push:
+    branches: [sol-structural-liquidity-detector-v3]
+    paths:
+      - 'research/sol_structural_liquidity_detector_v3.py'
+      - 'research/SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_PREREG.md'
+      - '.github/workflows/sol_structural_liquidity_detector_v3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  detector:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-structural-liquidity-detector-v3
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile
+        run: python -m py_compile research/sol_structural_liquidity_detector_v3.py
+      - name: Run detector combination validation
+        run: python research/sol_structural_liquidity_detector_v3.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-structural-liquidity-detector-v3
+          if-no-files-found: error
+          path: |
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_ConstructionEvents.csv
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_ConstructionCandidates.csv
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_ConstructionScoreDiagnostic.csv
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_Holdout2025Events.csv
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_Holdout2025Selected.csv
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_Holdout2025ScoreDiagnostic.csv
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_Holdout2025HalfYear.csv
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_Summary.csv
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_Result.md
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_Status.txt
+            research/SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_PREREG.md
+      - name: Persist result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_*.csv SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_*.md SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_*.txt
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist SOL structural liquidity detector v3 result"
+            git pull --rebase origin sol-structural-liquidity-detector-v3
+            git push origin HEAD:sol-structural-liquidity-detector-v3
+          fi
