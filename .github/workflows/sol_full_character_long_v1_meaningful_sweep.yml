@@ -1,0 +1,39 @@
+name: SOL Meaningful Sweep Confirmation
+
+on:
+  push:
+    branches: [sol-full-character-long-v1-meaningful-sweep]
+    paths:
+      - 'research/sol_full_character_long_v1_meaningful_sweep.py'
+      - 'research/SOL_FULL_CHARACTER_LONG_V1_MEANINGFUL_SWEEP_PREREG.md'
+      - '.github/workflows/sol_full_character_long_v1_meaningful_sweep.yml'
+  workflow_dispatch:
+
+jobs:
+  meaningful-sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile frozen detector
+        run: python -m py_compile research/sol_full_character_long_v1_meaningful_sweep.py
+      - name: Run frozen detector
+        run: python research/sol_full_character_long_v1_meaningful_sweep.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-full-character-long-v1-meaningful-sweep
+          if-no-files-found: error
+          path: |
+            SOL_FULL_CHARACTER_LONG_V1_MEANINGFUL_SWEEP_SelectedTrades.csv
+            SOL_FULL_CHARACTER_LONG_V1_MEANINGFUL_SWEEP_ComplementTrades.csv
+            SOL_FULL_CHARACTER_LONG_V1_MEANINGFUL_SWEEP_Summary.csv
+            SOL_FULL_CHARACTER_LONG_V1_MEANINGFUL_SWEEP_YearSummary.csv
+            SOL_FULL_CHARACTER_LONG_V1_MEANINGFUL_SWEEP_Result.md
+            SOL_FULL_CHARACTER_LONG_V1_MEANINGFUL_SWEEP_Status.txt
+            research/SOL_FULL_CHARACTER_LONG_V1_MEANINGFUL_SWEEP_PREREG.md
