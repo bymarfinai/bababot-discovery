@@ -28,6 +28,19 @@ V3 and V4 filters are NOT inherited because they failed frozen confirmation.
 - Only V2 outcomes CONTINUATION and INVALIDATED are used for binary separation.
 - AMBIGUOUS and UNRESOLVED remain excluded from the binary selector score.
 
+## Structural-path deduplication
+
+Before any feature analysis, collapse V2 rows that share the same:
+- H1 BOS index;
+- H1 origin-block index;
+- first-return 5m index.
+
+These rows represent the same structural return path even if multiple earlier liquidity highs map into it.
+
+Keep exactly one canonical row per structural path, choosing the earliest raid index and then the lexicographically smallest structure_id.
+
+All baselines, feature summaries, candidate selection, and confirmation metrics use this deduplicated path set.
+
 ## Causal retracement path
 
 For each V2 case that reaches the H1 origin zone:
