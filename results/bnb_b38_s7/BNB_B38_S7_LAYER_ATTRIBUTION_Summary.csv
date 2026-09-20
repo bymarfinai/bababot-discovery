@@ -1,0 +1,3 @@
+period,entry_plans,resolved,wins,losses,wr,zone1_valid_all_entries,zone2_valid_all_entries,wins_needed_for_70,zone_valid_losses,zone_valid_loss_headroom_ge_need,zone_fail_losses,late_entry_losses,false_stop_losses,tp_path_losses
+DEV,690,677,353,324,0.5214180206794683,0.7159420289855073,0.5594202898550724,121,148,True,176,39,42,67
+REF,402,399,212,187,0.531328320802005,0.7064676616915423,0.5646766169154229,68,80,True,107,20,20,40
