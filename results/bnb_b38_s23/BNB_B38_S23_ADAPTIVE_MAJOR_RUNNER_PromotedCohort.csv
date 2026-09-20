@@ -1,0 +1,3 @@
+period,eligible,s20_cut_before_tp1,no_tp1,tp1_promoted,major_hit,be_exit,ambiguous,partial_open,median_room_r,total_r
+DEV,117,11,16,90,44,43,3,0,0.1321184510250602,5.4626557543008305
+REF,71,4,11,56,21,34,1,0,0.0807692307692476,-1.2375546892062654
