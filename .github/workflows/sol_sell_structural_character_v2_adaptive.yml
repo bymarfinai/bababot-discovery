@@ -1,0 +1,57 @@
+name: SOL Sell Structural Character V2 Adaptive
+
+on:
+  push:
+    branches: [sol-sell-structure-character-v2-adaptive]
+    paths:
+      - 'research/sol_sell_structural_character_v2_adaptive.py'
+      - 'research/SOL_SELL_STRUCTURAL_CHARACTER_V2_ADAPTIVE_PREREG.md'
+      - '.github/workflows/sol_sell_structural_character_v2_adaptive.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  characterize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-sell-structure-character-v2-adaptive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile
+        run: python -m py_compile research/sol_sell_structural_character_v2_adaptive.py
+      - name: Run adaptive structural character
+        run: python research/sol_sell_structural_character_v2_adaptive.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-sell-structural-character-v2-adaptive
+          if-no-files-found: error
+          path: |
+            SOL_SELL_STRUCTURAL_CHARACTER_V2_ADAPTIVE_StageA_Raids.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V2_ADAPTIVE_StageB_BOS.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V2_ADAPTIVE_StageC_Returns.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V2_ADAPTIVE_StageD_Responses.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V2_ADAPTIVE_Summary.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V2_ADAPTIVE_YearSummary.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V2_ADAPTIVE_FeatureByOutcome.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V2_ADAPTIVE_Result.md
+            research/SOL_SELL_STRUCTURAL_CHARACTER_V2_ADAPTIVE_PREREG.md
+      - name: Persist result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_SELL_STRUCTURAL_CHARACTER_V2_ADAPTIVE_*.csv SOL_SELL_STRUCTURAL_CHARACTER_V2_ADAPTIVE_*.md
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist adaptive SOL sell structural character v2 result"
+            git push origin HEAD:sol-sell-structure-character-v2-adaptive
+          fi
