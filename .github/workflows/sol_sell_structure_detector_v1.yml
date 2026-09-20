@@ -1,0 +1,65 @@
+name: SOL Sell Structure Detector V1
+
+on:
+  push:
+    branches: [sol-sell-structure-detector-v1]
+    paths:
+      - 'research/sol_sell_structure_detector_v1.py'
+      - 'research/SOL_SELL_STRUCTURE_DETECTOR_V1_PREREG.md'
+      - '.github/workflows/sol_sell_structure_detector_v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  detector:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-sell-structure-detector-v1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+
+      - name: Compile detector
+        run: python -m py_compile research/sol_sell_structure_detector_v1.py
+
+      - name: Run frozen detector
+        run: python research/sol_sell_structure_detector_v1.py
+
+      - name: Upload detector artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-sell-structure-detector-v1
+          if-no-files-found: error
+          path: |
+            SOL_SELL_STRUCTURE_DETECTOR_V1_StageA_Sweeps.csv
+            SOL_SELL_STRUCTURE_DETECTOR_V1_StageB_BOS.csv
+            SOL_SELL_STRUCTURE_DETECTOR_V1_StageC_Returns.csv
+            SOL_SELL_STRUCTURE_DETECTOR_V1_StageD_Activations.csv
+            SOL_SELL_STRUCTURE_DETECTOR_V1_Trades.csv
+            SOL_SELL_STRUCTURE_DETECTOR_V1_Funnel.csv
+            SOL_SELL_STRUCTURE_DETECTOR_V1_Summary.csv
+            SOL_SELL_STRUCTURE_DETECTOR_V1_YearSummary.csv
+            SOL_SELL_STRUCTURE_DETECTOR_V1_Result.md
+            SOL_SELL_STRUCTURE_DETECTOR_V1_Status.txt
+            research/SOL_SELL_STRUCTURE_DETECTOR_V1_PREREG.md
+
+      - name: Persist detector result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_SELL_STRUCTURE_DETECTOR_V1_*.csv SOL_SELL_STRUCTURE_DETECTOR_V1_*.md SOL_SELL_STRUCTURE_DETECTOR_V1_*.txt
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist SOL sell structure detector v1 result"
+            git push origin HEAD:sol-sell-structure-detector-v1
+          fi
