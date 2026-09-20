@@ -1,0 +1,5 @@
+feature,kind,effect,direction,detail
+touch_close_zone_fraction,continuous,0.18503937007874016,higher in WIN,Cliff δ=0.185; medians 1.405 vs 1.191; stable years=3
+expansion_above_bos_zw,continuous,0.17556927005745904,lower in WIN,Cliff δ=-0.176; medians 1.109 vs 1.454; stable years=3
+proximal_reclaim,binary,0.17184507341987654,more common in WIN,Δ prevalence=17.2pp; WIN 77.0% vs LOSS 59.8%; stable years=3
+demand_width_pct,continuous,0.15928921047031283,higher in WIN,Cliff δ=0.159; medians 0.010 vs 0.009; stable years=3
