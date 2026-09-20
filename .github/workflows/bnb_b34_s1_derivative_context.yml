@@ -1,0 +1,59 @@
+name: BNB B34 S1 derivatives-confirmed liquidity sweep
+
+on:
+  push:
+    branches:
+      - bnb-b29-walkforward-reset
+    paths:
+      - '.bnb-b34-s1-trigger'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  b34-derivatives:
+    if: contains(github.event.head_commit.message, 'B34 S1:')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas==3.0.5 numpy==2.4.6 requests==2.34.2
+      - name: Run preregistered B34 S1
+        run: |
+          set -euo pipefail
+          LOG=BNB_B34_S1_DERIVATIVE_CONTEXT_Run.log
+          echo 'BNB B34 S1 derivatives-confirmed liquidity sweep' > "$LOG"
+          echo "commit=$GITHUB_SHA" >> "$LOG"
+          echo 'protocol=research/BNB_B34_S1_DERIVATIVE_CONTEXT_PREREGISTRATION.md' >> "$LOG"
+          echo 'scientific_identity=BNB_B34_S1_DERIVATIVE_CONTEXT_V1' >> "$LOG"
+          echo 'parent=B33 F1LE + E1 frozen entry' >> "$LOG"
+          python -m py_compile research/bnb_b34_s1_derivative_context.py 2>&1 | tee -a "$LOG"
+          python research/bnb_b34_s1_derivative_context.py 2>&1 | tee -a "$LOG"
+      - name: Upload reproducibility artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bnb-b34-s1-derivative-context
+          path: BNB_B34_S1_DERIVATIVE_CONTEXT*
+          if-no-files-found: warn
+      - name: Persist B34 S1 evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p results/bnb_b34_s1
+          for f in BNB_B34_S1_DERIVATIVE_CONTEXT*; do
+            if [ -f "$f" ]; then cp "$f" results/bnb_b34_s1/; fi
+          done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/bnb_b34_s1
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Persist B34 S1 derivative-context evidence'
+            git push origin HEAD:bnb-b29-walkforward-reset
+          fi
