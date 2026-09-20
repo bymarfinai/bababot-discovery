@@ -32,4 +32,3 @@
 - composite gate: **COLLECTING_FORWARD_EVIDENCE**
 
 Public market data only. No Binance order endpoint is called.
-
