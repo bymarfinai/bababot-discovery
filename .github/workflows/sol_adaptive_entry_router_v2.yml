@@ -1,0 +1,54 @@
+name: SOL Adaptive Entry Router V2
+
+on:
+  push:
+    branches: [sol-adaptive-entry-router-v2]
+    paths:
+      - 'research/sol_adaptive_entry_router_v2.py'
+      - 'research/SOL_ADAPTIVE_ENTRY_ROUTER_V2_PREREG.md'
+      - '.github/workflows/sol_adaptive_entry_router_v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  router:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-adaptive-entry-router-v2
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile
+        run: python -m py_compile research/sol_adaptive_entry_router_v2.py
+      - name: Run adaptive entry router
+        run: python research/sol_adaptive_entry_router_v2.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-adaptive-entry-router-v2
+          if-no-files-found: error
+          path: |
+            SOL_ADAPTIVE_ENTRY_ROUTER_V2_*.csv
+            SOL_ADAPTIVE_ENTRY_ROUTER_V2_*.md
+            SOL_ADAPTIVE_ENTRY_ROUTER_V2_*.txt
+            research/SOL_ADAPTIVE_ENTRY_ROUTER_V2_PREREG.md
+      - name: Persist result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_ADAPTIVE_ENTRY_ROUTER_V2_*.csv SOL_ADAPTIVE_ENTRY_ROUTER_V2_*.md SOL_ADAPTIVE_ENTRY_ROUTER_V2_*.txt
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist SOL adaptive entry router v2 result"
+            git pull --rebase origin sol-adaptive-entry-router-v2
+            git push origin HEAD:sol-adaptive-entry-router-v2
+          fi
