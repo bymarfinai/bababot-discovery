@@ -1,0 +1,2 @@
+coverage,stage_a_n,stage_b_n,stage_c_n,stage_d_n,dedup_n,usable_resolved_n,selected_n,baseline_rate,selected_rate,lift,years_above_baseline,gate_selected_n_ge_30,gate_selected_rate_ge_45pct,gate_lift_ge_10pp,gate_yearly_above_baseline_ge_4_of_5,gate_both_eras_above_baseline,verdict
+0.9976976650486368,1350,413,374,374,308,237,53,0.27848101265822783,0.3584905660377358,0.08000955337950799,4,True,False,False,True,True,MIRROR_NOT_CONFIRMED_AS_DEFINED
