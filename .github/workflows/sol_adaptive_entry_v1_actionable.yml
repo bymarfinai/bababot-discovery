@@ -1,0 +1,54 @@
+name: SOL Adaptive Entry V1 Actionable
+
+on:
+  push:
+    branches: [sol-adaptive-entry-v1-actionable]
+    paths:
+      - 'research/sol_adaptive_entry_v1_actionable.py'
+      - 'research/SOL_ADAPTIVE_ENTRY_V1_ACTIONABLE_PREREG.md'
+      - '.github/workflows/sol_adaptive_entry_v1_actionable.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  entry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-adaptive-entry-v1-actionable
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile
+        run: python -m py_compile research/sol_adaptive_entry_v1_actionable.py
+      - name: Run adaptive entry discovery
+        run: python research/sol_adaptive_entry_v1_actionable.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-adaptive-entry-v1-actionable
+          if-no-files-found: error
+          path: |
+            SOL_ADAPTIVE_ENTRY_V1_ACTIONABLE_*.csv
+            SOL_ADAPTIVE_ENTRY_V1_ACTIONABLE_*.md
+            SOL_ADAPTIVE_ENTRY_V1_ACTIONABLE_*.txt
+            research/SOL_ADAPTIVE_ENTRY_V1_ACTIONABLE_PREREG.md
+      - name: Persist result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_ADAPTIVE_ENTRY_V1_ACTIONABLE_*.csv SOL_ADAPTIVE_ENTRY_V1_ACTIONABLE_*.md SOL_ADAPTIVE_ENTRY_V1_ACTIONABLE_*.txt
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist SOL adaptive entry v1 actionable result"
+            git pull --rebase origin sol-adaptive-entry-v1-actionable
+            git push origin HEAD:sol-adaptive-entry-v1-actionable
+          fi
