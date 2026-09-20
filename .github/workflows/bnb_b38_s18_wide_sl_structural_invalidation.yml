@@ -1,0 +1,62 @@
+name: BNB B38-S18 wide-SL structural invalidation
+
+on:
+  push:
+    branches:
+      - bnb-b29-walkforward-reset
+    paths:
+      - '.bnb-b38-s18-trigger'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  b38-s18:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas==3.0.5 numpy==2.4.6 requests==2.34.2 matplotlib==3.10.6
+      - name: Download immutable accepted A1 fingerprint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p frozen_a1
+          curl -fL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/10336102957/zip" -o /tmp/a1.zip
+          unzip -q /tmp/a1.zip -d frozen_a1
+          test -f frozen_a1/BNB_B29_A1_STRUCTURE_FINGERPRINT.csv.gz
+      - name: Run B38-S18
+        run: |
+          set -euo pipefail
+          python -m py_compile research/bnb_b38_s18_wide_sl_structural_invalidation.py
+          python research/bnb_b38_s18_wide_sl_structural_invalidation.py | tee BNB_B38_S18_WIDE_SL_STRUCTURAL_INVALIDATION_Run.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bnb-b38-s18-wide-sl-structural-invalidation
+          path: |
+            BNB_B38_S18_WIDE_SL_STRUCTURAL_INVALIDATION*
+          if-no-files-found: warn
+      - name: Persist evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p results/bnb_b38_s18
+          for f in BNB_B38_S18_WIDE_SL_STRUCTURAL_INVALIDATION*; do
+            if [ -f "$f" ]; then cp "$f" results/bnb_b38_s18/; fi
+          done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/bnb_b38_s18
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Persist B38-S18 wide-SL invalidation audit'
+            git pull --rebase origin bnb-b29-walkforward-reset
+            git push origin HEAD:bnb-b29-walkforward-reset
+          fi
