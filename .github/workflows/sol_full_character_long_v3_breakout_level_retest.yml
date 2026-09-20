@@ -1,0 +1,40 @@
+name: SOL Full Character Long V3 Breakout Retest
+
+on:
+  push:
+    branches: [sol-full-character-long-v3-breakout-level-retest]
+    paths:
+      - 'research/sol_full_character_long_v3_breakout_level_retest.py'
+      - 'research/SOL_FULL_CHARACTER_LONG_V3_BREAKOUT_LEVEL_RETEST_PREREG.md'
+      - '.github/workflows/sol_full_character_long_v3_breakout_level_retest.yml'
+  workflow_dispatch:
+
+jobs:
+  breakout-retest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile frozen detector
+        run: python -m py_compile research/sol_full_character_long_v3_breakout_level_retest.py
+      - name: Run frozen detector
+        run: python research/sol_full_character_long_v3_breakout_level_retest.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-full-character-long-v3-breakout-level-retest
+          if-no-files-found: error
+          path: |
+            SOL_FULL_CHARACTER_LONG_V3_BREAKOUT_LEVEL_RETEST_Contexts.csv
+            SOL_FULL_CHARACTER_LONG_V3_BREAKOUT_LEVEL_RETEST_FirstRetests.csv
+            SOL_FULL_CHARACTER_LONG_V3_BREAKOUT_LEVEL_RETEST_Trades.csv
+            SOL_FULL_CHARACTER_LONG_V3_BREAKOUT_LEVEL_RETEST_Summary.csv
+            SOL_FULL_CHARACTER_LONG_V3_BREAKOUT_LEVEL_RETEST_YearSummary.csv
+            SOL_FULL_CHARACTER_LONG_V3_BREAKOUT_LEVEL_RETEST_Result.md
+            SOL_FULL_CHARACTER_LONG_V3_BREAKOUT_LEVEL_RETEST_Status.txt
+            research/SOL_FULL_CHARACTER_LONG_V3_BREAKOUT_LEVEL_RETEST_PREREG.md
