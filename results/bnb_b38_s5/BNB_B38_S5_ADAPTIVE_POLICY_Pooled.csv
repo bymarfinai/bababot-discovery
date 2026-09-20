@@ -1,0 +1,2 @@
+scope,plans,resolved_n,wins,losses,ambiguous,unresolved,hit_rate,expectancy_r,total_r,profit_factor,max_win_streak,max_loss_streak,max_drawdown_r,no_policy_target
+COMPOSITE_POLICY,680,677,353,324,3,0,0.5214180206794683,0.10381328155847264,70.28159161508597,1.2169184926391543,7,8,19.319608745542148,10

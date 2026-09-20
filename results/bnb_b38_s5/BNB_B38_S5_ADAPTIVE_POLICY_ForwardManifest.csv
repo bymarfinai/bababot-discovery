@@ -1,0 +1,2 @@
+identity,freeze_timestamp_utc,prospective_data_must_be_after_utc,entry_logic,sl_logic,immediate_clean_target,immediate_sweep_target,delayed_clean_target,delayed_sweep_target,missing_required_target_action
+BNB_B38_S5_ADAPTIVE_POLICY_V1,2026-09-20T06:30:00+00:00,2026-09-20T06:30:00+00:00,B38-S3 frozen,B38-S3 frozen,TP1,TP1,TP1,TP2,NO_POLICY_TARGET

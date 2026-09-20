@@ -1,0 +1,49 @@
+# BNB B38-S5 — Frozen Adaptive Policy Candidate
+
+**DEVELOPMENT POLICY FREEZE — NOT INDEPENDENT OOS VALIDATION**
+
+## Frozen mode -> objective mapping
+- IMMEDIATE_CLEAN_RECLAIM -> **TP1**
+- IMMEDIATE_SWEEP_RECLAIM -> **TP1**
+- DELAYED_CLEAN_RECLAIM -> **TP1**
+- DELAYED_SWEEP_RECLAIM -> **TP2**
+
+Entry and structural SL remain exactly B38-S3.
+
+## Development composite characterization
+- Frozen ENTRY plans: **690**
+- Plans with required structural target available: **680**
+- NO_POLICY_TARGET: **10**
+- Resolved W-L: **353-324**
+- Hit rate: **52.1%**
+- Expectancy: **0.10R / trade**
+- Total realized R: **70.28R**
+- Profit factor: **1.22**
+- Max win streak: **7**
+- Max loss streak: **8**
+- Max cumulative-R drawdown: **19.32R**
+
+## By execution mode
+
+| Mode | Resolved | W-L | Hit rate | Expectancy | PF | Max L streak | Max DD |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| DELAYED_CLEAN_RECLAIM | 137 | 81-56 | 59.1% | 0.25R | 1.62 | 4 | 9.07R |
+| DELAYED_SWEEP_RECLAIM | 64 | 33-31 | 51.6% | 0.16R | 1.34 | 3 | 5.59R |
+| IMMEDIATE_CLEAN_RECLAIM | 411 | 205-206 | 49.9% | 0.06R | 1.11 | 7 | 16.51R |
+| IMMEDIATE_SWEEP_RECLAIM | 65 | 34-31 | 52.3% | 0.02R | 1.05 | 6 | 8.74R |
+
+## Development year stability
+
+| Year | Resolved | W-L | Hit rate | Expectancy | PF |
+|---:|---:|---:|---:|---:|---:|
+| 2022 | 232 | 120-112 | 51.7% | 0.10R | 1.20 |
+| 2023 | 215 | 115-100 | 53.5% | 0.13R | 1.28 |
+| 2024 | 230 | 118-112 | 51.3% | 0.08R | 1.17 |
+
+## Prospective freeze
+**Immutable from 2026-09-20T06:30:00+00:00 onward.**
+Only market bars strictly after this timestamp may be used as clean prospective evidence for this policy identity.
+No target switching, mode filtering, RR filtering, entry adjustment, or SL adjustment is permitted during forward validation.
+
+## Status
+**ADAPTIVE POLICY CANDIDATE FROZEN — READY FOR PROSPECTIVE FORWARD VALIDATION.**
