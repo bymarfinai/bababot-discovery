@@ -1,0 +1,2 @@
+fresh_cutoff,latest_data,sample_total_n_ge_12,sample_accepted_n_ge_8,sample_buy_n_ge_5,sample_accepted_buy_n_ge_3,sample_sell_n_ge_3,gate_accepted_total_event_rate_gt_unfiltered,gate_accepted_total_mean_r_gt_unfiltered,gate_accepted_buy_event_rate_gt_unfiltered_buy,gate_accepted_buy_mean_r_gt_unfiltered_buy,gate_accepted_total_mean_r_gt_0,gate_accepted_total_pf_ge_1_10
+2026-08-26 00:00:00+00:00,2026-08-26 00:00:00+00:00,False,False,False,False,False,False,False,False,False,False,False

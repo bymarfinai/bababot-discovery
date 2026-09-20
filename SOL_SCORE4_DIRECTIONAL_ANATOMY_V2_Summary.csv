@@ -1,0 +1,2 @@
+coverage,winner_rule,historical_buy_n,historical_buy_baseline_event_rate,historical_buy_selected_n,historical_buy_selected_event_rate,historical_buy_lift,historical_buy_selected_mean_r,historical_buy_selected_pf,retrospective_status,latest_data,fresh_n,verdict
+0.9976976650486368,time_to_fill_min <= 15 AND directional_improvement_range_units <= 0.21471170803,16,0.375,5,0.8,0.42500000000000004,0.49802677475907586,2.2450669368976897,SCORE4_DIRECTIONAL_CHARACTER_FROZEN_RETROSPECTIVE_SUPPORT,2026-08-26 00:00:00+00:00,0,SCORE4_DIRECTIONAL_CHARACTER_FROZEN_AWAITING_FRESH_HOLDOUT
