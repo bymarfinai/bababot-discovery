@@ -1,0 +1,17 @@
+BNB B34 S1 derivatives-confirmed liquidity sweep
+commit=81a97bccfbc9993c4e85a09657965a2ef6dc8997
+protocol=research/BNB_B34_S1_DERIVATIVE_CONTEXT_PREREGISTRATION.md
+scientific_identity=BNB_B34_S1_DERIVATIVE_CONTEXT_V1
+parent=B33 F1LE + E1 frozen entry
+metrics 200/1090
+metrics 400/1090
+metrics 600/1090
+metrics 800/1090
+metrics 1000/1090
+Traceback (most recent call last):
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/bnb_b34_s1_derivative_context.py", line 238, in <module>
+    main()
+  File "/home/runner/work/bababot-discovery/bababot-discovery/research/bnb_b34_s1_derivative_context.py", line 193, in main
+    if len(zd)<.90*len(dev):raise RuntimeError(f"development derivatives alignment too low {len(zd)}/{len(dev)}")
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: development derivatives alignment too low 2128/3014
