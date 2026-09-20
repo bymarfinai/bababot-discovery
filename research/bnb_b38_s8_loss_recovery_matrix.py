@@ -61,28 +61,54 @@ def touch_resolve(raw5,entry_ts,sl,tp,end):
     return "UNRESOLVED",pd.NaT,np.nan
 
 def touch_resolve_explicit(raw5,entry_ts,entry,sl,tp,end):
-    q=raw5[(raw5.index>entry_ts)&(raw5.index<=end)]
     rr=(tp-entry)/(entry-sl)
-    for t,b in q.iterrows():
-        st=float(b.low)<=sl; tg=float(b.high)>=tp
-        if st and tg:return "AMBIGUOUS",t,np.nan
-        if tg:return "WIN",t,float(rr)
-        if st:return "LOSS",t,-1.0
-    return "UNRESOLVED",pd.NaT,np.nan
+    idx=raw5.index
+    i0=int(idx.searchsorted(entry_ts,side="right"))
+    i1=int(idx.searchsorted(end,side="right"))
+    if i1<=i0:return "UNRESOLVED",pd.NaT,np.nan
+    hi=raw5.high.to_numpy(dtype=float,copy=False)[i0:i1]
+    lo=raw5.low.to_numpy(dtype=float,copy=False)[i0:i1]
+    th=np.flatnonzero(hi>=tp)
+    sh=np.flatnonzero(lo<=sl)
+    ti=int(th[0]) if len(th) else None
+    si=int(sh[0]) if len(sh) else None
+    if ti is None and si is None:return "UNRESOLVED",pd.NaT,np.nan
+    if ti is not None and si is not None and ti==si:
+        return "AMBIGUOUS",idx[i0+ti],np.nan
+    if ti is not None and (si is None or ti<si):
+        return "WIN",idx[i0+ti],float(rr)
+    return "LOSS",idx[i0+si],-1.0
 
 def close_resolve(raw5,m15,entry_ts,entry,sl,tp,end):
     rr=(tp-entry)/(entry-sl)
-    closes=m15[(m15.index>entry_ts)&(m15.index<=end)]
-    last=entry_ts
-    for t,b15 in closes.iterrows():
-        seg=raw5[(raw5.index>last)&(raw5.index<=t)]
-        if len(seg) and (seg.high>=tp).any():
-            hit=seg.index[(seg.high>=tp)][0]
-            return "WIN",hit,float(rr)
-        if float(b15.close)<sl:
-            loss_r=(float(b15.close)-entry)/(entry-sl)
-            return "LOSS",t,float(loss_r)
-        last=t
+
+    ridx=raw5.index
+    r0=int(ridx.searchsorted(entry_ts,side="right"))
+    r1=int(ridx.searchsorted(end,side="right"))
+    target_ts=pd.NaT
+    if r1>r0:
+        hi=raw5.high.to_numpy(dtype=float,copy=False)[r0:r1]
+        h=np.flatnonzero(hi>=tp)
+        if len(h):target_ts=ridx[r0+int(h[0])]
+
+    midx=m15.index
+    m0=int(midx.searchsorted(entry_ts,side="right"))
+    m1=int(midx.searchsorted(end,side="right"))
+    invalid_ts=pd.NaT
+    invalid_close=np.nan
+    if m1>m0:
+        cl=m15.close.to_numpy(dtype=float,copy=False)[m0:m1]
+        z=np.flatnonzero(cl<sl)
+        if len(z):
+            j=m0+int(z[0])
+            invalid_ts=midx[j]
+            invalid_close=float(m15.close.iloc[j])
+
+    if pd.notna(target_ts) and (pd.isna(invalid_ts) or target_ts<=invalid_ts):
+        return "WIN",target_ts,float(rr)
+    if pd.notna(invalid_ts):
+        loss_r=(invalid_close-entry)/(entry-sl)
+        return "LOSS",invalid_ts,float(loss_r)
     return "UNRESOLVED",pd.NaT,np.nan
 
 def period(ts):
