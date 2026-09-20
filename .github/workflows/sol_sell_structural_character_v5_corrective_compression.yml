@@ -1,0 +1,61 @@
+name: SOL Sell Structural Character V5 Corrective Compression
+
+on:
+  push:
+    branches: [sol-sell-structure-character-v5-corrective-compression]
+    paths:
+      - 'research/sol_sell_structural_character_v5_corrective_compression.py'
+      - 'research/SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_PREREG.md'
+      - '.github/workflows/sol_sell_structural_character_v5_corrective_compression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  characterize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-sell-structure-character-v5-corrective-compression
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile
+        run: python -m py_compile research/sol_sell_structural_character_v5_corrective_compression.py
+      - name: Run V5
+        run: python research/sol_sell_structural_character_v5_corrective_compression.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-sell-structural-character-v5-corrective-compression
+          if-no-files-found: error
+          path: |
+            SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_DedupResponses.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_PathFeatures.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_TooShortPaths.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_FeatureSummary.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_Thresholds.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_EligibleCandidates.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_SelectedDerivationCases.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_SelectedConfirmationCases.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_ConfirmationYearSummary.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_Summary.csv
+            SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_Result.md
+            SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_Status.txt
+            research/SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_PREREG.md
+      - name: Persist result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_*.csv SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_*.md SOL_SELL_STRUCTURAL_CHARACTER_V5_CORRECTIVE_COMPRESSION_*.txt
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist SOL corrective compression character v5 result"
+            git push origin HEAD:sol-sell-structure-character-v5-corrective-compression
+          fi
