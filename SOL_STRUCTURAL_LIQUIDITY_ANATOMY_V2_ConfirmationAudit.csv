@@ -1,0 +1,5 @@
+feature,binary,direction,threshold_frozen_from_dev,confirmation_n,auc_oriented,baseline_rate,favorable_n,favorable_rate,lift,gate_confirmation_n_ge_300,gate_auc_ge_0_55,gate_favorable_n_ge_100,gate_favorable_lift_ge_5pp,gate_year_2023_direction_ok,gate_year_2024_direction_ok,confirmed_anatomy_feature
+source_to_opposite_structure_range_units,False,LOWER,2.073485713625842,2626,0.7009936028310875,0.24790555978674791,715,0.40559440559440557,0.15768884580765766,True,True,True,True,True,True,True
+approach_start_distance_to_level_range_units,False,LOWER,1.4084118083030879,1491,0.6481836681561455,0.215962441314554,429,0.32867132867132864,0.11270888735677465,True,True,True,True,True,True,True
+reclaim_directional_body_range_units,False,HIGHER,0.4999999999999881,2626,0.5889992027844213,0.24790555978674791,629,0.3497615262321145,0.10185596644536657,True,True,True,True,True,True,True
+reclaim_close_inside_range_units,False,HIGHER,0.6013241386375646,2626,0.6009582142371035,0.24790555978674791,745,0.3409395973154362,0.0930340375286883,True,True,True,True,True,True,True
