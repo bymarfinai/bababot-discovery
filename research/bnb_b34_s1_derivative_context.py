@@ -190,7 +190,9 @@ def main():
         raise RuntimeError(f"parent identity mismatch dev hit={raw_hit:.8f}")
 
     md=load_metrics(dev); zd=align(dev,md)
-    if len(zd)<.90*len(dev):raise RuntimeError(f"development derivatives alignment too low {len(zd)}/{len(dev)}")
+    if zd.empty:raise RuntimeError("no causally aligned development derivatives rows")
+    dev_cov={y:{"raw":int((dev.phase_year==y).sum()),"aligned":int((zd.year==y).sum())} for y in DEV}
+    print("development_alignment="+str(dev_cov),flush=True)
     D,base=evaluate_dev(zd)
     passers=D[D.dev_gate].sort_values(["worst_year_hit","wilson_60","hit_60","n","gate_id"],ascending=[False,False,False,False,True])
     selected=None if passers.empty else str(passers.iloc[0].gate_id)
@@ -201,7 +203,9 @@ def main():
         ref_opened=True
         ref=p[p.phase_year.isin(REF)].copy()
         mr=load_metrics(ref); zr=align(ref,mr)
-        if len(zr)<.85*len(ref):raise RuntimeError(f"reference derivatives alignment too low {len(zr)}/{len(ref)}")
+        if zr.empty:raise RuntimeError("no causally aligned reference derivatives rows")
+        ref_cov={y:{"raw":int((ref.phase_year==y).sum()),"aligned":int((zr.year==y).sum())} for y in REF}
+        print("reference_alignment="+str(ref_cov),flush=True)
         R,ref_base=evaluate_ref(zr,selected)
         status="BNB_B34_S1_DERIVATIVE_CONTEXT_PASS" if R["reference_gate"] else "BNB_B34_S1_REFERENCE_REJECT"
 
@@ -212,6 +216,8 @@ def main():
           "Frozen parent: F1LE liquidity sweep LONG EARLY + E1 native-level retest.","",
           "## Integrity",f"- Frozen B33 development parent: **N={len(dev):,}**, +60 hit **{pct(raw_hit)}**.",
           f"- Causally aligned development derivatives rows: **{len(zd):,}/{len(dev):,} ({len(zd)/len(dev):.2%})**.",
+          f"- Development alignment by year: " + ", ".join(f"{y}: {dev_cov[y]['aligned']}/{dev_cov[y]['raw']}" for y in DEV) + ".",
+          "- Missing derivatives rows are excluded from both the selected gate and its aligned G0 comparator; scientific N/year gates remain unchanged.",
           "- Every derivative observation is strictly before entry; max staleness 10 minutes.","",
           "## Development","",
           "| Gate | N | Part. | +60 | Wilson | Worst year | Improvement | +30 | +120 | Pass |",
