@@ -1,0 +1,54 @@
+name: SOL Fixed TP 1.5R Economic Validation V1
+
+on:
+  push:
+    branches: [sol-fixed-tp-150-validation-v1]
+    paths:
+      - 'research/sol_fixed_tp_150_validation_v1.py'
+      - 'research/SOL_FIXED_TP_150_VALIDATION_V1_PREREG.md'
+      - '.github/workflows/sol_fixed_tp_150_validation_v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-fixed-tp-150-validation-v1
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile
+        run: python -m py_compile research/sol_fixed_tp_150_validation_v1.py
+      - name: Run fixed TP validation
+        run: python research/sol_fixed_tp_150_validation_v1.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-fixed-tp-150-validation-v1
+          if-no-files-found: error
+          path: |
+            SOL_FIXED_TP_150_VALIDATION_V1_*.csv
+            SOL_FIXED_TP_150_VALIDATION_V1_*.md
+            SOL_FIXED_TP_150_VALIDATION_V1_*.txt
+            research/SOL_FIXED_TP_150_VALIDATION_V1_PREREG.md
+      - name: Persist result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_FIXED_TP_150_VALIDATION_V1_*.csv SOL_FIXED_TP_150_VALIDATION_V1_*.md SOL_FIXED_TP_150_VALIDATION_V1_*.txt
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist SOL fixed 1.5R economic validation v1 result"
+            git pull --rebase origin sol-fixed-tp-150-validation-v1
+            git push origin HEAD:sol-fixed-tp-150-validation-v1
+          fi
