@@ -1,0 +1,45 @@
+BNB B37-S4 causal state machine
+commit=4bf8a7db31f24e73bd08bd8456310d982658108f
+identity=BNB_B37_S4_CAUSAL_STATE_MACHINE_V1
+# BNB B37-S4 — Causal Structural Detector State Machine
+
+**STEP 4 — LIVE-CAUSAL STATE MACHINE IMPLEMENTATION**
+
+No outcome labels, WR, TP/SL, PnL, economics, indicators, derivatives, session filters, or 2025-2026 data were used.
+
+## State flow
+
+`WAIT_H4_STRUCTURE -> DEMAND_REGISTERED -> WAIT_EXPANSION -> EXPANSION_CONFIRMED -> WAIT_FIRST_RETEST -> RETEST_EVALUATED -> PARENT_DETECTED/TERMINAL_REJECT -> CANDIDATE_EMISSION`
+
+Each H4 demand zone is an independent state instance. Newer eligible H1 expansion pivots refresh the stored expansion until first retest.
+
+## Replay census
+- H4 demand instances created through 2024: **341**.
+- State-machine visual parent detections in 2022-2024: **201**.
+- Frozen Step-3 parent reference: **201**.
+- Missing vs Step 3: **0**.
+- Extra vs Step 3: **0**.
+
+## Candidate emissions
+
+| Candidate | Total | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|
+| H4D_H1_PROXIMAL_RECLAIM | 133 | 46 | 39 | 48 |
+| H4D_H1_CLEAN_PROXIMAL_RECLAIM | 115 | 44 | 33 | 38 |
+| H4D_H1_BULLISH_PROXIMAL_RECLAIM | 27 | 12 | 5 | 10 |
+| H4D_H1_CONTROLLED_EXPANSION_CLEAN_RECLAIM | 40 | 15 | 9 | 16 |
+
+## Flag equivalence
+- H4D_H1_PROXIMAL_RECLAIM: **0 mismatches**.
+- H4D_H1_CLEAN_PROXIMAL_RECLAIM: **0 mismatches**.
+- H4D_H1_BULLISH_PROXIMAL_RECLAIM: **0 mismatches**.
+- H4D_H1_CONTROLLED_EXPANSION_CLEAN_RECLAIM: **0 mismatches**.
+
+## Terminal reject reasons
+- NO_CONFIRMED_EXPANSION: **77**
+- RETEST_CLOSE_INVALIDATES_DEMAND: **29**
+
+## Equivalence gate
+**STATE_MACHINE_EQUIVALENCE_PASS**
+
+Step 5 validation is permitted only on PASS. Detector definitions remain frozen.
