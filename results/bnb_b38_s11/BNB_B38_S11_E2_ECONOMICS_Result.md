@@ -1,0 +1,74 @@
+# BNB B38-S11 — E2 Structural Economics Matrix
+
+**E2 entry character frozen. Only SL/invalidation/target geometry changes.**
+
+## Overall
+
+| Period | Candidate | W-L | WR | Med WIN R | Exp | PF | Max L | Max DD | Baseline WIN still WIN | Baseline WIN→LOSS | Baseline LOSS→WIN |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| DEV | A_TOUCH_LOW__TOUCH__TP1 | 325-115 | 73.9% | 0.224R | 0.035R | 1.133 | 5 | 15.588R | 325/325 | 0 | 0 |
+| DEV | B_TOUCH_LOW__TOUCH__CAP1ZW | 346-94 | 78.6% | 0.159R | 0.000R | 1.002 | 3 | 13.101R | 325/325 | 0 | 21 |
+| DEV | C_TOUCH_LOW__CLOSE15__TP1 | 341-99 | 77.5% | 0.243R | 0.041R | 1.142 | 4 | 15.064R | 325/325 | 0 | 16 |
+| DEV | D_TOUCH_LOW__CLOSE15__CAP1ZW | 359-81 | 81.6% | 0.171R | -0.001R | 0.996 | 3 | 13.279R | 325/325 | 0 | 34 |
+| DEV | E_RECLAIM_LOW__TOUCH__TP1 | 318-122 | 72.3% | 0.227R | 0.031R | 1.111 | 5 | 16.834R | 318/325 | 7 | 0 |
+| DEV | F_RECLAIM_LOW__TOUCH__CAP1ZW | 339-101 | 77.0% | 0.170R | -0.003R | 0.985 | 3 | 16.029R | 320/325 | 5 | 19 |
+| DEV | G_RECLAIM_LOW__CLOSE15__TP1 | 336-104 | 76.4% | 0.247R | 0.050R | 1.165 | 4 | 15.002R | 321/325 | 4 | 15 |
+| DEV | H_RECLAIM_LOW__CLOSE15__CAP1ZW | 353-87 | 80.2% | 0.181R | -0.005R | 0.981 | 3 | 16.317R | 321/325 | 4 | 32 |
+| REF | A_TOUCH_LOW__TOUCH__TP1 | 201-71 | 73.9% | 0.183R | -0.002R | 0.993 | 4 | 10.563R | 201/201 | 0 | 0 |
+| REF | B_TOUCH_LOW__TOUCH__CAP1ZW | 214-58 | 78.7% | 0.128R | -0.015R | 0.930 | 3 | 8.643R | 201/201 | 0 | 13 |
+| REF | C_TOUCH_LOW__CLOSE15__TP1 | 207-65 | 76.1% | 0.193R | -0.017R | 0.945 | 4 | 13.931R | 201/201 | 0 | 6 |
+| REF | D_TOUCH_LOW__CLOSE15__CAP1ZW | 220-52 | 80.9% | 0.136R | -0.017R | 0.926 | 2 | 10.851R | 201/201 | 0 | 19 |
+| REF | E_RECLAIM_LOW__TOUCH__TP1 | 197-75 | 72.4% | 0.183R | -0.010R | 0.964 | 4 | 12.491R | 197/201 | 4 | 0 |
+| REF | F_RECLAIM_LOW__TOUCH__CAP1ZW | 211-61 | 77.6% | 0.130R | -0.019R | 0.915 | 3 | 10.293R | 198/201 | 3 | 13 |
+| REF | G_RECLAIM_LOW__CLOSE15__TP1 | 204-68 | 75.0% | 0.197R | -0.019R | 0.938 | 4 | 15.770R | 199/201 | 2 | 5 |
+| REF | H_RECLAIM_LOW__CLOSE15__CAP1ZW | 217-55 | 79.8% | 0.138R | -0.022R | 0.910 | 2 | 14.251R | 199/201 | 2 | 18 |
+
+## Year stability
+
+| Year | Candidate | W-L | WR | Exp | PF |
+|---:|---|---:|---:|---:|---:|
+| 2022 | A_TOUCH_LOW__TOUCH__TP1 | 116-35 | 76.8% | 0.141R | 1.608 |
+| 2022 | B_TOUCH_LOW__TOUCH__CAP1ZW | 124-27 | 82.1% | 0.059R | 1.332 |
+| 2022 | C_TOUCH_LOW__CLOSE15__TP1 | 121-30 | 80.1% | 0.122R | 1.436 |
+| 2022 | D_TOUCH_LOW__CLOSE15__CAP1ZW | 128-23 | 84.8% | 0.038R | 1.177 |
+| 2022 | E_RECLAIM_LOW__TOUCH__TP1 | 111-40 | 73.5% | 0.131R | 1.494 |
+| 2022 | F_RECLAIM_LOW__TOUCH__CAP1ZW | 120-31 | 79.5% | 0.052R | 1.252 |
+| 2022 | G_RECLAIM_LOW__CLOSE15__TP1 | 117-34 | 77.5% | 0.138R | 1.455 |
+| 2022 | H_RECLAIM_LOW__CLOSE15__CAP1ZW | 124-27 | 82.1% | 0.030R | 1.119 |
+| 2023 | A_TOUCH_LOW__TOUCH__TP1 | 101-43 | 70.1% | -0.053R | 0.821 |
+| 2023 | B_TOUCH_LOW__TOUCH__CAP1ZW | 110-34 | 76.4% | -0.039R | 0.837 |
+| 2023 | C_TOUCH_LOW__CLOSE15__TP1 | 108-36 | 75.0% | -0.004R | 0.986 |
+| 2023 | D_TOUCH_LOW__CLOSE15__CAP1ZW | 115-29 | 79.9% | -0.017R | 0.931 |
+| 2023 | E_RECLAIM_LOW__TOUCH__TP1 | 99-45 | 68.8% | -0.063R | 0.800 |
+| 2023 | F_RECLAIM_LOW__TOUCH__CAP1ZW | 108-36 | 75.0% | -0.042R | 0.832 |
+| 2023 | G_RECLAIM_LOW__CLOSE15__TP1 | 107-37 | 74.3% | -0.001R | 0.996 |
+| 2023 | H_RECLAIM_LOW__CLOSE15__CAP1ZW | 114-30 | 79.2% | -0.016R | 0.938 |
+| 2024 | A_TOUCH_LOW__TOUCH__TP1 | 108-37 | 74.5% | 0.012R | 1.046 |
+| 2024 | B_TOUCH_LOW__TOUCH__CAP1ZW | 112-33 | 77.2% | -0.023R | 0.901 |
+| 2024 | C_TOUCH_LOW__CLOSE15__TP1 | 112-33 | 77.2% | 0.002R | 1.006 |
+| 2024 | D_TOUCH_LOW__CLOSE15__CAP1ZW | 116-29 | 80.0% | -0.026R | 0.894 |
+| 2024 | E_RECLAIM_LOW__TOUCH__TP1 | 108-37 | 74.5% | 0.019R | 1.076 |
+| 2024 | F_RECLAIM_LOW__TOUCH__CAP1ZW | 111-34 | 76.6% | -0.022R | 0.904 |
+| 2024 | G_RECLAIM_LOW__CLOSE15__TP1 | 112-33 | 77.2% | 0.008R | 1.029 |
+| 2024 | H_RECLAIM_LOW__CLOSE15__CAP1ZW | 115-30 | 79.3% | -0.030R | 0.885 |
+| 2025 | A_TOUCH_LOW__TOUCH__TP1 | 137-49 | 73.7% | -0.028R | 0.895 |
+| 2025 | B_TOUCH_LOW__TOUCH__CAP1ZW | 146-40 | 78.5% | -0.023R | 0.895 |
+| 2025 | C_TOUCH_LOW__CLOSE15__TP1 | 141-45 | 75.8% | -0.055R | 0.821 |
+| 2025 | D_TOUCH_LOW__CLOSE15__CAP1ZW | 150-36 | 80.6% | -0.037R | 0.846 |
+| 2025 | E_RECLAIM_LOW__TOUCH__TP1 | 135-51 | 72.6% | -0.025R | 0.909 |
+| 2025 | F_RECLAIM_LOW__TOUCH__CAP1ZW | 144-42 | 77.4% | -0.023R | 0.898 |
+| 2025 | G_RECLAIM_LOW__CLOSE15__TP1 | 138-48 | 74.2% | -0.060R | 0.815 |
+| 2025 | H_RECLAIM_LOW__CLOSE15__CAP1ZW | 147-39 | 79.0% | -0.047R | 0.818 |
+| 2026 | A_TOUCH_LOW__TOUCH__TP1 | 64-22 | 74.4% | 0.054R | 1.210 |
+| 2026 | B_TOUCH_LOW__TOUCH__CAP1ZW | 68-18 | 79.1% | 0.002R | 1.009 |
+| 2026 | C_TOUCH_LOW__CLOSE15__TP1 | 66-20 | 76.7% | 0.066R | 1.239 |
+| 2026 | D_TOUCH_LOW__CLOSE15__CAP1ZW | 70-16 | 81.4% | 0.026R | 1.120 |
+| 2026 | E_RECLAIM_LOW__TOUCH__TP1 | 62-24 | 72.1% | 0.023R | 1.081 |
+| 2026 | F_RECLAIM_LOW__TOUCH__CAP1ZW | 67-19 | 77.9% | -0.011R | 0.952 |
+| 2026 | G_RECLAIM_LOW__CLOSE15__TP1 | 66-20 | 76.7% | 0.068R | 1.232 |
+| 2026 | H_RECLAIM_LOW__CLOSE15__CAP1ZW | 70-16 | 81.4% | 0.031R | 1.139 |
+
+## Interpretation boundary
+S11 does not change the E2 detector or entry timing.
+Candidates with higher WR but negative/near-zero expectancy are not considered economically solved.
+No candidate is promoted automatically.
