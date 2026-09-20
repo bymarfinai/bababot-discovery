@@ -1,0 +1,2 @@
+coverage,winner,construction_median_risk,construction_positive_survival,confirmation_2025_positive_survival,confirmation_2025_passed,monitor_2026_opened,monitor_2026_data_end,monitor_2026_positive_survival,monitor_2026_median_risk,verdict
+0.9976976650486368,RECLAIM_EXTREME,1.4051495157129008,0.9230769230769231,0.9714285714285714,True,True,2026-08-26 00:00:00+00:00,0.9,1.6148087431693912,ADAPTIVE_SL_CANDIDATE_REPLICATED_NOT_INDEPENDENT
