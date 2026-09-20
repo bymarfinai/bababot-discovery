@@ -191,8 +191,21 @@ def monitor_gates(m):
 
 
 def comparator_metrics(trades,x5):
-    fixed=tp.simulate_candidate(trades,x5,"FIXED_150R")
-    route=rtp.simulate_router(trades,x5)
+    z=trades.copy()
+    if "structural_reward_r" not in z.columns:
+        side=z.side.astype(str)
+        entry=pd.to_numeric(z.entry_price,errors="coerce")
+        target=pd.to_numeric(z.structural_target,errors="coerce")
+        risk=pd.to_numeric(z.initial_risk_price,errors="coerce")
+        favorable=np.where(
+            side.eq("BUY_SIDE"),
+            entry-target,
+            target-entry,
+        )
+        z["structural_reward_r"]=favorable/risk
+
+    fixed=tp.simulate_candidate(z,x5,"FIXED_150R")
+    route=rtp.simulate_router(z,x5)
     fm=tp.metrics(fixed,"FIXED_150R") if len(fixed) else {}
     rm=tp.metrics(route,rtp.ROUTER_NAME) if len(route) else {}
     return fixed,route,fm,rm
