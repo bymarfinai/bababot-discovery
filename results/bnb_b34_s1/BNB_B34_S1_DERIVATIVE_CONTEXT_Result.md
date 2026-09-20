@@ -1,14 +1,3 @@
-BNB B34 S1 derivatives-confirmed liquidity sweep
-commit=651e6fceb1c5af81f15f1118b7d5aed5e8708034
-protocol=research/BNB_B34_S1_DERIVATIVE_CONTEXT_PREREGISTRATION.md
-scientific_identity=BNB_B34_S1_DERIVATIVE_CONTEXT_V1
-parent=B33 F1LE + E1 frozen entry
-metrics 200/1090
-metrics 400/1090
-metrics 600/1090
-metrics 800/1090
-metrics 1000/1090
-development_alignment={2022: {'raw': 1020, 'aligned': 135}, 2023: {'raw': 1016, 'aligned': 1016}, 2024: {'raw': 978, 'aligned': 977}}
 # BNB B34-S1 — Derivatives-Confirmed Liquidity Sweep Result
 
 **Status: BNB_B34_S1_NO_DEVELOPMENT_GATE**
