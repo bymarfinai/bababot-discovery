@@ -1,0 +1,54 @@
+name: SOL Structural Liquidity Detector V3 Actionability Audit
+
+on:
+  push:
+    branches: [sol-structural-liquidity-detector-v3-actionable-audit]
+    paths:
+      - 'research/sol_structural_liquidity_detector_v3_actionable_audit.py'
+      - 'research/SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_ACTIONABLE_AUDIT_PREREG.md'
+      - '.github/workflows/sol_structural_liquidity_detector_v3_actionable_audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-structural-liquidity-detector-v3-actionable-audit
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile
+        run: python -m py_compile research/sol_structural_liquidity_detector_v3_actionable_audit.py
+      - name: Run actionability audit
+        run: python research/sol_structural_liquidity_detector_v3_actionable_audit.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-structural-liquidity-detector-v3-actionable-audit
+          if-no-files-found: error
+          path: |
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_ACTIONABLE_AUDIT_*.csv
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_ACTIONABLE_AUDIT_*.md
+            SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_ACTIONABLE_AUDIT_*.txt
+            research/SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_ACTIONABLE_AUDIT_PREREG.md
+      - name: Persist result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_ACTIONABLE_AUDIT_*.csv SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_ACTIONABLE_AUDIT_*.md SOL_STRUCTURAL_LIQUIDITY_DETECTOR_V3_ACTIONABLE_AUDIT_*.txt
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist SOL detector actionability audit"
+            git pull --rebase origin sol-structural-liquidity-detector-v3-actionable-audit
+            git push origin HEAD:sol-structural-liquidity-detector-v3-actionable-audit
+          fi
