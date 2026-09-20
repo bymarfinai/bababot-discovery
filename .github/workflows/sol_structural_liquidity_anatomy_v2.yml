@@ -1,0 +1,60 @@
+name: SOL Structural Liquidity Anatomy V2
+
+on:
+  push:
+    branches: [sol-structural-liquidity-anatomy-v2]
+    paths:
+      - 'research/sol_structural_liquidity_anatomy_v2.py'
+      - 'research/SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_PREREG.md'
+      - '.github/workflows/sol_structural_liquidity_anatomy_v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  anatomy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-structural-liquidity-anatomy-v2
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile
+        run: python -m py_compile research/sol_structural_liquidity_anatomy_v2.py
+      - name: Run anatomy discovery
+        run: python research/sol_structural_liquidity_anatomy_v2.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-structural-liquidity-anatomy-v2
+          if-no-files-found: error
+          path: |
+            SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_PhysicalEvents.csv
+            SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_Features.csv
+            SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_FeatureSummary.csv
+            SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_DevelopmentAudit.csv
+            SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_ConfirmationAudit.csv
+            SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_YearDirection.csv
+            SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_ConfirmedFeatures.csv
+            SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_Result.md
+            SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_Status.txt
+            research/SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_PREREG.md
+      - name: Persist result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_*.csv SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_*.md SOL_STRUCTURAL_LIQUIDITY_ANATOMY_V2_*.txt
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist SOL structural liquidity anatomy v2 result"
+            git pull --rebase origin sol-structural-liquidity-anatomy-v2
+            git push origin HEAD:sol-structural-liquidity-anatomy-v2
+          fi
