@@ -58,10 +58,25 @@ def measure_path(raw5,anchor_ts,anchor,floor,end,hours=None):
     risk=anchor-floor
     i0,i1,inv,complete=path_bounds(raw5,anchor_ts,floor,end,hours)
     idx=raw5.index
-    if risk<=0 or i1<=i0:
+    if risk<=0:
         return {
             "mfe_r":np.nan,"mae_r":np.nan,"peak_ts":pd.NaT,"peak_hours":np.nan,
             "giveback_r":np.nan,"bars":0,"invalidation_ts":idx[inv] if inv is not None else pd.NaT,
+            "horizon_complete":complete,
+        }
+    if i1<=i0:
+        # If the very first post-anchor 5m bar invalidates demand, no favorable
+        # excursion can be credited because the invalidation bar is excluded for
+        # unknown intrabar ordering. This is a terminal 0R FAILURE, not censoring.
+        if inv is not None:
+            return {
+                "mfe_r":0.0,"mae_r":np.nan,"peak_ts":pd.NaT,"peak_hours":np.nan,
+                "giveback_r":np.nan,"bars":0,"invalidation_ts":idx[inv],
+                "horizon_complete":True,
+            }
+        return {
+            "mfe_r":np.nan,"mae_r":np.nan,"peak_ts":pd.NaT,"peak_hours":np.nan,
+            "giveback_r":np.nan,"bars":0,"invalidation_ts":pd.NaT,
             "horizon_complete":complete,
         }
     q=raw5.iloc[i0:i1]
@@ -157,7 +172,10 @@ def liquidity_probe(raw5,anchor_ts,anchor,floor,level,end):
     }
 
 def class24(mfe,complete):
-    if not complete or not np.isfinite(mfe): return "RIGHT_CENSORED"
+    if not complete: return "RIGHT_CENSORED"
+    # A complete terminal path with no creditable pre-invalidation excursion is
+    # conservatively a failure, never censoring.
+    if not np.isfinite(mfe): return "FAILURE"
     if mfe<0.50:return "FAILURE"
     if mfe<1.00:return "LOCAL_ONLY"
     if mfe<1.50:return "EXPANDER_1R"
