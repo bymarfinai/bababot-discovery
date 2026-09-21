@@ -1,0 +1,3 @@
+period,runner_candidates,weak_body_skips,active_runners,major_hits,be_exits,ambiguous,partial_open,skip_full_tp1_r,skip_original_s23_r,skip_incremental_r,skip_original_major_hits,skip_original_be,skip_original_ambiguous
+DEV,90,23,67,38,27,2,0,2.548213758162974,2.609946661046329,-0.06173290288335531,6,16,1
+REF,56,25,31,19,12,0,0,1.3176768596779451,0.7072124534589606,0.6104644062189846,2,22,1
