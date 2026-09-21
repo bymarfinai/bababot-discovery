@@ -141,7 +141,7 @@ def load():
 
 def reaction_frame(surv,B,decision):
     rb=B[B.decision==decision].copy()
-    keep=[c for c in rb.columns if c not in {"period","year","first_retest_ts","survival_status","survived","event_risk","base_width","base_low","base_high","protected_low","touch_open","touch_high","touch_low","touch_close"}]
+    keep=[c for c in rb.columns if c not in {"zone_id","period","year","first_retest_ts","survival_status","survived","event_risk","base_width","base_low","base_high","protected_low","touch_open","touch_high","touch_low","touch_close"}]
     rb=rb[["zone_id"]+keep].copy()
     return surv.merge(rb,on="zone_id",how="left",validate="one_to_one")
 
