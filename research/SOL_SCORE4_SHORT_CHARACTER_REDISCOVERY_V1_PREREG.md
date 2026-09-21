@@ -174,9 +174,11 @@ Possible final statuses:
 ### SCORE4_SHORT_STRUCTURAL_CHARACTER_FROZEN_RETROSPECTIVE_MIXED
 - construction candidate passes;
 - at least one evaluable later period fails support.
+- operational decision: **DROP_SCORE4_SHORT_FROM_TRADABLE_UNIVERSE** because the one-shot rediscovery did not remain robust.
 
 ### DROP_SCORE4_SHORT_FROM_TRADABLE_UNIVERSE
-- no construction candidate passes the frozen robustness gates.
+- no construction candidate passes the frozen robustness gates; OR
+- a frozen construction candidate fails support in any evaluable retrospective period.
 
 None of these is fresh independent validation.
 
