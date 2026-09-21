@@ -77,46 +77,10 @@ def load_trades():
 
 
 def fetch_funding(start:pd.Timestamp,end:pd.Timestamp)->pd.DataFrame:
-    start_ms=int(start.timestamp()*1000)
-    end_ms=int(end.timestamp()*1000)
-    rows=[]
-    cur=start_ms
-    sess=requests.Session()
-
-    for _ in range(100):
-        last=None
-        data=None
-        for attempt in range(5):
-            try:
-                r=sess.get(
-                    FUNDING_URL,
-                    params={"symbol":SYMBOL,"startTime":cur,"endTime":end_ms,"limit":1000},
-                    timeout=30,
-                )
-                r.raise_for_status()
-                data=r.json()
-                break
-            except Exception as e:
-                last=e
-                time.sleep(1.5*(attempt+1))
-        if data is None:
-            raise RuntimeError(f"funding fetch failed after retries: {last}")
-        if not data:
-            break
-        rows.extend(data)
-
-        mx=max(int(z["fundingTime"]) for z in data)
-        nxt=mx+1
-        if nxt<=cur:
-            raise RuntimeError("funding pagination did not advance")
-        cur=nxt
-        if mx>=end_ms or len(data)<1000:
-            break
-
-    if not rows:
-        raise RuntimeError("no funding rows returned")
-
-    f=pd.DataFrame(rows)
+    path=ROOT/"research/SOLUSDT_FUNDING_2020_2026.csv"
+    if not path.exists():
+        raise FileNotFoundError(path)
+    f=pd.read_csv(path)
     f["funding_time"]=pd.to_datetime(pd.to_numeric(f.fundingTime,errors="coerce"),unit="ms",utc=True)
     f["funding_rate"]=pd.to_numeric(f.fundingRate,errors="coerce")
     if "markPrice" in f.columns:
@@ -124,8 +88,9 @@ def fetch_funding(start:pd.Timestamp,end:pd.Timestamp)->pd.DataFrame:
     else:
         f["mark_price"]=np.nan
     f=f[(f.funding_time>=start)&(f.funding_time<=end)].copy()
+    if f.empty:
+        raise RuntimeError("persisted funding history has no rows for audit period")
     return f[["funding_time","funding_rate","mark_price"]].drop_duplicates("funding_time").sort_values("funding_time").reset_index(drop=True)
-
 
 def attach_funding(trades:pd.DataFrame,funding:pd.DataFrame)->pd.DataFrame:
     out=[]
