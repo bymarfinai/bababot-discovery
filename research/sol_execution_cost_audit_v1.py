@@ -11,6 +11,9 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 PFX = "SOL_EXECUTION_COST_AUDIT_V1"
 TRADES_FILE = ROOT / "SOL_SCORE3_SELL_C_HARD_FAILURE_UNIVERSE_V1_Trades.csv"
+FUNDING_INPUT = ROOT / "research/data/SOL_EXECUTION_COST_AUDIT_V1_FundingByTrade_Input.csv"
+BOOK_INPUT = ROOT / "research/data/SOL_EXECUTION_COST_AUDIT_V1_BookSnapshot_Input.csv"
+FUNDING_RECORDS_SNAPSHOT = 6623
 SYMBOL = "SOLUSDT"
 FAPI = "https://fapi.binance.com"
 
