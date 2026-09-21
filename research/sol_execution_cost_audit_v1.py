@@ -209,16 +209,35 @@ def main():
     if not TRADES_FILE.exists():
         raise FileNotFoundError(TRADES_FILE)
 
-    trades = pd.read_csv(TRADES_FILE)
-    trades["entry_time"] = pd.to_datetime(trades.entry_time, utc=True)
-    trades["exit_time"] = pd.to_datetime(trades.exit_time, utc=True)
+    # GitHub-hosted runners receive HTTP 451 from Binance futures endpoints.
+    # To preserve the frozen method without changing the data source, V1 uses
+    # connector-captured Binance inputs persisted in research/data/.
+    z = pd.read_csv(FUNDING_INPUT)
+    z["entry_time"] = pd.to_datetime(z.entry_time, utc=True)
+    z["exit_time"] = pd.to_datetime(z.exit_time, utc=True)
+    for col in ("entry_price", "initial_risk_price", "realized_r", "funding_events", "funding_cash_rate_signed", "funding_r"):
+        z[col] = pd.to_numeric(z[col], errors="coerce")
 
-    start_ms = int((trades.entry_time.min() - pd.Timedelta(days=1)).timestamp() * 1000)
-    end_ms = int((trades.exit_time.max() + pd.Timedelta(days=1)).timestamp() * 1000)
-
-    funding = fetch_funding(start_ms, end_ms)
-    z = add_funding_impact(trades, funding)
-    book = book_snapshot()
+    br = pd.read_csv(BOOK_INPUT).iloc[0]
+    book = {
+        "event_time": pd.to_datetime(br["snapshot_time_utc"], utc=True),
+        "bid": float(br["bid"]),
+        "ask": float(br["ask"]),
+        "mid": float(br["mid"]),
+        "full_spread_bps": float(br["full_spread_bps"]),
+        "top_bid_notional_usd": float(br["top_bid_notional_usd"]),
+        "top_ask_notional_usd": float(br["top_ask_notional_usd"]),
+        "buy_500": {
+            "avg_price": float(br["buy_500_avg_price"]),
+            "depth_slippage_bps": float(br["buy_500_depth_slippage_bps"]),
+            "unfilled_usd": float(br["buy_500_unfilled_usd"]),
+        },
+        "sell_500": {
+            "avg_price": float(br["sell_500_avg_price"]),
+            "depth_slippage_bps": float(br["sell_500_depth_slippage_bps"]),
+            "unfilled_usd": float(br["sell_500_unfilled_usd"]),
+        },
+    }
 
     pf_cut = solve_threshold(z, "pf")
     be_cut = solve_threshold(z, "mean")
@@ -242,7 +261,7 @@ def main():
         "trades_n": int(len(z)),
         "gross_mean_r": float(pd.to_numeric(z.realized_r, errors="coerce").mean()),
         "gross_pf": float(profit_factor(z.realized_r)),
-        "funding_records": int(len(funding)),
+        "funding_records": int(FUNDING_RECORDS_SNAPSHOT),
         "crossing_funding_trades": int((z.funding_events > 0).sum()),
         "crossing_funding_share": float((z.funding_events > 0).mean()),
         "total_funding_events": int(z.funding_events.sum()),
@@ -293,7 +312,7 @@ def main():
         "",
         "## Funding",
         "",
-        f"- Historical Binance funding records loaded: **{len(funding):,}**.",
+        f"- Historical Binance funding records represented by snapshot: **{FUNDING_RECORDS_SNAPSHOT:,}**.",
         f"- Trades crossing >=1 funding timestamp: **{int((z.funding_events > 0).sum())}/{len(z)} ({pct((z.funding_events > 0).mean())})**.",
         f"- Total funding impact: **{fmt(z.funding_r.sum())}R**.",
         f"- Mean funding impact per trade: **{fmt(z.funding_r.mean(), 4)}R**.",
