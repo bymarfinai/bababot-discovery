@@ -94,14 +94,18 @@ def fetch_funding(start:pd.Timestamp,end:pd.Timestamp)->pd.DataFrame:
 
 def attach_funding(trades:pd.DataFrame,funding:pd.DataFrame)->pd.DataFrame:
     out=[]
-    ft_ns=pd.to_datetime(funding.funding_time,utc=True).astype("int64").to_numpy()
+    # Use explicit epoch milliseconds on both sides. Pandas 3 may store
+    # tz-aware datetimes internally at microsecond resolution, while
+    # Timestamp.value is nanoseconds; comparing raw integer representations
+    # would silently misalign units.
+    ft_ms=np.array([int(pd.Timestamp(t).timestamp()*1000) for t in funding.funding_time],dtype=np.int64)
     fr=funding.funding_rate.to_numpy(dtype=float)
     mp=funding.mark_price.to_numpy(dtype=float)
 
     for _,r in trades.iterrows():
-        et_ns=int(pd.Timestamp(r.entry_time).value)
-        xt_ns=int(pd.Timestamp(r.exit_time).value)
-        mask=(ft_ns>et_ns)&(ft_ns<=xt_ns)
+        et_ms=int(pd.Timestamp(r.entry_time).timestamp()*1000)
+        xt_ms=int(pd.Timestamp(r.exit_time).timestamp()*1000)
+        mask=(ft_ms>et_ms)&(ft_ms<=xt_ms)
 
         sign=1.0 if r.position_direction=="LONG" else -1.0
         prices=np.where(np.isfinite(mp[mask]),mp[mask],float(r.entry_price))
