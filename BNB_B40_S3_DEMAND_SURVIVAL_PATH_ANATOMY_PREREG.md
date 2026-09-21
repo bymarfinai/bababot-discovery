@@ -54,7 +54,7 @@ Normalized by frozen event-risk and/or zone width:
 - touch_penetration_zone_r
 - touch_floor_sweep_depth_zone_r
 - touch_close_vs_zone_high_zone_r
-- touch_close_vs_floor_event_r
+- touch_close_vs_floor_zone_r
 - touch_recovery_from_low_event_r
 - touch_lower_wick_event_r
 - touch_upper_wick_event_r
