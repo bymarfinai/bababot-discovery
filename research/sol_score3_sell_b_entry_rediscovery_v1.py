@@ -65,6 +65,15 @@ def simulate_variant(pop, h1, x5, variant):
     if filled.empty:
         return signals, pd.DataFrame()
 
+    # eval_variant intentionally emits entry fields only. Re-attach the
+    # structural metadata required by the frozen RECLAIM_EXTREME stop engine.
+    meta_cols = [
+        "candidate_id", "level", "sweep_extreme", "reclaim_i_h1",
+        "resolution_i_h1", "resolution_time"
+    ]
+    meta = pop[meta_cols].drop_duplicates("candidate_id")
+    filled = filled.merge(meta, on="candidate_id", how="left", validate="one_to_one")
+
     stops = sl.evaluate_policy(filled, pop, h1, x5, "RECLAIM_EXTREME")
     if stops.empty:
         return signals, pd.DataFrame()
