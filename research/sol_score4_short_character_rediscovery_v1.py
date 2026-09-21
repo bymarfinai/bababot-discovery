@@ -69,8 +69,22 @@ def add_motifs(anatomy:pd.DataFrame,h1:pd.DataFrame,x5:pd.DataFrame)->pd.DataFra
 
     rows=[]
     for _,r in x.iterrows():
-        s=int(r.sweep_i_h1)
-        q=int(r.reclaim_i_h1)
+        # The persisted execution anatomy keeps sweep_time rather than sweep_i_h1.
+        # Resolve the exact H1 index causally from the timestamp; reclaim_i_h1 is
+        # retained by the upstream stack, with reclaim_time as a fallback.
+        st=pd.Timestamp(r.sweep_time)
+        s=int(h1.index.searchsorted(st,side="left"))
+        if s>=len(h1) or h1.index[s] != st:
+            raise RuntimeError(f"sweep_time not found in H1 index: {st}")
+
+        if "reclaim_i_h1" in r.index and pd.notna(r.reclaim_i_h1) and int(r.reclaim_i_h1)>=0:
+            q=int(r.reclaim_i_h1)
+        else:
+            rt=pd.Timestamp(r.reclaim_time)
+            q=int(h1.index.searchsorted(rt,side="left"))
+            if q>=len(h1) or h1.index[q] != rt:
+                raise RuntimeError(f"reclaim_time not found in H1 index: {rt}")
+
         e=int(r.entry_i_5m)
         level=float(r.level)
 
