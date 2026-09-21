@@ -4,6 +4,7 @@ on:
   push:
     branches: [sol-score4-directional-fresh-holdout-v1]
     paths:
+      - 'research/sol_score4_directional_fresh_holdout_v1.py'
       - '.github/workflows/sol_score4_directional_fresh_holdout_v1.yml'
   workflow_dispatch:
 
@@ -24,10 +25,12 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: pip install pandas numpy requests scipy scikit-learn
-      - name: Verify frozen evaluator compiles
-        run: python -m py_compile research/sol_score4_directional_anatomy_v2.py
-      - name: Run frozen fresh-holdout evaluator
-        run: python research/sol_score4_directional_anatomy_v2.py
+      - name: Verify frozen evaluator and horizon wrapper compile
+        run: |
+          python -m py_compile research/sol_score4_directional_anatomy_v2.py
+          python -m py_compile research/sol_score4_directional_fresh_holdout_v1.py
+      - name: Run frozen fresh-holdout evaluator through corrected horizon
+        run: python research/sol_score4_directional_fresh_holdout_v1.py
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
