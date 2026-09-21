@@ -1,6 +1,6 @@
 # SOL Score-4 Directional Anatomy V2 — Result
 
-- 5m coverage: **99.769767%**
+- 5m coverage: **99.772387%**
 - Score-4 only; SELL_SIDE auto-accepted; BUY_SIDE governed by one frozen causal character.
 - Selection used **2020-2024 BUY_SIDE only**.
 - Fresh cutoff: **2026-08-26 00:00:00+00:00**.
@@ -36,12 +36,12 @@
 | RETRO_2026_PRE | UNFILTERED_BUY | 8 | 12.50% | -0.493 | 0.315 |
 | RETRO_2026_PRE | ACCEPTED_BUY | 1 | 0.00% | -1.000 | 0.000 |
 | RETRO_2026_PRE | SELL_SIDE | 2 | 50.00% | 0.133 | 1.265 |
-| FRESH_POST_CUTOFF | UNFILTERED_ALL | 0 | n/a | n/a | n/a |
-| FRESH_POST_CUTOFF | ACCEPTED_ALL | 0 | n/a | n/a | n/a |
+| FRESH_POST_CUTOFF | UNFILTERED_ALL | 1 | 0.00% | -1.000 | 0.000 |
+| FRESH_POST_CUTOFF | ACCEPTED_ALL | 1 | 0.00% | -1.000 | 0.000 |
 | FRESH_POST_CUTOFF | REJECTED_BUY | 0 | n/a | n/a | n/a |
 | FRESH_POST_CUTOFF | UNFILTERED_BUY | 0 | n/a | n/a | n/a |
 | FRESH_POST_CUTOFF | ACCEPTED_BUY | 0 | n/a | n/a | n/a |
-| FRESH_POST_CUTOFF | SELL_SIDE | 0 | n/a | n/a | n/a |
+| FRESH_POST_CUTOFF | SELL_SIDE | 1 | 0.00% | -1.000 | 0.000 |
 
 ## Retrospective support
 
