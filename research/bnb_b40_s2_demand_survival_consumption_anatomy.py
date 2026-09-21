@@ -123,6 +123,10 @@ def binary_effect(E,feature):
 def quartile_table(E,feature,cuts):
     q25,q50,q75=cuts
     if not all(np.isfinite([q25,q50,q75])): return []
+    # Discrete/tied structural features can have repeated quartile edges.
+    # Do not invent artificial bins; keep their median effect but skip 4-band display.
+    if not (q25 < q50 < q75):
+        return []
     rows=[]
     for per in ["DEV","REF"]:
         q=E[E.period==per].copy()
