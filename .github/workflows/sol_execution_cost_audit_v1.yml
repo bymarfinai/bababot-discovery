@@ -1,0 +1,54 @@
+name: SOL Execution Cost Audit V1
+
+on:
+  push:
+    branches: [sol-execution-cost-audit-v1]
+    paths:
+      - 'research/sol_execution_cost_audit_v1.py'
+      - 'research/SOL_EXECUTION_COST_AUDIT_V1_METHOD.md'
+      - '.github/workflows/sol_execution_cost_audit_v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-execution-cost-audit-v1
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Compile
+        run: python -m py_compile research/sol_execution_cost_audit_v1.py
+      - name: Run execution cost audit
+        run: python research/sol_execution_cost_audit_v1.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-execution-cost-audit-v1
+          if-no-files-found: error
+          path: |
+            SOL_EXECUTION_COST_AUDIT_V1_*.csv
+            SOL_EXECUTION_COST_AUDIT_V1_*.md
+            SOL_EXECUTION_COST_AUDIT_V1_*.txt
+            research/SOL_EXECUTION_COST_AUDIT_V1_METHOD.md
+      - name: Persist result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_EXECUTION_COST_AUDIT_V1_*.csv SOL_EXECUTION_COST_AUDIT_V1_*.md SOL_EXECUTION_COST_AUDIT_V1_*.txt
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist SOL execution cost audit v1 result"
+            git pull --rebase origin sol-execution-cost-audit-v1
+            git push origin HEAD:sol-execution-cost-audit-v1
+          fi
