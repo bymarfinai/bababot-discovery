@@ -169,6 +169,7 @@ Possible final statuses:
 
 ### SCORE4_SHORT_STRUCTURAL_CHARACTER_FROZEN_RETROSPECTIVE_SUPPORT
 - construction candidate passes all gates;
+- at least one later retrospective period is evaluable;
 - every evaluable later retrospective period supports it.
 
 ### SCORE4_SHORT_STRUCTURAL_CHARACTER_FROZEN_RETROSPECTIVE_MIXED
