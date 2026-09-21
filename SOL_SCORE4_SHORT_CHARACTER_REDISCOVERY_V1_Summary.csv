@@ -1,0 +1,2 @@
+coverage,baseline_n,baseline_event_rate,baseline_mean_r,winner_rule,selected_n,selected_event_rate,selected_lift,selected_mean_r,selected_pf,selected_event_years,loo_mean_positive_rate,loo_event_ge50_rate,status,operational_decision
+0.9976976650486368,16,0.375,-0.43571278673394254,RECLAIM_INSIDE_DEPTH_EXCEEDS_SWEEP_OVERSHOOT AND APPROACH_3BAR_STAIRCASE,5,0.8,0.42500000000000004,0.342245129591453,1.8556128239786323,3,1.0,1.0,SCORE4_SHORT_STRUCTURAL_CHARACTER_FROZEN_RETROSPECTIVE_MIXED,DROP_SCORE4_SHORT_FROM_TRADABLE_UNIVERSE

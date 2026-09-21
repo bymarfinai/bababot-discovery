@@ -1,0 +1,3 @@
+period,baseline_n,baseline_event_rate,baseline_mean_r,selected_n,selected_event_rate,selected_mean_r,selected_pf,evaluable,event_rate_support,mean_r_support,positive_mean_support,supportive
+RETRO_2025,5,0.4,0.21480386682870925,0,,,,False,,,,False
+RETRO_2026_PRE,8,0.125,-0.49289657710710627,0,,,,False,,,,False
