@@ -20,43 +20,43 @@
 - Gross mean R before execution costs: **0.127R**
 - Regular fee only, no funding/slippage: **0.063R**, PF **1.155**
 - BNB-discount fee only: **0.070R**, PF **1.172**
-- Regular fees + historical funding, zero slippage: **0.063R**, PF **1.155**
-- Funding crossed by **0/302** trades; cumulative funding cost/credit: **0.000R**.
+- Regular fees + historical funding, zero slippage: **0.063R**, PF **1.153**
+- Funding crossed by **138/302** trades; cumulative funding cost/credit: **0.233R**.
 
 ## Slippage stress — regular fees + funding
 
 | Slippage per taker leg | ALL mean R | PF | Cum R | Score3 mean | Score4 LONG mean |
 |---:|---:|---:|---:|---:|---:|
-| 0.0 bps | 0.063 | 1.155 | 19.147 | 0.023 | 0.457 |
-| 0.5 bps | 0.057 | 1.139 | 17.259 | 0.017 | 0.453 |
-| 1.0 bps | 0.051 | 1.123 | 15.371 | 0.010 | 0.449 |
-| 2.0 bps | 0.038 | 1.091 | 11.595 | -0.003 | 0.441 |
-| 3.0 bps | 0.026 | 1.061 | 7.819 | -0.016 | 0.432 |
-| 5.0 bps | 0.001 | 1.002 | 0.267 | -0.042 | 0.416 |
+| 0.0 bps | 0.063 | 1.153 | 18.914 | 0.022 | 0.459 |
+| 0.5 bps | 0.056 | 1.137 | 17.026 | 0.016 | 0.455 |
+| 1.0 bps | 0.050 | 1.121 | 15.138 | 0.009 | 0.451 |
+| 2.0 bps | 0.038 | 1.089 | 11.362 | -0.004 | 0.442 |
+| 3.0 bps | 0.025 | 1.059 | 7.586 | -0.017 | 0.434 |
+| 5.0 bps | 0.000 | 1.000 | 0.034 | -0.043 | 0.418 |
 
 ## Primary scenario — regular fees + 0.5 bps/taker-leg slippage + funding
 
 | Component | N | Mean net R | PF | Cum R | Win rate | Max DD |
 |---|---:|---:|---:|---:|---:|---:|
-| ALL | 302 | 0.057 | 1.139 | 17.259 | 56.29% | 8.695 |
-| BUY_SIDE | 131 | 0.066 | 1.176 | 8.628 | 58.02% | 5.982 |
-| SELL_SIDE | 171 | 0.050 | 1.114 | 8.632 | 54.97% | 7.240 |
-| SCORE3_ALL | 274 | 0.017 | 1.041 | 4.576 | 55.84% | 9.441 |
-| SCORE3_BUY_SIDE_SHORT | 131 | 0.066 | 1.176 | 8.628 | 58.02% | 5.982 |
-| SCORE3_SELL_SIDE_LONG | 143 | -0.028 | 0.936 | -4.052 | 53.85% | 14.630 |
-| SCORE4_SELL_SIDE_LONG | 28 | 0.453 | 2.078 | 12.683 | 60.71% | 2.193 |
+| ALL | 302 | 0.056 | 1.137 | 17.026 | 56.29% | 8.677 |
+| BUY_SIDE | 131 | 0.068 | 1.181 | 8.861 | 58.02% | 5.966 |
+| SELL_SIDE | 171 | 0.048 | 1.108 | 8.165 | 54.97% | 7.334 |
+| SCORE3_ALL | 274 | 0.016 | 1.038 | 4.291 | 55.84% | 9.444 |
+| SCORE3_BUY_SIDE_SHORT | 131 | 0.068 | 1.181 | 8.861 | 58.02% | 5.966 |
+| SCORE3_SELL_SIDE_LONG | 143 | -0.032 | 0.929 | -4.570 | 53.85% | 14.979 |
+| SCORE4_SELL_SIDE_LONG | 28 | 0.455 | 2.087 | 12.735 | 60.71% | 2.166 |
 
 ## Break-even execution budget
 
 | Component | Mean=0 extra slippage / taker leg | Max slippage for PF>=1.10 |
 |---|---:|---:|
-| ALL | 5.071 bps | 1.718 bps |
-| BUY_SIDE | 5.947 bps | 2.756 bps |
-| SELL_SIDE | 4.438 bps | 0.974 bps |
-| SCORE3_ALL | 1.791 bps | 0.000 bps |
-| SCORE3_BUY_SIDE_SHORT | 5.947 bps | 2.756 bps |
+| ALL | 5.009 bps | 1.652 bps |
+| BUY_SIDE | 6.095 bps | 2.902 bps |
+| SELL_SIDE | 4.225 bps | 0.756 bps |
+| SCORE3_ALL | 1.711 bps | 0.000 bps |
+| SCORE3_BUY_SIDE_SHORT | 6.095 bps | 2.902 bps |
 | SCORE3_SELL_SIDE_LONG | 0.000 bps | 0.000 bps |
-| SCORE4_SELL_SIDE_LONG | 50.000 bps | 47.989 bps |
+| SCORE4_SELL_SIDE_LONG | 50.000 bps | 48.215 bps |
 
 ## Frozen gate audit
 
