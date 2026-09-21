@@ -18,3 +18,27 @@ Possible outcomes are exactly those already preregistered:
 - SCORE4_DIRECTIONAL_CHARACTER_FROZEN_AWAITING_FRESH_HOLDOUT
 - SCORE4_DIRECTIONAL_CHARACTER_VALIDATED_FRESH
 - SCORE4_DIRECTIONAL_CHARACTER_FAILED_FRESH_HOLDOUT
+
+
+## Data-horizon plumbing correction before fresh data are opened
+
+The first workflow rerun revealed that the inherited raw-data loader itself was still hardcoded to:
+`END = 2026-08-26 00:00 UTC`.
+
+Therefore the first rerun did **not** expose any post-cutoff market data and cannot constitute a fresh-holdout result.
+
+Before opening fresh data, the observation horizon is now frozen to:
+**2026-09-21 00:00 UTC**
+
+This correction changes only raw-data availability. It does NOT change:
+- fresh cutoff;
+- frozen BUY_SIDE rule;
+- SELL_SIDE auto-accept rule;
+- detector;
+- entry;
+- SL;
+- exit;
+- fresh sample gates;
+- fresh quality gates.
+
+Only completed UTC days before 2026-09-21 00:00 are eligible for this run.
