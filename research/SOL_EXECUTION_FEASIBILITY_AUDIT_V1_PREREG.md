@@ -109,6 +109,17 @@ If mark price is unavailable, entry price is used as fallback.
 
 Funding may therefore be a cost or a credit.
 
+## Funding data plumbing note
+
+The first workflow attempt failed before any metric calculation because the GitHub runner received HTTP 451 from Binance's public funding endpoint.
+
+Without changing any audit rule or cost assumption:
+- SOLUSDT funding history was fetched through the connected Binance public-data interface;
+- **6,663** records were persisted to `research/SOLUSDT_FUNDING_2020_2026.csv`;
+- first funding timestamp: 2020-09-16;
+- last funding timestamp: 2026-09-20;
+- the connector returned blank historical `markPrice`, so the preregistered entry-price fallback is used for funding notional.
+
 ## R accounting
 
 Initial risk remains:
