@@ -1,0 +1,2 @@
+snapshot_time_utc,bid,ask,mid,full_spread_bps,top_bid_notional_usd,top_ask_notional_usd,buy_500_avg_price,buy_500_depth_slippage_bps,buy_500_unfilled_usd,sell_500_avg_price,sell_500_depth_slippage_bps,sell_500_unfilled_usd
+2026-09-21T10:36:42.975Z,115.57,115.58,115.57499999999999,0.8652390222803475,125847.6401,34123.8392,115.58,0,0,115.56999999999998,1.2296318002251453e-12,0
