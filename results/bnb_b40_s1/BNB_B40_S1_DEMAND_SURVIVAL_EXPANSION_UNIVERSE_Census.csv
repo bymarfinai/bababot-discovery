@@ -1,0 +1,3 @@
+period,n,survive,consumed,ambiguous,censored,hit_0_5r,hit_1_0r,hit_1_5r,hit_2_0r,median_mfe,median_t_0_5,median_t_1_0,median_t_1_5,median_t_2_0
+DEV,683,500,157,7,19,500,361,266,205,1.0980392156862782,75.0,195.0,270.0,330.0
+REF,414,309,94,2,9,309,231,168,134,1.1615402530438907,60.0,210.0,337.5,397.5
