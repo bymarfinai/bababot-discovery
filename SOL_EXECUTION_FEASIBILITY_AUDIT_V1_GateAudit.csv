@@ -1,0 +1,12 @@
+gate,pass
+all_mean_net_r_gt_0,True
+all_pf_ge_1_10,True
+all_cum_net_r_gt_0,True
+score3_mean_net_r_gt_0,True
+score3_pf_ge_1_05,False
+score4_long_mean_net_r_gt_0,True
+score4_long_pf_ge_1_20,True
+buy_side_mean_net_r_gt_0,True
+sell_side_mean_net_r_gt_0,True
+all_breakeven_slippage_ge_1bps_per_taker_leg,True
+current_half_spread_below_breakeven_budget,True

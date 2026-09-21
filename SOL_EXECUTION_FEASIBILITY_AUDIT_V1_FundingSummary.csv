@@ -1,0 +1,8 @@
+component,n,trades_with_funding_n,funding_event_n,mean_funding_r,median_funding_r,cum_funding_r
+ALL,302,0,0,0.0,0.0,0.0
+BUY_SIDE,131,0,0,0.0,0.0,0.0
+SELL_SIDE,171,0,0,0.0,0.0,0.0
+SCORE3_ALL,274,0,0,0.0,0.0,0.0
+SCORE3_BUY_SIDE_SHORT,131,0,0,0.0,0.0,0.0
+SCORE3_SELL_SIDE_LONG,143,0,0,0.0,0.0,0.0
+SCORE4_SELL_SIDE_LONG,28,0,0,0.0,0.0,0.0
