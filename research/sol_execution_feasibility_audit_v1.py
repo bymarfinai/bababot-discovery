@@ -94,14 +94,14 @@ def fetch_funding(start:pd.Timestamp,end:pd.Timestamp)->pd.DataFrame:
 
 def attach_funding(trades:pd.DataFrame,funding:pd.DataFrame)->pd.DataFrame:
     out=[]
-    ft=funding.funding_time.to_numpy()
+    ft_ns=pd.to_datetime(funding.funding_time,utc=True).astype("int64").to_numpy()
     fr=funding.funding_rate.to_numpy(dtype=float)
     mp=funding.mark_price.to_numpy(dtype=float)
 
     for _,r in trades.iterrows():
-        et=np.datetime64(pd.Timestamp(r.entry_time).to_datetime64())
-        xt=np.datetime64(pd.Timestamp(r.exit_time).to_datetime64())
-        mask=(ft>et)&(ft<=xt)
+        et_ns=int(pd.Timestamp(r.entry_time).value)
+        xt_ns=int(pd.Timestamp(r.exit_time).value)
+        mask=(ft_ns>et_ns)&(ft_ns<=xt_ns)
 
         sign=1.0 if r.position_direction=="LONG" else -1.0
         prices=np.where(np.isfinite(mp[mask]),mp[mask],float(r.entry_price))
