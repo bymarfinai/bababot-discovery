@@ -1,0 +1,13 @@
+gate_group,gate,pass
+sample,baseline_missing_b_n_ge_5,True
+sample,selected_n_ge_5,False
+sample,selected_retention_ge_40pct,False
+structural,selected_event_rate_ge_65pct,True
+structural,selected_event_rate_gt_baseline,False
+trading,gross_wr_ge_60pct,False
+trading,gross_mean_r_gt_0,True
+trading,gross_pf_ge_1_15,True
+trading,net10_mean_r_gt_0,True
+trading,net10_pf_ge_1_10,True
+trading,net20_mean_r_ge_0,True
+trading,net20_pf_ge_1_00,True
