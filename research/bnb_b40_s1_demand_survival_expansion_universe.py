@@ -211,53 +211,52 @@ def evaluate_path(m15,touch_i,anchor,floor,risk,end):
     i0=touch_i+1
     i1=int(idx.searchsorted(deadline,side="right"))
     thresholds=[0.5,1.0,1.5,2.0]
+
+    # Phase 1: survival is decided by the FIRST resolution only.
+    survival="CENSORED"
+    survival_ts=pd.NaT
+    for i in range(i0,i1):
+        bar=m15.iloc[i]
+        hit05=float(bar.high)>=anchor+0.5*risk
+        consumed=float(bar.close)<floor
+        if hit05 and consumed:
+            survival="AMBIGUOUS"
+            survival_ts=idx[i]
+            break
+        if hit05:
+            survival="SURVIVE"
+            survival_ts=idx[i]
+            break
+        if consumed:
+            survival="CONSUMED"
+            survival_ts=idx[i]
+            break
+
     hit={x:False for x in thresholds}
     hit_ts={x:pd.NaT for x in thresholds}
     mfe=0.0
     consumption_ts=pd.NaT
-    survival="CENSORED"
 
-    for i in range(i0,i1):
-        b=m15.iloc[i]
-        vals={x:float(b.high)>=anchor+x*risk for x in thresholds}
-        consumed=float(b.close)<floor
-        if vals[0] and consumed:
-            survival="AMBIGUOUS"
-            consumption_ts=idx[i]
-            break
-        if consumed:
-            survival="CONSUMED"
-            consumption_ts=idx[i]
-            break
-        for x in thresholds:
-            if (not hit[x]) and vals[x]:
-                hit[x]=True; hit_ts[x]=idx[i]
-        mfe=max(mfe,(float(b.high)-anchor)/risk)
-        if hit[0] and survival=="CENSORED":
-            survival="SURVIVE"
-
-    # If survived, continue measuring expansion only until first later clean consumption or horizon.
+    # Phase 2: expansion is only measured for a zone that already proved survival.
+    # Scan from immediately after retest until first later clean consumption or horizon.
     if survival=="SURVIVE":
-        start_after=i0
-        mfe=0.0
-        hit={x:False for x in thresholds}
-        hit_ts={x:pd.NaT for x in thresholds}
-        consumption_ts=pd.NaT
         for i in range(i0,i1):
-            b=m15.iloc[i]
-            vals={x:float(b.high)>=anchor+x*risk for x in thresholds}
-            consumed=float(b.close)<floor
-            # Same bar threshold/consumption: do not credit new threshold due ordering ambiguity.
+            bar=m15.iloc[i]
+            consumed=float(bar.close)<floor
+            vals={x:float(bar.high)>=anchor+x*risk for x in thresholds}
             if consumed:
+                # Do not credit a new threshold on the same bar as structural consumption.
                 consumption_ts=idx[i]
                 break
             for x in thresholds:
                 if (not hit[x]) and vals[x]:
-                    hit[x]=True; hit_ts[x]=idx[i]
-            mfe=max(mfe,(float(b.high)-anchor)/risk)
+                    hit[x]=True
+                    hit_ts[x]=idx[i]
+            mfe=max(mfe,(float(bar.high)-anchor)/risk)
 
     return {
         "survival_status":survival,
+        "survival_resolution_ts":survival_ts,
         "consumption_ts":consumption_ts,
         "mfe_pre_consumption_24h_r":float(max(0.0,mfe)),
         **{f"hit_{str(x).replace('.','_')}r":bool(hit[x]) for x in thresholds},
