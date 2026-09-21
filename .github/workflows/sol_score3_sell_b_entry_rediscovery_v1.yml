@@ -1,0 +1,54 @@
+name: SOL Score3 SELL Missing-B Entry Rediscovery V1
+
+on:
+  push:
+    branches: [sol-score3-sell-b-entry-rediscovery-v1]
+    paths:
+      - 'research/sol_score3_sell_b_entry_rediscovery_v1.py'
+      - 'research/SOL_SCORE3_SELL_B_ENTRY_REDISCOVERY_V1_PREREG.md'
+      - '.github/workflows/sol_score3_sell_b_entry_rediscovery_v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rediscovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-score3-sell-b-entry-rediscovery-v1
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile
+        run: python -m py_compile research/sol_score3_sell_b_entry_rediscovery_v1.py
+      - name: Run one-shot rediscovery
+        run: python research/sol_score3_sell_b_entry_rediscovery_v1.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-score3-sell-b-entry-rediscovery-v1
+          if-no-files-found: error
+          path: |
+            SOL_SCORE3_SELL_B_ENTRY_REDISCOVERY_V1_*.csv
+            SOL_SCORE3_SELL_B_ENTRY_REDISCOVERY_V1_*.md
+            SOL_SCORE3_SELL_B_ENTRY_REDISCOVERY_V1_*.txt
+            research/SOL_SCORE3_SELL_B_ENTRY_REDISCOVERY_V1_PREREG.md
+      - name: Persist result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_SCORE3_SELL_B_ENTRY_REDISCOVERY_V1_*.csv SOL_SCORE3_SELL_B_ENTRY_REDISCOVERY_V1_*.md SOL_SCORE3_SELL_B_ENTRY_REDISCOVERY_V1_*.txt
+          if git diff --cached --quiet; then
+            echo "No generated changes to persist"
+          else
+            git commit -m "persist SOL score3 sell missing-B entry rediscovery v1 result"
+            git pull --rebase origin sol-score3-sell-b-entry-rediscovery-v1
+            git push origin HEAD:sol-score3-sell-b-entry-rediscovery-v1
+          fi
