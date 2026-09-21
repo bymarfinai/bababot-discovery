@@ -28,21 +28,25 @@ The broken swing may only be used once.
 ### 3. Source/base discovery
 Do NOT use "last bearish candle before BOS".
 
-For each BOS, walk backward from the BOS candle and identify the contiguous source/base immediately preceding the directional departure into the BOS.
+For each BOS, source extraction is deterministic and uses H1 data available by BOS close:
 
-Operational v1, frozen before outcome inspection:
-- define the departure leg as the terminal run ending at the BOS candle in which H1 closes make net upward progress toward the broken level;
-- walk backward up to 8 H1 bars from BOS;
-- stop source-base expansion once a prior bar is clearly part of the preceding directional leg rather than the local base;
-- source base must contain 1–4 contiguous completed H1 candles;
-- candidate base is selected by local compression/overlap around the departure origin, not candle color.
+- locate the latest **confirmed H1 pivot low** whose confirmation timestamp is strictly before the BOS candle and whose pivot timestamp is within the previous 8 H1 bars;
+- that pivot-low candle is the mandatory source seed;
+- initialize the base with that seed candle;
+- moving forward from the seed toward BOS, add at most the next 3 candles while each added candle overlaps at least 50% of its own high-low range with the current base price interval;
+- stop at the first candle that fails this overlap rule, or when 4 base candles have been included;
+- the first candle after the frozen base is the departure start;
+- BOS candle may not belong to the base.
 
-Because source extraction itself is the research object, S1 must persist all alternative causal source descriptors needed for audit:
+If there is no qualifying confirmed pivot low, or no departure candle remains between the base and BOS, reject the candidate.
+
+The 50% overlap threshold and max-4-candle base are structural construction constants frozen before any B40 outcome inspection. They are not tuned in S1.
+
+S1 must persist:
+- source seed pivot timestamp / confirmation timestamp
 - base_low/high
 - base candle count
-- body/range compression
-- overlap ratio
-- prior local low
+- overlap ratios of included candles
 - protected_low
 - departure start/end
 - BOS displacement
