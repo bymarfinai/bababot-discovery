@@ -145,6 +145,8 @@ def load_window(entry_time, cache, archive_log):
 
 
 def feature_row(trade, metrics):
+    if metrics is None or metrics.empty or "time" not in metrics.columns:
+        return None
     entry = pd.Timestamp(trade.entry_time)
     prior = metrics[metrics.time < entry].copy()
     if prior.empty:
