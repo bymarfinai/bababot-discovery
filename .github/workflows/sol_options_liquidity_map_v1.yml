@@ -1,0 +1,36 @@
+name: SOL Options Liquidity Map V1
+
+on:
+  push:
+    branches: [sol-options-liquidity-map-v1]
+    paths:
+      - 'sol_options_liquidity_map.py'
+      - 'sol_options_liquidity_endpoint.py'
+      - 'app.py'
+      - 'research/validate_sol_options_liquidity_v1.py'
+      - 'research/SOL_OPTIONS_LIQUIDITY_MAP_V1_PREREG.md'
+      - 'research/data/sol_options_v1/**'
+      - '.github/workflows/sol_options_liquidity_map_v1.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sol-options-liquidity-map-v1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: pip install requests fastapi
+      - name: Compile
+        run: |
+          python -m py_compile sol_options_liquidity_map.py
+          python -m py_compile sol_options_liquidity_endpoint.py
+          python -m py_compile app.py
+          python -m py_compile research/validate_sol_options_liquidity_v1.py
+      - name: Validate frozen first snapshot
+        run: python research/validate_sol_options_liquidity_v1.py
