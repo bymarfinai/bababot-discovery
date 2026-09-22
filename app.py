@@ -68,7 +68,8 @@ _try_mount("v4_absorption_forensic_endpoint", "V4-B1 Absorption Forensic")
 _try_mount("v4_context_fib_forensic_endpoint", "V4-B2 Regime + Fibonacci Forensic")
 _try_mount("v4_market_state_forensic_endpoint", "V4-B6 Market-State Forensic")
 _try_mount("ratio_series_causal_endpoint", "Ratio-Series Causal Workbook Audit")
-_try_mount("v5_derivatives_feasibility_endpoint", "V5-A1 Derivatives Feasibility")\n_try_mount("sol_options_liquidity_endpoint", "SOL Options Liquidity Map V1")
+_try_mount("v5_derivatives_feasibility_endpoint", "V5-A1 Derivatives Feasibility")
+_try_mount("sol_options_liquidity_endpoint", "SOL Options Liquidity Map V1")
 _try_mount("v7_legacy_trigger_forensic_endpoint", "V7 Legacy Trigger Forensic")
 _try_mount("v7_causal_trigger_forensic_endpoint", "V7 Causal Trigger Forensic")
 _try_mount("v7_close_trigger_forensic_endpoint", "V7 1H-Close Trigger Forensic")
@@ -105,6 +106,11 @@ def _auto_start():
     if os.environ.get("P2_CRON_ENABLED", "true").lower() == "true":
         try: from endpoints_p2_cron import start_p2_cron; start_p2_cron()
         except Exception as e: print(f"[INIT] P2 Cron: {e}")
+    try:
+        from sol_options_liquidity_endpoint import start_sol_options_capture
+        start_sol_options_capture()
+    except Exception as e:
+        print(f"[INIT] SOL Options V1: {e}")
     if os.environ.get("BARET_LIVE_ENABLED", "false").lower() == "true":
         try:
             from baret_live import start_baret_live
