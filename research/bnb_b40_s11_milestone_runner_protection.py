@@ -51,7 +51,7 @@ def maxls(vals):
     return mx
 
 def parse_policy(policy):
-    target="T15" if policy.endswith("T15") else "T2"
+    target="T15" if ("_T15_" in policy or policy.endswith("_T15")) else "T2"
     if policy.startswith("BASE_"): mode="NONE"
     elif "T05_TOUCH" in policy: mode="T05"
     elif "ANCHOR_TOUCH" in policy: mode="ANCHOR"
