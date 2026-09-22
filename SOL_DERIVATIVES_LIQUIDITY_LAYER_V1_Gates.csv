@@ -1,0 +1,15 @@
+feature,n_ge_100,auc_extreme_gate,abs_spearman_ge_010,median_direction_agrees,same_auc_direction_years_ge_4,same_auc_direction_years,side_noncontradiction,passed_all
+oi_value,True,False,False,True,False,2,True,False
+top_position_ratio,True,False,False,True,False,3,True,False
+top_account_ratio,True,False,True,True,True,4,True,False
+global_account_ratio,True,False,True,True,False,3,True,False
+taker_ratio,True,False,False,True,False,3,True,False
+oi_change_1h,True,False,False,True,False,2,True,False
+oi_change_4h,True,False,False,True,False,2,True,False
+taker_log,True,False,False,True,False,3,True,False
+global_log,True,False,True,True,False,3,True,False
+top_position_log,True,False,False,True,False,3,True,False
+sweep_taker_pressure,True,False,False,False,False,1,True,False
+sweep_crowd_pressure,True,False,False,True,False,2,True,False
+sweep_top_position_pressure,True,False,False,True,False,2,True,False
+oi_trap_interaction_1h,True,False,False,True,False,3,True,False
