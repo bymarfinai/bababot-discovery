@@ -1,1 +1,1 @@
-run B40-S12 post-T1 runner failure character
+rerun B40-S12 with frozen S10 runner cohort and T1 timestamp
