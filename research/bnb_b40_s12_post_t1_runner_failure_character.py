@@ -73,7 +73,7 @@ def reclaim_diag(raw5,signal_ts,level,later_target_ts):
     overs=max(0.0,(level-float(seg.low.min()))) if len(seg) else np.nan
     return next5,within15,overs
 
-def resolve_candidate(raw5,r,cand,target_name,deadline):
+def resolve_candidate(raw5,r,cand,target_name,deadline,frozen_runner,frozen_t1_ts,fixed_result):
     idx=raw5.index
     i0=int(idx.searchsorted(pd.Timestamp(r.signal_ts),side="right"))
     i1=int(idx.searchsorted(pd.Timestamp(deadline),side="right"))
@@ -84,19 +84,48 @@ def resolve_candidate(raw5,r,cand,target_name,deadline):
     anchor=float(r.target_anchor_1r)-er
     risk=entry-protected
     if risk<=0:
-        return {"status":"UNAVAILABLE","realized_r":0.0}
+        return {"status":"UNAVAILABLE","realized_r":0.0,"runner_started":False}
 
     t05=anchor+0.5*er
-    t1=anchor+1.0*er
     runner_target=(anchor+1.5*er) if target_name=="T15" else (anchor+2.0*er)
-    xp_deadline=pd.Timestamp(r.first_retest_ts)+pd.Timedelta(minutes=XP1_MIN)
 
-    xp1=False
-    runner_started=False
-    runner_start_global_i=None
+    # Freeze runner eligibility and milestone timestamp directly from S10.
+    if not frozen_runner or pd.isna(frozen_t1_ts):
+        return {
+            "status":"NON_RUNNER_FIXED_T1",
+            "realized_r":float(fixed_result["realized_r"]),
+            "resolution_ts":fixed_result["resolution_ts"],
+            "xp1_active":False,
+            "runner_started":False,
+            "target_hit":str(fixed_result["status"]).startswith("TARGET_"),
+            "failure_signal":False,
+            "failure_level":np.nan,
+            "same_as_catastrophic":False,
+            "catastrophic":str(fixed_result["status"])=="STOP_BEFORE_FULL_TARGET",
+        }
+
+    t1_i=int(idx.searchsorted(pd.Timestamp(frozen_t1_ts),side="left"))
+    if t1_i>=len(raw5) or idx[t1_i]!=pd.Timestamp(frozen_t1_ts):
+        raise RuntimeError(f"frozen T1 timestamp not found: {frozen_t1_ts}")
+
+    # If farther target is reached on the frozen T1 milestone bar, target wins before S12 can activate.
+    milestone_bar=raw5.iloc[t1_i]
+    if float(milestone_bar.high)>=runner_target:
+        return {
+            "status":"TARGET_RUNNER_SAME_T1_BAR",
+            "realized_r":float((runner_target-entry)/risk),
+            "resolution_ts":idx[t1_i],
+            "xp1_active":True,
+            "runner_started":True,
+            "target_hit":True,
+            "failure_signal":False,
+            "failure_level":np.nan,
+            "same_as_catastrophic":False,
+            "catastrophic":False,
+        }
+
     runner_post_count=0
     prev_below_t05=False
-
     status=None
     realized=0.0
     resolution_ts=pd.NaT
@@ -106,97 +135,80 @@ def resolve_candidate(raw5,r,cand,target_name,deadline):
     catastrophic=False
     target_hit=False
 
-    for j,i in enumerate(range(i0,i1)):
+    scan0=t1_i+1
+    if scan0>=i1:
+        return {
+            "status":"UNRESOLVED","realized_r":0.0,"resolution_ts":pd.NaT,
+            "xp1_active":True,"runner_started":True,"target_hit":False,
+            "failure_signal":False,"failure_level":np.nan,
+            "same_as_catastrophic":False,"catastrophic":False,
+        }
+
+    for i in range(scan0,i1):
         b=raw5.iloc[i]
         ts=idx[i]
         high=float(b.high)
         close=float(b.close)
+        runner_post_count+=1
 
-        if (not xp1) and ts<=xp_deadline and high>=t05:
-            xp1=True
+        # Resting farther target has intrabar priority.
+        if high>=runner_target:
+            realized=(runner_target-entry)/risk
+            status="TARGET_RUNNER"
+            resolution_ts=ts
+            target_hit=True
+            break
 
-        # Non-XP1 trade exits at T1 exactly as FIXED_T1.
-        if not runner_started:
-            if high>=t1:
-                if xp1:
-                    runner_started=True
-                    runner_start_global_i=i
-                    # farther target on milestone bar is executable before any later failure logic
-                    if high>=runner_target:
-                        realized=(runner_target-entry)/risk
-                        status="TARGET_RUNNER_SAME_T1_BAR"
-                        resolution_ts=ts
-                        target_hit=True
-                        break
-                    # failure evaluation begins strictly next bar
-                    continue
-                else:
-                    realized=(t1-entry)/risk
-                    status="TARGET_T1_NO_XP1"
-                    resolution_ts=ts
-                    target_hit=True
-                    break
+        sig=False
+        level=np.nan
+        below_t05=close<t05
 
+        if cand=="F1_T05_CLOSE5":
+            sig=below_t05
+            level=t05
+        elif cand=="F2_T05_CLOSE15":
+            sig=(runner_post_count%3==0) and below_t05
+            level=t05
+        elif cand=="F3_ANCHOR_CLOSE5":
+            sig=close<anchor
+            level=anchor
+        elif cand=="F4_ANCHOR_CLOSE15":
+            sig=(runner_post_count%3==0) and close<anchor
+            level=anchor
+        elif cand=="F5_T05_TWO_CONSEC_CLOSE5":
+            sig=prev_below_t05 and below_t05
+            level=t05
+        elif cand=="F6_T05_RECLAIM_ATTEMPT_REJECT":
+            sig=prev_below_t05 and float(b.high)>=t05 and below_t05
+            level=t05
         else:
-            runner_post_count+=1
+            raise RuntimeError(cand)
 
-            # resting farther target has intrabar priority
-            if high>=runner_target:
-                realized=(runner_target-entry)/risk
-                status="TARGET_RUNNER"
-                resolution_ts=ts
-                target_hit=True
-                break
+        # Catastrophic alignment remains frozen to raw5 bars after SD1 decision, not to post-T1 windows.
+        j=i-i0
+        cat_here=((j+1)%3==0) and close<protected
 
-            sig=False
-            level=np.nan
-            below_t05=close<t05
-
-            if cand=="F1_T05_CLOSE5":
-                sig=below_t05
-                level=t05
-            elif cand=="F2_T05_CLOSE15":
-                sig=(runner_post_count%3==0) and below_t05
-                level=t05
-            elif cand=="F3_ANCHOR_CLOSE5":
-                sig=close<anchor
-                level=anchor
-            elif cand=="F4_ANCHOR_CLOSE15":
-                sig=(runner_post_count%3==0) and close<anchor
-                level=anchor
-            elif cand=="F5_T05_TWO_CONSEC_CLOSE5":
-                sig=prev_below_t05 and below_t05
-                level=t05
-            elif cand=="F6_T05_RECLAIM_ATTEMPT_REJECT":
-                sig=prev_below_t05 and float(b.high)>=t05 and below_t05
-                level=t05
-            else:
-                raise RuntimeError(cand)
-
-            cat_here=((j+1)%3==0) and close<protected
-
-            if sig:
-                rr=(close-entry)/risk
-                realized=float(rr)
-                resolution_ts=ts
-                failure_level=float(level)
-                if cat_here:
-                    status="FAILURE_SAME_AS_CATASTROPHIC"
-                    same_as_cat=True
-                    catastrophic=True
-                else:
-                    status="FAILURE_SIGNAL"
-                    failure_signal=True
-                break
-
+        if sig:
+            realized=float((close-entry)/risk)
+            resolution_ts=ts
+            failure_level=float(level)
             if cat_here:
-                realized=(close-entry)/risk
-                status="CATASTROPHIC_CLOSE15"
-                resolution_ts=ts
+                status="FAILURE_SAME_AS_CATASTROPHIC"
+                same_as_cat=True
                 catastrophic=True
-                break
+            else:
+                status="FAILURE_SIGNAL"
+                failure_signal=True
+            break
 
-            prev_below_t05=below_t05
+        if cat_here:
+            realized=float((close-entry)/risk)
+            status="CATASTROPHIC_CLOSE15"
+            resolution_ts=ts
+            catastrophic=True
+            break
+
+        prev_below_t05=below_t05
 
     if status is None:
         status="UNRESOLVED"
@@ -205,8 +217,8 @@ def resolve_candidate(raw5,r,cand,target_name,deadline):
         "status":status,
         "realized_r":float(realized),
         "resolution_ts":resolution_ts,
-        "xp1_active":bool(xp1),
-        "runner_started":bool(runner_started),
+        "xp1_active":True,
+        "runner_started":True,
         "target_hit":bool(target_hit),
         "failure_signal":bool(failure_signal),
         "failure_level":failure_level,
@@ -307,6 +319,8 @@ def main():
                 "r":float(z["realized_r"]),
                 "status":bs,
                 "resolution_ts":z["resolution_ts"],
+                "runner":bool(z["xp1_active"] and z["t1_hit"]),
+                "t1_ts":z["t1_ts"],
             }
 
     rows=[]
@@ -323,7 +337,10 @@ def main():
             base=base_map[(r.zone_id,target_name)]
             runner_target=anchor+(1.5 if target_name=="T15" else 2.0)*er
             for cand in CANDS:
-                z=resolve_candidate(raw5,r,cand,target_name,deadline)
+                z=resolve_candidate(
+                    raw5,r,cand,target_name,deadline,
+                    base["runner"],base["t1_ts"],fixed
+                )
                 later=pd.NaT
                 reclaim_next5=False
                 reclaim15=False
