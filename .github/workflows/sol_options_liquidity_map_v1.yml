@@ -33,4 +33,4 @@ jobs:
           python -m py_compile app.py
           python -m py_compile research/validate_sol_options_liquidity_v1.py
       - name: Validate frozen first snapshot
-        run: python research/validate_sol_options_liquidity_v1.py
+        run: PYTHONPATH=. python research/validate_sol_options_liquidity_v1.py
