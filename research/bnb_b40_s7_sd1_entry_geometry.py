@@ -154,7 +154,7 @@ def load_cohort():
             raise RuntimeError(f"SD1 parity drift {per}: {got} != {(n,s,c)}")
 
     cols=[
-        "zone_id","base_high","protected_low","hit_1_0r","hit_1_5r","hit_2_0r",
+        "zone_id","hit_1_0r","hit_1_5r","hit_2_0r",
         "time_to_0_5r_min","mfe_pre_consumption_24h_r"
     ]
     P=A[cols].copy()
