@@ -1,0 +1,2 @@
+feature,dev_nominated,ref_validated,dev_auc,ref_auc,dev_winner_median,dev_loser_median,ref_winner_median,ref_loser_median
+trend_eff_60,True,True,0.6213151927437641,0.5671296296296297,0.5123966942148735,0.6265769554247235,0.3942977442832094,0.48725723961571965
