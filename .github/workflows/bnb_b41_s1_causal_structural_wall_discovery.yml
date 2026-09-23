@@ -1,0 +1,53 @@
+name: BNB B41-S1 causal structural wall discovery
+
+on:
+  push:
+    branches:
+      - bnb-b29-walkforward-reset
+    paths:
+      - '.bnb-b41-s1-trigger'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  b41-s1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas==3.0.5 numpy==2.4.6 requests==2.34.2
+      - name: Run B41-S1
+        run: |
+          set -euo pipefail
+          python -m py_compile research/bnb_b41_s1_causal_structural_wall_discovery.py
+          python research/bnb_b41_s1_causal_structural_wall_discovery.py | tee BNB_B41_S1_CAUSAL_STRUCTURAL_WALL_DISCOVERY_Run.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bnb-b41-s1-causal-structural-wall-discovery
+          path: |
+            BNB_B41_S1_CAUSAL_STRUCTURAL_WALL_DISCOVERY*
+          if-no-files-found: warn
+      - name: Persist evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p results/bnb_b41_s1
+          for f in BNB_B41_S1_CAUSAL_STRUCTURAL_WALL_DISCOVERY*; do
+            if [ -f "$f" ]; then cp "$f" results/bnb_b41_s1/; fi
+          done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/bnb_b41_s1
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Persist B41-S1 causal structural wall discovery'
+            git pull --rebase origin bnb-b29-walkforward-reset
+            git push origin HEAD:bnb-b29-walkforward-reset
+          fi
