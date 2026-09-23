@@ -26,6 +26,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install validation dependency
+        run: pip install requests
+
       - name: Compile frozen SOL options research code
         run: |
           python -m py_compile sol_options_liquidity_map.py
