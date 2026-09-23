@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sol_options_hourly_capture_v1.yml'
 
 permissions:
   contents: write
@@ -42,7 +46,7 @@ jobs:
       - name: Commit append-only snapshot and validation state
         shell: bash
         run: |
-          if git diff --quiet && git status --porcelain | grep -q '^$'; then
+          if [ -z "$(git status --porcelain)" ]; then
             echo "No new snapshot or validation changes."
             exit 0
           fi
