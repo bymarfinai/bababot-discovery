@@ -29,7 +29,7 @@ OUT_CSV = ROOT / "SOL_OPTIONS_WALL_CONTROL_TEST_V1_Observations.csv"
 OUT_MD = ROOT / "SOL_OPTIONS_WALL_CONTROL_TEST_V1_Result.md"
 
 MAP_VERSION = "SOL_OPTIONS_LIQUIDITY_MAP_V1"
-CONTROL_START_ISO = "2026-09-23T04:46:00+00:00"
+CONTROL_START_ISO = "2026-09-23T04:52:00+00:00"
 CONTROL_START_MS = int(datetime.fromisoformat(CONTROL_START_ISO).timestamp() * 1000)
 HORIZON_MIN = 240
 BANDS = (0.0025, 0.0050, 0.0100)
@@ -202,13 +202,13 @@ def random_matched_levels(anchor: dict, side: str, option_levels: list[dict]) ->
         for attempt in range(50):
             salt = f'{anchor["snapshot_id"]}|{side}|{rank}|RANDOM_MATCHED_V1|{attempt}'
             u = deterministic_u(salt)
-            mult = 0.75 + 0.50 * u
+            mult = 0.50 + 1.00 * u
             dist = d * mult
             level = spot * (1.0 - dist if side == "LOWER" else 1.0 + dist)
             level = round(level, 2)
 
             correct_side = level < spot if side == "LOWER" else level > spot
-            collision_actual = any(abs(level - a) / spot * 100.0 < 0.10 for a in actual)
+            collision_actual = any(abs(level - a) / spot * 100.0 < 0.05 for a in actual)
             collision_random = any(abs(level - x["level"]) < 0.005 for x in out)
 
             if correct_side and not collision_actual and not collision_random:
