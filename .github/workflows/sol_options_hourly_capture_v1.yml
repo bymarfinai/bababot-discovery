@@ -1,0 +1,58 @@
+name: SOL Options Hourly Capture V1
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sol-options-hourly-capture-v1
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout SOL options discovery branch
+        uses: actions/checkout@v4
+        with:
+          ref: sol-options-liquidity-map-v1
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install runtime dependencies
+        run: pip install requests
+
+      - name: Capture prospective options snapshot
+        run: PYTHONPATH=. python research/capture_sol_options_hourly_v1.py
+
+      - name: Refresh causal forward-wall validation
+        run: PYTHONPATH=. python research/sol_options_wall_forward_validation_v1.py
+
+      - name: Commit append-only snapshot and validation state
+        shell: bash
+        run: |
+          if git diff --quiet && git status --porcelain | grep -q '^$'; then
+            echo "No new snapshot or validation changes."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add research/data/sol_options_v1/
+          git add SOL_OPTIONS_WALL_FORWARD_VALIDATION_V1_Observations.csv
+          git add SOL_OPTIONS_WALL_FORWARD_VALIDATION_V1_Result.md
+
+          git commit -m "SOL options V1: hourly prospective capture"
+          git push origin HEAD:sol-options-liquidity-map-v1
