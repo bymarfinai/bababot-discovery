@@ -14,7 +14,7 @@ It does not modify the options map formula, detector, entry logic, SL, or TP.
 
 ## Confirmatory start
 
-**CONTROL_PREREG_START_UTC = 2026-09-23T04:46:00Z**
+**CONTROL_PREREG_START_UTC = 2026-09-23T04:52:00Z**
 
 Anything whose control anchor begins before this timestamp is exploratory only.
 
@@ -70,14 +70,14 @@ For each OPTIONS level independently:
    `d = abs(option_level / spot - 1)`;
 2. derive deterministic pseudo-random `u` from SHA256:
    `anchor_snapshot_id | side | rank | RANDOM_MATCHED_V1 | attempt`;
-3. map `u` into multiplier range [0.75, 1.25];
+3. map `u` into multiplier range [0.50, 1.50];
 4. candidate distance = `d * multiplier`;
 5. place the candidate on the same side of spot as the OPTIONS level;
 6. round to $0.01.
 
 Reject and deterministically retry if the random level is:
 - on the wrong side of spot;
-- within 0.10% of spot from any OPTIONS wall on the same side;
+- within 0.05% of spot from any OPTIONS wall on the same side;
 - duplicated within the RANDOM_MATCHED set.
 
 Maximum retry attempts: 50.
@@ -219,3 +219,15 @@ Before minimum sample:
 - The old 116 touch is exploratory only for this control test.
 - This study evaluates information content of the wall, not live profitability.
 - No READY_TO_TRADE label may be produced by this test alone.
+
+## Pre-sample amendment A
+
+Frozen before the first confirmatory anchor at or after 2026-09-23T04:52:00Z.
+
+The initial random-control geometry used multiplier [0.75, 1.25] with a 0.10%-of-spot exclusion around OPTIONS walls. Before any confirmatory reaction outcome was evaluated, a feasibility audit showed that an OPTIONS wall very close to spot (e.g. 120 versus spot around 119.69) could make the entire allowed random interval fall inside the exclusion zone.
+
+To prevent deterministic control unavailability for near-spot walls, RANDOM_MATCHED is amended to:
+- multiplier range [0.50, 1.50];
+- OPTIONS-wall exclusion radius 0.05% of spot.
+
+No observed post-touch reaction was used to choose this amendment. The 04:47 snapshot is exploratory only; the confirmatory sample starts at the first saved snapshot at or after 04:52 UTC.
