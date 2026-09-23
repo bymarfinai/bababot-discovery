@@ -1,21 +1,60 @@
-# SOL Options Wall Forward Validation V1 — Current Result
+# SOL Options Wall Forward Validation V1 — Result
 
-**Status: FORWARD_SAMPLE_CENSORED**
+**Status: FORWARD_TOUCH_OBSERVED**
 
-- First eligible map: 2026-09-22T02:29:31.999Z
-- Latest evaluated minute: 2026-09-22T03:51Z
-- Prospective snapshots captured: 2
-- Distinct map regimes: 1
+## Completed prospective regime #1
+
+- Regime start: 2026-09-22T02:29:31.999Z
+- Frozen horizon: 240 minutes
+- Horizon end: 2026-09-22T06:29:31.999Z
+- SOLUSDT observed range: 115.54–118.09
 - Primary lower wall: 116
 - Primary upper wall: 120
-- Observed SOLUSDT spot range after first map: 116.30–118.09
-- Level touches across top-three lower/upper walls: 0
-- Frozen horizon: 240 minutes
+- Wall levels evaluated: 6
+- First-touch observations: 1
 
-The second snapshot retained the same expiry tuple and the exact same top-three wall ranks, so it remains part of the same map regime rather than creating a new independent observation.
+### Lower wall 116
 
-No wall-reaction outcome exists yet because no recorded concentration strike has been touched after the map was known.
+First touch occurred at **2026-09-22T05:18:00Z**.
 
-The sample is censored because the 240-minute horizon has not completed. Censored is not counted as failure.
+Post-touch path from the pre-recorded 116 wall:
 
-Historical SOL detector trades in the frozen 279-trade universe end on 2026-09-19, before the first options map, so none may be attributed to this options layer.
+| Horizon | Favorable excursion | Adverse excursion | Close displacement | Favorable share of total excursion |
+|---|---:|---:|---:|---:|
+| 15m | +0.190% | -0.397% | -0.345% | 0.324 |
+| 30m | +0.922% | -0.397% | +0.853% | 0.699 |
+| 60m | +1.017% | -0.397% | +0.603% | 0.720 |
+| End | +1.017% | -0.397% | +0.517% | 0.720 |
+
+Symmetric first-passage outcomes:
+
+- ±0.25%: **ADVERSE_FIRST**
+- ±0.50%: **FAVORABLE_FIRST**
+- ±1.00%: **FAVORABLE_FIRST**
+
+The observed anatomy was therefore: shallow penetration below the wall first, followed by a larger upward reaction. This is compatible with a sweep/rejection interpretation, but N=1 is not evidence that the level is generally predictive.
+
+The remaining recorded walls (110, 100, 120, 122, 130) were not touched during the frozen 240-minute horizon and are not counted as wins or losses.
+
+## New prospective regime
+
+Snapshot **SOL_OPT_V1_20260923043811000** created a new map regime because the expiry tuple and ranked walls changed:
+
+- Spot: 119.49133106
+- Expiries: 260923, 260924, 260925
+- Lower walls: 116, 112, 110
+- Upper walls: 120, 130, 140
+- Lower top-1 116 score: 0.265565
+- Upper top-1 120 score: 0.705237
+
+The new regime is still accumulating forward data.
+
+## Current interpretation
+
+1. Options wall location passed the initial two-snapshot stability sanity check.
+2. The first completed causal wall touch produced a sweep-below-then-rebound path at 116.
+3. This is anatomically promising for the real-liquidity hypothesis, but one touch is far below the evidence needed for promotion.
+4. IV confluence remains descriptive only; it is not a trading gate.
+5. Historical SOL trades before the first options snapshot remain ineligible for options-map attribution.
+
+No READY_TO_TRADE conclusion is permitted from this sample.
