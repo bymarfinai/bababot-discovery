@@ -32,8 +32,8 @@ def main():
     )
     q=E[(E.policy=="E1_45M_WALL_RECLAIM")&(E.stop==True)].copy()
     if len(q)!=14: raise RuntimeError(f"failed-recovery parity {len(q)} !=14")
-    d=q[q.period=="DEV"]; r=q[q.period=="REF"]
-    if len(d)!=7 or int(d.baseline_winner.sum())!=1 or len(r)!=7 or int(r.baseline_winner.sum())!=0:
+    cohort_dev=q[q.period=="DEV"]; cohort_ref=q[q.period=="REF"]
+    if len(cohort_dev)!=7 or int(cohort_dev.baseline_winner.sum())!=1 or len(cohort_ref)!=7 or int(cohort_ref.baseline_winner.sum())!=0:
         raise RuntimeError("cohort composition mismatch")
 
     raw,diag=b31.load_raw()
@@ -203,8 +203,8 @@ def main():
         f"**Status: {status}**","",f"S6F-L signature: `{sig}`","",
         "Cohort is frozen to E1_45M_WALL_RECLAIM failures. S6F-L studies executable post-failure bounce opportunities; it does not create an exit rule.","",
         "## Failed-recovery cohort",
-        f"- DEV: {len(d)} total failed recoveries, {int((d.baseline_winner==False).sum())} baseline losers, {int(d.baseline_winner.sum())} baseline winner.",
-        f"- REF: {len(r)} total failed recoveries, {int((r.baseline_winner==False).sum())} baseline losers, {int(r.baseline_winner.sum())} baseline winners.","",
+        f"- DEV: {len(cohort_dev)} total failed recoveries, {int((cohort_dev.baseline_winner==False).sum())} baseline losers, {int(cohort_dev.baseline_winner.sum())} baseline winner.",
+        f"- REF: {len(cohort_ref)} total failed recoveries, {int((cohort_ref.baseline_winner==False).sum())} baseline losers, {int(cohort_ref.baseline_winner.sum())} baseline winners.","",
         "## Baseline-loser exit-path audit","",
         "| Type | Probe/checkpoint | Period | N | Fill | Med improve vs immediate | > immediate | Med improve vs endpoint | Event min |",
         "|---|---|---|---:|---:|---:|---:|---:|---:|"
