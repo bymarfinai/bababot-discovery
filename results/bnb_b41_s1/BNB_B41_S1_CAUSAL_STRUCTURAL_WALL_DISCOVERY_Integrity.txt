@@ -1,0 +1,24 @@
+{
+  "status": "BNB_B41_S1_WALL_LIBRARY_READY",
+  "raw": {
+    "rows": "506880",
+    "coverage": "1.0",
+    "sha256": "35831265b8520ad286834b44cd63594fed3413f51d0ee30497c93b83e1fe88d8",
+    "first": "2021-11-01 00:05:00+00:00",
+    "last": "2026-08-27 00:00:00+00:00",
+    "files": "58"
+  },
+  "expected_research_sessions": 1699,
+  "eligible_sessions": 1699,
+  "eligible_rate": 1.0,
+  "finite_empirical": true,
+  "ordering_rate": 1.0,
+  "year_counts": {
+    "2022": 365,
+    "2023": 365,
+    "2024": 366,
+    "2025": 365,
+    "2026": 238
+  },
+  "signature": "4eb6cc9ef940d80b447b8b93e3a3df7f8093f60411d5f01500a2968899a27db6"
+}
