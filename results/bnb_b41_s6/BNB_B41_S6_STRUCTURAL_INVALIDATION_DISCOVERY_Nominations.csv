@@ -1,0 +1,3 @@
+side,character,direction,tf,dev_nomination,ref_validated
+UPPER,C1_CLEAN_REJECTION,SHORT,TF05,NO_NOMINATION,False
+LOWER,C2_RECLAIM_AFTER_CLOSE,LONG,TF60,NO_NOMINATION,False
