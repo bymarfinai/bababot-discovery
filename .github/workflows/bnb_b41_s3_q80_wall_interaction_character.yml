@@ -1,4 +1,5 @@
 name: BNB B41-S3 Q80 wall interaction character
+# parser-refresh
 
 on:
   push:
