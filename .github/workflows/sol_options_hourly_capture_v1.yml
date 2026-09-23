@@ -43,6 +43,9 @@ jobs:
       - name: Refresh causal forward-wall validation
         run: PYTHONPATH=. python research/sol_options_wall_forward_validation_v1.py
 
+      - name: Refresh wall control test
+        run: PYTHONPATH=. python research/sol_options_wall_control_test_v1.py
+
       - name: Commit append-only snapshot and validation state
         shell: bash
         run: |
@@ -57,6 +60,8 @@ jobs:
           git add research/data/sol_options_v1/
           git add SOL_OPTIONS_WALL_FORWARD_VALIDATION_V1_Observations.csv
           git add SOL_OPTIONS_WALL_FORWARD_VALIDATION_V1_Result.md
+          git add SOL_OPTIONS_WALL_CONTROL_TEST_V1_Observations.csv
+          git add SOL_OPTIONS_WALL_CONTROL_TEST_V1_Result.md
 
           git commit -m "SOL options V1: hourly prospective capture"
           git push origin HEAD:sol-options-liquidity-map-v1
