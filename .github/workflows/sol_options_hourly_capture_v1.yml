@@ -1,8 +1,6 @@
-name: SOL Options Hourly Capture V1
+name: SOL Options Control Validation V1
 
 on:
-  schedule:
-    - cron: '17 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -10,58 +8,30 @@ on:
       - '.github/workflows/sol_options_hourly_capture_v1.yml'
 
 permissions:
-  contents: write
-
-concurrency:
-  group: sol-options-hourly-capture-v1
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  capture:
+  validate-code:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
       - name: Checkout SOL options discovery branch
         uses: actions/checkout@v4
         with:
           ref: sol-options-liquidity-map-v1
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install runtime dependencies
-        run: pip install requests
-
-      - name: Capture prospective options snapshot
-        run: PYTHONPATH=. python research/capture_sol_options_hourly_v1.py
-
-      - name: Refresh causal forward-wall validation
-        run: PYTHONPATH=. python research/sol_options_wall_forward_validation_v1.py
-
-      - name: Refresh wall control test
-        run: PYTHONPATH=. python research/sol_options_wall_control_test_v1.py
-
-      - name: Commit append-only snapshot and validation state
-        shell: bash
+      - name: Compile frozen SOL options research code
         run: |
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "No new snapshot or validation changes."
-            exit 0
-          fi
+          python -m py_compile sol_options_liquidity_map.py
+          python -m py_compile research/capture_sol_options_hourly_v1.py
+          python -m py_compile research/sol_options_wall_forward_validation_v1.py
+          python -m py_compile research/sol_options_wall_control_test_v1.py
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add research/data/sol_options_v1/
-          git add SOL_OPTIONS_WALL_FORWARD_VALIDATION_V1_Observations.csv
-          git add SOL_OPTIONS_WALL_FORWARD_VALIDATION_V1_Result.md
-          git add SOL_OPTIONS_WALL_CONTROL_TEST_V1_Observations.csv
-          git add SOL_OPTIONS_WALL_CONTROL_TEST_V1_Result.md
-
-          git commit -m "SOL options V1: hourly prospective capture"
-          git push origin HEAD:sol-options-liquidity-map-v1
+      - name: Validate frozen first options fixture
+        run: PYTHONPATH=. python research/validate_sol_options_liquidity_v1.py
