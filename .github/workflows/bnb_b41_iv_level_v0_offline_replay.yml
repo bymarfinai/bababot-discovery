@@ -1,0 +1,40 @@
+name: BNB B41 IV level v0 offline replay
+
+on:
+  push:
+    branches:
+      - bnb-b29-walkforward-reset
+    paths:
+      - '.bnb-b41-iv-v0-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  offline-replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Replay frozen snapshot
+        run: |
+          set -euo pipefail
+          python -m py_compile research/bnb_b41_iv_level_engine_v0.py
+          python research/bnb_b41_iv_level_engine_v0.py | tee BNB_B41_IV_LEVEL_V0_OfflineReplay.log
+      - name: Persist replay
+        run: |
+          set -euo pipefail
+          cp BNB_B41_IV_LEVEL_V0_OfflineReplay.log results/bnb_b41_iv_level_v0/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/bnb_b41_iv_level_v0
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Persist B41 IV level v0 offline replay'
+            git pull --rebase origin bnb-b29-walkforward-reset
+            git push origin HEAD:bnb-b29-walkforward-reset
+          fi
