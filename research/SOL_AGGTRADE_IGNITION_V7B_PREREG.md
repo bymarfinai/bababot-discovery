@@ -61,6 +61,12 @@ Cross-window features:
 
 No hand-tuned magnitude threshold is allowed before model fitting.
 
+## Coverage gate
+Before any model fit:
+- >=95% of frozen parent events in 2023 must have non-empty 15m aggTrade coverage;
+- >=95% of frozen parent events in 2024 must have non-empty 15m aggTrade coverage;
+- if either fails, status = BLOCKED_DATA_COVERAGE and no label-conditioned model result is produced.
+
 ## Forensic stability report
 On 2023 and 2024 separately, report for every numeric feature:
 - WIN median vs LOSS median;
