@@ -1,0 +1,33 @@
+name: SOL True Ignition V7 Preflight
+on:
+  push:
+    branches: [research/sol-true-ignition-v7]
+    paths:
+      - 'research/sol_true_ignition_v7_preflight.py'
+      - 'research/SOL_TRUE_IGNITION_V7_PREREG.md'
+      - '.github/workflows/sol_true_ignition_v7_preflight.yml'
+  workflow_dispatch:
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COINDESK_API_KEY: ${{ secrets.COINDESK_API_KEY }}
+      COINDESK_FUTURES_MARKET: binance
+      COINDESK_FUTURES_INSTRUMENT: SOL-USDT-VANILLA-PERPETUAL
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests websocket-client
+      - run: python -m py_compile research/sol_true_ignition_v7_preflight.py
+      - run: python research/sol_true_ignition_v7_preflight.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-true-ignition-v7-preflight
+          if-no-files-found: error
+          path: |
+            SOL_TRUE_IGNITION_V7_PREFLIGHT.json
+            SOL_TRUE_IGNITION_V7_PREFLIGHT.md
+            research/SOL_TRUE_IGNITION_V7_PREREG.md
