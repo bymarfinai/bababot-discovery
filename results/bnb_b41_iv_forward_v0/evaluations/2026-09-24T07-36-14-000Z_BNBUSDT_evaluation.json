@@ -1,0 +1,14 @@
+{
+  "forecast_id":"2026-09-24T07:36:14.000Z_BNBUSDT",
+  "evaluated_at":"2026-09-24T09:01:02.000Z",
+  "window_start_exclusive":"2026-09-24T07:36:14.000Z",
+  "window_end_inclusive":"2026-09-24T08:36:14.000Z",
+  "bars_5m_count":12,
+  "window_low":769.19,
+  "window_high":777.27,
+  "primary_confluence_touched":0,
+  "primary_singleton_touched":0,
+  "result":"COMPLETE_NO_TOUCH",
+  "frozen_primary_confluence":{"name":"CONFLUENCE_LOWER_1","side":"LOWER","price":759.9961151154707,"touched":false},
+  "note":"Scored strictly against frozen forecast prices; no threshold or level changes."
+}
