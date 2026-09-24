@@ -1,0 +1,36 @@
+name: SOL Orderflow Ignition V3
+on:
+  push:
+    branches: [research/sol-orderflow-ignition-v3]
+    paths:
+      - 'research/sol_orderflow_ignition_v3.py'
+      - 'research/SOL_ORDERFLOW_IGNITION_V3_PREREG.md'
+      - '.github/workflows/sol_orderflow_ignition_v3.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests scipy scikit-learn
+      - run: python -m py_compile research/sol_orderflow_ignition_v3.py
+      - run: python research/sol_orderflow_ignition_v3.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-orderflow-ignition-v3
+          if-no-files-found: error
+          path: |
+            SOL_ORDERFLOW_IGNITION_V3_SelectedModels.csv
+            SOL_ORDERFLOW_IGNITION_V3_Transfer.csv
+            SOL_ORDERFLOW_IGNITION_V3_FeatureImportance.csv
+            SOL_ORDERFLOW_IGNITION_V3_ValidationGrid.csv
+            SOL_ORDERFLOW_IGNITION_V3_SelectedTrades.csv
+            SOL_ORDERFLOW_IGNITION_V3_FeatureCoverage.csv
+            SOL_ORDERFLOW_IGNITION_V3_LiquidationProbe.csv
+            SOL_ORDERFLOW_IGNITION_V3_Result.md
+            SOL_ORDERFLOW_IGNITION_V3_Status.txt
+            research/SOL_ORDERFLOW_IGNITION_V3_PREREG.md
