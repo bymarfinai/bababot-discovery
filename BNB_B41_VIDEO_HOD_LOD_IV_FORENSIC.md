@@ -149,3 +149,17 @@ This is a new information-set family and must be researched separately from B41 
 **The missing family is options-IV / expected-range / HOD-LOD level construction.**
 
 Live BNB/SOL IV collection is feasible now; multi-year historical equivalence is not currently present in the repo.
+
+## Execution / infrastructure note
+
+A GitHub Actions live snapshot attempt was executed:
+
+- run: `35947419374`
+- job: `107468372169`
+- direct request to `https://eapi.binance.com/eapi/v1/exchangeInfo` returned HTTP 451 from the GitHub-hosted runner.
+
+This is an infrastructure/access limitation, not evidence that Binance Options data is unavailable.
+
+The Binance public-data connector successfully returned live BNB/SOL option exchange information and current bidIV/askIV/markIV in the same session.
+
+Therefore a future IV collector should run through an allowed data-access path or a self-hosted/non-blocked collector rather than relying on the current GitHub-hosted runner for Binance Options REST.
