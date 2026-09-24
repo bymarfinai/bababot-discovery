@@ -18,3 +18,15 @@ Infrastructure rule:
 - Binance Options REST from GitHub-hosted Actions is currently blocked by HTTP 451.
 - Live data acquisition must use the available Binance connector (or a separately approved accessible collector).
 - GitHub is used for append-only persistence/evaluation artifacts, not direct live Binance Options collection.
+
+
+## BNB-only scope amendment
+
+The later `BNB_B41_IV_HOD_LOD_FORWARD_BNB_ONLY_AMENDMENT.md` controls asset scope.
+
+From that amendment onward:
+- collect and score **BNBUSDT only**;
+- do not create new SOLUSDT forecasts;
+- do not score SOLUSDT for headline research;
+- preserve existing SOL artifacts unchanged;
+- apply BNB-only sample and quality gates from the amendment.
