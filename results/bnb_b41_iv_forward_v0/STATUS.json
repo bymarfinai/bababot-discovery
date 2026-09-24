@@ -6,14 +6,16 @@
   "de_duplicated_touched_confluence": 0,
   "promotion_sample_gate_reached": false,
   "active_asset": "BNBUSDT",
-  "frozen_assets": [
-    "SOLUSDT"
-  ],
+  "frozen_assets": ["SOLUSDT"],
   "bnb_only_amendment": true,
   "bnb_touched_primary_confluence": 0,
   "bnb_touched_primary_singleton": 0,
-  "bnb_sample_gate": {
-    "primary_confluence": 30,
-    "primary_singleton": 30
-  }
+  "bnb_sample_gate": {"primary_confluence": 30, "primary_singleton": 30},
+  "last_evaluated_forecast": "2026-09-24T02:43:08.250Z_BNBUSDT",
+  "last_evaluation_result": "COMPLETE_NO_TOUCH",
+  "last_window_extreme_low": 768.01,
+  "last_window_extreme_high": 776.46,
+  "last_capture_attempt": "2026-09-24T04:02:00Z",
+  "last_capture_status": "FAILED_NO_FRESH_FORECAST_PERSISTED",
+  "last_capture_error": "Live Binance option-mark connector call returned an oversized result that was not available as a consumable response resource in this run; IV_LEVEL_ENGINE_V0 therefore could not be recomputed causally without reusing stale IV. No stale IV was substituted."
 }
