@@ -1,0 +1,33 @@
+name: SOL Leg MAE Exit V6
+on:
+  push:
+    branches: [research/sol-leg-mae-exit-v6]
+    paths:
+      - 'research/sol_leg_mae_exit_v6.py'
+      - 'research/SOL_LEG_MAE_EXIT_V6_PREREG.md'
+      - '.github/workflows/sol_leg_mae_exit_v6.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests scipy scikit-learn
+      - run: python -m py_compile research/sol_leg_mae_exit_v6.py
+      - run: python research/sol_leg_mae_exit_v6.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-leg-mae-exit-v6
+          if-no-files-found: error
+          path: |
+            SOL_LEG_MAE_EXIT_V6_MAE.csv
+            SOL_LEG_MAE_EXIT_V6_SLGrid.csv
+            SOL_LEG_MAE_EXIT_V6_Selected.csv
+            SOL_LEG_MAE_EXIT_V6_SelectedTrades.csv
+            SOL_LEG_MAE_EXIT_V6_Result.md
+            SOL_LEG_MAE_EXIT_V6_Status.txt
+            research/SOL_LEG_MAE_EXIT_V6_PREREG.md
