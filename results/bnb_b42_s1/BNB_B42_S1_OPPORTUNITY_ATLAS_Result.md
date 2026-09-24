@@ -1,9 +1,3 @@
-labeled 25000/163009 decisions
-labeled 50000/163009 decisions
-labeled 75000/163009 decisions
-labeled 100000/163009 decisions
-labeled 125000/163009 decisions
-labeled 150000/163009 decisions
 # BNB B42-S1 — 1% Opportunity Atlas Result
 
 **Status: BNB_B42_S1_OPPORTUNITY_ATLAS_READY**
