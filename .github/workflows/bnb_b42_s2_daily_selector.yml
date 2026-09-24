@@ -1,0 +1,53 @@
+name: BNB B42-S2 causal daily selector
+
+on:
+  push:
+    branches:
+      - bnb-b42-vectorbt-opportunity-atlas
+    paths:
+      - '.bnb-b42-s2-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  b42-s2:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research stack
+        run: pip install vectorbt==1.1.0 plotly==5.24.1 scikit-learn==1.9.1 pandas==3.0.5 numpy==2.4.6 requests==2.34.2
+      - name: Run B42-S2
+        run: |
+          set -euo pipefail
+          python -m py_compile research/bnb_b42_s2_daily_selector.py
+          python research/bnb_b42_s2_daily_selector.py | tee BNB_B42_S2_DAILY_SELECTOR_Run.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bnb-b42-s2-daily-selector
+          path: |
+            BNB_B42_S2_DAILY_SELECTOR*
+          if-no-files-found: warn
+      - name: Persist evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p results/bnb_b42_s2
+          for f in BNB_B42_S2_DAILY_SELECTOR*; do
+            if [ -f "$f" ]; then cp "$f" results/bnb_b42_s2/; fi
+          done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/bnb_b42_s2
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Persist B42-S2 daily selector'
+            git pull --rebase origin bnb-b42-vectorbt-opportunity-atlas
+            git push origin HEAD:bnb-b42-vectorbt-opportunity-atlas
+          fi
