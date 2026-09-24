@@ -11,6 +11,7 @@ Only two V4 states are carried forward:
 2. ABSORPTION_RELEASE — second high-coverage structural state.
 
 State definitions are unchanged. No new state threshold is introduced.
+Signal-event semantics use the V5 OFF->ON rising edge of each parent state. V5 proved this is execution-equivalent to V4 under SL1, while providing a clean episode-start object for MAE measurement.
 
 ## Execution
 - completed 15m signal, next 15m open
