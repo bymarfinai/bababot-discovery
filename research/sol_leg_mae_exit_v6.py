@@ -177,7 +177,7 @@ def main():
                 a,b=period(yr,end);m=metrics(tr,a,b);yrm[yr]=m
                 hr=hit_rates(tr,legs,tp,a,b)
                 for k,v in m.items():srow[f"{yr}_{k}"]=v
-                srow[f"{yr}_leg_hit"]=hr["leg_hit_rate"];srow[f"{yr}_early_hit"]=hr["early_leg_hit_rate"]
+                srow[f"{yr}_leg_hit"]=hr["hit_rate"];srow[f"{yr}_early_hit"]=hr["early_hit_rate"]
             nref=yrm["2025"]["n"]+yrm["2026"]["n"]
             refexp=(yrm["2025"]["n"]*yrm["2025"]["exp"]+yrm["2026"]["n"]*yrm["2026"]["exp"])/nref if nref else np.nan
             gate=(yrm["2024"]["exp"]>0 and yrm["2025"]["exp"]>0 and yrm["2026"]["exp"]>0 and refexp>0
