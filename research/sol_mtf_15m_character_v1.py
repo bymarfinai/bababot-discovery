@@ -103,17 +103,18 @@ def build_signal_masks(q15: pd.DataFrame):
         reclaim = q15.close > prior_low
         depth = (prior_low - q15.low) / q15.atr20.replace(0, np.nan)
         base = sweep & reclaim
-        prev_sr_bull = (base & q15.bull).shift(1).fillna(False)
         for cloc in CLOSE_LOCS:
             loc_ok = q15.close_loc >= cloc
             for dep in DEPTHS:
                 dep_ok = depth >= dep
                 common = base & loc_ok & dep_ok
+                sr_bull = common & q15.bull
                 masks[(lb, cloc, dep, "SR_ANY")] = common
-                masks[(lb, cloc, dep, "SR_BULL")] = common & q15.bull
-                masks[(lb, cloc, dep, "SR_DISP")] = common & q15.bull & (q15.body_mult >= 1.25)
+                masks[(lb, cloc, dep, "SR_BULL")] = sr_bull
+                masks[(lb, cloc, dep, "SR_DISP")] = sr_bull & (q15.body_mult >= 1.25)
+                prev_sr_bull = sr_bull.shift(1).fillna(False)
                 masks[(lb, cloc, dep, "SR_FOLLOW")] = (
-                    prev_sr_bull & q15.bull & (q15.close > q15.high.shift(1)) & loc_ok
+                    prev_sr_bull & q15.bull & (q15.close > q15.high.shift(1))
                 )
     return masks
 
