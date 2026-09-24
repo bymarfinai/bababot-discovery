@@ -1,0 +1,36 @@
+name: SOL Long Leg Onset V2
+on:
+  push:
+    branches: [research/sol-long-leg-onset-v2]
+    paths:
+      - 'research/sol_long_leg_onset_v2.py'
+      - 'research/SOL_LONG_LEG_ONSET_V2_PREREG.md'
+      - '.github/workflows/sol_long_leg_onset_v2.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests scipy scikit-learn
+      - run: python -m py_compile research/sol_long_leg_onset_v2.py
+      - run: python research/sol_long_leg_onset_v2.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-long-leg-onset-v2
+          if-no-files-found: error
+          path: |
+            SOL_LONG_LEG_ONSET_V2_SelectedModels.csv
+            SOL_LONG_LEG_ONSET_V2_Transfer.csv
+            SOL_LONG_LEG_ONSET_V2_FeatureImportance.csv
+            SOL_LONG_LEG_ONSET_V2_SelectedTrades.csv
+            SOL_LONG_LEG_ONSET_V2_L2_ValidationGrid.csv
+            SOL_LONG_LEG_ONSET_V2_L3_ValidationGrid.csv
+            SOL_LONG_LEG_ONSET_V2_L5_ValidationGrid.csv
+            SOL_LONG_LEG_ONSET_V2_Result.md
+            SOL_LONG_LEG_ONSET_V2_Status.txt
+            research/SOL_LONG_LEG_ONSET_V2_PREREG.md
