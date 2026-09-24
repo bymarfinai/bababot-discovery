@@ -1,0 +1,31 @@
+name: SOL External Event Detectors V8
+on:
+  push:
+    branches: [research/sol-external-event-detectors-v8]
+    paths:
+      - 'research/sol_external_event_detectors_v8.py'
+      - 'research/SOL_EXTERNAL_EVENT_DETECTORS_V8_PREREG.md'
+      - '.github/workflows/sol_external_event_detectors_v8.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests scipy scikit-learn
+      - run: python -m py_compile research/sol_external_event_detectors_v8.py
+      - run: python research/sol_external_event_detectors_v8.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-external-event-detectors-v8
+          if-no-files-found: error
+          path: |
+            SOL_EXTERNAL_EVENT_DETECTORS_V8_Grid.csv
+            SOL_EXTERNAL_EVENT_DETECTORS_V8_SelectedFamilies.csv
+            SOL_EXTERNAL_EVENT_DETECTORS_V8_Result.md
+            SOL_EXTERNAL_EVENT_DETECTORS_V8_Status.txt
+            research/SOL_EXTERNAL_EVENT_DETECTORS_V8_PREREG.md
