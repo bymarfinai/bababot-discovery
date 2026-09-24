@@ -19,6 +19,7 @@ Trend-scanning was reviewed but is not used as an entry trigger because forward-
 - Entry = next 15m open.
 - One active position at a time.
 - Same-5m TP+SL ambiguity = loss.
+- Max hold = 24 hours for every exit configuration.
 - Round-trip cost = 0.15%.
 - Notional = USD500.
 
