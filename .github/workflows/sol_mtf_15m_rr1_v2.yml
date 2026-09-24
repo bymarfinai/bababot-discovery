@@ -1,0 +1,31 @@
+name: SOL MTF 15M RR1 V2
+on:
+  push:
+    branches: [research/sol-mtf-15m-rr1-v2]
+    paths:
+      - 'research/sol_mtf_15m_rr1_v2.py'
+      - 'research/SOL_MTF_15M_RR1_V2_PREREG.md'
+      - '.github/workflows/sol_mtf_15m_rr1_v2.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install pandas numpy requests scipy scikit-learn
+      - run: python -m py_compile research/sol_mtf_15m_rr1_v2.py
+      - run: python research/sol_mtf_15m_rr1_v2.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-mtf-15m-rr1-v2
+          if-no-files-found: error
+          path: |
+            SOL_MTF_15M_RR1_V2_Grid.csv
+            SOL_MTF_15M_RR1_V2_FullPass.csv
+            SOL_MTF_15M_RR1_V2_EconFreq.csv
+            SOL_MTF_15M_RR1_V2_Result.md
+            SOL_MTF_15M_RR1_V2_Status.txt
+            research/SOL_MTF_15M_RR1_V2_PREREG.md
