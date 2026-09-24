@@ -67,6 +67,7 @@ def build_features(x5: pd.DataFrame):
     h4_ctx = h4[["above20","ema_up"]].copy()
     h4_ctx["avail_time"] = h4_ctx.index + pd.Timedelta(hours=4)
 
+    q15["bar_start"] = q15.index
     q15["signal_end"] = q15.index + pd.Timedelta(minutes=15)
     q15["rng"] = q15.high - q15.low
     q15["close_loc"] = (q15.close - q15.low) / q15.rng.replace(0, np.nan)
@@ -77,21 +78,20 @@ def build_features(x5: pd.DataFrame):
     q15["bull"] = q15.close > q15.open
 
     q15 = pd.merge_asof(
-        q15.sort_values("signal_end"),
+        q15.reset_index(drop=True).sort_values("signal_end"),
         h1_ctx.dropna().sort_values("avail_time"),
         left_on="signal_end", right_on="avail_time",
         direction="backward"
-    ).set_index(q15.sort_values("signal_end").index)
-
+    )
     q15 = pd.merge_asof(
-        q15.reset_index(drop=False).sort_values("signal_end"),
+        q15.sort_values("signal_end"),
         h4_ctx.dropna().sort_values("avail_time"),
         left_on="signal_end", right_on="avail_time",
         direction="backward",
         suffixes=("","_h4")
     )
-    q15.index = pd.DatetimeIndex(q15["index"])
-    q15 = q15.drop(columns=["index"])
+    q15.index = pd.DatetimeIndex(q15["bar_start"])
+    q15 = q15.drop(columns=["bar_start"])
     return q15.sort_index(), h1, h4
 
 
