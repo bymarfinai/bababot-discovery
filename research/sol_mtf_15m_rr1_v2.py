@@ -126,16 +126,14 @@ class Trade:
     net_pct:float
     pnl_usd:float
 
-def resolve(st,x5,tp_pct,sl_pct):
-    idx=x5.index
+def resolve(st,idx,op,hi,lo,cl,tp_pct,sl_pct):
     p=int(idx.searchsorted(st+pd.Timedelta(minutes=15)))
     if p>=len(idx) or idx[p] != st+pd.Timedelta(minutes=15): return None
-    entry=float(x5.open.iloc[p])
+    entry=float(op[p])
     tp=entry*(1+tp_pct/100)
     sl=entry*(1-sl_pct/100)
     last=min(p+HOLD_5M-1,len(idx)-1)
-    out="TIME"; ex=last; gross=(float(x5.close.iloc[last])/entry-1)*100
-    hi=x5.high.astype(float).to_numpy(); lo=x5.low.astype(float).to_numpy()
+    out="TIME"; ex=last; gross=(float(cl[last])/entry-1)*100
     for j in range(p,last+1):
         ht=hi[j]>=tp; hs=lo[j]<=sl
         if ht and hs:
@@ -149,9 +147,14 @@ def resolve(st,x5,tp_pct,sl_pct):
 
 def build_cache(times,x5):
     cache={}
+    idx=x5.index
+    op=x5.open.astype(float).to_numpy()
+    hi=x5.high.astype(float).to_numpy()
+    lo=x5.low.astype(float).to_numpy()
+    cl=x5.close.astype(float).to_numpy()
     for st in times:
         for tp,sl in EXITS:
-            z=resolve(st,x5,tp,sl)
+            z=resolve(st,idx,op,hi,lo,cl,tp,sl)
             if z is not None: cache[(st,tp,sl)]=z
     return cache
 
