@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install research stack
-        run: pip install vectorbt==1.1.0 pandas==3.0.5 numpy==2.4.6 requests==2.34.2
+        run: pip install vectorbt==1.1.0 plotly==5.24.1 pandas==3.0.5 numpy==2.4.6 requests==2.34.2
       - name: Run B42-S1
         run: |
           set -euo pipefail
