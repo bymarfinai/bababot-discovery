@@ -1,0 +1,40 @@
+name: SOL Long Leg Capture V1
+on:
+  push:
+    branches: [research/sol-long-leg-capture-v1]
+    paths:
+      - 'research/sol_long_leg_capture_v1.py'
+      - 'research/SOL_LONG_LEG_CAPTURE_V1_PREREG.md'
+      - '.github/workflows/sol_long_leg_capture_v1.yml'
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests scipy scikit-learn
+      - run: python -m py_compile research/sol_long_leg_capture_v1.py
+      - run: python research/sol_long_leg_capture_v1.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-long-leg-capture-v1
+          if-no-files-found: error
+          path: |
+            SOL_LONG_LEG_CAPTURE_V1_WeeklyOpportunity.csv
+            SOL_LONG_LEG_CAPTURE_V1_ExPostLongLegs.csv
+            SOL_LONG_LEG_CAPTURE_V1_OpportunitySummary.csv
+            SOL_LONG_LEG_CAPTURE_V1_SelectedModels.csv
+            SOL_LONG_LEG_CAPTURE_V1_Transfer.csv
+            SOL_LONG_LEG_CAPTURE_V1_FeatureImportance.csv
+            SOL_LONG_LEG_CAPTURE_V1_SelectedTrades.csv
+            SOL_LONG_LEG_CAPTURE_V1_L2_ValidationGrid.csv
+            SOL_LONG_LEG_CAPTURE_V1_L3_ValidationGrid.csv
+            SOL_LONG_LEG_CAPTURE_V1_L5_ValidationGrid.csv
+            SOL_LONG_LEG_CAPTURE_V1_Result.md
+            SOL_LONG_LEG_CAPTURE_V1_Status.txt
+            research/SOL_LONG_LEG_CAPTURE_V1_PREREG.md
