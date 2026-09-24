@@ -1,0 +1,38 @@
+name: SOL Spot Futures Ignition V7C
+on:
+  push:
+    branches: [research/sol-spot-futures-ignition-v7c]
+    paths:
+      - 'research/sol_spot_futures_ignition_v7c.py'
+      - 'research/SOL_SPOT_FUTURES_IGNITION_V7C_PREREG.md'
+      - '.github/workflows/sol_spot_futures_ignition_v7c.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests scipy scikit-learn
+      - run: python -m py_compile research/sol_spot_futures_ignition_v7c.py
+      - run: python research/sol_spot_futures_ignition_v7c.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-spot-futures-ignition-v7c
+          if-no-files-found: error
+          path: |
+            SOL_SPOT_FUTURES_IGNITION_V7C_FuturesDiagnostics.csv
+            SOL_SPOT_FUTURES_IGNITION_V7C_SpotDiagnostics.csv
+            SOL_SPOT_FUTURES_IGNITION_V7C_EventFeatures.csv
+            SOL_SPOT_FUTURES_IGNITION_V7C_Coverage.csv
+            SOL_SPOT_FUTURES_IGNITION_V7C_Forensics.csv
+            SOL_SPOT_FUTURES_IGNITION_V7C_StableDifferentiators.csv
+            SOL_SPOT_FUTURES_IGNITION_V7C_Grid2024.csv
+            SOL_SPOT_FUTURES_IGNITION_V7C_FeatureImportance.csv
+            SOL_SPOT_FUTURES_IGNITION_V7C_Selected.csv
+            SOL_SPOT_FUTURES_IGNITION_V7C_Result.md
+            SOL_SPOT_FUTURES_IGNITION_V7C_Status.txt
+            research/SOL_SPOT_FUTURES_IGNITION_V7C_PREREG.md
