@@ -30,3 +30,21 @@ From that amendment onward:
 - do not score SOLUSDT for headline research;
 - preserve existing SOL artifacts unchanged;
 - apply BNB-only sample and quality gates from the amendment.
+
+
+## Connector payload handling patch
+
+For the live BNB option-mark step, do not emit the full all-options mark payload into the conversation/tool surface.
+
+Preferred execution:
+1. use `functions.exec` to call Binance option-mark data;
+2. filter to BNB contracts internally inside the orchestration call;
+3. emit/store only BNB rows required by the frozen 1d/~7d expiry calculations;
+4. if a direct all-options response is too large, do not mark capture failed before trying this internal-filter path;
+5. never reuse stale IV as a substitute.
+
+Append/update these evidence artifacts on every successful cycle:
+- `results/bnb_b41_iv_forward_v0/BNB_FORECAST_LEDGER.jsonl`
+- `results/bnb_b41_iv_forward_v0/BNB_EVALUATION_LEDGER.jsonl`
+- `results/bnb_b41_iv_forward_v0/BNB_DEDUP_SUMMARY.json`
+- `results/bnb_b41_iv_forward_v0/STATUS.json`
