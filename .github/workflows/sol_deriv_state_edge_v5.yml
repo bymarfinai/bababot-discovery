@@ -1,0 +1,32 @@
+name: SOL Derivatives State Edge V5
+on:
+  push:
+    branches: [research/sol-deriv-state-edge-v5]
+    paths:
+      - 'research/sol_deriv_state_edge_v5.py'
+      - 'research/SOL_DERIV_STATE_EDGE_V5_PREREG.md'
+      - '.github/workflows/sol_deriv_state_edge_v5.yml'
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests scipy scikit-learn
+      - run: python -m py_compile research/sol_deriv_state_edge_v5.py
+      - run: python research/sol_deriv_state_edge_v5.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sol-deriv-state-edge-v5
+          if-no-files-found: error
+          path: |
+            SOL_DERIV_STATE_EDGE_V5_Results.csv
+            SOL_DERIV_STATE_EDGE_V5_Gate.csv
+            SOL_DERIV_STATE_EDGE_V5_Trades.csv
+            SOL_DERIV_STATE_EDGE_V5_Result.md
+            SOL_DERIV_STATE_EDGE_V5_Status.txt
+            research/SOL_DERIV_STATE_EDGE_V5_PREREG.md
