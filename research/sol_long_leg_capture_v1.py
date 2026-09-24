@@ -374,7 +374,11 @@ def main():
     x5,cov = wf1.v3.v1.base.load5("SOLUSDT")
     if cov<0.995:
         raise RuntimeError("5m coverage too low")
-    x5=x5.sort_index()
+    x5=x5.sort_index().copy()
+    for c in ("open","high","low","close","volume"):
+        if c in x5.columns:
+            x5[c]=pd.to_numeric(x5[c],errors="coerce")
+    x5=x5.dropna(subset=["open","high","low","close"])
     end=min(pd.Timestamp("2026-09-24",tz="UTC"),x5.index[-1]+pd.Timedelta(minutes=5))
 
     q,cols=build_features(x5)
