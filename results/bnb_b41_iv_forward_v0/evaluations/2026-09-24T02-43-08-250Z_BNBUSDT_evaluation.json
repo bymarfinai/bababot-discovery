@@ -1,0 +1,26 @@
+{
+  "schema_version": "iv_hod_lod_forward_v0",
+  "forecast_id": "2026-09-24T02:43:08.250Z_BNBUSDT",
+  "snapshot_timestamp": "2026-09-24T02:43:08.250Z",
+  "window_end": "2026-09-24T03:43:08.250Z",
+  "symbol": "BNBUSDT",
+  "status": "COMPLETE",
+  "window_bar_interval": "5m",
+  "completed_bars_used": 12,
+  "window_extreme_low": 768.01,
+  "window_extreme_high": 776.46,
+  "touched_levels": 0,
+  "touched_primary_confluence": 0,
+  "touched_primary_singleton": 0,
+  "primary_confluence_outcomes": [
+    {
+      "name": "CONFLUENCE_LOWER_1",
+      "side": "LOWER",
+      "price": 753.1701329926118,
+      "members": ["HIST_WEEKLY_NORMAL_LOWER", "IV_DAILY_LOWER"],
+      "touched": false,
+      "capture_error_bps": 197.027428
+    }
+  ],
+  "note": "No frozen level was touched in the full causal +60m window. Untouched forecasts do not enter touched-sample promotion counts."
+}
