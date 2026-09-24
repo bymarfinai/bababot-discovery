@@ -161,12 +161,63 @@ class Trade:
     pnl_usd: float
 
 
-def simulate(mask: pd.Series, q15: pd.DataFrame, x5: pd.DataFrame, sl_pct: float):
+def resolve_trade(st: pd.Timestamp, x5: pd.DataFrame, sl_pct: float):
     idx5 = x5.index
     op5 = x5.open.astype(float).to_numpy()
     hi5 = x5.high.astype(float).to_numpy()
     lo5 = x5.low.astype(float).to_numpy()
     cl5 = x5.close.astype(float).to_numpy()
+    entry_time = st + pd.Timedelta(minutes=15)
+    pos = int(idx5.searchsorted(entry_time))
+    if pos >= len(idx5) or idx5[pos] != entry_time:
+        return None
+    entry = float(op5[pos])
+    if not np.isfinite(entry) or entry <= 0:
+        return None
+    tp = entry * (1.0 + TP_PCT/100.0)
+    sl = entry * (1.0 - sl_pct/100.0)
+    last = min(pos + HOLD_5M - 1, len(idx5) - 1)
+    outcome = "TIME"
+    exit_i = last
+    exit_px = float(cl5[last])
+    gross = (exit_px/entry - 1.0) * 100.0
+    for j in range(pos, last + 1):
+        hit_tp = hi5[j] >= tp
+        hit_sl = lo5[j] <= sl
+        if hit_tp and hit_sl:
+            outcome = "SL_AMBIG"
+            exit_i = j
+            exit_px = sl
+            gross = -sl_pct
+            break
+        if hit_sl:
+            outcome = "SL"
+            exit_i = j
+            exit_px = sl
+            gross = -sl_pct
+            break
+        if hit_tp:
+            outcome = "TP"
+            exit_i = j
+            exit_px = tp
+            gross = TP_PCT
+            break
+    net = gross - COST_PCT
+    pnl = net/100.0 * NOTIONAL
+    return Trade(st, entry_time, idx5[exit_i], entry, exit_px, outcome, gross, net, pnl)
+
+
+def build_outcome_cache(signal_times, x5: pd.DataFrame):
+    cache = {}
+    for st in signal_times:
+        for sl_pct in SL_GRID:
+            t = resolve_trade(st, x5, sl_pct)
+            if t is not None:
+                cache[(st, sl_pct)] = t
+    return cache
+
+
+def simulate(mask: pd.Series, q15: pd.DataFrame, sl_pct: float, cache):
     trades = []
     active_until = pd.Timestamp.min.tz_localize("UTC")
     sig_idx = q15.index[mask.fillna(False).to_numpy()]
@@ -174,46 +225,12 @@ def simulate(mask: pd.Series, q15: pd.DataFrame, x5: pd.DataFrame, sl_pct: float
         entry_time = st + pd.Timedelta(minutes=15)
         if entry_time <= active_until:
             continue
-        pos = int(idx5.searchsorted(entry_time))
-        if pos >= len(idx5) or idx5[pos] != entry_time:
+        t = cache.get((st, sl_pct))
+        if t is None:
             continue
-        entry = float(op5[pos])
-        if not np.isfinite(entry) or entry <= 0:
-            continue
-        tp = entry * (1.0 + TP_PCT/100.0)
-        sl = entry * (1.0 - sl_pct/100.0)
-        last = min(pos + HOLD_5M - 1, len(idx5) - 1)
-        outcome = "TIME"
-        exit_i = last
-        exit_px = float(cl5[last])
-        gross = (exit_px/entry - 1.0) * 100.0
-        for j in range(pos, last + 1):
-            hit_tp = hi5[j] >= tp
-            hit_sl = lo5[j] <= sl
-            if hit_tp and hit_sl:
-                outcome = "SL_AMBIG"
-                exit_i = j
-                exit_px = sl
-                gross = -sl_pct
-                break
-            if hit_sl:
-                outcome = "SL"
-                exit_i = j
-                exit_px = sl
-                gross = -sl_pct
-                break
-            if hit_tp:
-                outcome = "TP"
-                exit_i = j
-                exit_px = tp
-                gross = TP_PCT
-                break
-        net = gross - COST_PCT
-        pnl = net/100.0 * NOTIONAL
-        active_until = idx5[exit_i]
-        trades.append(Trade(st, entry_time, idx5[exit_i], entry, exit_px, outcome, gross, net, pnl))
+        active_until = t.exit_time
+        trades.append(t)
     return trades
-
 
 def partition_summary(trades, end_available):
     rows = []
@@ -255,13 +272,21 @@ def main():
     )
 
     all_rows = []
-    trade_rows = []
     contexts = {c: context_mask(q15, c) for c in CONTEXTS}
+
+    # Resolve each possible signal-time/SL path once. Grid variants only select
+    # among these frozen outcomes, preserving identical causal semantics.
+    union_mask = pd.Series(False, index=q15.index)
+    for m in masks.values():
+        union_mask = union_mask | m.fillna(False)
+    candidate_times = q15.index[union_mask.to_numpy()]
+    cache = build_outcome_cache(candidate_times, x5)
+
     for (lb, cloc, dep, trig), base_mask in masks.items():
         for ctx in CONTEXTS:
             m = base_mask & contexts[ctx]
             for sl in SL_GRID:
-                trades = simulate(m, q15, x5, sl)
+                trades = simulate(m, q15, sl, cache)
                 ps = partition_summary(trades, end_available)
                 by = {r["partition"]: r for r in ps}
                 valid = all(by[p]["n"] > 0 for p,_,_ in PARTITIONS)
