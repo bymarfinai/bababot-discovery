@@ -137,9 +137,9 @@ def main():
     end=min(END_CAP,x5.index[-1]+pd.Timedelta(minutes=5))
 
     print("load flow",flush=True);flow,_=v3.load_flow15(end)
-    print("load metrics",flush=True);metrics,_=v3.load_metrics(end)
+    print("load metrics",flush=True);metric_df,_=v3.load_metrics(end)
     print("load funding",flush=True);funding,_=v3.load_funding(end)
-    q,_=v1.build_features(x5);q=v3.join_external(q,flow,metrics,funding);q,states=v4.build_states(q)
+    q,_=v1.build_features(x5);q=v3.join_external(q,flow,metric_df,funding);q,states=v4.build_states(q)
     edges={n:(m.fillna(False)&(~m.shift(1).fillna(False))) for n,m in states.items()}
     legs=v1.zigzag_long_legs(q,end)
 
