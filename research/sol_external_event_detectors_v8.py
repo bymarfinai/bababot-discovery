@@ -19,6 +19,8 @@ COST=0.15
 NOTIONAL=500.0
 HOLD5=288
 EXITS=((1.0,1.0),(1.5,1.0),(1.5,1.5),(2.0,1.0),(2.0,1.5),(2.0,2.0),(3.0,1.5),(3.0,2.0),(3.0,3.0))
+_X5_CACHE=None
+_OUTCOME_CACHE={}
 
 def resample_complete(x5):
     z=x5.resample("15min",label="left",closed="left").agg(
@@ -131,10 +133,18 @@ def weeks_between(start,end):
     return pd.date_range(week_start(start),week_start(end-pd.Timedelta(seconds=1)),freq="7D",tz="UTC")
 
 def resolve_signal(st,x5,tp,sl):
-    idx=x5.index
+    global _X5_CACHE,_OUTCOME_CACHE
+    key=(int(pd.Timestamp(st).value),float(tp),float(sl))
+    if key in _OUTCOME_CACHE:
+        return _OUTCOME_CACHE[key]
+    if _X5_CACHE is None:
+        _X5_CACHE=(x5.index,x5.open.astype(float).to_numpy(),x5.high.astype(float).to_numpy(),
+                   x5.low.astype(float).to_numpy(),x5.close.astype(float).to_numpy())
+    idx,O,H,L,C=_X5_CACHE
     p=int(idx.searchsorted(st+pd.Timedelta(minutes=15)))
-    if p>=len(idx) or idx[p]!=st+pd.Timedelta(minutes=15):return None
-    O=x5.open.astype(float).to_numpy();H=x5.high.astype(float).to_numpy();L=x5.low.astype(float).to_numpy();C=x5.close.astype(float).to_numpy()
+    if p>=len(idx) or idx[p]!=st+pd.Timedelta(minutes=15):
+        _OUTCOME_CACHE[key]=None
+        return None
     entry=float(O[p]);T=entry*(1+tp/100);S=entry*(1-sl/100)
     last=min(p+HOLD5-1,len(idx)-1)
     ex=last;reason="TIME";gross=(float(C[last])/entry-1)*100
@@ -147,8 +157,10 @@ def resolve_signal(st,x5,tp,sl):
         if ht:
             reason="TP";gross=tp;ex=j;break
     net=gross-COST
-    return {"signal_time":st,"entry_time":idx[p],"exit_time":idx[ex],"outcome":reason,
-            "win":int(reason=="TP"),"net":net,"pnl":net/100*NOTIONAL}
+    out={"signal_time":st,"entry_time":idx[p],"exit_time":idx[ex],"outcome":reason,
+         "win":int(reason=="TP"),"net":net,"pnl":net/100*NOTIONAL}
+    _OUTCOME_CACHE[key]=out
+    return out
 
 def simulate(signal_times,x5,tp,sl,start,end):
     active=pd.Timestamp.min.tz_localize("UTC");rows=[]
