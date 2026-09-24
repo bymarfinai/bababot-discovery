@@ -1,0 +1,172 @@
+{
+  "schema_version": "iv_hod_lod_forward_v0",
+  "forecast_id": "2026-09-24T04:49:49.765Z_BNBUSDT",
+  "snapshot_timestamp": "2026-09-24T04:49:49.765Z",
+  "window_end": "2026-09-24T05:49:49.765Z",
+  "engine_signature_sha256": "0579e22b9bf36a5c55f496c8ee067edf73b7e6b6a8d635c4b461850094c8f34d",
+  "eligible_for_promotion": true,
+  "symbol": "BNBUSDT",
+  "spot": 769.30083747,
+  "iv_inputs": {
+    "target_1d": {
+      "expiry": 1790323200000,
+      "dte_days": 1.1320629050925926,
+      "atmPair": {
+        "strike": 770,
+        "call": "BNB-260925-770-C",
+        "put": "BNB-260925-770-P",
+        "callAskIV": 0.41663527,
+        "putAskIV": 0.40118456,
+        "avgAskIV": 0.408909915
+      },
+      "surface_count": 8,
+      "surface_avg_ask_iv": 0.9503605962499999
+    },
+    "target_7d": {
+      "expiry": 1790928000000,
+      "dte_days": 8.132062905092592,
+      "atmPair": {
+        "strike": 760,
+        "call": "BNB-261002-760-C",
+        "put": "BNB-261002-760-P",
+        "callAskIV": 0.51518202,
+        "putAskIV": 0.40439665,
+        "avgAskIV": 0.459789335
+      },
+      "surface_count": 10,
+      "surface_avg_ask_iv": 0.7039327
+    }
+  },
+  "range_stats": {
+    "daily_60": {
+      "n": 60,
+      "current_open": 767.76,
+      "median_up": 0.013689883287672878,
+      "median_down": 0.008364081260580207,
+      "q75_up": 0.02217981274168425,
+      "q75_down": 0.019692994980389577
+    },
+    "weekly_26": {
+      "n": 26,
+      "current_open": 773.11,
+      "median_up": 0.033834393792935416,
+      "median_down": 0.02945529720546824,
+      "q75_up": 0.07329800525172506,
+      "q75_down": 0.04685326092403212
+    }
+  },
+  "levels": [
+    {
+      "name": "IV_DAILY_LOWER",
+      "side": "LOWER",
+      "price": 752.8352430310372,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "IV_DAILY_UPPER",
+      "side": "UPPER",
+      "price": 785.7664319089629,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "IV_WEEKLY_LOWER",
+      "side": "LOWER",
+      "price": 720.3164494736114,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "IV_WEEKLY_UPPER",
+      "side": "UPPER",
+      "price": 818.2852254663886,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "SURFACE_WEEKLY_LOWER",
+      "side": "LOWER",
+      "price": 694.3062478278862,
+      "primary": false,
+      "diagnostic_only": true,
+      "members": []
+    },
+    {
+      "name": "SURFACE_WEEKLY_UPPER",
+      "side": "UPPER",
+      "price": 844.2954271121139,
+      "primary": false,
+      "diagnostic_only": true,
+      "members": []
+    },
+    {
+      "name": "HIST_DAILY_NORMAL_LOWER",
+      "side": "LOWER",
+      "price": 761.338392971377,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "HIST_DAILY_NORMAL_UPPER",
+      "side": "UPPER",
+      "price": 778.2705447929437,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "HIST_WEEKLY_NORMAL_LOWER",
+      "side": "LOWER",
+      "price": 750.3378151774805,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "HIST_WEEKLY_NORMAL_UPPER",
+      "side": "UPPER",
+      "price": 799.2677081852564,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "HIST_WEEKLY_Q75_LOWER",
+      "side": "LOWER",
+      "price": 736.8872754470216,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "HIST_WEEKLY_Q75_UPPER",
+      "side": "UPPER",
+      "price": 829.7774208401612,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "CONFLUENCE_LOWER_1",
+      "side": "LOWER",
+      "price": 751.5865291042588,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": [
+        "HIST_WEEKLY_NORMAL_LOWER",
+        "IV_DAILY_LOWER"
+      ]
+    }
+  ],
+  "evaluation": {
+    "status": "PENDING",
+    "bars_5m": [],
+    "level_outcomes": []
+  }
+}
