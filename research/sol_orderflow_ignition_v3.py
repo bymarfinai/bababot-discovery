@@ -280,27 +280,37 @@ def probe_liquidation(ds):
     except Exception as e:
         return {"date":ds,"exists":False,"status":None,"rows":0,"error":type(e).__name__}
 
+def _ns_index(values):
+    return pd.DatetimeIndex(values).as_unit("ns")
+
 def join_external(q,flow,metrics,funding):
     z=q.copy()
+    z.index=_ns_index(z.index)
     # Same completed 15m candle: flow row keyed by bar start.
-    f=flow.set_index("ts")
+    f=flow.copy()
+    f["ts"]=_ns_index(f["ts"])
+    f=f.set_index("ts")
     z=z.join(f,how="left")
-    z["signal_end"]=z.index+pd.Timedelta(minutes=15)
-    z["bar_start"]=z.index
-    m=metrics.copy().sort_values("ts")
+    z["signal_end"]=_ns_index(z.index+pd.Timedelta(minutes=15))
+    z["bar_start"]=_ns_index(z.index)
+    m=metrics.copy()
+    m["ts"]=_ns_index(m["ts"])
+    m=m.sort_values("ts")
     z=pd.merge_asof(z.reset_index(drop=True).sort_values("signal_end"),m,
                     left_on="signal_end",right_on="ts",direction="backward",
                     tolerance=pd.Timedelta(minutes=15),allow_exact_matches=False,
                     suffixes=("","_metric_ts"))
     if "ts" in z.columns:z=z.drop(columns=["ts"])
     if len(funding):
-        ff=funding.sort_values("ts")
+        ff=funding.copy()
+        ff["ts"]=_ns_index(ff["ts"])
+        ff=ff.sort_values("ts")
         z=pd.merge_asof(z.sort_values("signal_end"),ff,left_on="signal_end",right_on="ts",
                         direction="backward",allow_exact_matches=False,suffixes=("","_fund_ts"))
         if "ts" in z.columns:z=z.drop(columns=["ts"])
     else:
         z["funding_rate"]=np.nan;z["funding_z30"]=np.nan;z["funding_chg"]=np.nan
-    z.index=pd.DatetimeIndex(z.bar_start)
+    z.index=_ns_index(z.bar_start)
     return z.drop(columns=["bar_start"]).sort_index()
 
 def select_and_eval(target,spec,d,cols,outs,legs,weekly,feature_set,end):
