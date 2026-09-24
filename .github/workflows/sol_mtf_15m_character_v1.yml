@@ -1,0 +1,38 @@
+name: SOL MTF 15M Character V1
+
+on:
+  push:
+    branches: [research/sol-mtf-15m-character-v1]
+    paths:
+      - 'research/sol_mtf_15m_character_v1.py'
+      - 'research/SOL_MTF_15M_CHARACTER_V1_PREREG.md'
+      - '.github/workflows/sol_mtf_15m_character_v1.yml'
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas numpy requests scipy scikit-learn
+      - name: Compile
+        run: python -m py_compile research/sol_mtf_15m_character_v1.py
+      - name: Run
+        run: python research/sol_mtf_15m_character_v1.py
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: sol-mtf-15m-character-v1
+          if-no-files-found: error
+          path: |
+            SOL_MTF_15M_CHARACTER_V1_Grid.csv
+            SOL_MTF_15M_CHARACTER_V1_Shortlist.csv
+            SOL_MTF_15M_CHARACTER_V1_FullPass.csv
+            SOL_MTF_15M_CHARACTER_V1_Result.md
+            SOL_MTF_15M_CHARACTER_V1_Status.txt
+            research/SOL_MTF_15M_CHARACTER_V1_PREREG.md
