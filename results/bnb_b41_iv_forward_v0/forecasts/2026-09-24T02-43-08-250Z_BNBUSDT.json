@@ -1,0 +1,165 @@
+{
+  "schema_version": "iv_hod_lod_forward_v0",
+  "forecast_id": "2026-09-24T02:43:08.250Z_BNBUSDT",
+  "snapshot_timestamp": "2026-09-24T02:43:08.250Z",
+  "window_end": "2026-09-24T03:43:08.250Z",
+  "engine_signature_sha256": "0579e22b9bf36a5c55f496c8ee067edf73b7e6b6a8d635c4b461850094c8f34d",
+  "eligible_for_promotion": true,
+  "symbol": "BNBUSDT",
+  "spot": 772.03005548,
+  "iv_inputs": {
+    "target_1d": {
+      "expiry": 1790323200000,
+      "dte_days": 1.2200434027777778,
+      "atmPair": {
+        "strike": 770,
+        "call": "BNB-260925-770-C",
+        "put": "BNB-260925-770-P",
+        "avgAskIV": 0.396625695,
+        "callAskIV": 0.40694177,
+        "putAskIV": 0.38630962
+      },
+      "surface_avg_ask_iv": 0.41122026500000003,
+      "surface_count": 8
+    },
+    "target_7d": {
+      "expiry": 1790928000000,
+      "dte_days": 8.220043402777778,
+      "atmPair": {
+        "strike": 780,
+        "call": "BNB-261002-780-C",
+        "put": "BNB-261002-780-P",
+        "avgAskIV": 0.405422745,
+        "callAskIV": 0.40940344,
+        "putAskIV": 0.40144205
+      },
+      "surface_avg_ask_iv": 0.5330963563636364,
+      "surface_count": 11
+    }
+  },
+  "levels": [
+    {
+      "name": "IV_DAILY_LOWER",
+      "side": "LOWER",
+      "price": 756.0024508077431,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "IV_DAILY_UPPER",
+      "side": "UPPER",
+      "price": 788.0576601522569,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "IV_WEEKLY_LOWER",
+      "side": "LOWER",
+      "price": 728.6844667991053,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "IV_WEEKLY_UPPER",
+      "side": "UPPER",
+      "price": 815.3756441608947,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "SURFACE_WEEKLY_LOWER",
+      "side": "LOWER",
+      "price": 715.0343006162174,
+      "primary": false,
+      "diagnostic_only": true,
+      "members": []
+    },
+    {
+      "name": "SURFACE_WEEKLY_UPPER",
+      "side": "UPPER",
+      "price": 829.0258103437826,
+      "primary": false,
+      "diagnostic_only": true,
+      "members": []
+    },
+    {
+      "name": "HIST_DAILY_NORMAL_LOWER",
+      "side": "LOWER",
+      "price": 761.338392971377,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "HIST_DAILY_NORMAL_UPPER",
+      "side": "UPPER",
+      "price": 778.2705447929437,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "HIST_WEEKLY_NORMAL_LOWER",
+      "side": "LOWER",
+      "price": 750.3378151774805,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "HIST_WEEKLY_NORMAL_UPPER",
+      "side": "UPPER",
+      "price": 799.2677081852564,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "HIST_WEEKLY_Q75_LOWER",
+      "side": "LOWER",
+      "price": 736.8872754470216,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "HIST_WEEKLY_Q75_UPPER",
+      "side": "UPPER",
+      "price": 829.7774208401612,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    },
+    {
+      "name": "CONFLUENCE_LOWER_1",
+      "side": "LOWER",
+      "price": 753.1701329926118,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": [
+        "HIST_WEEKLY_NORMAL_LOWER",
+        "IV_DAILY_LOWER"
+      ]
+    },
+    {
+      "name": "CONFLUENCE_UPPER_2",
+      "side": "UPPER",
+      "price": 829.4016155919719,
+      "primary": false,
+      "diagnostic_only": true,
+      "members": [
+        "SURFACE_WEEKLY_UPPER",
+        "HIST_WEEKLY_Q75_UPPER"
+      ]
+    }
+  ],
+  "evaluation": {
+    "status": "PENDING",
+    "bars_5m": [],
+    "level_outcomes": []
+  }
+}
