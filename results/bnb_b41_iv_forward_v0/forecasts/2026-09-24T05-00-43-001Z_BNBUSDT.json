@@ -1,0 +1,33 @@
+{
+  "schema_version": "iv_hod_lod_forward_v0",
+  "forecast_id": "2026-09-24T05:00:43.001Z_BNBUSDT",
+  "snapshot_timestamp": "2026-09-24T05:00:43.001Z",
+  "window_end": "2026-09-24T06:00:43.001Z",
+  "engine_signature_sha256": "0579e22b9bf36a5c55f496c8ee067edf73b7e6b6a8d635c4b461850094c8f34d",
+  "eligible_for_promotion": true,
+  "symbol": "BNBUSDT",
+  "spot": 771.29745575,
+  "iv_inputs": {
+    "target_1d": {"expiry":1790323200000,"dte_days":1.1245023032407406,"atmPair":{"strike":770,"call":"BNB-260925-770-C","put":"BNB-260925-770-P","callAskIV":0.42157948,"putAskIV":0.39547443,"avgAskIV":0.408526955}},
+    "target_7d": {"expiry":1790928000000,"dte_days":8.12450230324074,"atmPair":{"strike":760,"call":"BNB-261002-760-C","put":"BNB-261002-760-P","callAskIV":0.42248726,"putAskIV":0.40373862,"avgAskIV":0.41311294},"surface_count":9,"surface_avg_ask_iv":0.42763941777777775}
+  },
+  "range_stats": {"daily_60":{"n":60,"current_open":767.76,"median_up":0.013689883287672878,"median_down":0.008364081260580207,"q75_up":0.02217981274168425,"q75_down":0.019692994980389577},"weekly_26":{"n":26,"current_open":773.11,"median_up":0.033834393792935416,"median_down":0.02945529720546824,"q75_up":0.07329800525172506,"q75_down":0.04685326092403212}},
+  "levels": [
+    {"name":"IV_DAILY_LOWER","side":"LOWER","price":753.8079974551919,"primary":true,"diagnostic_only":false,"members":[]},
+    {"name":"IV_DAILY_UPPER","side":"UPPER","price":788.7869140448082,"primary":true,"diagnostic_only":false,"members":[]},
+    {"name":"IV_WEEKLY_LOWER","side":"LOWER","price":723.7592650736535,"primary":true,"diagnostic_only":false,"members":[]},
+    {"name":"IV_WEEKLY_UPPER","side":"UPPER","price":818.8356464263466,"primary":true,"diagnostic_only":false,"members":[]},
+    {"name":"SURFACE_WEEKLY_LOWER","side":"LOWER","price":722.0876581023113,"primary":false,"diagnostic_only":true,"members":[]},
+    {"name":"SURFACE_WEEKLY_UPPER","side":"UPPER","price":820.5072533976888,"primary":false,"diagnostic_only":true,"members":[]},
+    {"name":"HIST_DAILY_NORMAL_LOWER","side":"LOWER","price":761.338392971377,"primary":true,"diagnostic_only":false,"members":[]},
+    {"name":"HIST_DAILY_NORMAL_UPPER","side":"UPPER","price":778.2705447929437,"primary":true,"diagnostic_only":false,"members":[]},
+    {"name":"HIST_WEEKLY_NORMAL_LOWER","side":"LOWER","price":750.3378151774805,"primary":true,"diagnostic_only":false,"members":[]},
+    {"name":"HIST_WEEKLY_NORMAL_UPPER","side":"UPPER","price":799.2677081852564,"primary":true,"diagnostic_only":false,"members":[]},
+    {"name":"HIST_WEEKLY_Q75_LOWER","side":"LOWER","price":736.8872754470216,"primary":true,"diagnostic_only":false,"members":[]},
+    {"name":"HIST_WEEKLY_Q75_UPPER","side":"UPPER","price":829.7774208401612,"primary":true,"diagnostic_only":false,"members":[]},
+    {"name":"CONFLUENCE_LOWER_1","side":"LOWER","price":752.0729063163362,"primary":true,"diagnostic_only":false,"members":["HIST_WEEKLY_NORMAL_LOWER","IV_DAILY_LOWER"]},
+    {"name":"CONFLUENCE_UPPER_2","side":"UPPER","price":819.6714499120177,"primary":false,"diagnostic_only":true,"members":["IV_WEEKLY_UPPER","SURFACE_WEEKLY_UPPER"]},
+    {"name":"CONFLUENCE_LOWER_3","side":"LOWER","price":722.9234615879824,"primary":false,"diagnostic_only":true,"members":["SURFACE_WEEKLY_LOWER","IV_WEEKLY_LOWER"]}
+  ],
+  "evaluation": {"status":"PENDING","bars_5m":[],"level_outcomes":[]}
+}
