@@ -226,7 +226,7 @@ def main():
            "Economics: **TP +1.0% / SL -1.0% (RR 1:1), 0.15% RT cost, USD500 notional.**","",
            "## Selected on 2024 only","",
            f"- RF depth **{int(ch.depth)}**, min leaf **{int(ch.leaf)}**",
-           f"- quantile **{ch.quantile:.3f}**, threshold **{th:.6f}**",
+           f"- quantile **{float(ch[\"quantile\"]):.3f}**, threshold **{th:.6f}**",
            f"- 2024 WR **{ch.wr*100:.2f}%**, frequency **{ch.tpd:.3f}/day**, net exp **{ch.exp:.4f}%/trade**","",
            "## Frozen transfer","",
            "|Partition|N|WR|Trades/day|Net exp/trade|PnL USD500|Timeouts|",
