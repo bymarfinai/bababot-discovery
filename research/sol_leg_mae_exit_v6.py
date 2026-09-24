@@ -58,7 +58,7 @@ def sim_signals(signal_times,x5,tp,sl,hold5):
                 reason="SL";ex=j;gross=-sl;break
             if ht:
                 reason="TP";ex=j;gross=tp;break
-        net=gross-v1.COST_PCT
+        net=gross-v1.COST
         rows.append({"signal_time":st,"entry_time":idx[p],"exit_time":idx[ex],
                      "outcome":reason,"gross":gross,"net":net,"pnl":net/100*v1.NOTIONAL})
         active=idx[ex]
