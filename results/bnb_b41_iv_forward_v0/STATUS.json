@@ -15,9 +15,9 @@
   "last_evaluation_result":"COMPLETE_NO_TOUCH",
   "last_window_extreme_low":765.77,
   "last_window_extreme_high":770.10,
-  "last_capture_attempt":"2026-09-24T12:02:58.000Z",
+  "last_capture_attempt":"2026-09-24T12:59:27.000Z",
   "last_capture_status":"FAILED",
-  "last_capture_error":"Fresh BNB index and BNBUSDT futures data were available, but the all-options mark payload could not be safely reduced to the frozen BNB 1d/~7d surface in this runtime: the requested internal functions.exec filtering path is not exposed. Direct all-options retrieval was attempted before declaring failure; no stale or partial IV was substituted.",
+  "last_capture_error":"Fresh BNB options exchange information, BNB underlying index and BNBUSDT futures data were queried. Direct all-options mark retrieval was also attempted, but the required internal functions.exec orchestration/filter path is not exposed in this runtime, so the oversized all-options payload could not be safely reduced to the frozen BNB 1d/~7d surface. No stale or partial IV was substituted and no new forecast was created.",
   "last_fresh_forecast":"2026-09-24T10:01:05.000Z_BNBUSDT",
   "bnb_eligible_forecasts_created":6
 }
