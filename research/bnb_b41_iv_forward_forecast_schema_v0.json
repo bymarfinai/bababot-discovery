@@ -1,0 +1,25 @@
+{
+  "schema_version": "iv_hod_lod_forward_v0",
+  "forecast_id": "<ISO timestamp>_<symbol>",
+  "snapshot_timestamp": "<UTC ISO>",
+  "engine_signature_sha256": "0579e22b9bf36a5c55f496c8ee067edf73b7e6b6a8d635c4b461850094c8f34d",
+  "symbol": "BNBUSDT|SOLUSDT",
+  "spot": 0.0,
+  "levels": [
+    {
+      "level_id": "<forecast_id>:<name>",
+      "name": "IV_DAILY_LOWER",
+      "side": "LOWER|UPPER",
+      "price": 0.0,
+      "primary": true,
+      "diagnostic_only": false,
+      "members": []
+    }
+  ],
+  "evaluation": {
+    "window_end": "<UTC ISO>",
+    "status": "PENDING|COMPLETE",
+    "bars_5m": [],
+    "level_outcomes": []
+  }
+}
