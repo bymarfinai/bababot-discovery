@@ -2,27 +2,22 @@
   "status": "BNB_IV_HOD_LOD_V0_FORWARD_VALIDATION_ACCUMULATING",
   "engine_signature_sha256": "0579e22b9bf36a5c55f496c8ee067edf73b7e6b6a8d635c4b461850094c8f34d",
   "first_eligible_forecast_timestamp": "2026-09-24T02:43:08.250Z",
-  "eligible_forecasts_created": 2,
+  "eligible_forecasts_created": 3,
   "de_duplicated_touched_confluence": 0,
   "promotion_sample_gate_reached": false,
   "active_asset": "BNBUSDT",
-  "frozen_assets": [
-    "SOLUSDT"
-  ],
+  "frozen_assets": ["SOLUSDT"],
   "bnb_only_amendment": true,
   "bnb_touched_primary_confluence": 0,
   "bnb_touched_primary_singleton": 0,
-  "bnb_sample_gate": {
-    "primary_confluence": 30,
-    "primary_singleton": 30
-  },
+  "bnb_sample_gate": {"primary_confluence":30,"primary_singleton":30},
   "last_evaluated_forecast": "2026-09-24T02:43:08.250Z_BNBUSDT",
   "last_evaluation_result": "COMPLETE_NO_TOUCH",
   "last_window_extreme_low": 768.25,
   "last_window_extreme_high": 776.3,
-  "last_capture_attempt": "2026-09-24T04:49:49.765Z",
+  "last_capture_attempt": "2026-09-24T05:00:43.001Z",
   "last_capture_status": "SUCCESS_FRESH_BNB_FORECAST_PERSISTED",
   "last_capture_error": null,
-  "last_fresh_forecast": "2026-09-24T04:49:49.765Z_BNBUSDT",
-  "bnb_eligible_forecasts_created": 2
+  "last_fresh_forecast": "2026-09-24T05:00:43.001Z_BNBUSDT",
+  "bnb_eligible_forecasts_created": 3
 }
