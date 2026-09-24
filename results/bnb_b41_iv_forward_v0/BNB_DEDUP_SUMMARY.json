@@ -1,0 +1,10 @@
+{
+  "active_asset": "BNBUSDT",
+  "de_duplicated_touched_primary_confluence": 0,
+  "de_duplicated_touched_primary_singleton": 0,
+  "sample_gate": {
+    "primary_confluence": 30,
+    "primary_singleton": 30
+  },
+  "sample_gate_reached": false
+}
