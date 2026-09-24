@@ -3,3 +3,5 @@
 {"forecast_id":"2026-09-24T04:49:49.765Z_BNBUSDT","evaluated_at":"2026-09-24T07:01:29Z","window_low":769.5,"window_high":776.15,"primary_confluence_touched":0,"primary_singleton_touched":0,"result":"COMPLETE_NO_TOUCH"}
 {"forecast_id":"2026-09-24T05:00:43.001Z_BNBUSDT","evaluated_at":"2026-09-24T07:01:29Z","window_low":772.23,"window_high":776.15,"primary_confluence_touched":0,"primary_singleton_touched":0,"result":"COMPLETE_NO_TOUCH"}
 {"cycle_timestamp":"2026-09-24T07:36:14.000Z","result":"NO_PENDING_FORECAST_WITH_COMPLETE_60M_WINDOW","next_pending_forecast":"2026-09-24T07:36:14.000Z_BNBUSDT","next_window_end":"2026-09-24T08:36:14.000Z"}
+{"forecast_id":"2026-09-24T07:36:14.000Z_BNBUSDT","evaluated_at":"2026-09-24T09:01:02.000Z","window_low":769.19,"window_high":777.27,"primary_confluence_touched":0,"primary_singleton_touched":0,"result":"COMPLETE_NO_TOUCH"}
+{"cycle_timestamp":"2026-09-24T09:01:02.000Z","result":"FRESH_BNB_FORECAST_CAPTURED","next_pending_forecast":"2026-09-24T09:01:02.000Z_BNBUSDT","next_window_end":"2026-09-24T10:01:02.000Z"}
