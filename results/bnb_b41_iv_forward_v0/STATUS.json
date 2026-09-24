@@ -2,7 +2,7 @@
   "status":"BNB_IV_HOD_LOD_V0_FORWARD_VALIDATION_ACCUMULATING",
   "engine_signature_sha256":"0579e22b9bf36a5c55f496c8ee067edf73b7e6b6a8d635c4b461850094c8f34d",
   "first_eligible_forecast_timestamp":"2026-09-24T02:43:08.250Z",
-  "eligible_forecasts_created":4,
+  "eligible_forecasts_created":5,
   "de_duplicated_touched_confluence":0,
   "promotion_sample_gate_reached":false,
   "active_asset":"BNBUSDT",
@@ -11,13 +11,13 @@
   "bnb_touched_primary_confluence":0,
   "bnb_touched_primary_singleton":0,
   "bnb_sample_gate":{"primary_confluence":30,"primary_singleton":30},
-  "last_evaluated_forecast":"2026-09-24T05:00:43.001Z_BNBUSDT",
+  "last_evaluated_forecast":"2026-09-24T07:36:14.000Z_BNBUSDT",
   "last_evaluation_result":"COMPLETE_NO_TOUCH",
-  "last_window_extreme_low":772.23,
-  "last_window_extreme_high":776.15,
-  "last_capture_attempt":"2026-09-24T07:36:14.000Z",
+  "last_window_extreme_low":769.19,
+  "last_window_extreme_high":777.27,
+  "last_capture_attempt":"2026-09-24T09:01:02.000Z",
   "last_capture_status":"SUCCESS",
   "last_capture_error":null,
-  "last_fresh_forecast":"2026-09-24T07:36:14.000Z_BNBUSDT",
-  "bnb_eligible_forecasts_created":4
+  "last_fresh_forecast":"2026-09-24T09:01:02.000Z_BNBUSDT",
+  "bnb_eligible_forecasts_created":5
 }
