@@ -1,0 +1,88 @@
+{
+  "schema_version": "bnb_b43_s2_forward_v1",
+  "promotion_eligible": true,
+  "snapshot_timestamp": "2026-09-25T02:55:10.298Z",
+  "snapshot_server_time_ms": 1790304910298,
+  "underlying": "BNBUSDT",
+  "index_price": 774.50165995,
+  "parent_s1_signature": "639567dd76cd129cb0085c7c29d7f9a7e00ae4c0fc2b59a58cad270871212211",
+  "buckets": {
+    "D0": {
+      "expiry_ms": 1790409600000,
+      "expiry_iso": "2026-09-26T08:00:00.000Z",
+      "days_to_expiry": 1.2116863657407408,
+      "atm_strike": 775,
+      "call_symbol": "BNB-260926-775-C",
+      "put_symbol": "BNB-260926-775-P",
+      "call_askIV": 0.40155053,
+      "put_askIV": 0.39551616,
+      "avg_askIV": 0.39853334500000004,
+      "call_markIV": 0.36503136,
+      "put_markIV": 0.35618693,
+      "avg_markIV": 0.360609145,
+      "expected_move_ask_1sigma": 17.784255765951865,
+      "levels": {
+        "LOWER_0_5SIGMA": 765.609532067024,
+        "UPPER_0_5SIGMA": 783.3937878329759,
+        "LOWER_1SIGMA": 756.7174041840481,
+        "UPPER_1SIGMA": 792.2859157159519
+      }
+    },
+    "D1": {
+      "expiry_ms": 1790409600000,
+      "expiry_iso": "2026-09-26T08:00:00.000Z",
+      "days_to_expiry": 1.2116863657407408,
+      "atm_strike": 775,
+      "call_symbol": "BNB-260926-775-C",
+      "put_symbol": "BNB-260926-775-P",
+      "call_askIV": 0.40155053,
+      "put_askIV": 0.39551616,
+      "avg_askIV": 0.39853334500000004,
+      "call_markIV": 0.36503136,
+      "put_markIV": 0.35618693,
+      "avg_markIV": 0.360609145,
+      "expected_move_ask_1sigma": 17.784255765951865,
+      "levels": {
+        "LOWER_0_5SIGMA": 765.609532067024,
+        "UPPER_0_5SIGMA": 783.3937878329759,
+        "LOWER_1SIGMA": 756.7174041840481,
+        "UPPER_1SIGMA": 792.2859157159519
+      }
+    },
+    "W1": {
+      "expiry_ms": 1790928000000,
+      "expiry_iso": "2026-10-02T08:00:00.000Z",
+      "days_to_expiry": 7.211686365740741,
+      "atm_strike": 780,
+      "call_symbol": "BNB-261002-780-C",
+      "put_symbol": "BNB-261002-780-P",
+      "call_askIV": 0.39962113,
+      "put_askIV": 0.39250851,
+      "avg_askIV": 0.39606482,
+      "call_markIV": 0.37762135,
+      "put_markIV": 0.36354065,
+      "avg_markIV": 0.37058100000000005,
+      "expected_move_ask_1sigma": 43.11819821423647,
+      "levels": {
+        "LOWER_0_5SIGMA": 752.9425608428818,
+        "UPPER_0_5SIGMA": 796.0607590571182,
+        "LOWER_1SIGMA": 731.3834617357635,
+        "UPPER_1SIGMA": 817.6198581642365
+      }
+    }
+  },
+  "evaluation": {
+    "h1": {
+      "status": "PENDING"
+    },
+    "h4": {
+      "status": "PENDING"
+    },
+    "h24": {
+      "status": "PENDING"
+    },
+    "canonical_daily": {
+      "status": "NOT_APPLICABLE_UNLESS_00_00_TO_01_00_UTC"
+    }
+  }
+}
