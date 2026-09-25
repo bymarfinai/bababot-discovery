@@ -10,7 +10,7 @@ Signature: `a3579f84325796b19489e4b11ba1b9f86d7484e6f2795aa162c1d068c1ff7e0a`
 - Metrics rows: **492,631**; first **2021-12-20 00:00:00+00:00**; last **2026-08-26 23:55:00+00:00**.
 - Metrics mapped fields: `{"count_long_short_ratio": "count_long_short_ratio", "count_toptrader_long_short_ratio": "count_toptrader_long_short_ratio", "sum_open_interest": "sum_open_interest", "sum_open_interest_value": "sum_open_interest_value", "sum_taker_long_short_vol_ratio": "sum_taker_long_short_vol_ratio", "sum_toptrader_long_short_ratio": "sum_toptrader_long_short_ratio"}`.
 - Premium rows: **163,872**.
-- Funding rows: **1**.
+- Funding rows: **5,205**.
 
 ## Coverage
 
@@ -33,8 +33,8 @@ Signature: `a3579f84325796b19489e4b11ba1b9f86d7484e6f2795aa162c1d068c1ff7e0a`
 | directional_premium | 210056 | 115398 | 99.82% | 99.84% | YES |
 | directional_premium_z_7d | 210056 | 115398 | 99.82% | 99.84% | YES |
 | directional_premium_change_60m | 210056 | 115398 | 99.82% | 99.84% | YES |
-| latest_funding | 0 | 0 | 0.00% | 0.00% | NO |
-| directional_funding | 0 | 0 | 0.00% | 0.00% | NO |
+| latest_funding | 210432 | 115586 | 100.00% | 100.00% | YES |
+| directional_funding | 210432 | 115586 | 100.00% | 100.00% | YES |
 
 ## Discrimination
 
@@ -43,7 +43,9 @@ Signature: `a3579f84325796b19489e4b11ba1b9f86d7484e6f2795aa162c1d068c1ff7e0a`
 | directional_premium_z_7d | -1 | **0.501** | **0.516** | 0 | NO |
 | directional_global_account_log_ratio | -1 | **0.518** | **0.513** | 0 | NO |
 | premium_close | -1 | **0.512** | **0.510** | 1 | NO |
+| latest_funding | -1 | **0.507** | **0.509** | 0 | NO |
 | premium_z_7d | -1 | **0.503** | **0.506** | 0 | NO |
+| directional_funding | +1 | **0.501** | **0.503** | 0 | NO |
 | oi_change_15m | +1 | **0.501** | **0.503** | 0 | NO |
 | oi_value_change_60m | +1 | **0.501** | **0.502** | 0 | NO |
 | directional_premium | +1 | **0.501** | **0.501** | 0 | NO |
