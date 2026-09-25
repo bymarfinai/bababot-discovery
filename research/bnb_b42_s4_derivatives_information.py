@@ -175,6 +175,8 @@ def metric_features(m):
 def align_backward(left,right,max_age=None):
     a=left.sort_values("decision_ts").copy()
     r=right.sort_values("ts").copy().rename(columns={"ts":"_source_ts"})
+    a["decision_ts"]=pd.to_datetime(a["decision_ts"],utc=True).astype("datetime64[ns, UTC]")
+    r["_source_ts"]=pd.to_datetime(r["_source_ts"],utc=True).astype("datetime64[ns, UTC]")
     z=pd.merge_asof(a,r,left_on="decision_ts",right_on="_source_ts",direction="backward")
     if max_age is not None:
         age=(z.decision_ts-z._source_ts)
