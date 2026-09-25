@@ -25,6 +25,7 @@ import json
 import math
 import statistics
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
@@ -96,15 +97,22 @@ class BinancePublicClient:
     def __init__(self, timeout: float = 8.0, retries: int = 2) -> None:
         self.timeout = timeout
         self.retries = retries
-        self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "BabaBot-MovingCoinDetector/1.0"})
+        self._local = threading.local()
+
+    def _session(self) -> requests.Session:
+        # requests.Session is not guaranteed thread-safe; keep one per worker thread.
+        if not hasattr(self._local, "session"):
+            session = requests.Session()
+            session.headers.update({"User-Agent": "BabaBot-MovingCoinDetector/1.0"})
+            self._local.session = session
+        return self._local.session
 
     def get(self, path: str, params: Optional[dict[str, Any]] = None) -> Any:
         url = f"{UM_BASE}{path}"
         last_error: Optional[Exception] = None
         for attempt in range(self.retries + 1):
             try:
-                r = self.session.get(url, params=params, timeout=self.timeout)
+                r = self._session().get(url, params=params, timeout=self.timeout)
                 r.raise_for_status()
                 return r.json()
             except (requests.RequestException, ValueError) as exc:
