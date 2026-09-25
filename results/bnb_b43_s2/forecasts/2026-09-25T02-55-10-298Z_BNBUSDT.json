@@ -73,7 +73,94 @@
   },
   "evaluation": {
     "h1": {
-      "status": "PENDING"
+      "status": "COMPLETE",
+      "snapshot_timestamp": "2026-09-25T02:55:10.298Z",
+      "horizon": "h1",
+      "window_start_exclusive": "2026-09-25T02:55:10.298Z",
+      "window_end_inclusive": "2026-09-25T03:55:10.298Z",
+      "actual_high": 775.2,
+      "actual_low": 771,
+      "bars_count": 12,
+      "buckets": {
+        "D0": {
+          "LOWER_0_5SIGMA": {
+            "level": 765.609532067024,
+            "capture_error_bps": 70.4075342220802,
+            "touched": false,
+            "reaction_label": "NOT_TOUCHED"
+          },
+          "UPPER_0_5SIGMA": {
+            "level": 783.3937878329759,
+            "capture_error_bps": 104.59347470244235,
+            "touched": false,
+            "reaction_label": "NOT_TOUCHED"
+          },
+          "LOWER_1SIGMA": {
+            "level": 756.7174041840481,
+            "capture_error_bps": 188.74411685234793,
+            "touched": false,
+            "reaction_label": "NOT_TOUCHED"
+          },
+          "UPPER_1SIGMA": {
+            "level": 792.2859157159519,
+            "capture_error_bps": 215.6534071480003,
+            "touched": false,
+            "reaction_label": "NOT_TOUCHED"
+          }
+        },
+        "D1": {
+          "LOWER_0_5SIGMA": {
+            "level": 765.609532067024,
+            "capture_error_bps": 70.4075342220802,
+            "touched": false,
+            "reaction_label": "NOT_TOUCHED"
+          },
+          "UPPER_0_5SIGMA": {
+            "level": 783.3937878329759,
+            "capture_error_bps": 104.59347470244235,
+            "touched": false,
+            "reaction_label": "NOT_TOUCHED"
+          },
+          "LOWER_1SIGMA": {
+            "level": 756.7174041840481,
+            "capture_error_bps": 188.74411685234793,
+            "touched": false,
+            "reaction_label": "NOT_TOUCHED"
+          },
+          "UPPER_1SIGMA": {
+            "level": 792.2859157159519,
+            "capture_error_bps": 215.6534071480003,
+            "touched": false,
+            "reaction_label": "NOT_TOUCHED"
+          }
+        },
+        "W1": {
+          "LOWER_0_5SIGMA": {
+            "level": 752.9425608428818,
+            "capture_error_bps": 239.8249228587079,
+            "touched": false,
+            "reaction_label": "NOT_TOUCHED"
+          },
+          "UPPER_0_5SIGMA": {
+            "level": 796.0607590571182,
+            "capture_error_bps": 262.0498350129244,
+            "touched": false,
+            "reaction_label": "NOT_TOUCHED"
+          },
+          "LOWER_1SIGMA": {
+            "level": 731.3834617357635,
+            "capture_error_bps": 541.6657654551847,
+            "touched": false,
+            "reaction_label": "NOT_TOUCHED"
+          },
+          "UPPER_1SIGMA": {
+            "level": 817.6198581642365,
+            "capture_error_bps": 518.8212803377811,
+            "touched": false,
+            "reaction_label": "NOT_TOUCHED"
+          }
+        }
+      }
     },
     "h4": {
       "status": "PENDING"
