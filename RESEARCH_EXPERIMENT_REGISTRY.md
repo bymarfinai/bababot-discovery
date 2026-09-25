@@ -159,3 +159,17 @@ B42 reframed BNB discovery around the user's fixed target: approximately one tra
 Verdict: **BNB_B42_STOP_NO_DISCOVERY_EDGE_FOR_1PCT_DAILY_SELECTOR**.
 
 Do not run B42-S5/S6/S7 or hyperopt the same OHLCV/location/metrics/premium/funding features. A new lineage requires a materially different information source such as genuine historical options-IV surface/HOD-LOD levels or sufficiently complete liquidation/order-book microstructure.
+
+
+## 14. BNB B43 options-IV HOD/LOD lineage — S1 LIVE MAP READY / HISTORICAL EXACT REPLAY LIMITED
+B43 is the materially new information-source lineage opened after B42 stopped.
+
+S1 freezes a causal live BNB options level map:
+`BNB index + nearest valid ATM call/put Ask IV -> average Ask IV -> S * IV * sqrt(T) -> +/-0.5sigma and +/-1sigma projected levels`.
+
+First frozen observation: 2026-09-25T02:16:27.689Z, BNB index 779.3269.
+Status: **BNB_B43_S1_LIVE_IV_LEVEL_MAP_READY**.
+
+Exact historical Ask-IV replay was not available from tested official expired-symbol paths. Active option symbols expose only their own short post-listing kline history, and those klines are traded option prices rather than historical Ask IV.
+
+Do not backfill synthetic Ask IV and call it exact Binance IV. Canonical next confirmation is prospective evaluation of levels frozen before future price action, or a genuinely independent historical options-IV source.
