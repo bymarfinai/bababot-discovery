@@ -1,0 +1,45 @@
+name: SOL Donor Edge Stage 4
+
+on:
+  push:
+    branches:
+      - research/sol-donor-edge-stage4
+    paths:
+      - 'SOL_DONOR_EDGE_STAGE4_Preregistration.md'
+      - 'research/sol_donor_edge_stage4.py'
+      - '.github/workflows/sol-donor-edge-stage4.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stage4:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-donor-edge-stage4
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen Stage 4 edge extraction
+        run: python research/sol_donor_edge_stage4.py
+      - name: Persist Stage 4 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            SOL_DONOR_EDGE_STAGE4_Result.md \
+            SOL_DONOR_EDGE_STAGE4_Features.csv \
+            SOL_DONOR_EDGE_STAGE4_Univariate.csv \
+            SOL_DONOR_EDGE_STAGE4_Pairwise.csv \
+            SOL_DONOR_EDGE_STAGE4_Candidates.csv \
+            SOL_DONOR_EDGE_STAGE4_Status.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: persist SOL donor edge Stage 4 results"
+          git pull --rebase origin research/sol-donor-edge-stage4
+          git push origin HEAD:research/sol-donor-edge-stage4
