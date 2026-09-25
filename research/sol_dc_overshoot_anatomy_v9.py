@@ -81,12 +81,13 @@ def dc_events(close,theta):
     if ev.empty:return ev
     ev=ev.sort_values("signal_time").reset_index(drop=True)
     # next opposite down-confirmation for each up event
-    downs=ev[ev.kind=="DOWN"]["signal_time"].to_numpy()
+    downs=pd.DatetimeIndex(ev.loc[ev.kind=="DOWN","signal_time"])
     next_down=[]
     for _,r in ev.iterrows():
         if r.kind!="UP":next_down.append(pd.NaT);continue
-        j=np.searchsorted(downs,np.datetime64(r.signal_time.to_datetime64()),side="right")
-        next_down.append(pd.Timestamp(downs[j],tz="UTC") if j<len(downs) else pd.NaT)
+        ts=pd.Timestamp(r.signal_time)
+        j=downs.searchsorted(ts,side="right")
+        next_down.append(downs[j] if j<len(downs) else pd.NaT)
     ev["next_down_signal"]=next_down
     return ev
 
