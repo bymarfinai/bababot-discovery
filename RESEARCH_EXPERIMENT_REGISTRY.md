@@ -146,3 +146,16 @@ Before creating a new backtest:
 3. if only thresholds/indicators/naming differ from a covered family, do **not** run it;
 4. if materially novel, preregister the hypothesis and controls before observing results;
 5. persist a KEEP/REJECT conclusion so the registry can be updated.
+
+
+## 13. BNB B42 1% daily opportunity-selector lineage — S1-S4 COVERED / STOPPED
+B42 reframed BNB discovery around the user's fixed target: approximately one trade/day, TP +1%, SL -1%, RR 1:1, target WR >=80%.
+
+- **S1 Opportunity Atlas:** 98.76% of 1699 days contained >=1 causal next-5m-open +1%-before--1% opportunity within 12h; median 92 overlapping winning candidates/day. Movement supply is not the bottleneck.
+- **S2 Generic selector:** causal VectorBT/price-volume/indicator + HistGradientBoosting selector failed calibration; 2024 WR 45.17% at 0.962 trade/day; descriptive 2025-2026 WR 44.16% at 0.837 trade/day.
+- **S3 Turning-point gate:** Q80 walls, causal swing sweeps, prior-24h sweeps, and >=2-concept confluence all failed robust DEV/REF event gates.
+- **S4 Derivatives information:** official Binance archive audit achieved near-complete OI/ratio/premium/funding coverage, but no eligible feature had material WIN-vs-nonWIN discrimination. Best REF AUCs remained near random (directional premium z7d 0.516; global account ratio 0.513; funding 0.509).
+
+Verdict: **BNB_B42_STOP_NO_DISCOVERY_EDGE_FOR_1PCT_DAILY_SELECTOR**.
+
+Do not run B42-S5/S6/S7 or hyperopt the same OHLCV/location/metrics/premium/funding features. A new lineage requires a materially different information source such as genuine historical options-IV surface/HOD-LOD levels or sufficiently complete liquidation/order-book microstructure.
