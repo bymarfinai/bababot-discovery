@@ -2,16 +2,19 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
 from research.sol_donor_transplant_stage3 import (
     load5, indicators5, hourly_context, build_hour_signals,
     TP, SL, FEE
 )
 
-ROOT = Path(__file__).resolve().parent.parent
 OUT_MD = ROOT / "SOL_DONOR_EDGE_STAGE4_Result.md"
 OUT_FEATURES = ROOT / "SOL_DONOR_EDGE_STAGE4_Features.csv"
 OUT_UNI = ROOT / "SOL_DONOR_EDGE_STAGE4_Univariate.csv"
