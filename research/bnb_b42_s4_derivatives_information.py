@@ -174,14 +174,14 @@ def metric_features(m):
 
 def align_backward(left,right,max_age=None):
     a=left.sort_values("decision_ts").copy()
-    r=right.sort_values("ts").copy()
-    z=pd.merge_asof(a,r,left_on="decision_ts",right_on="ts",direction="backward")
+    r=right.sort_values("ts").copy().rename(columns={"ts":"_source_ts"})
+    z=pd.merge_asof(a,r,left_on="decision_ts",right_on="_source_ts",direction="backward")
     if max_age is not None:
-        age=(z.decision_ts-z.ts)
+        age=(z.decision_ts-z._source_ts)
         bad=age>max_age
-        cols=[c for c in right.columns if c!="ts"]
+        cols=[c for c in r.columns if c!="_source_ts"]
         z.loc[bad,cols]=np.nan
-    return z
+    return z.drop(columns=["_source_ts"])
 
 def auc_rank(y,x):
     ok=np.isfinite(x)
@@ -211,7 +211,6 @@ def main():
     if not p.empty:z=align_backward(z,p,pd.Timedelta(minutes=30))
     if not f.empty:
         z=align_backward(z,f,pd.Timedelta(hours=24))
-        z["funding_age_hours"]=(z.decision_ts-z.ts).dt.total_seconds()/3600 if "ts" in z else np.nan
 
     # merge_asof ts naming can collide; rebuild source ages not used in tests.
     # Directional transforms
