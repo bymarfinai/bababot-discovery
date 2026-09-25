@@ -1,0 +1,53 @@
+name: BNB B42-S4 derivatives information
+
+on:
+  push:
+    branches:
+      - bnb-b42-vectorbt-opportunity-atlas
+    paths:
+      - '.bnb-b42-s4-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  b42-s4:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install stack
+        run: pip install pandas==3.0.5 numpy==2.4.6 requests==2.34.2
+      - name: Run B42-S4
+        run: |
+          set -euo pipefail
+          python -m py_compile research/bnb_b42_s4_derivatives_information.py
+          python research/bnb_b42_s4_derivatives_information.py | tee BNB_B42_S4_DERIVATIVES_INFO_Run.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bnb-b42-s4-derivatives-info
+          path: |
+            BNB_B42_S4_DERIVATIVES_INFO*
+          if-no-files-found: warn
+      - name: Persist evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p results/bnb_b42_s4
+          for f in BNB_B42_S4_DERIVATIVES_INFO*; do
+            if [ -f "$f" ]; then cp "$f" results/bnb_b42_s4/; fi
+          done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/bnb_b42_s4
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Persist B42-S4 derivatives information'
+            git pull --rebase origin bnb-b42-vectorbt-opportunity-atlas
+            git push origin HEAD:bnb-b42-vectorbt-opportunity-atlas
+          fi
