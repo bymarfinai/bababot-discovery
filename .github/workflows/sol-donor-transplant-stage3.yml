@@ -1,0 +1,53 @@
+name: SOL Donor Transplant Stage 3
+
+on:
+  push:
+    branches:
+      - research/sol-donor-transplant-stage3
+    paths:
+      - 'SOL_DONOR_TRANSPLANT_STAGE3_Preregistration.md'
+      - 'research/sol_donor_transplant_stage3.py'
+      - '.github/workflows/sol-donor-transplant-stage3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stage3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/sol-donor-transplant-stage3
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+
+      - name: Run frozen Stage 3 donor transplant
+        run: python research/sol_donor_transplant_stage3.py
+
+      - name: Persist Stage 3 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            SOL_DONOR_TRANSPLANT_STAGE3_Result.md \
+            SOL_DONOR_TRANSPLANT_STAGE3_Summary.csv \
+            SOL_DONOR_TRANSPLANT_STAGE3_Trades.csv \
+            SOL_DONOR_TRANSPLANT_STAGE3_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes to persist"
+            exit 0
+          fi
+          git commit -m "research: persist SOL donor transplant Stage 3 results"
+          git pull --rebase origin research/sol-donor-transplant-stage3
+          git push origin HEAD:research/sol-donor-transplant-stage3
