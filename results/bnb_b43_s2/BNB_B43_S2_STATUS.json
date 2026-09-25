@@ -1,0 +1,14 @@
+{
+  "status": "BNB_B43_S2_FORWARD_ACCUMULATING",
+  "active_asset": "BNBUSDT",
+  "parent_s1_signature": "639567dd76cd129cb0085c7c29d7f9a7e00ae4c0fc2b59a58cad270871212211",
+  "first_promotion_eligible_snapshot": "2026-09-25T02:55:10.298Z",
+  "promotion_eligible_snapshots_created": 1,
+  "complete_h1": 0,
+  "complete_h4": 0,
+  "complete_h24": 0,
+  "canonical_daily_complete": 0,
+  "hourly_path_sample_gate": 100,
+  "daily_hodlod_sample_gate": 30,
+  "sample_gate_reached": false
+}
