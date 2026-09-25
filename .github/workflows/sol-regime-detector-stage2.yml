@@ -1,0 +1,46 @@
+name: SOL Regime Detector Stage 2
+
+on:
+  push:
+    branches:
+      - research/sol-regime-detector-stage2
+    paths:
+      - 'SOL_REGIME_DETECTOR_STAGE2_Preregistration.md'
+      - 'research/sol_regime_detector_stage2.py'
+      - '.github/workflows/sol-regime-detector-stage2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stage2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-regime-detector-stage2
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen Stage 2 feature engine
+        run: python research/sol_regime_detector_stage2.py
+      - name: Persist Stage 2 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            SOL_REGIME_DETECTOR_STAGE2_Result.md \
+            SOL_REGIME_DETECTOR_STAGE2_Features.csv \
+            SOL_REGIME_DETECTOR_STAGE2_Swings1H.csv \
+            SOL_REGIME_DETECTOR_STAGE2_Swings4H.csv \
+            SOL_REGIME_DETECTOR_STAGE2_Audit.csv \
+            SOL_REGIME_DETECTOR_STAGE2_PrefixAudit.csv \
+            SOL_REGIME_DETECTOR_STAGE2_Status.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: persist SOL regime Stage 2 feature engine"
+          git pull --rebase origin research/sol-regime-detector-stage2
+          git push origin HEAD:research/sol-regime-detector-stage2
