@@ -184,6 +184,10 @@ class CausalSwingEngine:
         self.raw=[]
         self.seq=[]
         self._raw_ids=set()
+        self.prot_low=None
+        self.prot_low_ts=None
+        self.prot_high=None
+        self.prot_high_ts=None
 
     def _record_raw(self,s:Swing):
         key=(s.typ,s.pivot_ts)
@@ -192,17 +196,35 @@ class CausalSwingEngine:
         self._raw_ids.add(key)
         self.raw.append(s)
 
-    def _accept(self,s:Swing):
-        if not self.seq:
-            self.seq.append(s); return
-        last=self.seq[-1]
-        if last.typ != s.typ:
-            if s.pivot_i > last.pivot_i:
-                self.seq.append(s)
+    def _refresh_protected_from_tail(self):
+        if len(self.seq) < 3:
             return
-        more_extreme = (s.price > last.price) if s.typ=="H" else (s.price < last.price)
-        if more_extreme and s.pivot_i > last.pivot_i:
-            self.seq[-1]=s
+        a,b,c=self.seq[-3],self.seq[-2],self.seq[-1]
+        if a.typ=="H" and b.typ=="L" and c.typ=="H" and c.price>a.price:
+            self.prot_low=b.price
+            self.prot_low_ts=b.pivot_ts
+        if a.typ=="L" and b.typ=="H" and c.typ=="L" and c.price<a.price:
+            self.prot_high=b.price
+            self.prot_high_ts=b.pivot_ts
+
+    def _accept(self,s:Swing):
+        changed=False
+        if not self.seq:
+            self.seq.append(s)
+            changed=True
+        else:
+            last=self.seq[-1]
+            if last.typ != s.typ:
+                if s.pivot_i > last.pivot_i:
+                    self.seq.append(s)
+                    changed=True
+            else:
+                more_extreme = (s.price > last.price) if s.typ=="H" else (s.price < last.price)
+                if more_extreme and s.pivot_i > last.pivot_i:
+                    self.seq[-1]=s
+                    changed=True
+        if changed:
+            self._refresh_protected_from_tail()
 
     def update(self,i:int,df:pd.DataFrame,atr_s:pd.Series):
         cand=i-self.right
@@ -242,9 +264,14 @@ class CausalSwingEngine:
         return candidates
 
     def state(self,close:float,atr_now:float):
-        highs=[s for s in self.seq if s.typ=="H"]
-        lows=[s for s in self.seq if s.typ=="L"]
-        hh=np.nan; hl=np.nan
+        # Accepted sequence is alternating, so the last four pivots are sufficient
+        # for the latest two highs/lows and current structural sequence.
+        tail=self.seq[-4:]
+        highs=[s for s in tail if s.typ=="H"]
+        lows=[s for s in tail if s.typ=="L"]
+
+        hh=np.nan
+        hl=np.nan
         if len(highs)>=2 and atr_now>0:
             hh=(highs[-1].price-highs[-2].price)/atr_now
         if len(lows)>=2 and atr_now>0:
@@ -257,39 +284,17 @@ class CausalSwingEngine:
         else:
             st="INSUFFICIENT"
 
-        prot_low=None; prot_low_ts=None
-        prot_high=None; prot_high_ts=None
-        # structural protected low = last L between a prior H and a confirmed higher H
-        for k,s in enumerate(self.seq):
-            if s.typ!="H": continue
-            prev_h=None; between_l=None
-            for j in range(k-1,-1,-1):
-                if self.seq[j].typ=="H":
-                    prev_h=self.seq[j]; break
-            if prev_h is not None and s.price>prev_h.price:
-                for j in range(k-1,-1,-1):
-                    if self.seq[j].pivot_i<=prev_h.pivot_i: break
-                    if self.seq[j].typ=="L":
-                        between_l=self.seq[j]; break
-                if between_l is not None:
-                    prot_low=between_l.price; prot_low_ts=between_l.pivot_ts
-        # protected high = last H between prior L and confirmed lower L
-        for k,s in enumerate(self.seq):
-            if s.typ!="L": continue
-            prev_l=None; between_h=None
-            for j in range(k-1,-1,-1):
-                if self.seq[j].typ=="L":
-                    prev_l=self.seq[j]; break
-            if prev_l is not None and s.price<prev_l.price:
-                for j in range(k-1,-1,-1):
-                    if self.seq[j].pivot_i<=prev_l.pivot_i: break
-                    if self.seq[j].typ=="H":
-                        between_h=self.seq[j]; break
-                if between_h is not None:
-                    prot_high=between_h.price; prot_high_ts=between_h.pivot_ts
+        if self.seq:
+            if self.seq[-1].typ=="H":
+                last_h=self.seq[-1].price
+                last_l=self.seq[-2].price if len(self.seq)>=2 else np.nan
+            else:
+                last_l=self.seq[-1].price
+                last_h=self.seq[-2].price if len(self.seq)>=2 else np.nan
+        else:
+            last_h=np.nan
+            last_l=np.nan
 
-        last_h=highs[-1].price if highs else np.nan
-        last_l=lows[-1].price if lows else np.nan
         return {
             "structure_state":st,
             "seq_len":len(self.seq),
@@ -297,16 +302,15 @@ class CausalSwingEngine:
             "last_swing_low":last_l,
             "high_delta_atr":hh,
             "low_delta_atr":hl,
-            "protected_low":prot_low,
-            "protected_low_ts":prot_low_ts,
-            "protected_high":prot_high,
-            "protected_high_ts":prot_high_ts,
+            "protected_low":self.prot_low,
+            "protected_low_ts":self.prot_low_ts,
+            "protected_high":self.prot_high,
+            "protected_high_ts":self.prot_high_ts,
             "break_above_last_high":bool(np.isfinite(last_h) and close>last_h),
             "break_below_last_low":bool(np.isfinite(last_l) and close<last_l),
-            "protected_low_dist_atr":((close-prot_low)/atr_now if prot_low is not None and atr_now>0 else np.nan),
-            "protected_high_dist_atr":((prot_high-close)/atr_now if prot_high is not None and atr_now>0 else np.nan),
+            "protected_low_dist_atr":((close-self.prot_low)/atr_now if self.prot_low is not None and atr_now>0 else np.nan),
+            "protected_high_dist_atr":((self.prot_high-close)/atr_now if self.prot_high is not None and atr_now>0 else np.nan),
         }
-
 
 def base_features(df:pd.DataFrame,left:int,right:int,atr_mult:float,prefix:str):
     z=df.copy()
