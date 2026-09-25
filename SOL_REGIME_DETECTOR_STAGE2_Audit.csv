@@ -1,0 +1,13 @@
+audit,pass,value,detail
+raw_5m_coverage,True,1.0,must be >=0.995
+all_exported_1h_complete,True,0,bad 1H bars
+all_used_4h_complete,True,0,bad used 4H bars
+1h_accepted_sequence_alternates,True,3753,
+4h_accepted_sequence_alternates,True,1441,
+1h_raw_event_identity_unique,True,0,
+4h_raw_event_identity_unique,True,0,
+1h_confirmation_delay_exact,True,[5],
+4h_confirmation_delay_exact,True,[3],
+4h_context_fully_closed,True,0,future/partial 4H rows
+no_future_label_fields,True,[],
+prefix_causality_all_checkpoints,True,4/4 checkpoints,
