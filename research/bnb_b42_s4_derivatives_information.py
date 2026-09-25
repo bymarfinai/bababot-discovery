@@ -112,16 +112,15 @@ def load_funding():
             if b is None:continue
             q=pd.read_csv(io.BytesIO(b))
             # normalize flexible official archive headers
-            cols={str(c).lower():c for c in q.columns}
-            tcol=next((cols[k] for k in cols if "funding" in k and "time" in k),None)
-            rcol=next((cols[k] for k in cols if "funding" in k and "rate" in k),None)
+            q.columns=[str(c).strip().lower() for c in q.columns]
+            tcol="calc_time" if "calc_time" in q.columns else ("fundingtime" if "fundingtime" in q.columns else None)
+            rcol="last_funding_rate" if "last_funding_rate" in q.columns else ("fundingrate" if "fundingrate" in q.columns else None)
             if tcol is None or rcol is None:
-                if q.shape[1]>=3:
-                    tcol=q.columns[-2]; rcol=q.columns[-1]
-                else: continue
-            ts=pd.to_numeric(q[tcol],errors="coerce")
-            ts=np.where(ts>100_000_000_000_000,ts/1000,ts)
-            rows.append(pd.DataFrame({"ts":pd.to_datetime(ts,unit="ms",utc=True,errors="coerce"),
+                continue
+            vals=pd.to_numeric(q[tcol],errors="coerce")
+            med=vals.dropna().median() if vals.notna().any() else np.nan
+            unit="us" if np.isfinite(med) and med>1e14 else "ms"
+            rows.append(pd.DataFrame({"ts":pd.to_datetime(vals,unit=unit,utc=True,errors="coerce"),
                                       "latest_funding":pd.to_numeric(q[rcol],errors="coerce")}))
     if not rows:return pd.DataFrame()
     return pd.concat(rows,ignore_index=True).dropna().drop_duplicates("ts").sort_values("ts")
