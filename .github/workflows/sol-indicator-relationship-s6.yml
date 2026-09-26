@@ -1,0 +1,49 @@
+name: SOL Indicator Relationship Stage 6
+
+on:
+  push:
+    branches:
+      - research/sol-indicator-relationship-s6
+    paths:
+      - "research/sol_indicator_relationship_s6.py"
+      - "SOL_INDICATOR_RELATIONSHIP_S6_Preregistration.md"
+      - ".github/workflows/sol-indicator-relationship-s6.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-stage6:
+    if: \${{ !contains(github.event.head_commit.message, '[stage6-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-indicator-relationship-s6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Run Stage 6
+        run: python research/sol_indicator_relationship_s6.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_INDICATOR_RELATIONSHIP_S6_Result.md \
+                  SOL_INDICATOR_RELATIONSHIP_S6_Result.json \
+                  SOL_INDICATOR_RELATIONSHIP_S6_AUDIT.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S6A_REGIME.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S6B_STATES.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S6C_REGIME_STATE.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S6D_TRANSITIONS.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S6_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "Persist SOL Stage 6 results [stage6-result]"
+            git push origin HEAD:research/sol-indicator-relationship-s6
+          fi
