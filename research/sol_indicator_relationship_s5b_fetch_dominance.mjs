@@ -15,8 +15,8 @@ try {
       chunkSize: 5000,
     });
     const bars = (history?.bars || [])
-      .filter((b) => Number.isFinite(Number(b.t)) && Number(b.t) >= startSec && Number(b.t) < endSec)
-      .map((b) => ({ts:Number(b.t), close:Number(b.c)}))
+      .filter((b) => Number.isFinite(Number(b.time)) && Number(b.time) >= startSec && Number(b.time) < endSec)
+      .map((b) => ({ts:Number(b.time), close:Number(b.close)}))
       .filter((b) => Number.isFinite(b.close))
       .sort((a,b) => a.ts-b.ts);
     if (!bars.length) throw new Error("No bars returned for " + symbol);
