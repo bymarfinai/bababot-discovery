@@ -125,21 +125,24 @@ def clv(df):
     return ((df.close-df.low)/rng).clip(0,1)
 
 def build_base(raw_h1,f2,f3,f4):
-    idx=raw_h1.index.intersection(f2.index)
-    z=raw_h1.loc[idx].copy()
+    # Compute recursive indicators on the full raw warmup history FIRST,
+    # then slice/join to DEV rows. This preserves exact Stage-2 initialization.
+    raw=raw_h1.copy()
+    raw["ema7_raw"]=ema(raw.close,7)
+    raw["ema20_raw"]=ema(raw.close,20)
+    raw["atr14_raw"]=atr(raw,14)
+    raw["atr_norm_raw"]=raw.atr14_raw/raw.close
+    raw["close_ema20_dist_raw"]=(raw.close-raw.ema20_raw)/raw.close
+    raw["ema_spread_raw"]=(raw.ema7_raw-raw.ema20_raw)/raw.close
+
+    idx=raw.index.intersection(f2.index)
+    z=raw.loc[idx].copy()
     for c in f2.columns:
         if c not in z.columns:
             z[c]=f2.loc[idx,c]
     z["provisional_regime"]=f3.reindex(idx)["provisional_regime"]
     z["v1_final_regime"]=f4.reindex(idx)["final_regime"]
     z["v1_regime_duration_hours"]=pd.to_numeric(f4.reindex(idx)["regime_duration_hours"],errors="coerce")
-
-    z["ema7_raw"]=ema(z.close,7)
-    z["ema20_raw"]=ema(z.close,20)
-    z["atr14_raw"]=atr(z,14)
-    z["atr_norm_raw"]=z.atr14_raw/z.close
-    z["close_ema20_dist_raw"]=(z.close-z.ema20_raw)/z.close
-    z["ema_spread_raw"]=(z.ema7_raw-z.ema20_raw)/z.close
     z["clv_raw"]=clv(z)
     z["body_frac_raw"]=((z.close-z.open).abs()/(z.high-z.low).replace(0,np.nan)).clip(0,1)
     z["upper_wick_frac"]=((z.high-pd.concat([z.open,z.close],axis=1).max(axis=1))/(z.high-z.low).replace(0,np.nan)).clip(0,1)
