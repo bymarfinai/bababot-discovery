@@ -23,11 +23,11 @@ Feature columns: **167**.
 | raw_5m_coverage_ge_99_5 | PASS | 1.0 |
 | all_exported_1h_complete | PASS | 0 |
 | dev_years_only | PASS | [2023, 2024] |
-| raw_indicator_parity_stage2 | FAIL | 0.0027209904805481685 |
+| raw_indicator_parity_stage2 | PASS | 9.985502008591496e-17 |
 | event_clocks_nonnegative_and_reset | PASS | {'negative': {'bull_hours_since_impulse': 0, 'bull_hours_since_break': 0, 'bull_hours_since_raw_switch': 0, 'bull_hours_since_renewal': 0, 'bull_hours_since_fresh_extreme24': 0, 'bear_hours_since_impulse': 0, 'bear_hours_since_break': 0, 'bear_hours_since_raw_switch': 0, 'bear_hours_since_renewal': 0, 'bear_hours_since_fresh_extreme24': 0}, 'reset_bad': {'bull_impulse_event->bull_hours_since_impulse': 0, 'bear_impulse_event->bear_hours_since_impulse': 0, 'bull_break_event->bull_hours_since_break': 0, 'bear_break_event->bear_hours_since_break': 0, 'bull_raw_switch_event->bull_hours_since_raw_switch': 0, 'bear_raw_switch_event->bear_hours_since_raw_switch': 0, 'bull_renewal_event->bull_hours_since_renewal': 0, 'bear_renewal_event->bear_hours_since_renewal': 0}} |
 | event_anchor_not_future | PASS | {'bull_hours_since_impulse': 0, 'bull_hours_since_break': 0, 'bull_hours_since_raw_switch': 0, 'bull_hours_since_renewal': 0, 'bull_hours_since_fresh_extreme24': 0, 'bear_hours_since_impulse': 0, 'bear_hours_since_break': 0, 'bear_hours_since_raw_switch': 0, 'bear_hours_since_renewal': 0, 'bear_hours_since_fresh_extreme24': 0} |
 | pullback_ages_nonnegative | PASS | {'bull': 0, 'bear': 0} |
-| post_reclaim_progress_not_early | PASS | {'bull': {'1h_bad': 0, '3h_bad': 0, 'reclaims': 3358, 'post1': 3358, 'post3': 3358}, 'bear': {'1h_bad': 0, '3h_bad': 0, 'reclaims': 3286, 'post1': 3286, 'post3': 3286}} |
+| post_reclaim_progress_not_early | PASS | {'bull': {'1h_bad': 0, '3h_bad': 0, 'reclaims': 3358, 'post1': 3358, 'post3': 3358}, 'bear': {'1h_bad': 0, '3h_bad': 0, 'reclaims': 3287, 'post1': 3287, 'post3': 3287}} |
 | prefix_causality_all_checkpoints | PASS | 4/4 |
 | no_future_outcome_fields | PASS | [] |
 | core_feature_coverage_ge_98pct | PASS | 0.9999424493554327 |
@@ -44,7 +44,8 @@ Feature columns: **167**.
 
 ## Decision
 
-**Status: SOL_REGIME_PHASE_STAGE6B_FEATURE_ENGINE_REJECTED**
+**Status: SOL_REGIME_PHASE_STAGE6B_FEATURE_ENGINE_VALID**
 
-Failed audits: **['raw_indicator_parity_stage2']**.
-Stage 6C is blocked until a technical repair passes the same frozen audits.
+The Stage-6B lifecycle / remaining-energy feature engine passed every frozen technical and causality audit.
+No phase label or phase score has been created yet.
+Stage 6C is authorized to construct phase evidence scores using 2023-2024 DEV only.
