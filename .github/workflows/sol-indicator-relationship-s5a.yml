@@ -1,0 +1,47 @@
+name: SOL Indicator Relationship Stage 5A
+
+on:
+  push:
+    branches:
+      - research/sol-indicator-relationship-s5a
+    paths:
+      - "research/sol_indicator_relationship_s5a.py"
+      - "SOL_INDICATOR_RELATIONSHIP_S5A_Preregistration.md"
+      - ".github/workflows/sol-indicator-relationship-s5a.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-stage5a:
+    if: \${{ !contains(github.event.head_commit.message, '[stage5a-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-indicator-relationship-s5a
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Run Stage 5A
+        run: python research/sol_indicator_relationship_s5a.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_INDICATOR_RELATIONSHIP_S5A_Result.md \
+                  SOL_INDICATOR_RELATIONSHIP_S5A_Result.json \
+                  SOL_INDICATOR_RELATIONSHIP_S5A1_LAG_ATLAS.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S5A2_SEQUENCES.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S5A3_FIRST_MOVER.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S5A_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "Persist SOL Stage 5A results [stage5a-result]"
+            git push origin HEAD:research/sol-indicator-relationship-s5a
+          fi
