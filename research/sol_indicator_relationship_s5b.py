@@ -11,7 +11,7 @@ import sol_indicator_relationship_s3 as s3
 import sol_indicator_relationship_s4 as s4
 
 ROOT = Path(__file__).resolve().parent.parent
-DOM_CSV = ROOT / "research" / "_stage5b_dominance_1h.csv"
+DOM_CSV = ROOT / "research" / "_stage5b_dominance_1d.csv"
 DOM_META = ROOT / "research" / "_stage5b_dominance_fetch_meta.json"
 
 OUT_MD = ROOT / "SOL_INDICATOR_RELATIONSHIP_S5B_Result.md"
@@ -26,8 +26,8 @@ OUT_LAG = ROOT / "SOL_INDICATOR_RELATIONSHIP_S5B4_LAGGED.csv"
 OUT_STATUS = ROOT / "SOL_INDICATOR_RELATIONSHIP_S5B_Status.txt"
 
 PARTS = ["development","validation_2025","validation_2026"]
-WINDOWS = {"1h":1,"4h":4,"8h":8,"24h":24}
-LAGS = {60:4,240:16}
+WINDOWS = {"24h":1}
+LAGS = {}
 SERIES = {"btcd":"BTC.D","usdtd":"USDT.D"}
 
 def pct(v):
@@ -67,7 +67,7 @@ def load_dominance():
         z=d[["avail_ts",c]].dropna().copy().sort_values("avail_ts")
         for nm,n in WINDOWS.items():
             lag=z[c].shift(n)
-            exact=(z["avail_ts"]-z["avail_ts"].shift(n))==pd.Timedelta(hours=n)
+            exact=(z["avail_ts"]-z["avail_ts"].shift(n))==pd.Timedelta(days=n)
             z[f"{key}_chg_{nm}"]=np.where(exact,z[c]/lag-1.0,np.nan)
         feature_frames[key]=z
     return d,feature_frames
@@ -98,7 +98,7 @@ def causal_attach(a, feature_frames):
             out[["decision_time"]].sort_values("decision_time"),
             z,
             left_on="decision_time",right_on="avail_ts",
-            direction="backward",tolerance=pd.Timedelta(minutes=60)
+            direction="backward",tolerance=pd.Timedelta(minutes=1440)
         )
         age=(m.decision_time-m.avail_ts).dt.total_seconds()/60.0
         for c in cols:
@@ -116,7 +116,7 @@ def causal_attach(a, feature_frames):
             qp=out[out.partition==p]
             part_ok[p]=float(qp[closecol].notna().mean()) if len(qp) else 0.0
         max_age=float(out.loc[mask,f"{key}_age_min"].max()) if mask.any() else np.nan
-        ok=(cov>=.95 and all(v>=.95 for v in part_ok.values()) and np.isfinite(max_age) and max_age<=60.0)
+        ok=(cov>=.95 and all(v>=.95 for v in part_ok.values()) and np.isfinite(max_age) and max_age<=1440.0)
         accepted[key]=ok
         audits.append({
             "series":label,"rows_source":int(z[closecol].notna().sum()),
@@ -236,10 +236,12 @@ def impulse_context(a,specs):
 
 def lagged(a,accepted,specs):
     rows=[]
-    # Only 1h dominance-change state is lagged, per prereg.
+    if not LAGS:
+        return pd.DataFrame(columns=["feature","lag_min","classification","development_delta_D","validation_2025_delta_D","validation_2026_delta_D"])
+    # Intraday lagged dominance is only run when source resolution supports it.
     for key,ok in accepted.items():
         if not ok: continue
-        f=f"{key}_chg_1h"
+        f=f"{key}_chg_24h"
         for mins,steps in LAGS.items():
             col=f"{f}_bucket_lag{mins}"
             a[col]=a[f+"_bucket"].shift(steps)
@@ -336,7 +338,7 @@ def main():
 
     lines=[
         "# SOL Indicator Relationship Discovery — Stage 5B Result","",
-        "**BTC.D / USDT.D cross-market context. Research only.**","",
+        "**BTC.D / USDT.D 24h cross-market context. Research only.**","",
         "## Source audit","",
         "| Series | Coverage all | DEV | 2025 | 2026 | Max age | Accepted |",
         "|---|---:|---:|---:|---:|---:|---|",
@@ -378,7 +380,7 @@ def main():
         for r in rep_lag.itertuples(index=False):
             lines.append(f"| {r.feature} | {r.lag_min}m | {pct(r.development_delta_D)} | {pct(r.validation_2025_delta_D)} | {pct(r.validation_2026_delta_D)} |")
     else:
-        lines.append("| none | - | - | - | - |")
+        lines.append("| unavailable at daily source resolution | - | - | - | - |")
 
     lines += ["","## Guardrail","",
               "Dominance findings are predictive cross-market associations. They do not establish capital-flow causality and are not deployable rules yet.",
