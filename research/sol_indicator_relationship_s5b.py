@@ -59,7 +59,8 @@ def load_dominance():
     for c in ["btcd_close","usdtd_close"]:
         d[c]=pd.to_numeric(d[c],errors="coerce")
     d=d.dropna(subset=["ts"]).sort_values("ts").drop_duplicates("ts").reset_index(drop=True)
-    # TradingView timestamps are 1h bar opens. Close is causally known 1h later.\n    d["avail_ts"]=d["ts"]+pd.Timedelta(hours=1)
+    # TradingView timestamps are daily bar opens. Close is causally known one day later.
+    d["avail_ts"]=d["ts"]+pd.Timedelta(days=1)
 
     feature_frames={}
     for key in SERIES:
