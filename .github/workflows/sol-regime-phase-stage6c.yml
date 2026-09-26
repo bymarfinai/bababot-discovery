@@ -1,0 +1,44 @@
+name: SOL Regime Phase Stage 6C
+
+on:
+  push:
+    branches:
+      - research/sol-regime-phase-stage6c
+    paths:
+      - 'SOL_REGIME_PHASE_STAGE6C_Preregistration.md'
+      - 'research/sol_regime_phase_stage6c.py'
+      - '.github/workflows/sol-regime-phase-stage6c.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stage6c:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-regime-phase-stage6c
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - name: Run frozen Stage 6C phase scoring
+        run: python research/sol_regime_phase_stage6c.py
+      - name: Persist Stage 6C outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            SOL_REGIME_PHASE_STAGE6C_Result.md \
+            SOL_REGIME_PHASE_STAGE6C_Scores_DEV.csv \
+            SOL_REGIME_PHASE_STAGE6C_Calibration.csv \
+            SOL_REGIME_PHASE_STAGE6C_Audit.csv \
+            SOL_REGIME_PHASE_STAGE6C_Status.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: persist SOL phase Stage 6C scoring"
+          git pull --rebase origin research/sol-regime-phase-stage6c
+          git push origin HEAD:research/sol-regime-phase-stage6c
