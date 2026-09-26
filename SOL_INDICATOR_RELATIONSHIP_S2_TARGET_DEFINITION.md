@@ -52,7 +52,7 @@ Scan subsequent raw 5m OHLC bars from entry time through 4 hours.
 - `LONG`: upper +1.00% barrier is touched strictly before lower -1.00%.
 - `SHORT`: lower -1.00% barrier is touched strictly before upper +1.00%.
 - `NONE`: neither barrier is touched within 4 hours.
-- `AMBIGUOUS`: both barriers lie inside the same 5m bar before either had previously been touched.
+- `AMBIGUOUS`: both barriers are first observed inside the same 5m bar, so intrabar ordering cannot be known from OHLC.
 
 Ambiguity handling:
 - `AMBIGUOUS` is never credited as a directional win.
@@ -108,9 +108,11 @@ For each horizon `H in {1h, 2h, 4h, 8h}`:
 - `mfe_short_H = abs(min(0, max_down_H))`
 - `mae_short_H = max(0, max_up_H)`
 
-Also record:
+Also record independently across the full 8h path:
 - `time_to_up_1pct_min`
 - `time_to_down_1pct_min`
+
+Both first-hit times are retained even if the opposite barrier was reached first. Because only 5m OHLC is available, time-to-target is stored as the **bar-end upper bound**: a hit somewhere inside the entry 5m bar is recorded as 5 minutes, the next bar as 10 minutes, and so on.
 
 If a barrier is never reached inside 8h, its time-to-target is null.
 
@@ -189,11 +191,22 @@ For reference only, gross ±1% with a 0.15% round-trip cost is not net-symmetric
 5. Overlapping 15m observations are permitted for anatomy, but inferential tests must account for serial dependence using chronological blocks / clustered or block-bootstrap uncertainty.
 6. Final trading-signal evaluation later must enforce non-overlapping executable positions.
 
-## 12. Stage 2 completion criterion
+## 12. Stage 2 implementation
+
+Deterministic builder:
+- `research/sol_indicator_relationship_s2_targets.py`
+
+Required raw input:
+- canonical SOLUSDT 5m `ts, open, high, low, close`;
+- `ts` is the raw 5m bar-open timestamp in UTC.
+
+The implementation deliberately consumes **no candidate explanatory indicator**.
+
+## 13. Stage 2 completion criterion
 
 Stage 2 is complete when:
 - the above target definitions are frozen;
-- target generation can be implemented deterministically from raw SOLUSDT 5m OHLC;
+- target generation is deterministic from raw SOLUSDT 5m OHLC;
 - no volume, taker, OI, funding, breakout, or regime result has been used to choose the target.
 
-**Stage 2 verdict: TARGET_DEFINITION_FROZEN**
+**Stage 2 verdict: TARGET_DEFINITION_FROZEN_AND_IMPLEMENTED**
