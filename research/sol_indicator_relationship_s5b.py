@@ -93,10 +93,15 @@ def causal_attach(a, feature_frames):
     audits=[]
     accepted={}
     for key,label in SERIES.items():
-        z=feature_frames[key].copy().sort_values("avail_ts")
+        z=feature_frames[key].copy()
+        z["avail_ts"]=pd.to_datetime(z["avail_ts"],utc=True).astype("datetime64[ns, UTC]")
+        z=z.sort_values("avail_ts")
         cols=[c for c in z.columns if c!="avail_ts"]
+        left=out[["decision_time"]].copy()
+        left["decision_time"]=pd.to_datetime(left["decision_time"],utc=True).astype("datetime64[ns, UTC]")
+        left=left.sort_values("decision_time")
         m=pd.merge_asof(
-            out[["decision_time"]].sort_values("decision_time"),
+            left,
             z,
             left_on="decision_time",right_on="avail_ts",
             direction="backward",tolerance=pd.Timedelta(minutes=1440)
