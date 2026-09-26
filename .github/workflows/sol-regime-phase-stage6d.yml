@@ -1,0 +1,46 @@
+name: SOL Regime Phase Stage 6D
+
+on:
+  push:
+    branches:
+      - research/sol-regime-phase-stage6d
+    paths:
+      - 'SOL_REGIME_PHASE_STAGE6D_Preregistration.md'
+      - 'research/sol_regime_phase_stage6d.py'
+      - '.github/workflows/sol-regime-phase-stage6d.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stage6d:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-regime-phase-stage6d
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen Stage 6D DEV validation
+        run: python research/sol_regime_phase_stage6d.py
+      - name: Persist Stage 6D outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            SOL_REGIME_PHASE_STAGE6D_Result.md \
+            SOL_REGIME_PHASE_STAGE6D_Labels_DEV.csv \
+            SOL_REGIME_PHASE_STAGE6D_PhaseSummary.csv \
+            SOL_REGIME_PHASE_STAGE6D_Blocks.csv \
+            SOL_REGIME_PHASE_STAGE6D_AUC.csv \
+            SOL_REGIME_PHASE_STAGE6D_Audit.csv \
+            SOL_REGIME_PHASE_STAGE6D_Status.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: persist SOL phase Stage 6D DEV validation"
+          git pull --rebase origin research/sol-regime-phase-stage6d
+          git push origin HEAD:research/sol-regime-phase-stage6d
