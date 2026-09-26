@@ -1,0 +1,45 @@
+name: SOL Regime Detector Stage 4
+
+on:
+  push:
+    branches:
+      - research/sol-regime-detector-stage4
+    paths:
+      - 'SOL_REGIME_DETECTOR_STAGE4_Preregistration.md'
+      - 'research/sol_regime_detector_stage4.py'
+      - '.github/workflows/sol-regime-detector-stage4.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stage4:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-regime-detector-stage4
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - name: Run frozen Stage 4 state machine
+        run: python research/sol_regime_detector_stage4.py
+      - name: Persist Stage 4 outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            SOL_REGIME_DETECTOR_STAGE4_Result.md \
+            SOL_REGIME_DETECTOR_STAGE4_States_DEV.csv \
+            SOL_REGIME_DETECTOR_STAGE4_Switches.csv \
+            SOL_REGIME_DETECTOR_STAGE4_Audit.csv \
+            SOL_REGIME_DETECTOR_STAGE4_PrefixAudit.csv \
+            SOL_REGIME_DETECTOR_STAGE4_Status.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: persist SOL regime Stage 4 state machine"
+          git pull --rebase origin research/sol-regime-detector-stage4
+          git push origin HEAD:research/sol-regime-detector-stage4
