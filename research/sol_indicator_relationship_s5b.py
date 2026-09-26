@@ -11,7 +11,7 @@ import sol_indicator_relationship_s3 as s3
 import sol_indicator_relationship_s4 as s4
 
 ROOT = Path(__file__).resolve().parent.parent
-DOM_CSV = ROOT / "research" / "_stage5b_dominance_15m.csv"
+DOM_CSV = ROOT / "research" / "_stage5b_dominance_1h.csv"
 DOM_META = ROOT / "research" / "_stage5b_dominance_fetch_meta.json"
 
 OUT_MD = ROOT / "SOL_INDICATOR_RELATIONSHIP_S5B_Result.md"
@@ -26,8 +26,8 @@ OUT_LAG = ROOT / "SOL_INDICATOR_RELATIONSHIP_S5B4_LAGGED.csv"
 OUT_STATUS = ROOT / "SOL_INDICATOR_RELATIONSHIP_S5B_Status.txt"
 
 PARTS = ["development","validation_2025","validation_2026"]
-WINDOWS = {"15m":1,"1h":4,"4h":16,"8h":32,"24h":96}
-LAGS = {15:1,60:4,240:16}
+WINDOWS = {"1h":1,"4h":4,"8h":8,"24h":24}
+LAGS = {60:4,240:16}
 SERIES = {"btcd":"BTC.D","usdtd":"USDT.D"}
 
 def pct(v):
@@ -59,8 +59,7 @@ def load_dominance():
     for c in ["btcd_close","usdtd_close"]:
         d[c]=pd.to_numeric(d[c],errors="coerce")
     d=d.dropna(subset=["ts"]).sort_values("ts").drop_duplicates("ts").reset_index(drop=True)
-    # TradingView timestamps are bar opens. Close is causally known 15m later.
-    d["avail_ts"]=d["ts"]+pd.Timedelta(minutes=15)
+    # TradingView timestamps are 1h bar opens. Close is causally known 1h later.\n    d["avail_ts"]=d["ts"]+pd.Timedelta(hours=1)
 
     feature_frames={}
     for key in SERIES:
@@ -68,7 +67,7 @@ def load_dominance():
         z=d[["avail_ts",c]].dropna().copy().sort_values("avail_ts")
         for nm,n in WINDOWS.items():
             lag=z[c].shift(n)
-            exact=(z["avail_ts"]-z["avail_ts"].shift(n))==pd.Timedelta(minutes=15*n)
+            exact=(z["avail_ts"]-z["avail_ts"].shift(n))==pd.Timedelta(hours=n)
             z[f"{key}_chg_{nm}"]=np.where(exact,z[c]/lag-1.0,np.nan)
         feature_frames[key]=z
     return d,feature_frames
@@ -99,7 +98,7 @@ def causal_attach(a, feature_frames):
             out[["decision_time"]].sort_values("decision_time"),
             z,
             left_on="decision_time",right_on="avail_ts",
-            direction="backward",tolerance=pd.Timedelta(minutes=30)
+            direction="backward",tolerance=pd.Timedelta(minutes=60)
         )
         age=(m.decision_time-m.avail_ts).dt.total_seconds()/60.0
         for c in cols:
@@ -116,7 +115,7 @@ def causal_attach(a, feature_frames):
         for p in PARTS:
             qp=out[out.partition==p]
             part_ok[p]=float(qp[closecol].notna().mean()) if len(qp) else 0.0
-        ok=(cov>=.95 and all(v>=.95 for v in part_ok.values()))
+        max_age=float(out.loc[mask,f"{key}_age_min"].max()) if mask.any() else np.nan\n        ok=(cov>=.95 and all(v>=.95 for v in part_ok.values()) and np.isfinite(max_age) and max_age<=60.0)
         accepted[key]=ok
         audits.append({
             "series":label,"rows_source":int(z[closecol].notna().sum()),
@@ -126,7 +125,7 @@ def causal_attach(a, feature_frames):
             "coverage_2026":part_ok["validation_2026"],
             "first_aligned":None if first is None else str(first),
             "last_aligned":None if last is None else str(last),
-            "max_age_min":float(out.loc[mask,f"{key}_age_min"].max()) if mask.any() else np.nan,
+            "max_age_min":max_age,
             "accepted":ok,
         })
     return out,pd.DataFrame(audits),accepted
