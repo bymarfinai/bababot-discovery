@@ -78,33 +78,46 @@ def label_one(x5,entry_ts,h):
     end_ts=entry_ts+pd.Timedelta(hours=h)
     if entry_ts<START or end_ts>END:
         return None
-    if entry_ts not in x5.index:
+    if end_ts>=END:
         return None
-    if end_ts>=END or end_ts not in x5.index:
+    try:
+        i0=x5.index.get_loc(entry_ts)
+        i1=x5.index.get_loc(end_ts)
+    except KeyError:
+        return None
+    if not isinstance(i0,(int,np.integer)) or not isinstance(i1,(int,np.integer)):
+        return None
+    if i1-i0 != h*12:
         return None
 
-    ep=float(x5.at[entry_ts,"open"])
-    w=x5[(x5.index>=entry_ts)&(x5.index<end_ts)]
+    ep=float(x5.iloc[i0]["open"])
+    w=x5.iloc[i0:i1]
     if len(w)!=h*12:
         return None
 
     up=ep*1.01
     dn=ep*0.99
+    highs=w["high"].to_numpy(float)
+    lows=w["low"].to_numpy(float)
+    hp_mask=highs>=up
+    hn_mask=lows<=dn
+    hit_mask=hp_mask|hn_mask
+
     first="UNRESOLVED"
     first_ts=pd.NaT
-    for ts,r in w.iterrows():
-        hp=float(r.high)>=up
-        hn=float(r.low)<=dn
-        if hp and hn:
-            first="AMBIGUOUS"; first_ts=ts; break
-        if hp:
-            first="POS_FIRST"; first_ts=ts; break
-        if hn:
-            first="NEG_FIRST"; first_ts=ts; break
+    if hit_mask.any():
+        k=int(np.argmax(hit_mask))
+        first_ts=w.index[k]
+        if hp_mask[k] and hn_mask[k]:
+            first="AMBIGUOUS"
+        elif hp_mask[k]:
+            first="POS_FIRST"
+        else:
+            first="NEG_FIRST"
 
-    hp=float(w.high.max())
-    lp=float(w.low.min())
-    horizon_price=float(x5.at[end_ts,"open"])
+    hp=float(np.max(highs))
+    lp=float(np.min(lows))
+    horizon_price=float(x5.iloc[i1]["open"])
     return {
         f"fwd_ret_{h}h":horizon_price/ep-1.0,
         f"mfe_{h}h":hp/ep-1.0,
