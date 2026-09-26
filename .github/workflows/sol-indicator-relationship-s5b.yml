@@ -1,0 +1,62 @@
+name: SOL Indicator Relationship Stage 5B
+
+on:
+  push:
+    branches:
+      - research/sol-indicator-relationship-s5b
+    paths:
+      - "research/sol_indicator_relationship_s5b.py"
+      - "research/sol_indicator_relationship_s5b_fetch_dominance.mjs"
+      - "SOL_INDICATOR_RELATIONSHIP_S5B_Preregistration.md"
+      - ".github/workflows/sol-indicator-relationship-s5b.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-stage5b:
+    if: \${{ !contains(github.event.head_commit.message, '[stage5b-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TRADINGVIEW_REQUEST_TIMEOUT_MS: "120000"
+      TRADINGVIEW_MAX_BARS: "300000"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-indicator-relationship-s5b
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install TradingView history client
+        run: npm install --no-save git+https://github.com/parbhatc/TradingviewAPI.git
+      - name: Fetch BTC.D and USDT.D 15m history
+        run: node research/sol_indicator_relationship_s5b_fetch_dominance.mjs
+      - name: Install Python dependencies
+        run: pip install pandas numpy requests
+      - name: Run Stage 5B
+        run: python research/sol_indicator_relationship_s5b.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_INDICATOR_RELATIONSHIP_S5B_Result.md \
+                  SOL_INDICATOR_RELATIONSHIP_S5B_Result.json \
+                  SOL_INDICATOR_RELATIONSHIP_S5B_SOURCE_AUDIT.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S5B1_BUCKETS.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S5B1_MARGINAL_SUMMARY.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S5B2_OI_CONTEXT.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S5B2B_INCREMENTAL_DOMINANCE.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S5B3_IMPULSE_CONTEXT.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S5B4_LAGGED.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S5B_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "Persist SOL Stage 5B results [stage5b-result]"
+            git push origin HEAD:research/sol-indicator-relationship-s5b
+          fi
