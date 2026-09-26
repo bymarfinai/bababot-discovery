@@ -1,0 +1,21 @@
+audit,pass,value
+stage6c_valid,True,True
+raw_5m_coverage_ge_99_5,True,1.0
+no_24h_window_crosses_2025,True,2024-12-30 23:00:00+00:00
+ambiguous_24h_share_le_2pct,True,0.0007420514869570181
+each_phase_ge_200_eligible24,True,"{'EarlyExpansion': 5753, 'HealthyContinuation': 2814, 'MatureTrend': 2798, 'Exhaustion': 4849, 'Transition': 1305}"
+healthy_hit_ge_55pct,False,0.5139087018544936
+early_hit_ge_53pct,False,0.5030503747603277
+exhaustion_hit_le_50pct,False,0.5126608551266085
+transition_hit_le_52pct,True,0.5065334358186011
+healthy_minus_exhaustion_ge_7pp,False,0.001247846727885027
+continuation_group_minus_risk_ge_5pp,False,"{'continuation': 0.5066151504507669, 'risk': 0.5113580650433077, 'gap': -0.004742914592540837}"
+continuation_median_ret_gt_risk,False,"{'continuation': -0.0018627886793249893, 'risk': -0.0003063202243818175, 'gap': -0.0015564684549431718}"
+2024_continuation_hit_ge_55pct,False,0.5038150807899462
+2024_continuation_minus_risk_ge_5pp,False,"{'continuation': 0.5038150807899462, 'risk': 0.5106822880771882, 'gap': -0.006867207287241994}"
+continuation_gt50_in_3of4_blocks,True,"[{'block': '2023-H1', 'continuation_hit': 0.5022947475777665}, {'block': '2023-H2', 'continuation_hit': 0.5164783427495292}, {'block': '2024-H1', 'continuation_hit': 0.5043201455206913}, {'block': '2024-H2', 'continuation_hit': 0.5033229951262738}]"
+continuation_quality_auc_ge_055,False,0.5008725401396853
+remaining_energy_auc_ge_053,False,0.5015845798924716
+reversal_risk_auc_le_047,False,0.5028706726995466
+2024_continuation_quality_auc_ge_054,False,0.5013834608031494
+2024_reversal_risk_auc_le_048,False,0.5076351898670748
