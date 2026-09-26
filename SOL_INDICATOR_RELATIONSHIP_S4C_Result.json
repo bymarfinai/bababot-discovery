@@ -1,0 +1,78 @@
+{
+  "status": "SOL_INDICATOR_RELATIONSHIP_S4C_COMPLETED",
+  "specs": {
+    "loc_24h": {
+      "kind": "tertile",
+      "cuts": [
+        0.36750990934148986,
+        0.6809443400942832
+      ]
+    },
+    "oi_chg_15m": {
+      "kind": "tertile",
+      "cuts": [
+        -0.0015375610215369792,
+        0.001983597785135534
+      ]
+    },
+    "taker_imb_15m": {
+      "kind": "tertile",
+      "cuts": [
+        -0.05843009241922444,
+        0.037618679645211144
+      ]
+    }
+  },
+  "summaries": [
+    {
+      "contrast": "HIGHLOC_TAKERBUY_OI",
+      "development_high_n": 5317,
+      "development_low_n": 1010,
+      "development_high_long": 0.4739514763964642,
+      "development_high_short": 0.4049275907466616,
+      "development_low_long": 0.3613861386138614,
+      "development_low_short": 0.5,
+      "development_delta_D": 0.20763774703594118,
+      "validation_2025_high_n": 2250,
+      "validation_2025_low_n": 738,
+      "validation_2025_high_long": 0.4662222222222222,
+      "validation_2025_high_short": 0.3804444444444444,
+      "validation_2025_low_long": 0.2953929539295393,
+      "validation_2025_low_short": 0.5257452574525745,
+      "validation_2025_delta_D": 0.316130081300813,
+      "validation_2026_high_n": 1399,
+      "validation_2026_low_n": 594,
+      "validation_2026_high_long": 0.41029306647605435,
+      "validation_2026_high_short": 0.30092923516797715,
+      "validation_2026_low_long": 0.28114478114478114,
+      "validation_2026_low_short": 0.3956228956228956,
+      "validation_2026_delta_D": 0.22384194578619165,
+      "classification": "REPLICATED_CONDITIONAL"
+    },
+    {
+      "contrast": "HIGHLOC_TAKERSELL_OI",
+      "development_high_n": 986,
+      "development_low_n": 3783,
+      "development_high_long": 0.513184584178499,
+      "development_high_short": 0.3620689655172414,
+      "development_low_long": 0.4351044144858578,
+      "development_low_short": 0.4253238170763944,
+      "development_delta_D": 0.1413350212517942,
+      "validation_2025_high_n": 756,
+      "validation_2025_low_n": 1862,
+      "validation_2025_high_long": 0.49867724867724866,
+      "validation_2025_high_short": 0.3505291005291005,
+      "validation_2025_low_long": 0.3469387755102041,
+      "validation_2025_low_short": 0.47046186895810954,
+      "validation_2025_delta_D": 0.2716712415960536,
+      "validation_2026_high_n": 397,
+      "validation_2026_low_n": 1078,
+      "validation_2026_high_long": 0.5138539042821159,
+      "validation_2026_high_short": 0.24685138539042822,
+      "validation_2026_low_long": 0.2894248608534323,
+      "validation_2026_low_short": 0.36363636363636365,
+      "validation_2026_delta_D": 0.341214021674619,
+      "classification": "REPLICATED_CONDITIONAL"
+    }
+  ]
+}
