@@ -1,0 +1,11 @@
+audit,pass,value
+raw_5m_contiguous,True,0
+frozen_stage4_specs_present,True,"['oi_chg_15m', 'loc_24h', 'taker_imb_15m', 'quotevol_z_24h', 'breakout_up_24h', 'breakout_down_24h', 'impulse5m_prev']"
+regime_timestamp_causal,True,129020
+regime_age_le_45m,True,45.0
+regime_coverage_development,True,0.9739512083903329
+regime_coverage_validation_2025,True,1.0
+regime_coverage_validation_2026,True,1.0
+market_state_mutually_exclusive_complete,True,0
+stage5a_sequence_tag_exact,True,567
+no_dominance_state_splitter,True,[]
