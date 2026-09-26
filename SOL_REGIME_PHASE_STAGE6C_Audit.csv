@@ -1,0 +1,13 @@
+audit,pass,value
+stage6b_valid,True,True
+dev_years_only,True,"[2023, 2024]"
+calibration_2023_only,True,[2023]
+pooled_symmetric_pair_calibration,True,"{'pair_refs': 30, 'method': 'pooled bull+bear 2023'}"
+all_scores_in_0_1,True,0
+score_coverage_ge_98pct,True,1.0
+synthetic_bull_bear_swap_exact,True,0.0
+no_future_outcome_fields,True,[]
+2024_main_score_std_ge_0_02,True,"{'bull_EarlyExpansionScore': 0.11703802465016704, 'bull_HealthyContinuationScore': 0.10272657639078378, 'bull_MatureTrendScore': 0.09694486455883013, 'bull_ExhaustionScore': 0.10522865236961446, 'bull_TransitionScore': 0.0985454358755225, 'bear_EarlyExpansionScore': 0.12078063083773002, 'bear_HealthyContinuationScore': 0.10445264612689514, 'bear_MatureTrendScore': 0.09905489547153545, 'bear_ExhaustionScore': 0.10161599265166313, 'bear_TransitionScore': 0.10040364855119879, 'CompressionScore': 0.13139176203596958, 'BalancedRangeScore': 0.10125212920799967, 'ExpansionAttemptScore': 0.11060261841195722}"
+2024_each_directional_phase_winner_ge_1pct,True,"{'EarlyExpansion': 0.18419854280510017, 'HealthyContinuation': 0.08498406193078324, 'MatureTrend': 0.08709016393442623, 'Exhaustion': 0.14879326047358835, 'Transition': 0.494933970856102}"
+2024_each_sideways_phase_winner_ge_1pct,True,"{'Compression': 0.1567622950819672, 'BalancedRange': 0.12249544626593807, 'ExpansionAttempt': 0.7207422586520947}"
+2024_uses_frozen_2023_calibration,True,{'refit_2024': False}
