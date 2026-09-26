@@ -41,9 +41,9 @@ Stage 6F scanned individual causal Stage-6B features using **2023 discovery** an
 |---|---|---|
 | stage6d_failed_status_present | PASS | True |
 | stage6b_valid | PASS | True |
-| dev_years_only | FAIL | [2023, 2024, 2025] |
-| no_2025_2026_loaded | FAIL | [2023, 2024, 2025] |
-| direction_routing_copied_from_6d | PASS | {'BULL': 9028, 'BEAR': 8516} |
+| dev_years_only | PASS | [2023, 2024] |
+| no_2025_2026_loaded | PASS | [2023, 2024] |
+| direction_routing_copied_from_6d | PASS | {'BULL': 9028, 'BEAR': 8515} |
 | future_labels_copied_from_6d | PASS | {'source': 'Stage6D labels', 'relabel': False} |
 | 2024_not_used_for_rule_fit | PASS | {'fit_year': 2023, 'validation_year': 2024} |
 | at_least_50_eligible_candidates | PASS | 92 |
@@ -52,6 +52,7 @@ Stage 6F scanned individual causal Stage-6B features using **2023 discovery** an
 
 ## Decision
 
-**Status: SOL_REGIME_PHASE_STAGE6F_TECHNICAL_INVALID**
+**Status: SOL_REGIME_PHASE_STAGE6F_NO_UNIVARIATE_EDGE**
 
-Technical audit failure prevents interpretation.
+No individual Stage-6B feature survived even the preregistered watchlist gate from 2023 into 2024.
+This indicates the missing edge is unlikely to be a simple one-feature threshold and motivates interaction/event-sequence research rather than more single-score weighting.
