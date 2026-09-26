@@ -1,0 +1,9 @@
+audit,pass,value
+parent_stage7_target_not_met,True,SOL_INDICATOR_RELATIONSHIP_S7_TARGET_NOT_MET
+base_rule_frozen,True,R3_STABLE_REGIME_CELLS
+tp_sl_frozen_1pct,True,"{'tp': 0.01, 'sl': 0.01}"
+trigger_count_exact,True,"['T0_ONSET', 'T1_PRICE_CONFIRM_5M', 'T2_PRICE_CONFIRM_15M', 'T3_PRICE_CONFIRM_30M', 'T4_STATE_PERSIST_15M', 'T5_STATE_PERSIST_30M', 'T6_PERSIST15_AND_PRICE15', 'T7_PERSIST30_AND_PRICE30']"
+dev_selection_only,True,T0_ONSET
+one_position_no_overlap,True,0
+entry_delays_frozen,True,"{'T0_ONSET': 0, 'T1_PRICE_CONFIRM_5M': 5, 'T2_PRICE_CONFIRM_15M': 15, 'T3_PRICE_CONFIRM_30M': 30, 'T4_STATE_PERSIST_15M': 15, 'T5_STATE_PERSIST_30M': 30, 'T6_PERSIST15_AND_PRICE15': 15, 'T7_PERSIST30_AND_PRICE30': 30}"
+all_dev_rows_have_target_flag,True,8
