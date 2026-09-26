@@ -1,0 +1,51 @@
+name: SOL Indicator Relationship Stage 7C
+
+on:
+  push:
+    branches:
+      - research/sol-indicator-relationship-s7c
+    paths:
+      - "research/sol_indicator_relationship_s7c.py"
+      - "SOL_INDICATOR_RELATIONSHIP_S7C_Preregistration.md"
+      - ".github/workflows/sol-indicator-relationship-s7c.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-stage7c:
+    if: \${{ !contains(github.event.head_commit.message, '[stage7c-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-indicator-relationship-s7c
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pandas numpy requests scikit-learn
+      - name: Run Stage 7C
+        run: python research/sol_indicator_relationship_s7c.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_INDICATOR_RELATIONSHIP_S7C_Result.md \
+                  SOL_INDICATOR_RELATIONSHIP_S7C_Result.json \
+                  SOL_INDICATOR_RELATIONSHIP_S7C_AUDIT.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7C_A_MODEL_COEFFICIENTS.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7C_B_DEV_SELECT.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7C_C_VALIDATION.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7C_D_SIDE.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7C_E_SCORE_OUTCOME.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7C_F_TRADES.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7C_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "Persist SOL Stage 7C results [stage7c-result]"
+            git push origin HEAD:research/sol-indicator-relationship-s7c
+          fi
