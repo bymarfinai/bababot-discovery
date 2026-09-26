@@ -3,18 +3,16 @@ import fs from "node:fs";
 
 const symbols = [["CRYPTOCAP:BTC.D","btcd"],["CRYPTOCAP:USDT.D","usdtd"]];
 const api = new TradingviewAPI({ save_session: false });
-const startSec = Date.parse("2022-12-18T00:00:00Z") / 1000;
+const startSec = Date.parse("2022-12-15T00:00:00Z") / 1000;
 const endSec = Date.parse("2026-09-26T00:00:00Z") / 1000;
 const series = {};
 
 try {
   for (const [symbol, key] of symbols) {
-    const history = await api.loadAllBars(symbol, {
-      interval: "15",
-      chunkSize: 25000,
-      onProgress: ({ bars, firstTimestamp }) => {
-        console.log(symbol, "bars", bars, "first", new Date(firstTimestamp * 1000).toISOString());
-      },
+    const history = await api.history(symbol, {
+      interval: "60",
+      bars: 40000,
+      chunkSize: 5000,
     });
     const bars = (history?.bars || [])
       .filter((b) => Number.isFinite(Number(b.t)) && Number(b.t) >= startSec && Number(b.t) < endSec)
@@ -39,7 +37,7 @@ try {
   for (const r of rows) {
     out.push(new Date(r.ts*1000).toISOString()+","+(r.btcd ?? "")+","+(r.usdtd ?? ""));
   }
-  fs.writeFileSync("research/_stage5b_dominance_15m.csv", out.join("\n")+"\n");
+  fs.writeFileSync("research/_stage5b_dominance_1h.csv", out.join("\n")+"\n");
   fs.writeFileSync("research/_stage5b_dominance_fetch_meta.json", JSON.stringify({
     fetched_at: new Date().toISOString(),
     btc_rows: series.btcd.length,
