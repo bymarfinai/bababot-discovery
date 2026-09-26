@@ -137,3 +137,41 @@ Causality rule:
 - source consistency must be documented before any result is accepted.
 
 **STAGE4_FROZEN_BEFORE_RESULTS**
+
+
+## Stage 4C — Three-way high-location OI × Taker check
+
+**Frozen before Stage 4C results.**
+
+Reuse the exact Stage 4 DEV tertile boundaries for:
+- `loc_24h`
+- `oi_chg_15m`
+- `taker_imb_15m`
+
+Focus only on `loc_24h = HIGH`.
+
+Frozen contrasts:
+
+1. **High-location + aggressive buying**
+   - LEFT: loc HIGH + OI HIGH + taker HIGH
+   - RIGHT: loc HIGH + OI LOW + taker HIGH
+
+2. **High-location + aggressive selling**
+   - LEFT: loc HIGH + OI HIGH + taker LOW
+   - RIGHT: loc HIGH + OI LOW + taker LOW
+
+For each cell report:
+- N
+- LONG / SHORT / NONE / AMBIGUOUS rate
+- D = LONG - SHORT
+- median 4h return
+- median 4h max-up / max-down
+
+Replication gate:
+- DEV N >= 150 each side
+- each validation N >= 75 each side
+- |delta-D DEV| >= 6pp
+- same sign in 2025 and 2026
+- |delta-D validation| >= 3pp each
+
+**STAGE4C_FROZEN_BEFORE_RESULTS**
