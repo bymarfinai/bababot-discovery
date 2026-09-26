@@ -26,7 +26,7 @@ OUT_STATUS=ROOT/"SOL_REGIME_PHASE_STAGE6B_Status.txt"
 
 SYMBOL="SOLUSDT"
 BASE="https://data.binance.vision/data/futures/um/monthly/klines"
-FETCH_START=pd.Timestamp("2022-12-01T00:00:00Z")
+FETCH_START=pd.Timestamp("2022-06-01T00:00:00Z")
 START=pd.Timestamp("2023-01-01T00:00:00Z")
 END=pd.Timestamp("2025-01-01T00:00:00Z")
 
@@ -308,6 +308,7 @@ def side_features(z,side):
     post1=np.full(len(z),np.nan)
     post3=np.full(len(z),np.nan)
     failed_reclaim=np.zeros(len(z),dtype=bool)
+    reclaim_event=np.zeros(len(z),dtype=bool)
 
     openv=z.open.to_numpy(float); em7=z.ema7_raw.to_numpy(float)
     idx=z.index
@@ -348,6 +349,7 @@ def side_features(z,side):
                 latest_body=float(abs(close[i]-openv[i])/rng) if rng>0 else np.nan
                 latest_clv=float(((close[i]-low[i])/rng) if side=="BULL" else ((high[i]-close[i])/rng)) if rng>0 else np.nan
                 completed.append((i,close[i],latest_depth))
+                reclaim_event[i]=True
                 inp=False; start_i=None; pre_ext=None; cur_depth=0.0
                 active[i]=False; age[i]=np.nan; depth[i]=np.nan
             elif i-start_i>=12:
@@ -372,6 +374,7 @@ def side_features(z,side):
     out[p+"latest_reclaim_clv"]=reclaim_clv
     out[p+"post_reclaim_progress_1h"]=post1
     out[p+"post_reclaim_progress_3h"]=post3
+    out[p+"pullback_reclaim_event"]=reclaim_event
     out[p+"failed_reclaim_event"]=failed_reclaim
     out[p+"failed_reclaim_count24"]=pd.Series(failed_reclaim,index=z.index).astype(float).rolling(24).sum()
 
@@ -537,18 +540,22 @@ def main():
         pb_bad[side]=int((ages[act]<0).sum())
     add("pullback_ages_nonnegative",all(v==0 for v in pb_bad.values()),pb_bad)
 
-    # Post reclaim timing audit from sparse outputs: any 1H progress value must appear at least 1 bar after a change in completed-pullback stats;
-    # any 3H value at least 3 bars after. Reconstruct using latest duration change as completion marker.
+    # Post-reclaim timing audit uses the explicit causal reclaim event emitted by the feature engine.
     timing_bad={}
     for side in ("bull","bear"):
-        dur=pd.to_numeric(feats[f"{side}_latest_pullback_duration_h"],errors="coerce")
-        completion=dur.notna() & (dur.ne(dur.shift(1)))
+        completion=boolish(feats[f"{side}_pullback_reclaim_event"])
         comp_idx=np.where(completion.to_numpy())[0]
         allowed1=set(i+1 for i in comp_idx if i+1<len(feats))
         allowed3=set(i+3 for i in comp_idx if i+3<len(feats))
         got1=set(np.where(pd.to_numeric(feats[f"{side}_post_reclaim_progress_1h"],errors="coerce").notna().to_numpy())[0])
         got3=set(np.where(pd.to_numeric(feats[f"{side}_post_reclaim_progress_3h"],errors="coerce").notna().to_numpy())[0])
-        timing_bad[side]={"1h_bad":len(got1-allowed1),"3h_bad":len(got3-allowed3)}
+        timing_bad[side]={
+            "1h_bad":len(got1-allowed1),
+            "3h_bad":len(got3-allowed3),
+            "reclaims":len(comp_idx),
+            "post1":len(got1),
+            "post3":len(got3),
+        }
     add("post_reclaim_progress_not_early",all(v["1h_bad"]==0 and v["3h_bad"]==0 for v in timing_bad.values()),timing_bad)
 
     pa=prefix_audit(h1,f2,f3,f4,feats)
@@ -582,7 +589,7 @@ def main():
 
     lines=[
         "# SOL Regime + Phase V2 — Stage 6B Feature Engine Result","",
-        f"Raw SOLUSDT 5m coverage (2022-12 through 2024): **{coverage:.4%}**.",
+        f"Raw SOLUSDT 5m coverage (2022-06 through 2024): **{coverage:.4%}**.",
         f"Exported DEV 1H feature rows: **{len(feats):,}**.",
         f"Feature columns: **{len(feats.columns):,}**.","",
         "## Causal event counts","",
