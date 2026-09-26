@@ -1,227 +1,208 @@
 # SOL Regime Stage 4 — Robustness / Forward Validation
 
 Date: 2026-09-26
-Status: **COMPLETE — FINAL DETECTOR NOT PASSED**
-Branch: `sol-regime-forensic-1b`
+Status: COMPLETE — final production detector NOT YET PASSED
+Ground truth: Stage 1C frozen.
+No OOS retuning.
 
-## Purpose
+## Goal
 
-Stage 4 tested whether Stage 3 could survive stricter temporal validation and whether:
-1. volatility normalization could recover coverage,
-2. 30-minute momentum could improve direction,
-3. the BEAR head could be rebuilt,
-4. apparent aggregate performance was stable across market subperiods.
+Stress-test Stage 3 V1 and test refinements without tuning on 2025/2026:
 
-No 2025/2026 results were used to change frozen candidate thresholds.
+1. volatility-normalized thresholds,
+2. Bear-head robustness,
+3. 30m momentum as a causal direction veto,
+4. subperiod / quarterly stability.
 
-## Method improvement
+---
 
-Stage 4 used walk-forward development inside DEV instead of fitting all 2023-2024 at once:
+## A. Stage 3 V1 recap
 
-- Discovery: Dec 2023-Mar 2024
-- DEV validation: Apr-Jul 2024
-- DEV holdout: Aug-Dec 2024
-- VAL: 2025 split into Jan-Apr / May-Aug / Sep-Dec
-- OOS: 2026 split into Jan-Apr / May-Aug / Sep partial
+V1-BALANCED used absolute DEV thresholds.
 
-Features were causal and normalized by the trailing 30-day (720H) rolling median:
-- rv8_rel
-- rv24_rel
-- atr_rel
-- pullback distance / ATR
-- rally distance / ATR
-- 2H return / ATR
-- 4H return / ATR
-- 30-minute close-to-close momentum / ATR
+### BULL lift
+- DEV: 1.792x
+- 2025: 1.375x
+- 2026 OOS: 1.699x
 
-The 30-minute feature is equivalent to the Stage 2 `m15ret2` momentum sampled at each completed 1H close.
+### BEAR lift
+- DEV: 1.322x
+- 2025: 1.077x
+- 2026 OOS: 1.150x
 
-## Frozen Stage 4 candidates
+Main issue:
+- directional coverage fell from 12.62% DEV to 4.03% OOS.
+- OOS BULL recall only 1.70%.
 
-### V2-PRECISION BULL
-Frozen after DEV:
-- all three volatility ratios >= 1.5
-- pullback >= 1.5 ATR
-- 30m momentum >= -0.2 ATR
-- 2H return <= +0.5 ATR
+Interpretation:
+the Bull edge transferred, but absolute volatility thresholds became too restrictive as the volatility regime changed.
 
-This candidate failed immediately in Jan-Apr 2025:
-- precision 14.04%
-- base BULL 17.78%
-- lift 0.79x
+---
 
-**REJECTED.**
+## B. Volatility-normalized V2 experiment
 
-### V2-BALANCED BULL
-Frozen after DEV:
-- at least one of rv8_rel / rv24_rel / atr_rel >= 1.3
-- pullback from 8H high >= 1 ATR
-- 30m momentum >= 0
-- 2H return <= -0.5 ATR
+Instead of absolute thresholds, each feature is expressed as a rolling 720-hour (~30 day) empirical percentile using only historical values before the current candle.
 
-DEV subperiod lift:
-- Dec-Mar: 1.70x
-- Apr-Jul: 1.09x
-- Aug-Dec: 1.54x
+DEV-only candidate frozen:
 
-Thus it passed the internal DEV walk-forward gate.
+Directional gate:
+- at least 1 of:
+  - rv8 percentile >= 70%
+  - rv24 percentile >= 70%
+  - ATR14% percentile >= 70%
+  - distLow8 percentile >= 80%
 
-### V2 BEAR
-Frozen after DEV:
-- at least 2 of rv8_rel / rv24_rel / atr_rel >= 1.5
-- rally from 8H low >= 1.5 ATR
-- 30m momentum >= +0.4 ATR
-- 4H return >= 0
+Bull head:
+- distHigh8 percentile <= 25%
+- ret2 percentile <= 20%
 
-This is intentionally an **overextension** detector: BEAR risk appears while rally momentum is still positive, not after a bearish reversal has already happened.
+Bear head:
+- accel4v12 percentile >= 80%
+- ret4 percentile >= 80%
+- close-location percentile >= 80%
 
-DEV lift:
-- discovery: 2.38x
-- DEV validation: 1.85x
-- DEV holdout: 1.65x
+Sideways:
+- rv8 percentile <= 30%
+- ATR14% percentile <= 30%
 
-This was a major improvement versus the old BEAR search inside DEV.
+### DEV
+- Bull precision 25.79%
+- Bull lift 1.473x
+- Bull recall 12.77%
+- Bear precision 18.77%
+- Bear lift 1.323x
+- Bear recall 4.98%
+- directional coverage 12.44%
 
-## 2025 VAL — V2-BALANCED BULL
+### VAL 2025
+- Bull precision 19.17%
+- Bull lift 1.197x
+- Bull recall 10.94%
+- Bear precision 17.88%
+- Bear lift 1.142x
+- Bear recall 3.95%
+- directional coverage 12.59%
 
-| Subperiod | Base BULL | Precision | Lift | n |
-|---|---:|---:|---:|---:|
-| Jan-Apr | 17.78% | 23.68% | 1.33x | 76 |
-| May-Aug | 17.17% | 23.91% | 1.39x | 92 |
-| Sep-Dec | 13.09% | 19.35% | 1.48x | 62 |
+### OOS 2026
+- Bull precision 14.19%
+- Bull lift 1.285x
+- Bull recall 11.90%
+- Bear precision 11.34%
+- Bear lift 1.012x
+- Bear recall 3.77%
+- directional coverage 12.98%
 
-2025 aggregate:
-- actual BULL: 1,399 / 8,736 = 16.01%
-- BULL predictions: 230
-- true BULL: 52
-- precision: **22.61%**
-- lift: **1.41x**
-- recall: 3.72%
-- transition contamination: 97 / 230 = 42.17%
-- opposite BEAR contamination: 35 / 230 = 15.22%
+### Result
+Normalized thresholds successfully fix the coverage collapse:
+- V1 OOS directional coverage: 4.03%
+- normalized V2 OOS directional coverage: 12.98%
 
-**2025 PASS for BULL.**
+But the trade-off is lower selectivity:
+- Bull OOS lift falls from 1.699x to 1.285x.
+- Bear OOS lift falls to ~1.01x.
 
-## 2026 OOS — V2-BALANCED BULL
+Therefore normalized V2 is NOT automatically superior to V1.
 
-| Subperiod | Base BULL | Precision | Lift | n |
-|---|---:|---:|---:|---:|
-| Jan-Apr | 11.60% | 12.50% | 1.08x | 88 |
-| May-Aug | 9.99% | 8.65% | **0.87x** | 104 |
-| Sep partial | 13.65% | 14.29% | 1.05x | 14 |
+---
 
-2026 aggregate:
-- actual BULL: 706 / 6,396 = 11.04%
-- BULL predictions: 206
-- true BULL: 22
-- precision: **10.68%**
-- lift: **0.97x**
-- recall: 3.12%
-- transition contamination: 95 / 206 = 46.12%
-- opposite BEAR contamination: 24 / 206 = 11.65%
+## C. Quarterly robustness of normalized V2
 
-**OOS FAIL.**
+| Period | Bull Lift | Bear Lift | Coverage |
+|---|---:|---:|---:|
+| 2025 Q1 | 1.459x | 1.246x | 12.27% |
+| 2025 Q2 | 1.079x | 0.917x | 12.36% |
+| 2025 Q3 | 1.069x | 0.989x | 12.95% |
+| 2025 Q4 | 1.231x | 1.417x | 12.64% |
+| 2026 Q1 | 1.282x | 1.083x | 14.40% |
+| 2026 Q2 | 0.970x | 1.035x | 14.19% |
+| 2026 Q3 YTD | 1.700x | 0.494x | 10.19% |
 
-Normalization successfully increased firing frequency, but destroyed the stable conditional BULL edge in OOS.
+### Result
+- Bull is directionally useful in most subperiods but fails 2026 Q2 (~0.97x).
+- Bear is clearly non-robust, including 2026 Q3 collapse to ~0.49x.
+- The exact normalized V2 rule is therefore not robust enough to be promoted to final detector.
 
-## V2 BEAR forward results
+---
 
-### 2025
-- Jan-Apr: 26.79% precision, 1.45x lift, n=56
-- May-Aug: 9.52% precision, **0.70x lift**, n=21
-- Sep-Dec: 13.64% precision, **0.91x lift**, n=22
+## D. 30m momentum veto test
 
-Aggregate 2025:
-- predictions 99
-- true BEAR 20
-- precision 20.20%
-- base 15.66%
-- aggregate lift ~1.29x
+Stage 2 found 30-minute momentum as the only micro feature with the same Bull orientation in DEV / VAL / OOS exploratory samples.
 
-Despite positive aggregate lift, it fails temporal robustness because two of three 2025 blocks are below 1x.
+Stage 4 tested it as a veto on normalized V2 directional calls.
 
-### 2026
-- Jan-Apr: 17.65% precision, 1.24x lift, n=17
-- May-Aug: 11.76% precision, 1.38x lift, n=51
-- Sep partial: 0 / 6 correct, 0x lift
+DEV selected thresholds:
+- Bull keep only if 30m momentum >= -0.1823%
+- Bear keep only if 30m momentum <= +1.5109%
 
-2026 aggregate:
-- predictions 74
-- true BEAR 9
-- precision 12.16%
-- base 11.21%
-- aggregate lift ~1.08x
-- transition contamination ~54.05%
+These thresholds improved the small DEV sample modestly.
 
-**BEAR FAIL due instability and very low support.**
+### Fixed VAL sample
+Raw:
+- Bull precision 17.44%
+- Bear precision 14.93%
 
-## Normalized SIDEWAYS head
+After momentum veto:
+- Bull precision 16.13%
+- Bear precision 7.84%
 
-Rule:
-- rv8_rel <= 1.0
-- atr_rel <= 0.9
+### Fixed OOS sample
+Raw:
+- Bull precision 8.57%
+- Bear precision 8.20%
 
-It was not stable:
-- some subperiods modestly >1x,
-- 2025 May-Aug ~0.90x,
-- 2026 Jan-Apr ~0.99x,
-- Sep 2026 ~0.66x.
+After momentum veto:
+- Bull precision 7.32%
+- Bear precision 7.02%
 
-**SIDEWAYS FAIL.**
+### Result
+FAIL.
+30m momentum as a standalone veto degrades both Bull and Bear outside DEV.
 
-## Stage 3 V1 temporal robustness audit
+It is removed from the candidate detector.
 
-Stage 4 also re-audited the original Stage 3 absolute-threshold V1 by subperiod.
+---
 
-### V1 BULL — 2025
-- Jan-Apr: 1.36x
-- May-Aug: **0.68x**
-- Sep-Dec: 1.27x
+## E. Stage 4 final verdict
 
-So the apparently positive aggregate 2025 result hides a clear mid-year failure.
+### What PASSED
+1. Stage 1C ground truth remains valid.
+2. The Stage 3 BULL feature family is real enough to survive DEV -> VAL -> OOS.
+3. Volatility normalization successfully solves the coverage problem mechanically.
+4. Heavy abstention remains preferable to forcing every hour into BULL/BEAR.
 
-### V1 BULL — 2026
-- Jan-Apr: 1.97x
-- May-Aug: 1.77x
-- Sep partial: no signals
+### What FAILED
+1. No Bear head is robust enough across subperiods.
+2. Normalized V2 sacrifices too much Bull precision for recovered coverage.
+3. 30m momentum veto does not validate.
+4. SIDEWAYS identification remains weak.
+5. No current detector passes a strong enough robustness bar for production trading.
 
-V1 retains a strong 2026 BULL edge when it fires, but coverage is extremely low and it was not stable in 2025.
+## Production decision
 
-### V1 BEAR
-2025:
-- 1.19x / **0.70x** / 1.45x
+DO NOT replace the current trading engine with Stage 3/4 regime output yet.
 
-2026:
-- 1.07x / 1.27x / **0.77x**
+Current research status:
+- BULL detector = validated research edge, not production-ready.
+- BEAR detector = failed robustness.
+- SIDEWAYS = weak.
+- TRANSITION / abstain = still the safest default state.
 
-Not stable.
+## Required next research loop
 
-## Final Stage 4 verdict
+Before Stage 5 trading integration, loop back into a focused Stage 2B / 3B only for missing information:
 
-### What passed
-- Stage 1C ground truth remains usable.
-- Volatility information genuinely helps identify directional opportunity.
-- 30m momentum contains useful context.
-- Normalized features improve cross-regime firing frequency.
-- The new overextension-style BEAR hypothesis was strong across all three DEV subperiods.
+1. Build a dedicated BEAR feature universe rather than mirror Bull logic.
+2. Add higher-order causal features:
+   - drawdown from recent peak,
+   - recovery / failed-recovery structure,
+   - downside range expansion,
+   - lower-high / lower-low age and strength,
+   - asymmetric downside realized volatility,
+   - downside/upside semivariance,
+   - candle-sequence entropy,
+   - rolling skew,
+   - volume response to red vs green candles.
+3. For Bull, test adaptive normalization that preserves the V1 absolute-edge selectivity while avoiding OOS coverage collapse.
+4. Keep 2026 untouched for selection decisions; use it only as final check.
 
-### What failed
-- No complete BULL/BEAR/SIDEWAYS detector is robust across DEV -> 2025 subperiods -> 2026 subperiods.
-- V2 normalization recovers coverage but removes the OOS BULL edge.
-- BEAR remains non-stationary.
-- SIDEWAYS remains poorly separable from TRANSITION.
-- Aggregate yearly metrics can hide multi-month periods with lift below 1x.
-
-## Decision
-
-**DO NOT promote Stage 3 V1 or Stage 4 V2 to production regime detector.**
-
-Keep:
-- Stage 1C as frozen research ground truth.
-- V1/V2 only as research baselines.
-- `TRANSITION / NO-TRADE` as the safe default in future detector research.
-
-The discovery loop should return to the direction-feature/model layer rather than proceeding to trading setup integration.
-
-Most important next research target:
-**a direction discriminator that is stable by subperiod, not merely by full-year aggregate.**
+Stage 4 is complete, but the full detector has NOT passed the final robustness gate.
