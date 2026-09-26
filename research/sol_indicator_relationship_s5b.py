@@ -115,7 +115,8 @@ def causal_attach(a, feature_frames):
         for p in PARTS:
             qp=out[out.partition==p]
             part_ok[p]=float(qp[closecol].notna().mean()) if len(qp) else 0.0
-        max_age=float(out.loc[mask,f"{key}_age_min"].max()) if mask.any() else np.nan\n        ok=(cov>=.95 and all(v>=.95 for v in part_ok.values()) and np.isfinite(max_age) and max_age<=60.0)
+        max_age=float(out.loc[mask,f"{key}_age_min"].max()) if mask.any() else np.nan
+        ok=(cov>=.95 and all(v>=.95 for v in part_ok.values()) and np.isfinite(max_age) and max_age<=60.0)
         accepted[key]=ok
         audits.append({
             "series":label,"rows_source":int(z[closecol].notna().sum()),
@@ -262,6 +263,39 @@ def main():
     raw_dom,feature_frames=load_dominance()
     a,oi_spec=prepare_sol()
     a,audit,accepted=causal_attach(a,feature_frames)
+
+    if not any(accepted.values()):
+        status="SOL_INDICATOR_RELATIONSHIP_S5B_SOURCE_FAIL"
+        audit.to_csv(OUT_AUDIT,index=False)
+        pd.DataFrame(columns=["feature","partition","bucket","n","long_rate","short_rate","D"]).to_csv(OUT_BUCKETS,index=False)
+        pd.DataFrame(columns=["feature","classification"]).to_csv(OUT_MARG,index=False)
+        pd.DataFrame(columns=["feature","context","comparison","classification"]).to_csv(OUT_OI,index=False)
+        pd.DataFrame(columns=["feature","context","comparison","classification"]).to_csv(OUT_OI_INC,index=False)
+        pd.DataFrame(columns=["feature","impulse","comparison","classification"]).to_csv(OUT_IMP,index=False)
+        pd.DataFrame(columns=["feature","lag_min","classification"]).to_csv(OUT_LAG,index=False)
+        payload={
+            "status":status,
+            "source_meta":json.loads(DOM_META.read_text()) if DOM_META.exists() else {},
+            "source_audit":audit.to_dict(orient="records"),
+            "accepted":accepted,
+            "reason":"No dominance series passed preregistered full-period coverage gate; no SOL outcome analysis was authorized."
+        }
+        OUT_JSON.write_text(json.dumps(payload,indent=2,default=str)+"\n")
+        lines=[
+            "# SOL Indicator Relationship Discovery — Stage 5B Result","",
+            "**SOURCE AUDIT FAILED — no analytical BTC.D/USDT.D result was produced.**","",
+            "| Series | Coverage all | DEV | 2025 | 2026 | Max age | Accepted |",
+            "|---|---:|---:|---:|---:|---:|---|",
+        ]
+        for r in audit.itertuples(index=False):
+            lines.append(f"| {r.series} | {pct(r.coverage_all)} | {pct(r.coverage_development)} | {pct(r.coverage_2025)} | {pct(r.coverage_2026)} | {r.max_age_min:.0f}m | NO |")
+        lines += ["","The source did not cover the frozen DEV/2025/2026 partitions at the preregistered minimum. No dominance thresholds, interaction results, or lag claims were computed.","",
+                  f"**Status: {status}**"]
+        OUT_MD.write_text("\n".join(lines)+"\n")
+        OUT_STATUS.write_text(status+"\n")
+        print(OUT_MD.read_text())
+        return
+
     a,specs=dom_specs(a,accepted)
 
     buckets,marg=marginal(a,specs)
