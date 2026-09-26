@@ -1,0 +1,48 @@
+name: SOL Indicator Relationship Stage 3
+
+on:
+  push:
+    branches:
+      - research/sol-indicator-relationship-s3
+    paths:
+      - "research/sol_indicator_relationship_s3.py"
+      - "SOL_INDICATOR_RELATIONSHIP_S3_Preregistration.md"
+      - ".github/workflows/sol-indicator-relationship-s3.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-stage3:
+    if: \${{ !contains(github.event.head_commit.message, '[stage3-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-indicator-relationship-s3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Run Stage 3
+        run: python research/sol_indicator_relationship_s3.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_INDICATOR_RELATIONSHIP_S3_Result.md \
+                  SOL_INDICATOR_RELATIONSHIP_S3_Result.json \
+                  SOL_INDICATOR_RELATIONSHIP_S3A_BUCKETS.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S3A_FEATURE_SUMMARY.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S3A_COVERAGE.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S3B_IMPULSE_EXPANSION.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S3_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "Persist SOL Stage 3 results [stage3-result]"
+            git push origin HEAD:research/sol-indicator-relationship-s3
+          fi
