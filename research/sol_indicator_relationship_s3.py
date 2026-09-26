@@ -229,8 +229,10 @@ def build_15m(raw):
 
 def asof_values(times,src,col,tol=pd.Timedelta(minutes=10)):
     if src.empty: return np.full(len(times),np.nan),np.full(len(times),np.nan)
-    left=pd.DataFrame({"t":pd.to_datetime(times,utc=True)}).sort_values("t")
-    right=src[["ts",col]].dropna().sort_values("ts").rename(columns={"ts":"src_ts"})
+    left=pd.DataFrame({"t":pd.to_datetime(times,utc=True).astype("datetime64[ns, UTC]")}).sort_values("t")
+    right=src[["ts",col]].dropna().copy()
+    right["ts"]=pd.to_datetime(right["ts"],utc=True).astype("datetime64[ns, UTC]")
+    right=right.sort_values("ts").rename(columns={"ts":"src_ts"})
     m=pd.merge_asof(left,right,left_on="t",right_on="src_ts",direction="backward",tolerance=tol)
     age=(m.t-m.src_ts).dt.total_seconds()/60.
     return m[col].to_numpy(float),age.to_numpy(float)
@@ -245,8 +247,10 @@ def add_derivatives(a,metrics,funding):
     if funding.empty:
         for c in ["funding_rate","funding_z_30","funding_change"]: a[c]=np.nan
         return a
-    left=pd.DataFrame({"t":t}).sort_values("t")
-    right=funding.sort_values("ts").rename(columns={"ts":"src_ts"})
+    left=pd.DataFrame({"t":pd.to_datetime(t,utc=True).astype("datetime64[ns, UTC]")}).sort_values("t")
+    right=funding.copy()
+    right["ts"]=pd.to_datetime(right["ts"],utc=True).astype("datetime64[ns, UTC]")
+    right=right.sort_values("ts").rename(columns={"ts":"src_ts"})
     m=pd.merge_asof(left,right,left_on="t",right_on="src_ts",direction="backward")
     for c in ["funding_rate","funding_z_30","funding_change"]: a[c]=m[c].to_numpy(float)
     return a
