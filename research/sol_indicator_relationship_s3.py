@@ -84,6 +84,8 @@ def fetch_kline_month(url):
     return df
 
 def load_klines():
+    # Historical months + frozen September daily archives. Avoid Binance REST
+    # because GitHub-hosted runner regions can receive HTTP 451.
     urls = []
     cur = pd.Timestamp(START.year, START.month, 1, tz="UTC")
     cutoff = pd.Timestamp("2026-09-01T00:00:00Z")
@@ -91,37 +93,29 @@ def load_klines():
         ym = cur.strftime("%Y-%m")
         urls.append(f"{BASE}/monthly/klines/{SYMBOL}/5m/{SYMBOL}-5m-{ym}.zip")
         cur += pd.offsets.MonthBegin(1)
+    for d in pd.date_range(cutoff, END - pd.Timedelta(days=1), freq="D", tz="UTC"):
+        ds = d.strftime("%Y-%m-%d")
+        urls.append(f"{BASE}/daily/klines/{SYMBOL}/5m/{SYMBOL}-5m-{ds}.zip")
+
     frames = []
-    with ThreadPoolExecutor(max_workers=12) as ex:
-        fs = [ex.submit(fetch_kline_month,u) for u in urls]
-        for f in as_completed(fs):
-            z=f.result()
-            if z is not None and len(z): frames.append(z)
-    cur_ms = int(cutoff.timestamp()*1000)
-    end_ms = int(END.timestamp()*1000)
-    rows=[]
-    while cur_ms < end_ms:
-        p={"symbol":SYMBOL,"interval":"5m","startTime":cur_ms,"endTime":end_ms-1,"limit":1500}
-        r=SESSION.get(f"{FAPI}/fapi/v1/klines",params=p,timeout=30);r.raise_for_status();z=r.json()
-        if not z: break
-        rows.extend(z)
-        nxt=int(z[-1][0])+300000
-        if nxt<=cur_ms: break
-        cur_ms=nxt
-        time.sleep(.03)
-    if rows:
-        frames.append(pd.DataFrame(rows,columns=["open_time","open","high","low","close","volume","close_time",
-                                                 "quote_volume","trades","taker_buy_base","taker_buy_quote","ignore"]))
-    if not frames: raise RuntimeError("no kline data")
-    x=pd.concat(frames,ignore_index=True)
-    ot=pd.to_numeric(x.open_time,errors="coerce")
-    ot=np.where(ot>1e14,ot/1000.,ot)
-    x["ts"]=pd.to_datetime(ot,unit="ms",utc=True,errors="coerce")
-    for c in ["open","high","low","close","volume","quote_volume","trades","taker_buy_quote"]:
-        x[c]=pd.to_numeric(x[c],errors="coerce")
-    x=x.dropna(subset=["ts","open","high","low","close","quote_volume","trades","taker_buy_quote"])
-    x=x.drop_duplicates("ts").sort_values("ts")
-    return x[(x.ts>=START)&(x.ts<END)].reset_index(drop=True)
+    with ThreadPoolExecutor(max_workers=16) as ex:
+        fs = [ex.submit(fetch_kline_month, u) for u in urls]
+        for fut in as_completed(fs):
+            z = fut.result()
+            if z is not None and len(z):
+                frames.append(z)
+
+    if not frames:
+        raise RuntimeError("no kline data")
+    x = pd.concat(frames, ignore_index=True)
+    ot = pd.to_numeric(x.open_time, errors="coerce")
+    ot = np.where(ot > 1e14, ot / 1000., ot)
+    x["ts"] = pd.to_datetime(ot, unit="ms", utc=True, errors="coerce")
+    for col in ["open","high","low","close","volume","quote_volume","trades","taker_buy_quote"]:
+        x[col] = pd.to_numeric(x[col], errors="coerce")
+    x = x.dropna(subset=["ts","open","high","low","close","quote_volume","trades","taker_buy_quote"])
+    x = x.drop_duplicates("ts").sort_values("ts")
+    return x[(x.ts >= START) & (x.ts < END)].reset_index(drop=True)
 
 def fetch_metric_day(d):
     ds=d.strftime("%Y-%m-%d")
@@ -156,23 +150,49 @@ def load_metrics():
     return pd.concat(frames,ignore_index=True).drop_duplicates("ts").sort_values("ts").reset_index(drop=True)
 
 def load_funding():
-    rows=[];cur=int(START.timestamp()*1000);end_ms=int(END.timestamp()*1000)
-    while cur<end_ms:
-        p={"symbol":SYMBOL,"startTime":cur,"endTime":end_ms-1,"limit":1000}
-        r=SESSION.get(f"{FAPI}/fapi/v1/fundingRate",params=p,timeout=30);r.raise_for_status();z=r.json()
-        if not z: break
-        rows.extend(z);nxt=int(z[-1]["fundingTime"])+1
-        if nxt<=cur: break
-        cur=nxt;time.sleep(.03)
-    if not rows: return pd.DataFrame(columns=["ts","funding_rate","funding_z_30","funding_change"])
-    f=pd.DataFrame(rows)
-    f["ts"]=pd.to_datetime(pd.to_numeric(f.fundingTime),unit="ms",utc=True)
-    f["funding_rate"]=pd.to_numeric(f.fundingRate,errors="coerce")
-    f=f[["ts","funding_rate"]].dropna().drop_duplicates("ts").sort_values("ts").reset_index(drop=True)
-    pm=f.funding_rate.shift(1).rolling(30,min_periods=10).mean()
-    ps=f.funding_rate.shift(1).rolling(30,min_periods=10).std()
-    f["funding_z_30"]=(f.funding_rate-pm)/ps.replace(0,np.nan)
-    f["funding_change"]=f.funding_rate.diff()
+    frames = []
+    cur = pd.Timestamp(START.year, START.month, 1, tz="UTC")
+    end_month = pd.Timestamp("2026-09-01T00:00:00Z")
+    urls = []
+    while cur < end_month:
+        ym = cur.strftime("%Y-%m")
+        urls.append(f"{BASE}/monthly/fundingRate/{SYMBOL}/{SYMBOL}-fundingRate-{ym}.zip")
+        cur += pd.offsets.MonthBegin(1)
+
+    def one(url):
+        try:
+            df = read_zip_csv(url)
+            if df is None or df.empty:
+                return None
+            df.columns = [str(v).strip().lower() for v in df.columns]
+            tc = "calc_time" if "calc_time" in df.columns else ("fundingtime" if "fundingtime" in df.columns else None)
+            rc = "last_funding_rate" if "last_funding_rate" in df.columns else ("fundingrate" if "fundingrate" in df.columns else None)
+            if tc is None or rc is None:
+                return None
+            vals = pd.to_numeric(df[tc], errors="coerce")
+            if vals.notna().mean() > 0.9:
+                unit = "us" if vals.dropna().median() > 1e14 else "ms"
+                ts = pd.to_datetime(vals, unit=unit, utc=True, errors="coerce")
+            else:
+                ts = pd.to_datetime(df[tc], utc=True, errors="coerce")
+            return pd.DataFrame({"ts": ts, "funding_rate": pd.to_numeric(df[rc], errors="coerce")}).dropna()
+        except Exception:
+            return None
+
+    with ThreadPoolExecutor(max_workers=12) as ex:
+        fs = [ex.submit(one, u) for u in urls]
+        for fut in as_completed(fs):
+            z = fut.result()
+            if z is not None and len(z):
+                frames.append(z)
+    if not frames:
+        return pd.DataFrame(columns=["ts","funding_rate","funding_z_30","funding_change"])
+    f = pd.concat(frames, ignore_index=True).dropna().drop_duplicates("ts").sort_values("ts").reset_index(drop=True)
+    f = f[(f.ts >= START) & (f.ts < END)].copy()
+    pm = f.funding_rate.shift(1).rolling(30, min_periods=10).mean()
+    ps = f.funding_rate.shift(1).rolling(30, min_periods=10).std()
+    f["funding_z_30"] = (f.funding_rate - pm) / ps.replace(0, np.nan)
+    f["funding_change"] = f.funding_rate.diff()
     return f
 
 def build_15m(raw):
