@@ -162,3 +162,22 @@ Therefore Stage 5B uses the following transparent fallback:
 Targets, DEV/validation partitions, tertile-learning rule, and all replication gates remain unchanged.
 
 **S5B_SOURCE_AMENDMENT_FROZEN_BEFORE_ANALYTICAL_RESULTS**
+
+
+## Second source-feasibility amendment before analytical results
+
+The anonymous TradingView 1h history endpoint also returned only recent dominance bars (2026-08-01 onward), failing the frozen multi-year coverage audit before any SOL outcome result was computed.
+
+Final public-source fallback for Stage 5B:
+- symbols remain exactly `CRYPTOCAP:BTC.D` and `CRYPTOCAP:USDT.D`;
+- source resolution = **1D**;
+- only the already-preregistered **24h dominance change** remains testable;
+- 1h / 4h / 8h dominance changes are marked UNAVAILABLE, not approximated;
+- intraday 5B4 lead-lag tests are marked UNAVAILABLE;
+- 5B1 marginal 24h dominance, 5B2/5B2b OI-context 24h dominance, and 5B3 24h dominance × 5m impulse remain authorized;
+- causal availability = daily bar end; the latest completed daily dominance value is backward-aligned to SOL decisions;
+- source coverage must still overlap DEV, 2025 and 2026 at >=95%.
+
+Targets, partitions, DEV-only tertiles, and replication gates remain unchanged.
+
+**S5B_DAILY_SOURCE_AMENDMENT_FROZEN_BEFORE_ANALYTICAL_RESULTS**
