@@ -10,8 +10,8 @@ const series = {};
 try {
   for (const [symbol, key] of symbols) {
     const history = await api.history(symbol, {
-      interval: "60",
-      bars: 40000,
+      interval: "1D",
+      bars: 5000,
       chunkSize: 5000,
     });
     const bars = (history?.bars || [])
@@ -37,7 +37,7 @@ try {
   for (const r of rows) {
     out.push(new Date(r.ts*1000).toISOString()+","+(r.btcd ?? "")+","+(r.usdtd ?? ""));
   }
-  fs.writeFileSync("research/_stage5b_dominance_1h.csv", out.join("\n")+"\n");
+  fs.writeFileSync("research/_stage5b_dominance_1d.csv", out.join("\n")+"\n");
   fs.writeFileSync("research/_stage5b_dominance_fetch_meta.json", JSON.stringify({
     fetched_at: new Date().toISOString(),
     btc_rows: series.btcd.length,
