@@ -144,3 +144,21 @@ A lagged dominance effect passes only if the exact same lag satisfies the margin
 - TOTAL/TOTAL2/TOTAL3 are deferred unless BTC.D/USDT.D add replicating information.
 
 **STAGE5B_FROZEN_BEFORE_RESULTS**
+
+
+## Source-feasibility amendment before analytical results
+
+The anonymous TradingView 15m full-history traversal returned only recent data and rejected deeper history before any SOL outcome analysis was run.
+
+Therefore Stage 5B uses the following transparent fallback:
+- primary source symbols remain exactly CRYPTOCAP:BTC.D and CRYPTOCAP:USDT.D;
+- source resolution changes from 15m to **1h** to obtain full 2023–2026 coverage;
+- the preregistered **15m dominance-change feature is marked UNAVAILABLE and is not approximated**;
+- retained change windows: 1h / 4h / 8h / 24h;
+- causal availability time = 1h bar end;
+- accepted age of last completed dominance observation on the 15m SOL decision grid <= 60 minutes;
+- 5B4 lead lags retained at 60m and 240m; the 15m dominance lead-lag is marked UNAVAILABLE because the source cannot resolve a distinct 15m state historically.
+
+Targets, DEV/validation partitions, tertile-learning rule, and all replication gates remain unchanged.
+
+**S5B_SOURCE_AMENDMENT_FROZEN_BEFORE_ANALYTICAL_RESULTS**
