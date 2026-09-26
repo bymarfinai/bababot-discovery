@@ -1,0 +1,9 @@
+family,direction,replicated_sequence_count,replicated_exact_lags,temporal_replication
+OI_vs_Taker,OI_FIRST,0,,False
+OI_vs_Taker,OTHER_FIRST,0,,False
+OI_vs_Volume,OI_FIRST,0,,False
+OI_vs_Volume,OTHER_FIRST,0,,False
+OI_vs_Impulse,OI_FIRST,0,,False
+OI_vs_Impulse,OTHER_FIRST,0,,False
+OI_vs_Breakout,OI_FIRST,0,,False
+OI_vs_Breakout,OTHER_FIRST,1,30,True
