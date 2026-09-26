@@ -1,0 +1,67 @@
+{
+  "status": "SOL_INDICATOR_RELATIONSHIP_S5B_COMPLETED",
+  "source_meta": {
+    "fetched_at": "2026-09-26T04:52:09.703Z",
+    "btc_rows": 1381,
+    "usdt_rows": 1381,
+    "btc_first": "2022-12-15T00:00:00.000Z",
+    "btc_last": "2026-09-25T00:00:00.000Z",
+    "usdt_first": "2022-12-15T00:00:00.000Z",
+    "usdt_last": "2026-09-25T00:00:00.000Z"
+  },
+  "source_audit": [
+    {
+      "series": "BTC.D",
+      "rows_source": 1381,
+      "coverage_all": 1.0,
+      "coverage_development": 1.0,
+      "coverage_2025": 1.0,
+      "coverage_2026": 1.0,
+      "first_aligned": "2023-01-01 00:00:00+00:00",
+      "last_aligned": "2026-09-24 23:45:00+00:00",
+      "max_age_min": 1425.0,
+      "accepted": true
+    },
+    {
+      "series": "USDT.D",
+      "rows_source": 1381,
+      "coverage_all": 1.0,
+      "coverage_development": 1.0,
+      "coverage_2025": 1.0,
+      "coverage_2026": 1.0,
+      "first_aligned": "2023-01-01 00:00:00+00:00",
+      "last_aligned": "2026-09-24 23:45:00+00:00",
+      "max_age_min": 1425.0,
+      "accepted": true
+    }
+  ],
+  "accepted": {
+    "btcd": true,
+    "usdtd": true
+  },
+  "oi_spec": {
+    "kind": "tertile",
+    "cuts": [
+      -0.0015375610215369792,
+      0.001983597785135534
+    ]
+  },
+  "dominance_specs": {
+    "btcd_chg_24h": {
+      "cuts": [
+        -0.0015303756911169142,
+        0.002250149394139589
+      ]
+    },
+    "usdtd_chg_24h": {
+      "cuts": [
+        -0.008224050081812706,
+        0.0058444866325553235
+      ]
+    }
+  },
+  "replicated_marginal": [],
+  "replicated_incremental_beyond_oi": [],
+  "replicated_impulse_context": [],
+  "replicated_lag_effects": []
+}

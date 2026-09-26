@@ -1,0 +1,3 @@
+series,rows_source,coverage_all,coverage_development,coverage_2025,coverage_2026,first_aligned,last_aligned,max_age_min,accepted
+BTC.D,1381,1.0,1.0,1.0,1.0,2023-01-01 00:00:00+00:00,2026-09-24 23:45:00+00:00,1425.0,True
+USDT.D,1381,1.0,1.0,1.0,1.0,2023-01-01 00:00:00+00:00,2026-09-24 23:45:00+00:00,1425.0,True
