@@ -24,12 +24,12 @@ BARRIER = 0.01
 
 def load_raw(path: Path) -> pd.DataFrame:
     x = pd.read_csv(path)
-    need = {"ts", "open", "high", "low", "close"}
-    missing = need.difference(x.columns)
+    need = ["ts", "open", "high", "low", "close"]
+    missing = set(need).difference(x.columns)
     if missing:
         raise ValueError(f"missing required columns: {sorted(missing)}")
 
-    x = x[list(need)].copy()
+    x = x[need].copy()
     x["ts"] = pd.to_datetime(x["ts"], utc=True, errors="coerce")
     for c in ["open", "high", "low", "close"]:
         x[c] = pd.to_numeric(x[c], errors="coerce")
@@ -65,35 +65,35 @@ def exact_window(x: pd.DataFrame, pos: int, n: int) -> pd.DataFrame | None:
     return w
 
 
-def first_touch(w: pd.DataFrame, entry: float) -> tuple[str, float | None, float | None]:
+def barrier_outcome(
+    w: pd.DataFrame, entry: float
+) -> tuple[str, float | None, float | None]:
+    """Return directional first-touch label plus each barrier's first-hit time.
+
+    Times are conservative bar-end upper bounds:
+    a hit inside the entry 5m bar is recorded as <=5 minutes, represented by 5.
+    """
     up = entry * (1.0 + BARRIER)
     dn = entry * (1.0 - BARRIER)
     up_time = None
     dn_time = None
 
     for j, r in enumerate(w.itertuples(index=False)):
-        hit_up = float(r.high) >= up
-        hit_dn = float(r.low) <= dn
-        # Bar-end upper-bound timing: a hit in the entry bar is <=5 minutes.
         elapsed = float((j + 1) * 5)
-
-        if hit_up and up_time is None:
+        if up_time is None and float(r.high) >= up:
             up_time = elapsed
-        if hit_dn and dn_time is None:
+        if dn_time is None and float(r.low) <= dn:
             dn_time = elapsed
 
-        if hit_up and hit_dn:
-            # If neither side was known to have hit in an earlier bar, ordering
-            # inside this 5m candle is unknowable from OHLC.
-            if (up_time == elapsed) and (dn_time == elapsed):
-                return "AMBIGUOUS", up_time, dn_time
-
-        if up_time is not None and dn_time is None:
-            return "LONG", up_time, dn_time
-        if dn_time is not None and up_time is None:
-            return "SHORT", up_time, dn_time
-
-    return "NONE", up_time, dn_time
+    if up_time is None and dn_time is None:
+        return "NONE", None, None
+    if up_time is not None and dn_time is not None:
+        if up_time == dn_time:
+            return "AMBIGUOUS", up_time, dn_time
+        return ("LONG", up_time, dn_time) if up_time < dn_time else ("SHORT", up_time, dn_time)
+    if up_time is not None:
+        return "LONG", up_time, None
+    return "SHORT", None, dn_time
 
 
 def excursion(w: pd.DataFrame, entry: float) -> dict[str, float]:
@@ -132,8 +132,7 @@ def build_targets(x: pd.DataFrame) -> pd.DataFrame:
         for h in HORIZONS:
             n = h * 12
             w = exact_window(x, pos, n)
-            complete_key = f"future_data_complete_{h}h"
-            row[complete_key] = w is not None
+            row[f"future_data_complete_{h}h"] = w is not None
 
             if w is None:
                 row[f"target_1pct_{h}h"] = None
@@ -142,10 +141,10 @@ def build_targets(x: pd.DataFrame) -> pd.DataFrame:
                     row[f"{k}_{h}h"] = np.nan
                 continue
 
-            label, up_t, dn_t = first_touch(w, entry)
+            label, up_t, dn_t = barrier_outcome(w, entry)
             row[f"target_1pct_{h}h"] = label
 
-            # Close of the final 5m bar in [t, t+h), which ends exactly at t+h.
+            # Final 5m close in [t, t+h), which completes exactly at t+h.
             row[f"fwd_ret_{h}h"] = float(w.close.iloc[-1] / entry - 1.0)
 
             ex = excursion(w, entry)
@@ -156,15 +155,14 @@ def build_targets(x: pd.DataFrame) -> pd.DataFrame:
                 global_up = up_t
                 global_dn = dn_t
 
-        p = row.get(f"target_1pct_{PRIMARY_H}h")
-        row["long_win_1pct_4h"] = int(p == "LONG") if p is not None else np.nan
-        row["short_win_1pct_4h"] = int(p == "SHORT") if p is not None else np.nan
+        primary = row.get(f"target_1pct_{PRIMARY_H}h")
+        row["long_win_1pct_4h"] = int(primary == "LONG") if primary is not None else np.nan
+        row["short_win_1pct_4h"] = int(primary == "SHORT") if primary is not None else np.nan
         row["time_to_up_1pct_min"] = global_up
         row["time_to_down_1pct_min"] = global_dn
         rows.append(row)
 
-    out = pd.DataFrame(rows)
-    return out
+    return pd.DataFrame(rows)
 
 
 def summarize(y: pd.DataFrame) -> pd.DataFrame:
