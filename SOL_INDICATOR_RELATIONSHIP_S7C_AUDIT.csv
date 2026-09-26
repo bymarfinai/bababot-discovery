@@ -1,0 +1,10 @@
+audit,pass,value
+parent_stage7b_target_not_met,True,SOL_INDICATOR_RELATIONSHIP_S7B_TARGET_NOT_MET
+horizons_exact,True,"['H5', 'H15']"
+threshold_grid_exact,True,"[0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8]"
+selected_from_2024_only,True,"{'horizon': 'H15', 'threshold': 0.5}"
+selected_threshold_in_grid,True,0.5
+selected_horizon_valid,True,H15
+one_position_no_overlap,True,0
+train_split_clean,True,0
+selection_rows_present,True,14
