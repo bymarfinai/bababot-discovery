@@ -1,0 +1,11 @@
+audit,pass,value
+stage6_completed,True,SOL_INDICATOR_RELATIONSHIP_S6_COMPLETED_WITH_REPLICATED_STATES
+decision_rows_match_stage6,True,130848
+grid_tp_ge_1pct,True,0.01
+grid_rr_ge_1,True,1.0
+selected_config_valid,True,"{'tp': 0.01, 'sl': 0.01, 'rr': 1.0}"
+entry_anchor_matches_raw_5m_open,True,0.0
+one_position_no_overlap,True,0
+selection_family_from_dev_only,True,R3_STABLE_REGIME_CELLS
+selection_config_from_dev_only,True,"{'tp': 0.01, 'sl': 0.01, 'dev_target_eligible': False}"
+base_cost_exact,True,0.0015
