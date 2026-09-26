@@ -91,6 +91,14 @@ For every dominance change window (15m/1h/4h/8h/24h), test:
 - USDT.D HIGH + OI HIGH vs USDT.D HIGH + OI LOW
 - USDT.D LOW + OI HIGH vs USDT.D LOW + OI LOW
 
+### 5B2b — Incremental dominance after holding OI fixed
+
+For every dominance change window, also test:
+- within OI HIGH: dominance HIGH vs dominance LOW
+- within OI LOW: dominance HIGH vs dominance LOW
+
+This is the direct test of whether cross-market dominance adds information beyond the already-strong SOL OI state.
+
 Conditional replication gate:
 - DEV endpoints >= 150
 - validation endpoints >= 75
