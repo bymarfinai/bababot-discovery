@@ -105,6 +105,21 @@ Also report:
 
 Stage 3A is descriptive. No feature becomes a trading filter in Stage 3.
 
+### Frozen replication classification
+
+For each feature define directional score per bucket as:
+`D = LONG first-touch rate - SHORT first-touch rate`.
+
+Compare highest bucket versus lowest bucket:
+`delta_D = D_high - D_low`.
+
+A feature is:
+- `REPLICATED_DIRECTIONAL` only if endpoint buckets have N >=200 each in Development and N >=100 each in both validation partitions, `abs(delta_D_dev) >= 0.05`, both validation `delta_D` values have the same sign as Development, and each validation has `abs(delta_D) >= 0.02`.
+- `NON_INFORMATIVE` if `abs(delta_D) < 0.02` in Development, 2025, and 2026.
+- otherwise `UNSTABLE_OR_WEAK`.
+
+This classification is frozen before result execution and is not a promotion rule.
+
 ## Stage 3B — frozen 5m impulse definitions
 
 Event clock: every completed raw 5m bar.  
