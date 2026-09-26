@@ -71,6 +71,14 @@ def main():
     idx=f.index.intersection(l.index)
     f=f.loc[idx].copy()
     l=l.loc[idx].copy()
+
+    # DEV boundary is defined by actionable decision_time, not only bar_open_ts.
+    # Exclude the final 2024-12-31 23:00 bar whose decision_time is 2025-01-01 00:00.
+    keep=pd.to_datetime(l["decision_time"],utc=True) < pd.Timestamp("2025-01-01T00:00:00Z")
+    f=f.loc[keep].copy()
+    l=l.loc[keep].copy()
+    idx=f.index.intersection(l.index)
+
     base=pd.DataFrame(index=idx)
     base["decision_time"]=l["decision_time"]
     base["selected_side"]=l["selected_side"]
