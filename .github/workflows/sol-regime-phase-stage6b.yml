@@ -1,0 +1,45 @@
+name: SOL Regime Phase Stage 6B
+
+on:
+  push:
+    branches:
+      - research/sol-regime-phase-stage6b
+    paths:
+      - 'SOL_REGIME_PHASE_STAGE6B_Preregistration.md'
+      - 'research/sol_regime_phase_stage6b.py'
+      - '.github/workflows/sol-regime-phase-stage6b.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stage6b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-regime-phase-stage6b
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy requests
+      - name: Run frozen Stage 6B phase feature engine
+        run: python research/sol_regime_phase_stage6b.py
+      - name: Persist Stage 6B outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            SOL_REGIME_PHASE_STAGE6B_Result.md \
+            SOL_REGIME_PHASE_STAGE6B_Features_DEV.csv \
+            SOL_REGIME_PHASE_STAGE6B_Events.csv \
+            SOL_REGIME_PHASE_STAGE6B_Audit.csv \
+            SOL_REGIME_PHASE_STAGE6B_PrefixAudit.csv \
+            SOL_REGIME_PHASE_STAGE6B_Status.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: persist SOL phase Stage 6B feature engine"
+          git pull --rebase origin research/sol-regime-phase-stage6b
+          git push origin HEAD:research/sol-regime-phase-stage6b
