@@ -217,7 +217,7 @@ def conditional_contrast(a,specs,mode):
             rep=(ok and abs(dd)>=.06 and signs[0]!=0 and signs[1]==signs[0] and signs[2]==signs[0] and abs(d25)>=.03 and abs(d26)>=.03)
             row["classification"]="REPLICATED_CONDITIONAL" if rep else "WEAK_OR_UNSTABLE"
             rows.append(row)
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows).drop_duplicates().reset_index(drop=True)
 
 def impulse_context(a,specs):
     rows=[]
