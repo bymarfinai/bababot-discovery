@@ -1,0 +1,51 @@
+name: SOL Indicator Relationship Stage 7B
+
+on:
+  push:
+    branches:
+      - research/sol-indicator-relationship-s7b
+    paths:
+      - "research/sol_indicator_relationship_s7b.py"
+      - "SOL_INDICATOR_RELATIONSHIP_S7B_Preregistration.md"
+      - ".github/workflows/sol-indicator-relationship-s7b.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-stage7b:
+    if: \${{ !contains(github.event.head_commit.message, '[stage7b-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-indicator-relationship-s7b
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pandas numpy requests
+      - name: Run Stage 7B
+        run: python research/sol_indicator_relationship_s7b.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_INDICATOR_RELATIONSHIP_S7B_Result.md \
+                  SOL_INDICATOR_RELATIONSHIP_S7B_Result.json \
+                  SOL_INDICATOR_RELATIONSHIP_S7B_AUDIT.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7B_A_FAILURE_BY_AGE.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7B_A_FAILURE_PATH.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7B_B_TRIGGER_DEV.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7B_C_VALIDATION.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7B_D_SIDE.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7B_E_TRADES.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7B_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "Persist SOL Stage 7B results [stage7b-result]"
+            git push origin HEAD:research/sol-indicator-relationship-s7b
+          fi
