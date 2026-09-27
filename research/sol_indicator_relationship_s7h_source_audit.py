@@ -26,22 +26,25 @@ def parse_bool(x):
 
 def sample_audit(date, max_rows=1_000_000):
     u=url(date)
-    h=requests.head(u,allow_redirects=True,timeout=30,headers={"User-Agent":"bababot-stage7h-a/1.0"})
-    size=int(h.headers.get("content-length","0") or 0)
-    status=h.status_code
+    status=None
+    size=0
     rec={
-        "date":date,"http_status":status,"compressed_bytes":size,
+        "date":date,"http_status":None,"compressed_bytes":0,
         "header_ok":False,"snapshot_seen":False,"bid_seen":False,"ask_seen":False,
         "rows_read":0,"timestamp_non_decreasing":True,
         "replay_ok":False,"best_bid":None,"best_ask":None,
         "first_snapshot_local_timestamp":None,"note":"",
     }
-    if status!=200:
-        rec["note"]=f"HEAD_{status}"
-        return rec
     try:
-        with requests.get(u,stream=True,timeout=120,headers={"User-Agent":"bababot-stage7h-a/1.0"}) as r:
-            r.raise_for_status()
+        with requests.get(u,stream=True,timeout=120,allow_redirects=True,
+                          headers={"User-Agent":"bababot-stage7h-a/1.0"}) as r:
+            status=r.status_code
+            size=int(r.headers.get("content-length","0") or 0)
+            rec["http_status"]=status
+            rec["compressed_bytes"]=size
+            if status!=200:
+                rec["note"]=f"GET_{status}"
+                return rec
             r.raw.decode_content=False
             gz=gzip.GzipFile(fileobj=r.raw)
             txt=io.TextIOWrapper(gz,encoding="utf-8",newline="")
