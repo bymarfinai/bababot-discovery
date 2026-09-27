@@ -1,0 +1,50 @@
+name: SOL Indicator Relationship Stage 7E
+
+on:
+  push:
+    branches:
+      - research/sol-indicator-relationship-s7e
+    paths:
+      - "research/sol_indicator_relationship_s7e.py"
+      - "SOL_INDICATOR_RELATIONSHIP_S7E_Preregistration.md"
+      - ".github/workflows/sol-indicator-relationship-s7e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-stage7e:
+    if: \${{ !contains(github.event.head_commit.message, '[stage7e-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-indicator-relationship-s7e
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pandas numpy requests scikit-learn
+      - name: Run Stage 7E
+        run: python research/sol_indicator_relationship_s7e.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_INDICATOR_RELATIONSHIP_S7E_Result.md \
+                  SOL_INDICATOR_RELATIONSHIP_S7E_Result.json \
+                  SOL_INDICATOR_RELATIONSHIP_S7E_AUDIT.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7E_A_HORIZON_GRID.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7E_B_SELECTED_VALIDATION.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7E_C_TIME4H_FATE.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7E_D_SIDE.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7E_E_TRADES.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7E_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "Persist SOL Stage 7E results [stage7e-result]"
+            git push origin HEAD:research/sol-indicator-relationship-s7e
+          fi
