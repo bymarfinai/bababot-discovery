@@ -191,3 +191,86 @@ No threshold rescue, feature combinations, RF, logistic model, side deletion, or
 Only features passing the frozen replication gate may be considered for an executable combination with the frozen Stage-7F resolution layer. Any such combination requires a new preregistration commit before outcome testing.
 
 **STAGE7G_B_FROZEN_BEFORE_OUTCOMES**
+
+## Stage 7G-C — Raw AggTrades Directional Flow (FROZEN BEFORE OUTCOMES)
+
+Stage 7G-B result:
+- historical bookDepth source gate passed;
+- zero of 17 preregistered bookDepth features met the directional replication gate;
+- therefore no bookDepth feature may be promoted or combined in Stage 7G-C.
+
+Stage 7G-C uses the second Stage-7G-A2 core-eligible source:
+- Binance Vision USD-M SOLUSDT `aggTrades`
+- full-calendar archive coverage = 1,363 / 1,363 days (100%)
+- archive size ~10.4 GB compressed.
+
+### Causal universe and target
+- Events = exact frozen R3 directional episode onsets.
+- Only aggregate trades with transaction timestamp strictly **before or equal to onset** are used.
+- Primary directional anatomy includes only events resolved as TP or SL within 4H at TP1% / SL1%.
+- TIME excluded from primary TP-vs-SL atlas.
+
+Aggressor sign:
+- buyer is maker = seller aggressor = -1
+- buyer is not maker = buyer aggressor = +1.
+
+All directional flow features are multiplied by frozen R3 side sign:
+- LONG = +1
+- SHORT = -1.
+
+Positive therefore means aggressive flow aligned with the frozen R3 direction.
+
+### Frozen windows / features
+Time windows ending at onset:
+1. signed_taker_notional_imb_30s
+2. signed_taker_notional_imb_1m
+3. signed_taker_notional_imb_5m
+4. signed_trade_count_imb_30s
+5. signed_trade_count_imb_1m
+6. signed_trade_count_imb_5m
+7. signed_large_notional_imb_1m
+8. signed_large_notional_imb_5m
+9. signed_flow_accel_30s_vs_5m = signed_taker_notional_imb_30s - signed_taker_notional_imb_5m
+10. signed_flow_accel_1m_vs_5m = signed_taker_notional_imb_1m - signed_taker_notional_imb_5m
+
+Sequence features:
+11. signed_last20_aggressor_mean
+12. signed_last50_aggressor_mean
+
+Definitions:
+- taker notional imbalance = sum(aggressor_sign * price * quantity) / sum(price * quantity)
+- trade-count imbalance = mean(aggressor_sign)
+- large-notional imbalance = same notional-imbalance formula restricted to trades at or above the **90th percentile of notional inside that event window itself**; this threshold uses only already-completed trades in that window.
+- last20/50 aggressor mean = mean aggressor sign of the last 20/50 aggregate trades inside the 5m pre-onset window; feature is missing if fewer than N trades are present.
+
+No post-onset aggTrade may be used.
+
+### Source/feature coverage gate
+All 12 features must be available for >=95% of R3 onset events in:
+- DEV 2023–24
+- 2025
+- 2026.
+
+If the gate fails, outcome-bearing anatomy is not run.
+
+### Bucketing and replication
+For each feature:
+- derive DEV 2023–24 33.33% / 66.67% cuts on resolved events only;
+- freeze cuts into 2025/2026;
+- compare HIGH vs LOW TP rate.
+
+`REPLICATED_DIRECTIONAL_MICROSTRUCTURE` requires:
+- DEV HIGH/LOW N >=150 each
+- 2025 HIGH/LOW N >=75 each
+- 2026 HIGH/LOW N >=75 each
+- |DEV delta_TP| >=8pp
+- same delta sign in 2025 and 2026
+- |2025 delta_TP| >=4pp
+- |2026 delta_TP| >=4pp.
+
+No model, feature combination, side deletion, or threshold rescue is allowed in Stage 7G-C.
+
+### Executable follow-up
+Only a replicated aggTrades feature may enter a later Stage 7G-D executable combination with the already-frozen Stage-7F resolution layer.
+
+**STAGE7G_C_FROZEN_BEFORE_OUTCOMES**
