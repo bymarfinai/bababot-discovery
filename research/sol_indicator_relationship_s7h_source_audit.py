@@ -55,6 +55,41 @@ def sample_audit(date, max_rows=1_000_000):
             snapshot_finished=False
             applied_after_snapshot=0
             last_local=None
+            current_group_local=None
+            current_group=[]
+            groups_after_snapshot=0
+
+            def apply_group(group):
+                nonlocal snapshot_started,snapshot_finished,applied_after_snapshot,groups_after_snapshot
+                if not group:
+                    return
+                group_has_snapshot=any(g["snap"] for g in group)
+                if group_has_snapshot and not snapshot_started:
+                    snapshot_started=True
+                    rec["snapshot_seen"]=True
+                    rec["first_snapshot_local_timestamp"]=group[0]["lt"]
+                    bids.clear();asks.clear()
+                elif snapshot_started and not group_has_snapshot and not snapshot_finished:
+                    snapshot_finished=True
+
+                if not snapshot_started:
+                    return
+
+                for g in group:
+                    side=g["side"]; px=g["px"]; amt=g["amt"]
+                    book=bids if side=="bid" else asks if side=="ask" else None
+                    if book is None or not math.isfinite(px) or not math.isfinite(amt):
+                        continue
+                    if amt==0:
+                        book.pop(px,None)
+                    elif amt>0:
+                        book[px]=amt
+                    if snapshot_finished and not g["snap"]:
+                        applied_after_snapshot+=1
+
+                if snapshot_finished and not group_has_snapshot:
+                    groups_after_snapshot+=1
+
             for i,row in enumerate(reader,1):
                 rec["rows_read"]=i
                 if i>max_rows:
@@ -63,7 +98,6 @@ def sample_audit(date, max_rows=1_000_000):
                 side=row.get("side")
                 if side=="bid": rec["bid_seen"]=True
                 elif side=="ask": rec["ask_seen"]=True
-
                 try:
                     lt=int(row["local_timestamp"])
                     px=float(row["price"]); amt=float(row["amount"])
@@ -71,41 +105,31 @@ def sample_audit(date, max_rows=1_000_000):
                     continue
 
                 if last_local is not None and lt<last_local:
-                    # Tardis row order is authoritative; exchange timestamps can be non-monotonic,
-                    # but local_timestamp is expected to preserve capture order.
                     rec["timestamp_non_decreasing"]=False
                 last_local=lt
 
-                snap=parse_bool(row.get("is_snapshot"))
-                if snap and not snapshot_started:
-                    snapshot_started=True
-                    rec["snapshot_seen"]=True
-                    rec["first_snapshot_local_timestamp"]=lt
-                    bids.clear();asks.clear()
-                elif snapshot_started and not snap and not snapshot_finished:
-                    snapshot_finished=True
-
-                # Ignore buffered non-snapshot updates before first snapshot.
-                if not snapshot_started:
-                    continue
-
-                book=bids if side=="bid" else asks if side=="ask" else None
-                if book is None or not math.isfinite(px) or not math.isfinite(amt):
-                    continue
-                if amt==0:
-                    book.pop(px,None)
-                elif amt>0:
-                    book[px]=amt
-
-                if snapshot_finished and not snap:
-                    applied_after_snapshot+=1
-                    if applied_after_snapshot>=500:
+                item={"lt":lt,"side":side,"px":px,"amt":amt,"snap":parse_bool(row.get("is_snapshot"))}
+                if current_group_local is None:
+                    current_group_local=lt
+                if lt!=current_group_local:
+                    apply_group(current_group)
+                    # Only inspect/stop after a complete exchange message group.
+                    if snapshot_finished and groups_after_snapshot>=100:
+                        current_group=[]
+                        current_group_local=None
                         break
+                    current_group=[item]
+                    current_group_local=lt
+                else:
+                    current_group.append(item)
+
+            if current_group:
+                apply_group(current_group)
 
             if bids and asks:
                 bb=max(bids); ba=min(asks)
                 rec["best_bid"]=bb;rec["best_ask"]=ba
-                rec["replay_ok"]=bool(bb<ba and rec["snapshot_seen"] and snapshot_finished and applied_after_snapshot>0)
+                rec["replay_ok"]=bool(bb<ba and rec["snapshot_seen"] and snapshot_finished and groups_after_snapshot>0)
             if not rec["note"]:
                 rec["note"]="OK" if rec["replay_ok"] else "REPLAY_INCOMPLETE"
     except Exception as e:
