@@ -102,3 +102,92 @@ No outcome-bearing microstructure test may be run until:
 - Mechanism labels such as wall, absorption, sweep, or liquidity pull are hypotheses unless the historical source actually contains the required structure.
 
 **STAGE7G_A_FROZEN_BEFORE_SOURCE_AUDIT**
+
+## Stage 7G-B — BookDepth Directional Relationship (FROZEN BEFORE OUTCOMES)
+
+Stage 7G-A2 full-calendar audit:
+- bookDepth: 1,358 / 1,363 days = 99.633% coverage, ~584 MB compressed.
+- aggTrades: 1,363 / 1,363 days = 100%, ~10.4 GB compressed.
+- bookTicker and liquidationSnapshot are not core eligible.
+
+Stage 7G-B uses **bookDepth only**. aggTrades is deferred to a separately preregistered follow-up because it is a materially larger source and must not be introduced opportunistically after bookDepth outcomes.
+
+### Causal alignment
+- Research rows = exact R3 new directional episode onsets.
+- Only bookDepth snapshots with timestamp <= onset are allowed.
+- Current snapshot must be no older than **90 seconds**.
+- For lagged book features, the selected prior snapshot must be <= target lag timestamp and no older than 90 seconds relative to that lag target.
+- No future-nearest match.
+- Feature coverage must be >=95% in DEV 2023–24, 2025, and 2026 or Stage 7G-B is source-failed and no relationship result is promoted.
+
+### Direction normalization
+Raw depth imbalance at absolute percentage p:
+`DI_p = (bid_depth_-p - ask_depth_+p) / (bid_depth_-p + ask_depth_+p)`.
+
+Raw notional imbalance:
+`NI_p = (bid_notional_-p - ask_notional_+p) / (bid_notional_-p + ask_notional_+p)`.
+
+Every directional feature is multiplied by:
+- +1 for frozen R3 LONG
+- -1 for frozen R3 SHORT.
+
+Therefore positive means depth/notional pressure aligned with the frozen R3 direction.
+
+### Frozen feature list
+Current snapshot:
+1. signed_depth_imb_1
+2. signed_depth_imb_2
+3. signed_depth_imb_5
+4. signed_notional_imb_1
+5. signed_notional_imb_2
+6. signed_notional_imb_5
+7. signed_depth_slope_1to5 = side-signed [log(bidDepth5/bidDepth1) - log(askDepth5/askDepth1)]
+8. signed_notional_slope_1to5 = analogous notional slope.
+
+Causal changes:
+9. depth_imb1_change_1m
+10. depth_imb1_change_5m
+11. depth_imb1_change_15m
+12. depth_imb5_change_1m
+13. depth_imb5_change_5m
+14. depth_imb5_change_15m
+15. notional_imb1_change_1m
+16. notional_imb1_change_5m
+17. notional_imb1_change_15m
+
+All change features are current signed value minus lagged signed value.
+
+### Primary directional target
+Only resolved 4H onset events:
+- TP = frozen R3 direction reaches +1% before -1%.
+- SL = frozen R3 direction reaches -1% before +1%.
+- TIME excluded from the primary TP-vs-SL relationship atlas.
+
+No execution filtering is used for the anatomy atlas; events may overlap.
+
+### Bucketing
+For each of the 17 features:
+- derive 33.33% and 66.67% cuts from resolved DEV 2023–24 only;
+- freeze those exact cuts;
+- apply them unchanged to 2025 and 2026.
+
+For each partition report LOW/MID/HIGH N and TP rate.
+
+Primary contrast:
+`delta_TP = TP_rate(HIGH) - TP_rate(LOW)`.
+
+A feature is `REPLICATED_DIRECTIONAL_MICROSTRUCTURE` only if:
+- DEV high N >=150 and low N >=150;
+- 2025 high/low N >=75 each;
+- 2026 high/low N >=75 each;
+- |DEV delta_TP| >=8 percentage points;
+- 2025 and 2026 delta_TP have the same sign as DEV;
+- |2025 delta_TP| >=4pp;
+- |2026 delta_TP| >=4pp.
+
+No threshold rescue, feature combinations, RF, logistic model, side deletion, or cell deletion are allowed in Stage 7G-B.
+
+### Stage 7G-C prerequisite
+Only features passing the frozen replication gate may be considered for an executable combination with the frozen Stage-7F resolution layer. Any such combination requires a new preregistration commit before outcome testing.
+
+**STAGE7G_B_FROZEN_BEFORE_OUTCOMES**
