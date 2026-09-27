@@ -18,6 +18,7 @@ Sample replay gate: **PASS**.
 - Authenticated non-sample Tardis day accessible: **NO**
 - Binance API key configured: **YES**
 - Binance API secret configured: **YES**
+- Binance official T_DEPTH entitlement: **NO**
 
 Credential values are never printed or persisted.
 

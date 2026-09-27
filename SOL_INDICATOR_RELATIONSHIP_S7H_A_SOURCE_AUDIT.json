@@ -23,7 +23,11 @@
     "binance_api_key_configured": true,
     "binance_api_secret_configured": true,
     "tardis_non_sample_access": false,
-    "tardis_non_sample_status": 401
+    "tardis_non_sample_status": 401,
+    "binance_tdepth_entitled": false,
+    "binance_tdepth_status": "NameError",
+    "binance_tdepth_error_code": null,
+    "binance_tdepth_returned_days": 0
   },
   "samples": [
     {
