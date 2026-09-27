@@ -1,0 +1,49 @@
+name: SOL Indicator Relationship Stage 7H-A
+
+on:
+  push:
+    branches:
+      - research/sol-indicator-relationship-s7h
+    paths:
+      - "research/sol_indicator_relationship_s7h_source_audit.py"
+      - "SOL_INDICATOR_RELATIONSHIP_S7H_Preregistration.md"
+      - ".github/workflows/sol-indicator-relationship-s7h-a.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-stage7h-a:
+    if: \${{ !contains(github.event.head_commit.message, '[stage7h-a-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TARDIS_API_KEY: \${{ secrets.TARDIS_API_KEY }}
+      BINANCE_API_KEY: \${{ secrets.BINANCE_API_KEY }}
+      BINANCE_API_SECRET: \${{ secrets.BINANCE_API_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-indicator-relationship-s7h
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pandas requests
+      - name: Run Stage 7H-A
+        run: python research/sol_indicator_relationship_s7h_source_audit.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_INDICATOR_RELATIONSHIP_S7H_A_SOURCE_AUDIT.md \
+                  SOL_INDICATOR_RELATIONSHIP_S7H_A_SOURCE_AUDIT.json \
+                  SOL_INDICATOR_RELATIONSHIP_S7H_A_SOURCE_AUDIT.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7H_A_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "Persist SOL Stage 7H-A true-L2 audit [stage7h-a-result]"
+            git push origin HEAD:research/sol-indicator-relationship-s7h
+          fi
