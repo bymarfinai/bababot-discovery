@@ -1,0 +1,361 @@
+{
+  "symbol": "SOLUSDT",
+  "audit_dates": [
+    "2023-01-15",
+    "2023-07-15",
+    "2024-01-15",
+    "2024-07-15",
+    "2025-01-15",
+    "2025-07-15",
+    "2026-01-15",
+    "2026-07-15"
+  ],
+  "summary": {
+    "bookDepth": {
+      "exists_n": 8,
+      "audit_n": 8,
+      "dev_present": true,
+      "validation_2025_present": true,
+      "validation_2026_present": true,
+      "schema": {
+        "header": "timestamp,percentage,depth,notional",
+        "sample": "2023-01-15 23:57:03,-5,529798.00000000,11864400.15700000",
+        "status": "PARSED"
+      },
+      "historical_candidate": true,
+      "core_eligible_by_8date_audit": true
+    },
+    "bookTicker": {
+      "exists_n": 2,
+      "audit_n": 8,
+      "dev_present": true,
+      "validation_2025_present": false,
+      "validation_2026_present": false,
+      "schema": {
+        "header": "update_id,best_bid_price,best_bid_qty,best_ask_price,best_ask_qty,transaction_time,event_time",
+        "sample": "3062820799546,26.67000000,172.00000000,26.67100000,582.00000000,1689379200098,1689379200104",
+        "status": "PARSED"
+      },
+      "historical_candidate": false,
+      "core_eligible_by_8date_audit": false
+    },
+    "aggTrades": {
+      "exists_n": 8,
+      "audit_n": 8,
+      "dev_present": true,
+      "validation_2025_present": true,
+      "validation_2026_present": true,
+      "schema": {
+        "header": "agg_trade_id,price,quantity,first_trade_id,last_trade_id,transact_time,is_buyer_maker",
+        "sample": "326966262,24.2840,76,681825024,681825026,1673740800116,false",
+        "status": "PARSED"
+      },
+      "historical_candidate": true,
+      "core_eligible_by_8date_audit": true
+    },
+    "liquidationSnapshot": {
+      "exists_n": 0,
+      "audit_n": 8,
+      "dev_present": false,
+      "validation_2025_present": false,
+      "validation_2026_present": false,
+      "schema": {
+        "header": null,
+        "sample": null,
+        "status": "NO_FILE"
+      },
+      "historical_candidate": false,
+      "core_eligible_by_8date_audit": false
+    }
+  },
+  "rows": [
+    {
+      "data_type": "bookDepth",
+      "date": "2023-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookDepth/SOLUSDT/SOLUSDT-bookDepth-2023-01-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 1150,
+      "last_modified": "Tue, 11 Jul 2023 09:39:41 GMT"
+    },
+    {
+      "data_type": "bookDepth",
+      "date": "2023-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookDepth/SOLUSDT/SOLUSDT-bookDepth-2023-07-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 406675,
+      "last_modified": "Sun, 16 Jul 2023 05:58:22 GMT"
+    },
+    {
+      "data_type": "bookDepth",
+      "date": "2024-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookDepth/SOLUSDT/SOLUSDT-bookDepth-2024-01-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 405670,
+      "last_modified": "Tue, 16 Jan 2024 06:53:15 GMT"
+    },
+    {
+      "data_type": "bookDepth",
+      "date": "2024-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookDepth/SOLUSDT/SOLUSDT-bookDepth-2024-07-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 404278,
+      "last_modified": "Tue, 16 Jul 2024 06:51:01 GMT"
+    },
+    {
+      "data_type": "bookDepth",
+      "date": "2025-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookDepth/SOLUSDT/SOLUSDT-bookDepth-2025-01-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 412481,
+      "last_modified": "Thu, 16 Jan 2025 06:44:21 GMT"
+    },
+    {
+      "data_type": "bookDepth",
+      "date": "2025-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookDepth/SOLUSDT/SOLUSDT-bookDepth-2025-07-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 478068,
+      "last_modified": "Wed, 16 Jul 2025 07:11:47 GMT"
+    },
+    {
+      "data_type": "bookDepth",
+      "date": "2026-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookDepth/SOLUSDT/SOLUSDT-bookDepth-2026-01-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 545536,
+      "last_modified": "Fri, 16 Jan 2026 07:36:42 GMT"
+    },
+    {
+      "data_type": "bookDepth",
+      "date": "2026-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookDepth/SOLUSDT/SOLUSDT-bookDepth-2026-07-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 556189,
+      "last_modified": "Thu, 16 Jul 2026 07:33:23 GMT"
+    },
+    {
+      "data_type": "bookTicker",
+      "date": "2023-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookTicker/SOLUSDT/SOLUSDT-bookTicker-2023-01-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "bookTicker",
+      "date": "2023-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookTicker/SOLUSDT/SOLUSDT-bookTicker-2023-07-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 65840251,
+      "last_modified": "Sun, 16 Jul 2023 05:43:12 GMT"
+    },
+    {
+      "data_type": "bookTicker",
+      "date": "2024-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookTicker/SOLUSDT/SOLUSDT-bookTicker-2024-01-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 106431368,
+      "last_modified": "Thu, 14 Mar 2024 05:38:34 GMT"
+    },
+    {
+      "data_type": "bookTicker",
+      "date": "2024-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookTicker/SOLUSDT/SOLUSDT-bookTicker-2024-07-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "bookTicker",
+      "date": "2025-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookTicker/SOLUSDT/SOLUSDT-bookTicker-2025-01-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "bookTicker",
+      "date": "2025-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookTicker/SOLUSDT/SOLUSDT-bookTicker-2025-07-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "bookTicker",
+      "date": "2026-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookTicker/SOLUSDT/SOLUSDT-bookTicker-2026-01-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "bookTicker",
+      "date": "2026-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookTicker/SOLUSDT/SOLUSDT-bookTicker-2026-07-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "aggTrades",
+      "date": "2023-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/aggTrades/SOLUSDT/SOLUSDT-aggTrades-2023-01-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 13430108,
+      "last_modified": "Mon, 16 Jan 2023 07:09:32 GMT"
+    },
+    {
+      "data_type": "aggTrades",
+      "date": "2023-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/aggTrades/SOLUSDT/SOLUSDT-aggTrades-2023-07-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 11875005,
+      "last_modified": "Sun, 16 Jul 2023 05:49:24 GMT"
+    },
+    {
+      "data_type": "aggTrades",
+      "date": "2024-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/aggTrades/SOLUSDT/SOLUSDT-aggTrades-2024-01-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 10110340,
+      "last_modified": "Tue, 16 Jan 2024 05:36:31 GMT"
+    },
+    {
+      "data_type": "aggTrades",
+      "date": "2024-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/aggTrades/SOLUSDT/SOLUSDT-aggTrades-2024-07-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 8639432,
+      "last_modified": "Tue, 16 Jul 2024 06:42:52 GMT"
+    },
+    {
+      "data_type": "aggTrades",
+      "date": "2025-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/aggTrades/SOLUSDT/SOLUSDT-aggTrades-2025-01-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 4894746,
+      "last_modified": "Thu, 16 Jan 2025 06:34:17 GMT"
+    },
+    {
+      "data_type": "aggTrades",
+      "date": "2025-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/aggTrades/SOLUSDT/SOLUSDT-aggTrades-2025-07-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 6407129,
+      "last_modified": "Wed, 16 Jul 2025 07:01:47 GMT"
+    },
+    {
+      "data_type": "aggTrades",
+      "date": "2026-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/aggTrades/SOLUSDT/SOLUSDT-aggTrades-2026-01-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 5630803,
+      "last_modified": "Fri, 16 Jan 2026 06:47:22 GMT"
+    },
+    {
+      "data_type": "aggTrades",
+      "date": "2026-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/aggTrades/SOLUSDT/SOLUSDT-aggTrades-2026-07-15.zip",
+      "http_status": 200,
+      "exists": true,
+      "content_length": 3248581,
+      "last_modified": "Thu, 16 Jul 2026 07:00:32 GMT"
+    },
+    {
+      "data_type": "liquidationSnapshot",
+      "date": "2023-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/liquidationSnapshot/SOLUSDT/SOLUSDT-liquidationSnapshot-2023-01-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "liquidationSnapshot",
+      "date": "2023-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/liquidationSnapshot/SOLUSDT/SOLUSDT-liquidationSnapshot-2023-07-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "liquidationSnapshot",
+      "date": "2024-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/liquidationSnapshot/SOLUSDT/SOLUSDT-liquidationSnapshot-2024-01-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "liquidationSnapshot",
+      "date": "2024-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/liquidationSnapshot/SOLUSDT/SOLUSDT-liquidationSnapshot-2024-07-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "liquidationSnapshot",
+      "date": "2025-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/liquidationSnapshot/SOLUSDT/SOLUSDT-liquidationSnapshot-2025-01-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "liquidationSnapshot",
+      "date": "2025-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/liquidationSnapshot/SOLUSDT/SOLUSDT-liquidationSnapshot-2025-07-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "liquidationSnapshot",
+      "date": "2026-01-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/liquidationSnapshot/SOLUSDT/SOLUSDT-liquidationSnapshot-2026-01-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    },
+    {
+      "data_type": "liquidationSnapshot",
+      "date": "2026-07-15",
+      "url": "https://data.binance.vision/data/futures/um/daily/liquidationSnapshot/SOLUSDT/SOLUSDT-liquidationSnapshot-2026-07-15.zip",
+      "http_status": 404,
+      "exists": false,
+      "content_length": 0,
+      "last_modified": ""
+    }
+  ]
+}
