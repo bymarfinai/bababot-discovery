@@ -1,0 +1,54 @@
+name: SOL Indicator Relationship Stage 7D
+
+on:
+  push:
+    branches:
+      - research/sol-indicator-relationship-s7d
+    paths:
+      - "research/sol_indicator_relationship_s7d.py"
+      - "SOL_INDICATOR_RELATIONSHIP_S7D_Preregistration.md"
+      - ".github/workflows/sol-indicator-relationship-s7d.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-stage7d:
+    if: \${{ !contains(github.event.head_commit.message, '[stage7d-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-indicator-relationship-s7d
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pandas numpy requests scikit-learn
+      - name: Run Stage 7D
+        run: python research/sol_indicator_relationship_s7d.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_INDICATOR_RELATIONSHIP_S7D_Result.md \
+                  SOL_INDICATOR_RELATIONSHIP_S7D_Result.json \
+                  SOL_INDICATOR_RELATIONSHIP_S7D_AUDIT.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7D_A_CELL_BASELINE.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7D_B_MODEL_IMPORTANCE.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7D_C_TRAIN_THRESHOLDS.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7D_D_DEV_SELECT.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7D_E_VALIDATION.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7D_F_SIDE.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7D_G_SCORE_OUTCOME.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7D_H_ACCEPTED_COMPOSITION.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7D_I_TRADES.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7D_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "Persist SOL Stage 7D results [stage7d-result]"
+            git push origin HEAD:research/sol-indicator-relationship-s7d
+          fi
