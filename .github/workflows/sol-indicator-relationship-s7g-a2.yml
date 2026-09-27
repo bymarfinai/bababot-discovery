@@ -1,0 +1,27 @@
+name: SOL Indicator Relationship Stage 7G-A2
+on:
+  push:
+    branches: [research/sol-indicator-relationship-s7g]
+    paths:
+      - "research/sol_indicator_relationship_s7g_full_coverage.py"
+      - ".github/workflows/sol-indicator-relationship-s7g-a2.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    if: \${{ !contains(github.event.head_commit.message, '[stage7g-a2-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: research/sol-indicator-relationship-s7g}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install pandas requests
+      - run: python research/sol_indicator_relationship_s7g_full_coverage.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_INDICATOR_RELATIONSHIP_S7G_A2_FULL_ARCHIVE_COVERAGE.csv SOL_INDICATOR_RELATIONSHIP_S7G_A2_FULL_ARCHIVE_COVERAGE.json SOL_INDICATOR_RELATIONSHIP_S7G_A2_Status.txt
+          if ! git diff --cached --quiet; then git commit -m "Persist SOL Stage 7G-A2 coverage [stage7g-a2-result]" && git push origin HEAD:research/sol-indicator-relationship-s7g; fi
