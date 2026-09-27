@@ -1,0 +1,11 @@
+audit,pass,value
+parent_model_exact,True,M2_RF
+parent_threshold_exact,True,0.4436178316491465
+parent_retention_exact,True,0.3
+horizon_grid_exact,True,"[4, 6, 8, 12]"
+tp_sl_cost_frozen,True,"{'tp': 0.01, 'sl': 0.01, 'cost': 0.0015}"
+selected_from_2024_only,True,8
+selected_horizon_in_grid,True,8
+four_hour_reproduces_stage7d,True,"[{'split': 'train_2023', 'trade_diff': 0, 'wr_diff': 0.0}, {'split': 'dev_select_2024', 'trade_diff': 0, 'wr_diff': 0.0}, {'split': 'validation_2025', 'trade_diff': 0, 'wr_diff': 0.0}, {'split': 'validation_2026', 'trade_diff': 0, 'wr_diff': 0.0}]"
+one_position_no_overlap_all_horizons,True,0
+dataset_nonempty,True,6813
