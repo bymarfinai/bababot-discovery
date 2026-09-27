@@ -1,0 +1,45 @@
+name: SOL Indicator Relationship Stage 7G-A
+
+on:
+  push:
+    branches:
+      - research/sol-indicator-relationship-s7g
+    paths:
+      - "research/sol_indicator_relationship_s7g_audit.py"
+      - "SOL_INDICATOR_RELATIONSHIP_S7G_Preregistration.md"
+      - ".github/workflows/sol-indicator-relationship-s7g-a.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-stage7g-a:
+    if: \${{ !contains(github.event.head_commit.message, '[stage7g-a-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-indicator-relationship-s7g
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install requests pandas
+      - name: Run Stage 7G-A
+        run: python research/sol_indicator_relationship_s7g_audit.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_INDICATOR_RELATIONSHIP_S7G_A_SOURCE_AUDIT.md \
+                  SOL_INDICATOR_RELATIONSHIP_S7G_A_SOURCE_AUDIT.json \
+                  SOL_INDICATOR_RELATIONSHIP_S7G_A_SOURCE_AUDIT.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7G_A_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "Persist SOL Stage 7G-A source audit [stage7g-a-result]"
+            git push origin HEAD:research/sol-indicator-relationship-s7g
+          fi
