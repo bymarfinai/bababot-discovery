@@ -1,0 +1,13 @@
+audit,pass,value
+parent_stage7e_target_not_met,True,SOL_INDICATOR_RELATIONSHIP_S7E_TARGET_NOT_MET
+resolution_retention_grid_exact,True,"[1.0, 0.8, 0.6]"
+direction_retention_grid_exact,True,"[1.0, 0.6, 0.5, 0.4, 0.3]"
+grid_size_exact,True,15
+feature_count_exact,True,21
+selected_from_2024_only,True,"{'res_ret': 0.6, 'dir_ret': 1.0, 'res_th': 0.7441201834668788, 'dir_th': -inf}"
+selected_retention_valid,True,"{'res': 0.6, 'dir': 1.0}"
+no_forbidden_new_indicator,True,[]
+resolution_label_exact,True,6813
+direction_training_excludes_time,True,1104
+one_position_no_overlap,True,0
+dataset_nonempty,True,6813
