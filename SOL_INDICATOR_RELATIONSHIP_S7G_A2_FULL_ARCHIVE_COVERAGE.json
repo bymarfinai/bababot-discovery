@@ -1,0 +1,64 @@
+{
+  "start": "2023-01-01 00:00:00+00:00",
+  "end": "2026-09-24 00:00:00+00:00",
+  "summary": {
+    "bookDepth": {
+      "days": 1363,
+      "exists": 1358,
+      "coverage": 0.9963316214233309,
+      "total_bytes": 584432520,
+      "year": {
+        "2023": {
+          "days": 365,
+          "exists": 362,
+          "coverage": 0.9917808219178083
+        },
+        "2024": {
+          "days": 366,
+          "exists": 365,
+          "coverage": 0.9972677595628415
+        },
+        "2025": {
+          "days": 365,
+          "exists": 365,
+          "coverage": 1.0
+        },
+        "2026": {
+          "days": 267,
+          "exists": 266,
+          "coverage": 0.9962546816479401
+        }
+      },
+      "core_eligible": true
+    },
+    "aggTrades": {
+      "days": 1363,
+      "exists": 1363,
+      "coverage": 1.0,
+      "total_bytes": 10403342076,
+      "year": {
+        "2023": {
+          "days": 365,
+          "exists": 365,
+          "coverage": 1.0
+        },
+        "2024": {
+          "days": 366,
+          "exists": 366,
+          "coverage": 1.0
+        },
+        "2025": {
+          "days": 365,
+          "exists": 365,
+          "coverage": 1.0
+        },
+        "2026": {
+          "days": 267,
+          "exists": 267,
+          "coverage": 1.0
+        }
+      },
+      "core_eligible": true
+    }
+  }
+}
