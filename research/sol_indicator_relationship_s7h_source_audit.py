@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Stage 7H-A: audit true price-level L2 replay feasibility without reading outcomes."""
 from __future__ import annotations
-import csv, gzip, io, json, os, math
+import csv, gzip, io, json, os, math, hmac, hashlib, time
 from pathlib import Path
+from urllib.parse import urlencode
 import requests
 
 ROOT=Path(__file__).resolve().parent.parent
@@ -160,6 +161,8 @@ def metadata():
 
 def auth_probe():
     key=os.getenv("TARDIS_API_KEY","").strip()
+    if key.lower().startswith("bearer "):
+        key=key[7:].strip()
     bin_key=os.getenv("BINANCE_API_KEY","").strip()
     bin_secret=os.getenv("BINANCE_API_SECRET","").strip()
     out={
@@ -168,6 +171,10 @@ def auth_probe():
         "binance_api_secret_configured":bool(bin_secret),
         "tardis_non_sample_access":False,
         "tardis_non_sample_status":None,
+        "binance_tdepth_entitled":False,
+        "binance_tdepth_status":None,
+        "binance_tdepth_error_code":None,
+        "binance_tdepth_returned_days":0,
     }
     if key:
         u="https://datasets.tardis.dev/v1/binance-futures/incremental_book_L2/2023/01/02/SOLUSDT.csv.gz"
@@ -176,12 +183,40 @@ def auth_probe():
                 headers={"Authorization":f"Bearer {key}","User-Agent":"bababot-stage7h-a/1.0"})
             out["tardis_non_sample_status"]=r.status_code
             if r.status_code==200:
-                # Read a tiny amount only to prove entitlement; do not retain data.
                 chunk=next(r.iter_content(chunk_size=64),b"")
                 out["tardis_non_sample_access"]=len(chunk)>0
             r.close()
         except Exception as e:
             out["tardis_non_sample_status"]=f"{type(e).__name__}"
+
+    if bin_key and bin_secret:
+        try:
+            start_ms=int(pd.Timestamp("2026-09-01T00:00:00Z").timestamp()*1000)
+            end_ms=int(pd.Timestamp("2026-09-01T23:59:59Z").timestamp()*1000)
+            params={
+                "symbol":"SOLUSDT",
+                "dataType":"T_DEPTH",
+                "startTime":start_ms,
+                "endTime":end_ms,
+                "recvWindow":5000,
+                "timestamp":int(time.time()*1000),
+            }
+            query=urlencode(params)
+            sig=hmac.new(bin_secret.encode(),query.encode(),hashlib.sha256).hexdigest()
+            u="https://api.binance.com/sapi/v1/futures/histDataLink?"+query+"&signature="+sig
+            r=requests.get(u,timeout=30,headers={"X-MBX-APIKEY":bin_key})
+            out["binance_tdepth_status"]=r.status_code
+            try:
+                obj=r.json()
+            except Exception:
+                obj={}
+            if r.status_code==200 and isinstance(obj,dict) and isinstance(obj.get("data"),list):
+                out["binance_tdepth_returned_days"]=len(obj["data"])
+                out["binance_tdepth_entitled"]=len(obj["data"])>0
+            elif isinstance(obj,dict):
+                out["binance_tdepth_error_code"]=obj.get("code")
+        except Exception as e:
+            out["binance_tdepth_status"]=f"{type(e).__name__}"
     return out
 
 def main():
@@ -201,7 +236,7 @@ def main():
         and df.ask_seen.all()
         and df.replay_ok.all()
     )
-    full_access=bool(auth["tardis_non_sample_access"])
+    full_access=bool(auth["tardis_non_sample_access"] or auth["binance_tdepth_entitled"])
     # Binance credential presence is not treated as entitlement proof.
     status=(
         "SOL_INDICATOR_RELATIONSHIP_S7H_A_FULL_HISTORY_ACCESS_READY"
@@ -243,6 +278,7 @@ def main():
         f"- Authenticated non-sample Tardis day accessible: **{'YES' if auth['tardis_non_sample_access'] else 'NO'}**",
         f"- Binance API key configured: **{'YES' if auth['binance_api_key_configured'] else 'NO'}**",
         f"- Binance API secret configured: **{'YES' if auth['binance_api_secret_configured'] else 'NO'}**",
+        f"- Binance official T_DEPTH entitlement: **{'YES' if auth['binance_tdepth_entitled'] else 'NO'}**",
         "",
         "Credential values are never printed or persisted.",
         "",
