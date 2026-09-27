@@ -1,0 +1,48 @@
+name: SOL Indicator Relationship Stage 7G-B
+
+on:
+  push:
+    branches:
+      - research/sol-indicator-relationship-s7g
+    paths:
+      - "research/sol_indicator_relationship_s7g_bookdepth.py"
+      - "SOL_INDICATOR_RELATIONSHIP_S7G_Preregistration.md"
+      - ".github/workflows/sol-indicator-relationship-s7g-b.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-stage7g-b:
+    if: \${{ !contains(github.event.head_commit.message, '[stage7g-b-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/sol-indicator-relationship-s7g
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pandas numpy requests scikit-learn
+      - name: Run Stage 7G-B
+        run: python research/sol_indicator_relationship_s7g_bookdepth.py
+      - name: Persist results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SOL_INDICATOR_RELATIONSHIP_S7G_B_Result.md \
+                  SOL_INDICATOR_RELATIONSHIP_S7G_B_Result.json \
+                  SOL_INDICATOR_RELATIONSHIP_S7G_B_COVERAGE.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7G_B_EVENT_FEATURES.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7G_B_BUCKETS.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7G_B_SUMMARY.csv \
+                  SOL_INDICATOR_RELATIONSHIP_S7G_B_Status.txt
+          if git diff --cached --quiet; then
+            echo "No result changes"
+          else
+            git commit -m "Persist SOL Stage 7G-B bookDepth results [stage7g-b-result]"
+            git push origin HEAD:research/sol-indicator-relationship-s7g
+          fi
