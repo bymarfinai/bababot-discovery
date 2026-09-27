@@ -5,6 +5,7 @@ import csv, gzip, io, json, os, math, hmac, hashlib, time
 from pathlib import Path
 from urllib.parse import urlencode
 import requests
+import pandas as pd
 
 ROOT=Path(__file__).resolve().parent.parent
 OUT_MD=ROOT/"SOL_INDICATOR_RELATIONSHIP_S7H_A_SOURCE_AUDIT.md"
@@ -221,7 +222,6 @@ def auth_probe():
 
 def main():
     rows=[sample_audit(d) for d in DATES]
-    import pandas as pd
     df=pd.DataFrame(rows)
     df.to_csv(OUT_CSV,index=False)
 
