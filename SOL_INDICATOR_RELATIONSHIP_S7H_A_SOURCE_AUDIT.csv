@@ -1,6 +1,6 @@
 date,http_status,compressed_bytes,header_ok,snapshot_seen,bid_seen,ask_seen,rows_read,timestamp_non_decreasing,replay_ok,best_bid,best_ask,first_snapshot_local_timestamp,note
-2023-01-01,404,0,False,False,False,False,0,True,False,,,,HEAD_404
-2024-01-01,404,0,False,False,False,False,0,True,False,,,,HEAD_404
-2025-01-01,404,0,False,False,False,False,0,True,False,,,,HEAD_404
-2026-01-01,404,0,False,False,False,False,0,True,False,,,,HEAD_404
-2026-09-01,404,0,False,False,False,False,0,True,False,,,,HEAD_404
+2023-01-01,200,86225972,True,True,True,True,2502,True,True,9.964,9.967,1672531200784659,OK
+2024-01-01,200,382367838,True,True,True,True,2501,True,True,101.768,101.778,1704067201513346,OK
+2025-01-01,200,167457270,True,True,True,True,2508,True,False,189.22,189.2,1735689601041573,REPLAY_INCOMPLETE
+2026-01-01,200,126625962,True,True,True,True,2500,True,True,124.6,124.61,1767225601517170,OK
+2026-09-01,200,200060578,True,True,True,True,2501,True,True,102.98,102.99,1788220800831600,OK
