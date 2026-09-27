@@ -1,0 +1,4 @@
+partition,n,all_features_coverage,signed_taker_notional_imb_30s_coverage,signed_taker_notional_imb_1m_coverage,signed_taker_notional_imb_5m_coverage,signed_trade_count_imb_30s_coverage,signed_trade_count_imb_1m_coverage,signed_trade_count_imb_5m_coverage,signed_large_notional_imb_1m_coverage,signed_large_notional_imb_5m_coverage,signed_flow_accel_30s_vs_5m_coverage,signed_flow_accel_1m_vs_5m_coverage,signed_last20_aggressor_mean_coverage,signed_last50_aggressor_mean_coverage
+development,3096,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+validation_2025,1968,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+validation_2026,1749,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
