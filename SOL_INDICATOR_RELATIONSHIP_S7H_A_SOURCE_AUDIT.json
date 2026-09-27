@@ -1,0 +1,110 @@
+{
+  "status": "SOL_INDICATOR_RELATIONSHIP_S7H_A_SOURCE_FAIL",
+  "sample_replay_pass": false,
+  "full_history_access_ready": false,
+  "tardis_metadata": {
+    "found": true,
+    "available_since": "2020-09-14T00:00:00.000Z",
+    "available_to": "2026-09-27T00:00:00.000Z",
+    "data_types": [
+      "trades",
+      "incremental_book_L2",
+      "quotes",
+      "book_snapshot_5",
+      "book_snapshot_25",
+      "derivative_ticker",
+      "liquidations",
+      "book_ticker"
+    ],
+    "supports_incremental_book_L2": true
+  },
+  "credential_probe": {
+    "tardis_key_configured": true,
+    "binance_api_key_configured": true,
+    "binance_api_secret_configured": true,
+    "tardis_non_sample_access": false,
+    "tardis_non_sample_status": 401
+  },
+  "samples": [
+    {
+      "date": "2023-01-01",
+      "http_status": 404,
+      "compressed_bytes": 0,
+      "header_ok": false,
+      "snapshot_seen": false,
+      "bid_seen": false,
+      "ask_seen": false,
+      "rows_read": 0,
+      "timestamp_non_decreasing": true,
+      "replay_ok": false,
+      "best_bid": null,
+      "best_ask": null,
+      "first_snapshot_local_timestamp": null,
+      "note": "HEAD_404"
+    },
+    {
+      "date": "2024-01-01",
+      "http_status": 404,
+      "compressed_bytes": 0,
+      "header_ok": false,
+      "snapshot_seen": false,
+      "bid_seen": false,
+      "ask_seen": false,
+      "rows_read": 0,
+      "timestamp_non_decreasing": true,
+      "replay_ok": false,
+      "best_bid": null,
+      "best_ask": null,
+      "first_snapshot_local_timestamp": null,
+      "note": "HEAD_404"
+    },
+    {
+      "date": "2025-01-01",
+      "http_status": 404,
+      "compressed_bytes": 0,
+      "header_ok": false,
+      "snapshot_seen": false,
+      "bid_seen": false,
+      "ask_seen": false,
+      "rows_read": 0,
+      "timestamp_non_decreasing": true,
+      "replay_ok": false,
+      "best_bid": null,
+      "best_ask": null,
+      "first_snapshot_local_timestamp": null,
+      "note": "HEAD_404"
+    },
+    {
+      "date": "2026-01-01",
+      "http_status": 404,
+      "compressed_bytes": 0,
+      "header_ok": false,
+      "snapshot_seen": false,
+      "bid_seen": false,
+      "ask_seen": false,
+      "rows_read": 0,
+      "timestamp_non_decreasing": true,
+      "replay_ok": false,
+      "best_bid": null,
+      "best_ask": null,
+      "first_snapshot_local_timestamp": null,
+      "note": "HEAD_404"
+    },
+    {
+      "date": "2026-09-01",
+      "http_status": 404,
+      "compressed_bytes": 0,
+      "header_ok": false,
+      "snapshot_seen": false,
+      "bid_seen": false,
+      "ask_seen": false,
+      "rows_read": 0,
+      "timestamp_non_decreasing": true,
+      "replay_ok": false,
+      "best_bid": null,
+      "best_ask": null,
+      "first_snapshot_local_timestamp": null,
+      "note": "HEAD_404"
+    }
+  ]
+}

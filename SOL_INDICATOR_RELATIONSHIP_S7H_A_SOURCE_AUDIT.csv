@@ -1,0 +1,6 @@
+date,http_status,compressed_bytes,header_ok,snapshot_seen,bid_seen,ask_seen,rows_read,timestamp_non_decreasing,replay_ok,best_bid,best_ask,first_snapshot_local_timestamp,note
+2023-01-01,404,0,False,False,False,False,0,True,False,,,,HEAD_404
+2024-01-01,404,0,False,False,False,False,0,True,False,,,,HEAD_404
+2025-01-01,404,0,False,False,False,False,0,True,False,,,,HEAD_404
+2026-01-01,404,0,False,False,False,False,0,True,False,,,,HEAD_404
+2026-09-01,404,0,False,False,False,False,0,True,False,,,,HEAD_404
