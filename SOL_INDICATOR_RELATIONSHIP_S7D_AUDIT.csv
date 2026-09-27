@@ -1,0 +1,12 @@
+audit,pass,value
+parent_stage7c_target_not_met,True,SOL_INDICATOR_RELATIONSHIP_S7C_TARGET_NOT_MET
+model_set_exact,True,"['M1_LOGIT', 'M2_RF']"
+retention_grid_exact,True,"[1.0, 0.8, 0.6, 0.5, 0.4, 0.3]"
+feature_count_exact,True,21
+selected_from_2024_only,True,"{'model': 'M2_RF', 'retention': 0.3, 'threshold': 0.4436178316491465}"
+selected_retention_in_grid,True,0.3
+selected_threshold_finite_or_all,True,0.4436178316491465
+no_forbidden_new_indicator,True,[]
+one_position_no_overlap,True,0
+train_2023_present,True,1428
+dev_select_rows_present,True,12
