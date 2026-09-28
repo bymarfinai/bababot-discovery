@@ -1,5 +1,0 @@
-WALLET_STAGE1_DATA_FOUNDATION_PASS
-tests=4/4
-chain=solana
-universe=dynamic_all_wallet_touched_mints
-next=WALLET_STAGE2_TRANSACTION_NORMALIZATION
